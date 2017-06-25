@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% load staticfiles %}
+
+{% block title %}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{% endblock %}
+
+{% block menu %}
+{% if profile.role == 'A' %}
+<li><a href="{% url 'part-edit' part_id=part.id %}">Edit Part</a></li>
+<li><a href="{% url 'part-manage-bom' part_id=part.id %}">Manage BOM</a></li>
+{% endif %}
+<li><a href="{% url 'part-export-bom' part_id=part.id %}">Export</a></li>
+{% endblock%}
+
+{% block content %}
+<div class="part-info">
+    <p>Item #{{ part.full_part_number}}</p>
+    <h5>{{ part.description }}</h5>
+
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
+            {{ message.message }}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="row">
+        <div class="col s12">
+            <ul class="tabs">
+                <li class="tab col s3"><a class="active" href="#specs">Specifications</a></li>
+                <li class="tab col s3"><a href="#bom">Bill of Materials</a></li>
+                <li class="tab col s3"><a href="#used">Where Used</a></li>
+                <li class="tab col s3"><a href="#sourcing">Sourcing</a></li>
+            </ul>
+        </div>
+
+        <div id="specs" class="col s12">
+            <br>
+            <div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        Description:
+                    </div>
+                    <div class="col s8">
+                        {{ part.description }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        Revision:
+                    </div>
+                    <div class="col s8">
+                        {{ part.revision }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        Manufacturer:
+                    </div>
+                    <div class="col s8">
+                        {{ part.manufacturer.name }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        Manufacturer Part Number:
+                    </div>
+                    <div class="col s8">
+                        {{ part.manufacturer_part_number }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        <br> <!-- Hacked for now... -->
+                        Est. Cost:
+                    </div>
+                    <div class="col s8">
+                        <form action="{% url 'part-info' part_id=part.id %}" method="post">
+                        {% csrf_token %}
+                            ${{ unit_cost }} at
+                            <div class="input-field inline">
+                                {{ part_info_form }}
+                            </div>
+                             units. {% if not extended_cost_complete %}(!){% endif %}
+                        </form>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        Est. Total NRE:
+                    </div>
+                    <div class="col s8">
+                        ${{ unit_nre }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        Est. Unit Out Of Pocket:
+                    </div>
+                    <div class="col s8">
+                        ${{ unit_out_of_pocket_cost }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        <b>Est. Total Out Of Pocket:</b>
+                    </div>
+                    <div class="col s8">
+                        <b>${{ total_out_of_pocket_cost }}</b>
+                    </div>
+                </div>
+
+                <!-- File upload to come ! Need to pull in remote storage first... -->
+                <!-- <div class="row">
+                    <div class="col s4 text-right">
+                        Files:
+                    </div>
+                    <div class="col s8">
+                        {% if not files %}
+                            <i>None Found</i>
+                        {% else %}
+                        <ul>
+                        {% for partfile in files %}
+                            <li><a href="{{ partfile.file.url }}">{{ partfile.file.name }}</a>&nbsp;[<a href="{% url 'part-delete-partfile' part_id=part.id partfile_id=partfile.id %}">delete</a>]</li>
+                        {% endfor %}
+                        </ul>
+                        {% endif %}
+                        {% if profile.role == 'A' and organization.subscription == 'P' %}
+                        <form action="{% url 'part-upload-partfile' part_id=part.id %}" method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="row">
+                                <div class="col s8 file-field input-field">
+                                    <div class="green lighten-1 btn">
+                                        <span>File</span>
+                                        {{ upload_file_to_part_form.file }}
+                                    </div>
+                                    <div class="file-path-wrapper">
+                                        <input class="file-path validate" type="text" placeholder="Upload a file.">
+                                        {{ upload_file_to_part_form.file.errors }}
+                                    </div>
+                                </div>
+                                <div class="col s1 input-field">
+                                    <input class="green lighten-1 btn" type="submit" value="Upload"/>
+                                </div>
+                            </div>
+                        </form>
+                        {% elif organization.subscription == 'F' %}
+                        <i>Upgrade to pro to upload files.</i>
+                        {% endif %}
+                    </div>
+                </div> -->
+            </div>
+        </div>
+
+        <div id="bom" class="col s12">
+            <ul>
+                <table class="highlight">
+                    <thead>
+                        <tr>
+                            <th class="tight text-small">Level</th>
+                            <th class="tight text-small">Part No.</th>
+                            <th class="tight text-small">Qty</th>
+                            <th class="tight text-small">Description</th>
+                            <th class="tight text-small">Rev</th>
+                            <th class="tight text-small">Manufacturer</th>
+                            <th class="tight text-small">MPN</th>
+                            <th class="tight text-small"><i>Ext. Qty</i></th>
+                            <th class="tight text-small"><i>Order Qty</i></th>
+                            <th class="tight text-small"><i>Seller</i></th>
+                            <th class="tight text-small"><i>Price</i></th>
+                            <th class="tight text-small"><i>Ext Cost</i></th>
+                            <th class="tight text-small"><i>NRE</i></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subpart in parts %}
+                        <tr>
+                            <td class="tight text-small">
+                            {% with ''|center:subpart.indent_level as range %}
+                            {% for _ in range %}
+                                &nbsp;
+                            {% endfor %}
+                            {% endwith %}
+                            {{ subpart.indent_level }}
+                            </td>
+                            <td class="tight text-small"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
+                            <td class="tight text-small">{{ subpart.quantity }}</td>
+                            <td class="tight text-small">{{ subpart.part.description }}</td>
+                            <td class="tight text-small">{{ subpart.part.revision }}</td>
+                            <td class="tight text-small">{{ subpart.part.manufacturer.name }}</td>
+                            <td class="tight text-small">{{ subpart.part.manufacturer_part_number }}</td>
+                            <td class="tight text-small">{{ subpart.extended_quantity }}</td>
+                            <td class="tight text-small">{{ subpart.order_quantity }}</td>
+                            <td class="tight text-small">{{ subpart.seller_part.seller.name | default:"-" }}</td>
+                            <td class="tight text-small">{{ subpart.seller_price | default:"-"}}</td>
+                            <td class="tight text-small">{{ subpart.extended_cost | default:"-" }}</td>
+                            <td class="tight text-small">{{ subpart.seller_nre | default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </ul>
+            <br>
+        </div>
+
+        <div id="used" class="col s12">
+            {% if where_used|length > 0 %}
+            <table class="highlight">
+                <thead>
+                    <tr>
+                        <th>Part Number</th>
+                        <th>Description</th>
+                        <th>Rev</th>
+                        <th>Manufacturer</th>
+                        <th>MPN</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for part in where_used %}
+                    <tr>
+                        <td><a href="{% url 'part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
+                        <td>{{ part.description }}</td>
+                        <td>{{ part.revision }}</td>
+                        <td>{{ part.manufacturer.name }}</td>
+                        <td>{{ part.manufacturer_part_number }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-center"><i>This part is not currently used in any of your other parts.</i></p>
+            {% endif %}
+        </div>
+
+        <div id="sourcing" class="col s12">
+            <p class="text-center"><i>Coming soon...</i></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% load staticfiles %}
+
+{% block title %}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+
+<div class="text-center">Error</div>
+
+{% endblock %}
+
+{% block menu %}
+{% endblock%}
+
+{% block content %}
+
+<ul class="messages text-center">
+    {% if messages %}
+    {% for message in messages %}
+    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
+        {{ message.message }}
+    </li>
+    {% endfor %}
+    {% else %}
+    <li class="ERROR">
+        An unknown error has occured.
+    </li>
+    {% endif %}
+</ul>
+
+
+{% endblock %}

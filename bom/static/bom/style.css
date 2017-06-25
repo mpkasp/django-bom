@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto');
+
+td {
+
+}
+
+.tight {
+    padding: 3px 3px;
+}
+
+.tighter {
+    padding: 1px 1px;
+}
+
+.text-small {
+    font-size: .75em !important;
+}
+
+.text-normal {
+    font-size: 1em !important;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.info {
+    color: red;
+}

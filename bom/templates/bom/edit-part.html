@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% load staticfiles %}
+
+{% block title %}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{% endblock %}
+
+{% block menu %}
+<li><a href="{% url 'part-info' part_id=part.id %}">Cancel</a></li>
+{% endblock%}
+
+{% block content %}
+<h5>Edit Part {{ part.full_part_number }}</h5>
+
+<form action="{% url 'part-edit' part_id=part.id %}" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input class="waves-effect waves-light btn green lighten-1" type="submit" value="Save" />
+    <a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+    <a href="{% url 'part-delete' part_id=part.id %}" onclick="return confirm('Are you sure? This part will be deleted forever!')" class="waves-effect waves-light btn red lighten-1">Delete Part</a>
+</form>
+{% endblock %}

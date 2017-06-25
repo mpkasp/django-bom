@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% load staticfiles %}
+
+{% block title %}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{% endblock %}
+
+{% block menu %}
+<li><a href="{% url 'home' %}">Cancel</a></li>
+{% endblock%}
+
+{% block content %}
+<h5>Create New Part</h5>
+
+<form action="{% url 'create-part' %}" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input class="waves-effect waves-light btn green lighten-1" type="submit" value="Create" />
+    <a href="{% url 'home' %}" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+</form>
+{% endblock %}

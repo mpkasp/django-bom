@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% load staticfiles %}
+
+{% block title %}
+Manage BOM
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{% endblock %}
+
+{% block menu %}
+<li><a href="{% url 'part-octopart-match-bom' part_id=part.id %}">Octopart Match All Subparts</a></li>
+<li><a href="{% url 'part-info' part_id=part.id %}">Cancel</a></li>
+{% endblock%}
+
+{% block content %}
+<div class="part-info">
+    <p>Item #{{ part.full_part_number}}</p>
+    <!-- <h5>{{ part.description }}</h5> -->
+    <div id="bom" class="col s12">
+        <br><h5>Add Subpart</h5>
+        <form action="{% url 'part-add-subpart' part_id=part.id %}" method="post">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col s7 input-field">
+                    <!-- {{ add_subpart_form.assembly_subpart.errors }} -->
+                    <!-- {{ add_subpart_form.assembly_subpart.label_tag }} -->
+                    {{ add_subpart_form.assembly_subpart }}
+                </div>
+                <div class="col s2 input-field">
+                    {{ add_subpart_form.count.errors }}
+                    {{ add_subpart_form.count.label_tag }}
+                    {{ add_subpart_form.count }}
+                </div>
+                <div class="col s1 input-field">
+                    <input class="waves-effect waves-light btn green lighten-1" type="submit" value="Add Subpart"/>
+                </div>
+            </div>
+        </form>
+        <br><h5>Batch Add Subparts</h5>
+        <p>To add batch subparts, upload a csv that contains at least two columns with the headers: <b>part_number</b> and <b>quantity</b>; the 'part_number' column must contain part numbers that have already been created in this system.</p>
+        <form action="{% url 'part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col s9 file-field input-field">
+                    <div class="green lighten-1 btn">
+                        <span>File</span>
+                        {{ upload_subparts_csv_form.file }}
+                    </div>
+                    <div class="file-path-wrapper">
+                        <input class="file-path validate" type="text" placeholder="Upload a file.">
+                        {{ upload_subparts_csv_form.file.errors }}
+                    </div>
+                </div>
+                <div class="col s1 input-field">
+                    <input class="green lighten-1 btn" type="submit" value="Upload"/>
+                </div>
+            </div>
+        </form>
+        <br><h5>Modify Subparts</h5>
+        <table class="highlight">
+            <thead>
+                <tr>
+                    <th>Level</th>
+                    <th>Part No.</th>
+                    <th>Qty</th>
+                    <th>Description</th> 
+                    <th>Rev</th>
+                    <th>Manufacturer</th>
+                    <th>MPN</th>
+                    <th>Seller</th>
+                    <th>Price</th>
+                    {% if profile.role == 'A' %}
+                    <th>Octopart Match</th>
+                    <th>Remove</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for subpart in parts %}
+                <tr>
+                    <td>
+                    {% with ''|center:subpart.indent_level as range %}
+                    {% for _ in range %}
+                        &nbsp;
+                    {% endfor %}
+                    {% endwith %}
+                    {{ subpart.indent_level }}
+                    </td> 
+                    <td>{{ subpart.part.full_part_number }}</td>
+                    <td>{{ subpart.quantity }}</td> 
+                    <td>{{ subpart.part.description }}</td> 
+                    <td>{{ subpart.part.revision }}</td>
+                    <td>{{ subpart.part.manufacturer.name }}</td>
+                    <td>{{ subpart.part.manufacturer_part_number }}</td>
+                    <td>{{ subpart.seller_part.seller.name | default:"-" }}</td>
+                    <td>{{ subpart.seller_price | default:"-"}}</td>
+                    <td><a href="{% url 'part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td>
+                    {% if subpart.indent_level == 1 and subpart.subpart is not None %}
+                    <td><a href="{% url 'part-remove-subpart' part_id=part.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
+                    {% else %}
+                    <td></td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <br><br>
+        <div class="center">
+            <a class="waves-effect waves-light red lighten-2 btn" href="{% url 'part-remove-all-subparts' part_id=part.id %}" onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts</a>
+        </div>
+        <br>
+    </div>
+</div>
+{% endblock %}

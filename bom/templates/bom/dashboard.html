@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% load staticfiles %}
+
+{% block title %}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{{ organization }}'s Parts List
+{% endblock %}
+
+{% block menu %}
+<li><a href="{% url 'create-part' %}">New Part</a></li>
+<li><a href="{% url 'upload-parts' %}">Upload Parts</a></li>
+<li><a href="{% url 'export-part-list' %}">Export</a></li>
+{% endblock%}
+
+{% block content %}
+<ul>
+<table class="highlight">
+    <thead>
+        <tr>
+            <th class="tight text-small">Part Number</th>
+            <th class="tight text-small">Description</th> 
+            <th class="tight text-small">Revision</th>
+            <th class="tight text-small">Manufacturer</th>
+            <th class="tight text-small">MPN</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for part in parts %}
+        <tr>
+            <td class="tight text-small"><a href="{% url 'part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
+            <td class="tight text-small">{{ part.description }}</td>
+            <td class="tight text-small">{{ part.revision }}</td>
+            <td class="tight text-small">{{ part.manufacturer.name }}</td>
+            <td class="tight text-small">{{ part.manufacturer_part_number }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</ul>
+{% endblock %}

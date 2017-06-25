@@ -1,0 +1,6 @@
+include LICENSE
+include README.md
+include bom/test_new_parts.csv
+include bom/test_parts.csv
+recursive-include bom/static *
+recursive-include bom/templates *
