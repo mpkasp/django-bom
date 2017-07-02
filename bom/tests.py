@@ -63,12 +63,6 @@ class TestBOM(TransactionTestCase):
                 {'file': test_csv})
         self.assertEqual(response.status_code, 302)
 
-    def test_bom_signup(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
-        response = self.client.post(reverse('signup'))
-        self.assertEqual(response.status_code, 200)
-
     def test_export_part_list(self):
         self.client.login(username='kasper', password='ghostpassword')
 

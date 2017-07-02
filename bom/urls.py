@@ -1,8 +1,15 @@
 from django.conf.urls import url
+from django.contrib.auth import views as auth_views
+from django.contrib import admin
 
 from . import views
 
 urlpatterns = [
+    # these will likely be overridden by your app
+    url(r'^admin/', admin.site.urls),
+    url(r'^login/$', auth_views.login, {'redirect_authenticated_user': True}, name='login'),
+    url(r'^logout/$', auth_views.logout, {'next_page': '/'}, name='logout'),
+
     url(r'^$', views.home, name='home'),
     url(r'^error/$', views.error, name='error'),
     url(r'^signup/$', views.bom_signup, name='bom-signup'),

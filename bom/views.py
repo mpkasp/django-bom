@@ -3,7 +3,7 @@ import codecs
 import logging
 import uuid
 
-from indabom.settings import MEDIA_URL
+from .settings import MEDIA_URL
 
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
