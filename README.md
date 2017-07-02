@@ -5,6 +5,8 @@ BOM is a simple Django app to manage a bill of materials. It is
 a level up from an excel spreadsheet including an indented
 bill of materials, octopart price match, and more.
 
+An example of the app in use can be seen [here](https://www.indabom.com).
+
 Quick start
 -----------
 
