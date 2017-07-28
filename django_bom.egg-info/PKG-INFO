@@ -1,18 +1,19 @@
 Metadata-Version: 1.1
 Name: django-bom
-Version: 0.11
+Version: 0.13
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian
 Author-email: mpkasp@gmail.com
 License: MIT License
-Description: =====
-        BOM
+Description: BOM
         =====
         
         BOM is a simple Django app to manage a bill of materials. It is
-        a simple level up from an excel spreadsheet including an indented
+        a level up from an excel spreadsheet including an indented
         bill of materials, octopart price match, and more.
+        
+        An example of the app in use can be seen [here](https://www.indabom.com).
         
         Quick start
         -----------
@@ -34,6 +35,7 @@ Description: =====
            to manage the bom (you'll need the Admin app enabled).
         
         5. Visit http://127.0.0.1:8000/bom/ to begin.
+        
 Platform: UNKNOWN
 Classifier: Environment :: Web Environment
 Classifier: Framework :: Django

@@ -164,7 +164,7 @@ class Part(models.Model):
         if self.manufacturer_part_number == '' and self.manufacturer is None and self.organization is not None:
             self.manufacturer_part_number = self.full_part_number()
             self.manufacturer = Manufacturer.objects.get(
-                name=self.organization.name)
+                name__iexact=self.organization.name)
         super(Part, self).save()
 
     def __unicode__(self):
