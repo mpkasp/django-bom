@@ -161,10 +161,10 @@ class Part(models.Model):
             else:
                 self.number_variation = "{0:0=2d}".format(
                     int(last_number_variation.number_variation) + 1)
-        if self.manufacturer_part_number == '' and self.manufacturer is None:
+        if self.manufacturer_part_number == '' and self.manufacturer is None and self.organization is not None:
             self.manufacturer_part_number = self.full_part_number()
             self.manufacturer = Manufacturer.objects.get(
-                name=organization.name)
+                name=self.organization.name)
         super(Part, self).save()
 
     def __unicode__(self):
