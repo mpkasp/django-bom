@@ -159,7 +159,7 @@
 
         <div id="bom" class="col s12">
             <ul>
-                <table class="highlight responsive-table part-list">
+                <table class="highlight part-list">
                     <thead>
                         <tr>
                             <th class="tight text-normal">Level</th>
@@ -177,9 +177,9 @@
                             <th class="tight text-normal"><i>NRE</i></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody>11
                         {% for subpart in parts %}
-                        <tr>
+                        <tr class="clickable">
                             <td class="tight text-normal">
                             {% with ''|center:subpart.indent_level as range %}
                             {% for _ in range %}
@@ -243,4 +243,9 @@
         </div>
     </div>
 </div>
+<scrpt>
+    $(".clickable").click(function() {
+        $(this).next().toggle();
+    });
+</scrpt>
 {% endblock %}
