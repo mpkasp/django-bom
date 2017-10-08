@@ -7,8 +7,14 @@ bill of materials, octopart price match, and more.
 
 An example of the app in use can be seen [here](https://www.indabom.com).
 
+
+
 Quick start
 -----------
+
+```
+pip install django-bom
+```
 
 1. Add "bom" to your INSTALLED_APPS setting like this::
 

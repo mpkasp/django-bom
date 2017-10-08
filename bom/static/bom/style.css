@@ -1,7 +1,8 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto');
 
-td {
-
+td, tr {
+    padding-right: 1px;
+    padding-left: 1px;
 }
 
 .tight {
@@ -13,11 +14,11 @@ td {
 }
 
 .text-small {
-    font-size: .75em !important;
+    font-size: .75em;
 }
 
 .text-normal {
-    font-size: 1em !important;
+    font-size: 1em;
 }
 
 .text-right {
@@ -30,4 +31,8 @@ td {
 
 .info {
     color: red;
+}
+
+.part-list {
+    white-space: nowrap;
 }

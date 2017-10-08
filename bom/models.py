@@ -59,10 +59,12 @@ class Manufacturer(models.Model):
 # setting depending on a part numbering scheme
 class Part(models.Model):
     organization = models.ForeignKey(Organization)
+    
     number_class = models.ForeignKey(
         PartClass, default=None, related_name='number_class')
     number_item = models.CharField(max_length=4, default=None, blank=True)
     number_variation = models.CharField(max_length=2, default=None, blank=True)
+    
     description = models.CharField(max_length=255, default=None)
     revision = models.CharField(max_length=2)
     manufacturer_part_number = models.CharField(
@@ -163,7 +165,7 @@ class Part(models.Model):
                     int(last_number_variation.number_variation) + 1)
         if self.manufacturer_part_number == '' and self.manufacturer is None and self.organization is not None:
             self.manufacturer_part_number = self.full_part_number()
-            self.manufacturer = Manufacturer.objects.get(
+            self.manufacturer, c = Manufacturer.objects.get_or_create(
                 name__iexact=self.organization.name)
         super(Part, self).save()
 
