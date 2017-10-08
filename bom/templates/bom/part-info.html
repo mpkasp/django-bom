@@ -177,9 +177,9 @@
                             <th class="tight text-normal"><i>NRE</i></th>
                         </tr>
                     </thead>
-                    <tbody>11
-                        {% for subpart in parts %}
-                        <tr class="clickable">
+                    {% for subpart in parts %}
+                        {% ifchanged subpart.indent_level %}<tbody class="clickable">{% endifchanged %}
+                        <tr>
                             <td class="tight text-normal">
                             {% with ''|center:subpart.indent_level as range %}
                             {% for _ in range %}
@@ -201,8 +201,7 @@
                             <td class="tight text-normal">{{ subpart.extended_cost | default:"-" }}</td>
                             <td class="tight text-normal">{{ subpart.seller_nre | default:"-" }}</td>
                         </tr>
-                        {% endfor %}
-                    </tbody>
+                    {% endfor %}
                 </table>
             </ul>
             <br>
@@ -243,9 +242,9 @@
         </div>
     </div>
 </div>
-<scrpt>
+<script>
     $(".clickable").click(function() {
         $(this).next().toggle();
     });
-</scrpt>
+</script>
 {% endblock %}
