@@ -178,7 +178,7 @@
                         </tr>
                     </thead>
                     {% for subpart in parts %}
-                        {% ifchanged subpart.indent_level %}<tbody class="clickable">{% endifchanged %}
+                        {% ifchanged subpart.indent_level %}<tbody class="clickable part-group subpart-level-{{ subpart.indent_level }}">{% endifchanged %}
                         <tr>
                             <td class="tight text-normal">
                             {% with ''|center:subpart.indent_level as range %}
@@ -243,8 +243,41 @@
     </div>
 </div>
 <script>
+    function getLevelFromClass(className) {
+        // todo: handle > 9 levels
+        var idx = className.indexOf("subpart-level-");
+        if(idx < 0) {
+            return idx;
+        }
+        else {
+            return parseInt(className[idx + 14]);
+        }
+    }
+
     $(".clickable").click(function() {
-        $(this).next().toggle();
+        var currentLevel = getLevelFromClass($(this).context.className);
+        var visible = $(this).next().is(":visible");
+        $(this).nextUntil(".subpart-level-" + currentLevel).each(function() {
+            if(currentLevel >= getLevelFromClass($(this).context.className)) {
+                return false;
+            }
+
+            if($(this).data().clicksToUnhide == null) {
+                $(this).data().clicksToUnhide = 0;
+            }
+
+            if(visible) {
+                $(this).hide();
+                $(this).data().clicksToUnhide += 1;
+            }
+            else if($(this).data().clicksToUnhide == 1) {
+                $(this).show();
+                $(this).data().clicksToUnhide = 0;
+            }
+            else {
+                $(this).data().clicksToUnhide -= 1;
+            }
+        });
     });
 </script>
 {% endblock %}
