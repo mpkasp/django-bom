@@ -18,21 +18,21 @@
 <table class="highlight part-list">
     <thead>
         <tr>
-            <th class="tight text-normal">Part Number</th>
-            <th class="tight text-normal">Description</th> 
-            <th class="tight text-normal">Revision</th>
-            <th class="tight text-normal">Manufacturer</th>
-            <th class="tight text-normal">MPN</th>
+            <th class="tight text-normal td-med">Part Number</th>
+            <th class="tight text-normal td-large">Description</th> 
+            <th class="tight text-normal td-small">Revision</th>
+            <th class="tight text-normal td-med">Manufacturer</th>
+            <th class="tight text-normal td-med">MPN</th>
         </tr>
     </thead>
     <tbody>
         {% for part in parts %}
         <tr>
-            <td class="tight text-normal"><a href="{% url 'part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
-            <td class="tight text-normal">{{ part.description }}</td>
-            <td class="tight text-normal">{{ part.revision }}</td>
-            <td class="tight text-normal">{{ part.manufacturer.name }}</td>
-            <td class="tight text-normal">{{ part.manufacturer_part_number }}</td>
+            <td class="tight text-normal td-med"><a href="{% url 'part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
+            <td class="tight text-normal td-large">{{ part.description }}</td>
+            <td class="tight text-normal td-small">{{ part.revision }}</td>
+            <td class="tight text-normal td-med">{{ part.manufacturer.name }}</td>
+            <td class="tight text-normal td-med">{{ part.manufacturer_part_number }}</td>
         </tr>
         {% endfor %}
     </tbody>
