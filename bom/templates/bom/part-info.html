@@ -162,19 +162,19 @@
                 <table class="highlight part-list">
                     <thead>
                         <tr>
-                            <th class="tight text-normal">Level</th>
-                            <th class="tight text-normal">Part No.</th>
-                            <th class="tight text-normal">Qty</th>
-                            <th class="tight text-normal">Description</th>
-                            <th class="tight text-normal">Rev</th>
-                            <th class="tight text-normal">Manufacturer</th>
-                            <th class="tight text-normal">MPN</th>
-                            <th class="tight text-normal"><i>Ext. Qty</i></th>
-                            <th class="tight text-normal"><i>Order Qty</i></th>
-                            <th class="tight text-normal"><i>Seller</i></th>
-                            <th class="tight text-normal"><i>Price</i></th>
-                            <th class="tight text-normal"><i>Ext Cost</i></th>
-                            <th class="tight text-normal"><i>NRE</i></th>
+                            <th class="tight text-normal td-small">Level</th>
+                            <th class="tight text-normal td-med">Part No.</th>
+                            <th class="tight text-normal td-small">Qty</th>
+                            <th class="tight text-normal td-large">Description</th>
+                            <th class="tight text-normal td-small">Rev</th>
+                            <th class="tight text-normal td-med">Manufacturer</th>
+                            <th class="tight text-normal td-med">MPN</th>
+                            <th class="tight text-normal td-small"><i>Ext. Qty</i></th>
+                            <th class="tight text-normal td-small"><i>Order Qty</i></th>
+                            <th class="tight text-normal td-med"><i>Seller</i></th>
+                            <th class="tight text-normal td-small"><i>Price</i></th>
+                            <th class="tight text-normal td-small"><i>Ext Cost</i></th>
+                            <th class="tight text-normal td-small"><i>NRE</i></th>
                         </tr>
                     </thead>
                     {% for subpart in parts %}
@@ -189,17 +189,17 @@
                             {{ subpart.indent_level }}
                             </td>
                             <td class="tight text-normal"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
-                            <td class="tight text-normal">{{ subpart.quantity }}</td>
-                            <td class="tight text-normal">{{ subpart.part.description }}</td>
-                            <td class="tight text-normal">{{ subpart.part.revision }}</td>
-                            <td class="tight text-normal">{{ subpart.part.manufacturer.name }}</td>
-                            <td class="tight text-normal">{{ subpart.part.manufacturer_part_number }}</td>
-                            <td class="tight text-normal">{{ subpart.extended_quantity }}</td>
-                            <td class="tight text-normal">{{ subpart.order_quantity }}</td>
-                            <td class="tight text-normal">{{ subpart.seller_part.seller.name | default:"-" }}</td>
-                            <td class="tight text-normal">{{ subpart.seller_price | default:"-"}}</td>
-                            <td class="tight text-normal">{{ subpart.extended_cost | default:"-" }}</td>
-                            <td class="tight text-normal">{{ subpart.seller_nre | default:"-" }}</td>
+                            <td class="tight text-normal td-small">{{ subpart.quantity }}</td>
+                            <td class="tight text-normal td-large">{{ subpart.part.description }}</td>
+                            <td class="tight text-normal td-small">{{ subpart.part.revision }}</td>
+                            <td class="tight text-normal td-med">{{ subpart.part.manufacturer.name }}</td>
+                            <td class="tight text-normal td-med">{{ subpart.part.manufacturer_part_number }}</td>
+                            <td class="tight text-normal td-small">{{ subpart.extended_quantity }}</td>
+                            <td class="tight text-normal td-small">{{ subpart.order_quantity }}</td>
+                            <td class="tight text-normal td-med">{{ subpart.seller_part.seller.name | default:"-" }}</td>
+                            <td class="tight text-normal td-small">{{ subpart.seller_price | default:"-"}}</td>
+                            <td class="tight text-normal td-small">{{ subpart.extended_cost | default:"-" }}</td>
+                            <td class="tight text-normal td-small">{{ subpart.seller_nre | default:"-" }}</td>
                         </tr>
                     {% endfor %}
                 </table>
@@ -257,6 +257,8 @@
     $(".clickable").click(function() {
         var currentLevel = getLevelFromClass($(this).context.className);
         var visible = $(this).next().is(":visible");
+        // var visible = $(this).next().css("visibility") != "collapse";
+
         $(this).nextUntil(".subpart-level-" + currentLevel).each(function() {
             if(currentLevel >= getLevelFromClass($(this).context.className)) {
                 return false;

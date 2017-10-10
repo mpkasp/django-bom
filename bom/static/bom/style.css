@@ -34,9 +34,29 @@ td, tr {
 }
 
 .part-list {
+    
+}
+
+.td-small {
+    max-width: 80px;
+    min-width: 80px;
     white-space: nowrap;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.td-med {
+    max-width: 150px;
+    min-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.td-large {
+    max-width: 450px;
+    min-width: 450px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
