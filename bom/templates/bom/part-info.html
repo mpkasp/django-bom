@@ -190,7 +190,7 @@
                             </td>
                             <td class="tight text-normal"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
                             <td class="tight text-normal td-small">{{ subpart.quantity }}</td>
-                            <td class="tight text-normal td-large" style="position: relative;"><div style="display: inline-block; white-space: nowrap; top: 0; position: absolute; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 3px;">{{ subpart.part.description }}<div></td>
+                            <td class="tight text-normal td-large" style="position: relative;"><div style="display: inline-block; white-space: nowrap; position: absolute; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 3px; position: relative; top: 50%; transform: translateY(-50%);">{{ subpart.part.description }}<div></td>
                             <td class="tight text-normal td-small">{{ subpart.part.revision }}</td>
                             <td class="tight text-normal td-med">{{ subpart.part.manufacturer.name }}</td>
                             <td class="tight text-normal td-med">{{ subpart.part.manufacturer_part_number }}</td>
