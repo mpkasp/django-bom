@@ -87,11 +87,11 @@ class Part(models.Model):
         return "{0}-{1}-{2}".format(self.number_class.code,
                                     self.number_item, self.number_variation)
 
-    def distributor_parts(self):
-        return DistributorPart.objects.filter(
-            part=self).order_by(
-            'distributor',
-            'minimum_order_quantity')
+    # def distributor_parts(self):
+    #     return SellerPart.objects.filter(
+    #         part=self).order_by(
+    #         'seller',
+    #         'minimum_order_quantity')
 
     def seller_parts(self):
         return SellerPart.objects.filter(

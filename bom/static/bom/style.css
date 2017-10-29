@@ -1,8 +1,14 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto');
 
+.tabs { 
+    /* Materialize has a bug that shows the scrollbar sometimes, this prevents it */
+    overflow-x: hidden;
+}
+
 td, tr {
     padding-right: 1px;
     padding-left: 1px;
+    min-width: 60px;
 }
 
 .tight {
@@ -38,25 +44,16 @@ td, tr {
 }
 
 .td-small {
-    max-width: 80px;
-    min-width: 80px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: 60px;
 }
 
 .td-med {
-    max-width: 140px;
-    min-width: 140px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: 120px;
+    min-width: 100px;
 }
 
 .td-large {
-    max-width: 450px;
-    min-width: 450px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: 450px;
+    /*max-width: 450px;*/
+    min-width: 150px;
 }

@@ -16,8 +16,8 @@
 
 {% block content %}
 <div class="part-info">
-    <p>Item #{{ part.full_part_number}}</p>
-    <h5>{{ part.description }}</h5>
+    <p class="light">Item #{{ part.full_part_number}}</p>
+    <h4 class="light header">{{ part.description }}</h5>
 
     {% if messages %}
     <ul class="messages">
@@ -31,7 +31,7 @@
 
     <div class="row">
         <div class="col s12">
-            <ul class="tabs">
+            <ul class="tabs tabs-fixed-width">
                 <li class="tab col s3"><a class="active" href="#specs">Specifications</a></li>
                 <li class="tab col s3"><a href="#bom">Bill of Materials</a></li>
                 <li class="tab col s3"><a href="#used">Where Used</a></li>
@@ -169,12 +169,12 @@
                             <th class="tight text-normal td-small">Rev</th>
                             <th class="tight text-normal td-med">Manufacturer</th>
                             <th class="tight text-normal td-med">MPN</th>
-                            <th class="tight text-normal td-small"><i>Ext. Qty</i></th>
+<!--                             <th class="tight text-normal td-small"><i>Ext. Qty</i></th>
                             <th class="tight text-normal td-small"><i>Order Qty</i></th>
                             <th class="tight text-normal td-med"><i>Seller</i></th>
                             <th class="tight text-normal td-small"><i>Price</i></th>
                             <th class="tight text-normal td-small"><i>Ext Cost</i></th>
-                            <th class="tight text-normal td-small"><i>NRE</i></th>
+                            <th class="tight text-normal td-small"><i>NRE</i></th> -->
                         </tr>
                     </thead>
                     {% for subpart in parts %}
@@ -190,16 +190,16 @@
                             </td>
                             <td class="tight text-normal"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
                             <td class="tight text-normal td-small">{{ subpart.quantity }}</td>
-                            <td class="tight text-normal td-large">{{ subpart.part.description }}</td>
+                            <td class="tight text-normal td-large" style="position: relative;"><div style="display: inline-block; white-space: nowrap; top: 0; position: absolute; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 3px;">{{ subpart.part.description }}<div></td>
                             <td class="tight text-normal td-small">{{ subpart.part.revision }}</td>
                             <td class="tight text-normal td-med">{{ subpart.part.manufacturer.name }}</td>
                             <td class="tight text-normal td-med">{{ subpart.part.manufacturer_part_number }}</td>
-                            <td class="tight text-normal td-small">{{ subpart.extended_quantity }}</td>
+<!--                             <td class="tight text-normal td-small">{{ subpart.extended_quantity }}</td>
                             <td class="tight text-normal td-small">{{ subpart.order_quantity }}</td>
                             <td class="tight text-normal td-med">{{ subpart.seller_part.seller.name | default:"-" }}</td>
                             <td class="tight text-normal td-small">{{ subpart.seller_price | default:"-"}}</td>
                             <td class="tight text-normal td-small">{{ subpart.extended_cost | default:"-" }}</td>
-                            <td class="tight text-normal td-small">{{ subpart.seller_nre | default:"-" }}</td>
+                            <td class="tight text-normal td-small">{{ subpart.seller_nre | default:"-" }}</td> -->
                         </tr>
                     {% endfor %}
                 </table>
@@ -208,7 +208,6 @@
         </div>
 
         <div id="used" class="col s12">
-            {% if where_used|length > 0 %}
             <table class="highlight">
                 <thead>
                     <tr>
@@ -221,24 +220,56 @@
                 </thead>
 
                 <tbody>
-                    {% for part in where_used %}
+                    {% for used_part in where_used %}
                     <tr>
-                        <td><a href="{% url 'part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
-                        <td>{{ part.description }}</td>
-                        <td>{{ part.revision }}</td>
-                        <td>{{ part.manufacturer.name }}</td>
-                        <td>{{ part.manufacturer_part_number }}</td>
+                        <td><a href="{% url 'part-info' part_id=used_part.id %}">{{ used_part.full_part_number }}</a></td>
+                        <td>{{ used_part.description }}</td>
+                        <td>{{ used_part.revision }}</td>
+                        <td>{{ used_part.manufacturer.name }}</td>
+                        <td>{{ used_part.manufacturer_part_number }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="99" style="text-align: center;"><i>This part is not currently used in any of your other parts.</i></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            {% else %}
-            <p class="text-center"><i>This part is not currently used in any of your other parts.</i></p>
-            {% endif %}
         </div>
 
         <div id="sourcing" class="col s12">
-            <p class="text-center"><i>Coming soon...</i></p>
+            <table class="highlight">
+                <thead>
+                    <tr>
+                        <th>Seller</th>
+                        <th>MOQ</th>
+                        <th>MPQ</th>
+                        <th>Price</th>
+                        <th>Lead Time (days)</th>
+                        <th>NRE</th>
+                        <th>NCNR</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for seller_part in seller_parts %}
+                    <tr>
+                        <td>{{ seller_part.seller.name }}</td>
+                        <td>{{ seller_part.minimum_order_quantity }}</td>
+                        <td>{{ seller_part.minimum_pack_quantity }}</td>
+                        <td>{{ seller_part.unit_cost }}</td>
+                        <td>{{ seller_part.lead_time_days }}</td>
+                        <td>{{ seller_part.nre_cost }}</td>
+                        <td>{{ seller_part.ncnr }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="99" style="text-align: center;"><i>This part has no sellers entered yet.</i></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div style="text-align: center; width: 100%;"><a class="btn green lighten-1 waves-button-input" href="{% url 'part-octopart-match' part_id=part.id %}">Find Sellers From Octopart</a></div>
         </div>
     </div>
 </div>

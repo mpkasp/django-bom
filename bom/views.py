@@ -130,6 +130,7 @@ def part_info(request, part_id):
 
     where_used = part.where_used()
     files = part.files()
+    seller_parts = part.seller_parts()
 
     return TemplateResponse(request, 'bom/part-info.html', locals())
 

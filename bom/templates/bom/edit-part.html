@@ -4,6 +4,7 @@
 
 {% block title %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+Edit Part {{ part.full_part_number }}
 {% endblock %}
 
 {% block menu %}
@@ -11,8 +12,6 @@
 {% endblock%}
 
 {% block content %}
-<h5>Edit Part {{ part.full_part_number }}</h5>
-
 <form action="{% url 'part-edit' part_id=part.id %}" method="post">
     {% csrf_token %}
     {{ form.as_p }}
