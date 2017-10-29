@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'bom/bom-action-btn.html' %}
 
 {% load staticfiles %}
 
@@ -8,34 +8,32 @@
 {% endblock %}
 
 {% block menu %}
-<li><a href="{% url 'create-part' %}">New Part</a></li>
-<li><a href="{% url 'upload-parts' %}">Upload Parts</a></li>
+<!-- <li><a href="{% url 'create-part' %}">New Part</a></li>
+<li><a href="{% url 'upload-parts' %}">Upload Parts</a></li> -->
 <li><a href="{% url 'export-part-list' %}">Export</a></li>
 {% endblock%}
 
 {% block content %}
-<ul>
-    <table class="highlight part-list">
-        <thead>
-            <tr>
-                <th class="tight text-normal td-med">Part Number</th>
-                <th class="tight text-normal td-large">Description</th> 
-                <th class="tight text-normal td-small">Revision</th>
-                <th class="tight text-normal td-med">Manufacturer</th>
-                <th class="tight text-normal td-med">MPN</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for part in parts %}
-            <tr>
-                <td class="tight text-normal td-med"><a href="{% url 'part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
-                <td class="tight text-normal td-large">{{ part.description }}</td>
-                <td class="tight text-normal td-small">{{ part.revision }}</td>
-                <td class="tight text-normal td-small">{{ part.manufacturer.name }}</td>
-                <td class="tight text-normal td-med">{{ part.manufacturer_part_number }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</ul>
+<table class="highlight part-list">
+    <thead>
+        <tr>
+            <th class="tight text-normal td-med">Part Number</th>
+            <th class="tight text-normal td-large">Description</th> 
+            <th class="tight text-normal td-small">Revision</th>
+            <th class="tight text-normal td-med">Manufacturer</th>
+            <th class="tight text-normal td-med">MPN</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for part in parts %}
+        <tr>
+            <td class="tight text-normal td-med"><a href="{% url 'part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
+            <td class="tight text-normal td-large">{{ part.description }}</td>
+            <td class="tight text-normal td-small">{{ part.revision }}</td>
+            <td class="tight text-normal td-small">{{ part.manufacturer.name }}</td>
+            <td class="tight text-normal td-med">{{ part.manufacturer_part_number }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endblock %}

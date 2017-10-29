@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'bom/bom-action-btn.html' %}
 
 {% load staticfiles %}
 
@@ -158,57 +158,59 @@
         </div>
 
         <div id="bom" class="col s12">
-            <ul>
-                <table class="highlight part-list">
-                    <thead>
-                        <tr>
-                            <th class="tight text-normal td-small">Level</th>
-                            <th class="tight text-normal td-med">Part No.</th>
-                            <th class="tight text-normal td-small">Qty</th>
-                            <th class="tight text-normal td-large">Description</th>
-                            <th class="tight text-normal td-small">Rev</th>
-                            <th class="tight text-normal td-med">Manufacturer</th>
-                            <th class="tight text-normal td-med">MPN</th>
-<!--                             <th class="tight text-normal td-small"><i>Ext. Qty</i></th>
-                            <th class="tight text-normal td-small"><i>Order Qty</i></th>
-                            <th class="tight text-normal td-med"><i>Seller</i></th>
-                            <th class="tight text-normal td-small"><i>Price</i></th>
-                            <th class="tight text-normal td-small"><i>Ext Cost</i></th>
-                            <th class="tight text-normal td-small"><i>NRE</i></th> -->
-                        </tr>
-                    </thead>
-                    {% for subpart in parts %}
-                        {% ifchanged subpart.indent_level %}<tbody class="clickable part-group subpart-level-{{ subpart.indent_level }}">{% endifchanged %}
-                        <tr>
-                            <td class="tight text-normal">
-                            {% with ''|center:subpart.indent_level as range %}
-                            {% for _ in range %}
-                                &nbsp;
-                            {% endfor %}
-                            {% endwith %}
-                            {{ subpart.indent_level }}
-                            </td>
-                            <td class="tight text-normal"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
-                            <td class="tight text-normal td-small">{{ subpart.quantity }}</td>
-                            <td class="tight text-normal td-large" style="position: relative;"><div style="display: inline-block; white-space: nowrap; top: 0; position: absolute; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 3px; ">{{ subpart.part.description }}<div></td>
-                            <td class="tight text-normal td-small">{{ subpart.part.revision }}</td>
-                            <td class="tight text-normal td-med">{{ subpart.part.manufacturer.name }}</td>
-                            <td class="tight text-normal td-med">{{ subpart.part.manufacturer_part_number }}</td>
-<!--                             <td class="tight text-normal td-small">{{ subpart.extended_quantity }}</td>
-                            <td class="tight text-normal td-small">{{ subpart.order_quantity }}</td>
-                            <td class="tight text-normal td-med">{{ subpart.seller_part.seller.name | default:"-" }}</td>
-                            <td class="tight text-normal td-small">{{ subpart.seller_price | default:"-"}}</td>
-                            <td class="tight text-normal td-small">{{ subpart.extended_cost | default:"-" }}</td>
-                            <td class="tight text-normal td-small">{{ subpart.seller_nre | default:"-" }}</td> -->
-                        </tr>
-                    {% endfor %}
-                </table>
-            </ul>
+            <table class="highlight part-list tight">
+                <thead>
+                    <tr>
+                        <th class="text-normal td-small">Level</th>
+                        <th class="text-normal td-med">Part No.</th>
+                        <th class="text-normal td-small">Qty</th>
+                        <th class="text-normal td-large">Description</th>
+                        <th class="text-normal td-small">Rev</th>
+                        <th class="text-normal td-med">Manufacturer</th>
+                        <th class="text-normal td-med">MPN</th>
+<!--                             <th class="text-normal td-small"><i>Ext. Qty</i></th>
+                        <th class="text-normal td-small"><i>Order Qty</i></th>
+                        <th class="text-normal td-med"><i>Seller</i></th>
+                        <th class="text-normal td-small"><i>Price</i></th>
+                        <th class="text-normal td-small"><i>Ext Cost</i></th>
+                        <th class="text-normal td-small"><i>NRE</i></th> -->
+                    </tr>
+                </thead>
+                {% for subpart in parts %}
+                    {% ifchanged subpart.indent_level %}<tbody class="clickable part-group subpart-level-{{ subpart.indent_level }}">{% endifchanged %}
+                    <tr>
+                        <td class="text-normal">
+                        {% with ''|center:subpart.indent_level as range %}
+                        {% for _ in range %}
+                            &nbsp;
+                        {% endfor %}
+                        {% endwith %}
+                        {{ subpart.indent_level }}
+                        </td>
+                        <td class="text-normal"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
+                        <td class="text-normal td-small">{{ subpart.quantity }}</td>
+                        <td class="text-normal td-large" style="position: relative;"><div style="display: inline-block; white-space: nowrap; top: 0; position: absolute; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 3px; ">{{ subpart.part.description }}<div></td>
+                        <td class="text-normal td-small">{{ subpart.part.revision }}</td>
+                        <td class="text-normal td-med">{{ subpart.part.manufacturer.name }}</td>
+                        <td class="text-normal td-med">{{ subpart.part.manufacturer_part_number }}</td>
+<!--                             <td class="text-normal td-small">{{ subpart.extended_quantity }}</td>
+                        <td class="text-normal td-small">{{ subpart.order_quantity }}</td>
+                        <td class="text-normal td-med">{{ subpart.seller_part.seller.name | default:"-" }}</td>
+                        <td class="text-normal td-small">{{ subpart.seller_price | default:"-"}}</td>
+                        <td class="text-normal td-small">{{ subpart.extended_cost | default:"-" }}</td>
+                        <td class="text-normal td-small">{{ subpart.seller_nre | default:"-" }}</td> -->
+                    </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="99" style="text-align: center;"><i>This part does not contain any other parts.</i></td>
+                </tr>
+                {% endfor %}
+            </table>
             <br>
         </div>
 
         <div id="used" class="col s12">
-            <table class="highlight">
+            <table class="highlight tight">
                 <thead>
                     <tr>
                         <th>Part Number</th>
@@ -238,7 +240,7 @@
         </div>
 
         <div id="sourcing" class="col s12">
-            <table class="highlight">
+            <table class="highlight tight">
                 <thead>
                     <tr>
                         <th>Seller</th>

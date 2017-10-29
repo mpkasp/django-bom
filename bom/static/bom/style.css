@@ -11,7 +11,7 @@ td, tr {
     min-width: 60px;
 }
 
-.tight {
+.tight td {
     padding: 3px 3px;
 }
 
@@ -37,10 +37,6 @@ td, tr {
 
 .info {
     color: red;
-}
-
-.part-list {
-
 }
 
 .td-small {

@@ -408,12 +408,14 @@ def part_octopart_match(request, part_id):
         messages.error(request, "No part found with given part_id.")
         return HttpResponseRedirect(reverse('error'))
 
+    seller_parts = []
     try:
         seller_parts = match_part(part)
     except IOError as e:
         messages.error(
             request,
             "Error communicating with Octopart. {}".format(e))
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')))
 
     if len(seller_parts) > 0:
         for dp in seller_parts:
@@ -439,6 +441,7 @@ def part_octopart_match_bom(request, part_id):
         return HttpResponseRedirect(reverse('error'))
 
     subparts = part.subparts.all()
+    seller_parts = []
 
     for part in subparts:
         try:
