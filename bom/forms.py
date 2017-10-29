@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Part, PartClass, Manufacturer
+from .models import Part, PartClass, Manufacturer, Subpart, Seller
 
 
 class PartInfoForm(forms.Form):
@@ -55,14 +55,45 @@ class AddSubpartForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        self.part_id = kwargs.pop('part_id', None)
         super(AddSubpartForm, self).__init__(*args, **kwargs)
         self.fields['assembly_subpart'].queryset = Part.objects.filter(
-            organization=self.organization).order_by(
+            organization=self.organization).exclude(id__in=[part_id]).order_by(
             'number_class__code', 'number_item', 'number_variation')
         self.fields['assembly_subpart'].label_from_instance = \
             lambda obj: "%s" % obj.full_part_number(
         ) + ' ' + obj.description
 
+
+class AddSellerPartForm(forms.Form):
+    seller = forms.ModelChoiceField(queryset=None, required=True, label="Seller")
+    new_seller = forms.CharField(max_length=128, label='Create New Seller', required=False)
+    minimum_order_quantity = forms.IntegerField(required=False, label='MOQ')
+    minimum_pack_quantity = forms.IntegerField(required=False, label='MPQ')
+    unit_cost = forms.DecimalField(required=False, label='Unit Cost')
+    lead_time_days = forms.IntegerField(required=False, label='Lead Time (days)')
+    nre_cost = forms.DecimalField(required=False, label='NRE Cost')
+    ncnr = forms.BooleanField(required=False, label='NCNR')
+
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
+        super(AddSellerPartForm, self).__init__(*args, **kwargs)
+        self.fields['seller'].queryset = Seller.objects.filter(
+            organization=self.organization).order_by('name', )
+    
+    def clean(self):
+        cleaned_data = super(PartForm, self).clean()
+        seller = cleaned_data.get("seller")
+        new_seller = cleaned_data.get("new_seller")
+
+        if seller and new_seller:
+            raise forms.ValidationError(
+                ('Cannot have a seller and a new seller'),
+                code='invalid')
+        elif new_seller:
+            obj = Seller(name=new_seller, organization=self.organization)
+            obj.save()
+            cleaned_data['seller'] = obj
 
 class FileForm(forms.Form):
     file = forms.FileField()

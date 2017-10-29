@@ -21,6 +21,7 @@ bom/migrations/0001_squashed_0018_auto_20170418_0330.py
 bom/migrations/0002_auto_20170616_0420.py
 bom/migrations/__init__.py
 bom/static/bom/style.css
+bom/templates/bom/add-sellerpart.html
 bom/templates/bom/bom-signup.html
 bom/templates/bom/create-part.html
 bom/templates/bom/dashboard.html

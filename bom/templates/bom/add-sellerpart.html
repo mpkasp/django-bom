@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% load staticfiles %}
+
+{% block title %}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+Add Seller Part to Part {{ part.full_part_number }}
+{% endblock %}
+
+{% block menu %}
+<li><a href="{% url 'part-info' part_id=part.id %}">Cancel</a></li>
+{% endblock%}
+
+{% block content %}
+<form action="{% url 'part-add-sellerpart' part_id=part.id %}" method="post">
+    {% csrf_token %}
+    {{ add_sellerpart_form.as_p }}
+    <input class="waves-effect waves-light btn green lighten-1" type="submit" value="Save" />
+    <a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+</form>
+{% endblock %}

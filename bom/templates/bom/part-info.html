@@ -269,7 +269,9 @@
                     {% endfor %}
                 </tbody>
             </table>
-            <div style="text-align: center; width: 100%;"><a class="btn green lighten-1 waves-button-input" href="{% url 'part-octopart-match' part_id=part.id %}">Find Sellers From Octopart</a></div>
+            <div style="text-align: center; width: 100%;">
+                <a class="btn green lighten-1 waves-button-input" href="{% url 'part-add-sellerpart' part_id=part.id %}" style="margin: 10px;">Add Seller Part</a>
+                <a class="btn green lighten-1 waves-button-input" href="{% url 'part-octopart-match' part_id=part.id %}" style="margin: 10px;">Find Sellers From Octopart</a></div>
         </div>
     </div>
 </div>

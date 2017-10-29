@@ -25,6 +25,7 @@ urlpatterns = [
     url(r'^part/(?P<part_id>[0-9]+)/delete/$', views.part_delete, name='part-delete'),
     url(r'^part/(?P<part_id>[0-9]+)/manage-bom/$', views.manage_bom, name='part-manage-bom'),
     url(r'^part/(?P<part_id>[0-9]+)/add-subpart/$', views.add_subpart, name='part-add-subpart'),
+    url(r'^part/(?P<part_id>[0-9]+)/add-sellerpart/$', views.add_sellerpart, name='part-add-sellerpart'),
     url(r'^part/(?P<part_id>[0-9]+)/upload-file/$', views.upload_file_to_part, name='part-upload-partfile'),
     url(r'^part/(?P<part_id>[0-9]+)/delete-file/(?P<partfile_id>[0-9]+)/$', views.delete_file_from_part, name='part-delete-partfile'),
     url(r'^part/(?P<part_id>[0-9]+)/remove-all-subparts/$', views.remove_all_subparts, name='part-remove-all-subparts'),

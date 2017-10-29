@@ -18,7 +18,7 @@ from json import loads, dumps
 
 from .convert import full_part_number_to_broken_part
 from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer
-from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm
+from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm, AddSellerPartForm
 from .octopart_parts_match import match_part
 
 logger = logging.getLogger(__name__)
@@ -549,7 +549,7 @@ def manage_bom(request, part_id):
         return HttpResponseRedirect(reverse('error'))
 
     add_subpart_form = AddSubpartForm(
-        initial={'count': 1, }, organization=organization)
+        initial={'count': 1, }, organization=organization, part_id=part_id)
     upload_subparts_csv_form = FileForm()
 
     parts = part.indented()
@@ -588,7 +588,7 @@ def add_subpart(request, part_id):
         return HttpResponseRedirect(reverse('error'))
 
     if request.method == 'POST':
-        form = AddSubpartForm(request.POST, organization=organization)
+        form = AddSubpartForm(request.POST, organization=organization, part_id=part_id)
         if form.is_valid():
             new_part = Subpart.objects.create(
                 assembly_part=part,
@@ -652,3 +652,41 @@ def delete_file_from_part(request, part_id, partfile_id):
     partfile.delete()
 
     return HttpResponseRedirect(reverse('part-info', kwargs={'part_id': part_id}) + '#specs')
+
+
+@login_required
+def add_sellerpart(request, part_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    try:
+        part = Part.objects.get(id=part_id)
+    except ObjectDoesNotExist:
+        messages.error(request, "No part found with given part_id.")
+        return HttpResponseRedirect(reverse('error'))
+
+    if request.method == 'POST':
+        form = AddSellerPartForm(request.POST, organization=organization, part_id=part_id)
+        if form.is_valid():
+            new_sellerpart = Sellerpart.objects.create(
+                part=part,
+                seller=form.cleaned_data['seller'],
+                minimum_order_quantity=form.cleaned_data['minimum_order_quantity'],
+                minimum_pack_quantity=form.cleaned_data['minimum_pack_quantity'],
+                unit_cost=form.cleaned_data['unit_cost'],
+                lead_time_days=form.cleaned_data['lead_time_days'],
+                nre_cost=form.cleaned_data['nre_cost'],
+                ncnr=form.cleaned_data['ncnr'],
+            )
+    else:
+        if part.organization != organization:
+            messages.error(request, "Cant access a part that is not yours!")
+            return HttpResponseRedirect(reverse('error'))
+
+        add_sellerpart_form = AddSellerPartForm(
+            organization=organization)
+
+        return TemplateResponse(request, 'bom/add-sellerpart.html', locals())
+
+    return HttpResponseRedirect(reverse('part-info', kwargs={'part_id': part_id}) + '#sourcing')
