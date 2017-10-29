@@ -13,7 +13,11 @@ def match_part(part):
         % urllib.quote(json.dumps(query))
     url += '&apikey=' + OCTOPART_API_KEY
 
-    data = urllib.urlopen(url).read()
+    try:
+        data = urllib.urlopen(url).read()
+    except Exception as e:
+        raise
+
     response = json.loads(data)
 
     # need for each part: digi-key, mouser prices, moqs, lead times

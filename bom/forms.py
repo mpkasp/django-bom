@@ -58,7 +58,7 @@ class AddSubpartForm(forms.Form):
         self.part_id = kwargs.pop('part_id', None)
         super(AddSubpartForm, self).__init__(*args, **kwargs)
         self.fields['assembly_subpart'].queryset = Part.objects.filter(
-            organization=self.organization).exclude(id__in=[part_id]).order_by(
+            organization=self.organization).exclude(id__in=[self.part_id]).order_by(
             'number_class__code', 'number_item', 'number_variation')
         self.fields['assembly_subpart'].label_from_instance = \
             lambda obj: "%s" % obj.full_part_number(

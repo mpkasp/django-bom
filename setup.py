@@ -9,7 +9,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-bom',
-    version='0.29',
+    version='0.30',
     packages=find_packages(),
     include_package_data=True,
     license='MIT License',
