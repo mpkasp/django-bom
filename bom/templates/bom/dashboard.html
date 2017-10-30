@@ -14,26 +14,28 @@
 {% endblock%}
 
 {% block content %}
-<table class="highlight part-list tight">
-    <thead>
-        <tr>
-            <th class="text-normal td-med">Part Number</th>
-            <th class="text-normal td-large">Description</th> 
-            <th class="text-normal td-small">Revision</th>
-            <th class="text-normal td-med">Manufacturer</th>
-            <th class="text-normal td-med">MPN</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for part in parts %}
-        <tr>
-            <td class="text-normal td-med"><a href="{% url 'part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
-            <td class="text-normal td-large">{{ part.description }}</td>
-            <td class="text-normal td-small">{{ part.revision }}</td>
-            <td class="text-normal td-small">{{ part.manufacturer.name }}</td>
-            <td class="text-normal td-med">{{ part.manufacturer_part_number }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="part-list push-footer">
+    <table class="highlight part-list tight">
+        <thead>
+            <tr>
+                <th class="text-normal td-med">Part Number</th>
+                <th class="text-normal td-large">Description</th> 
+                <th class="text-normal td-small">Revision</th>
+                <th class="text-normal td-med">Manufacturer</th>
+                <th class="text-normal td-med">MPN</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for part in parts %}
+            <tr>
+                <td class="text-normal td-med"><a href="{% url 'part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
+                <td class="text-normal td-large">{{ part.description }}</td>
+                <td class="text-normal td-small">{{ part.revision }}</td>
+                <td class="text-normal td-small">{{ part.manufacturer.name }}</td>
+                <td class="text-normal td-med">{{ part.manufacturer_part_number }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% endblock %}

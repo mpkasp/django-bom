@@ -53,3 +53,7 @@ td, tr {
     /*max-width: 450px;*/
     min-width: 150px;
 }
+
+.push-footer {
+    min-height: 100vh;
+}
