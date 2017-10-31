@@ -46,6 +46,10 @@
                 <td class="text-normal td-small">{{ part.manufacturer.name }}</td>
                 <td class="text-normal td-med">{{ part.manufacturer_part_number }}</td>
             </tr>
+            {% empty %}
+            <tr>
+                <td colspan="99" style="text-align: center; padding: 5%;"><i>No parts found.</i></td>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
