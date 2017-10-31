@@ -46,12 +46,12 @@ def home(request):
     autocomplete_dict = {}
     for part in parts:
         if part.description:
-            autocomplete_dict.update({ part.description: None })
+            autocomplete_dict.update({ part.description.replace('"', ''): None })
         # autocomplete_dict.update({ part.full_part_number(): None }) # TODO: query full part number
         if part.manufacturer_part_number:
-            autocomplete_dict.update({ part.manufacturer_part_number: None })
-        if part.manufacturer is not None:
-            autocomplete_dict.update({ part.manufacturer.name: None })
+            autocomplete_dict.update({ part.manufacturer_part_number.replace('"', ''): None })
+        if part.manufacturer is not None and part.manufacturer.name:
+            autocomplete_dict.update({ part.manufacturer.name.replace('"', ''): None })
 
     autocomplete = json.dumps(autocomplete_dict)
 
