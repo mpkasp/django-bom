@@ -14,18 +14,16 @@
 {% endblock%}
 
 {% block content %}
-<div class="row">
+<div class="row" style="margin: 10px 0px 0px 0px">
     <div class="col s12">
-        <div class="row">
-            <div class="input-field col s12">
-                <form action="{% url 'home' %}" method="get" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <i class="material-icons prefix">search</i>
-                    <input type="text" id="autocomplete-input" class="autocomplete" name="q">
-                    <label for="autocomplete-input">Find a part</label>
-                    <input type="submit" class="btn hidden" value="Search"/>
-                </form>
-            </div>
+        <div class="input-field col s12">
+            <form action="{% url 'home' %}" method="get" enctype="multipart/form-data">
+                {% csrf_token %}
+                <i class="material-icons prefix">search</i>
+                <input type="text" id="autocomplete-input" class="autocomplete" name="q">
+                <label for="autocomplete-input">Find a part</label>
+                <input type="submit" class="btn hidden" value="Search"/>
+            </form>
         </div>
     </div>
 </div>
@@ -55,7 +53,7 @@
 </div>
 
 <script>
-console.log('{{ autocomplete|safe }}');
+// console.log('{{ autocomplete|safe }}');
 var data = JSON.parse('{{ autocomplete|safe }}');;
 $(document).ready(function(){
     console.log(data);
