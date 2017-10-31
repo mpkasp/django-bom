@@ -2,11 +2,13 @@ import csv
 import codecs
 import logging
 import uuid
+import json
 from .settings import MEDIA_URL
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.template.response import TemplateResponse
 from django.db import IntegrityError
+from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
@@ -40,6 +42,22 @@ def home(request):
         'number_class__code',
         'number_item',
         'number_variation')
+
+    autocomplete_dict = {}
+    for part in parts:
+        autocomplete_dict.update({ part.description: None })
+        # autocomplete_dict.update({ part.full_part_number(): None }) # TODO: query full part number
+        autocomplete_dict.update({ part.manufacturer_part_number: None })
+        if part.manufacturer is not None:
+            autocomplete_dict.update({ part.manufacturer.name: None })
+
+    autocomplete = json.dumps(autocomplete_dict)
+
+    query = request.GET.get('q', '')
+    if query:
+        parts = parts.filter(Q(description=query) | Q(manufacturer_part_number=query) | Q(manufacturer__name=query))
+        # TODO: query full part number
+
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
 

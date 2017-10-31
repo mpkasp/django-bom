@@ -81,3 +81,13 @@ td, tr {
 .push-footer {
     min-height: 100vh;
 }
+
+.autocomplete-content {
+    opacity: .8;
+    position: absolute;
+    width: 100%;
+}
+
+.hidden {
+    display: none;
+}

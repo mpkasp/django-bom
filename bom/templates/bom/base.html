@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load staticfiles %}
+<!-- NEED BASE.HTML FOR TESTS TO PASS -->
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A simple, free, indented bill of materials tool implemented using an open source project.">
+    <meta name="author" content="Mike Kasparian">
+    <meta name="keywords" content="Bill of Materials, BOM, indented bom, plm, PLM, django-bom, django, django bom, django plm, open source bom, open source plm, open source, indented bill of materials, free bom, free plm, indabom, indabom.com, hardware tool, hardware, parts, part management, pdm, product lifetime management">
+
+    <title>Indabom: A simple, open source bill of materials tool</title>
+
+    <!-- Materialize, eventually pull this into the project -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="{% static 'indabom/css/materialize.min.css' %}"  media="screen,projection"/>    
+    
+    <!--Let browser know website is optimized for mobile-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <!-- Github star link -->
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+    <!-- Custom -->
+    <link rel="stylesheet" href="{% static 'indabom/css/indabom.css' %}">
+    <link rel="stylesheet" href="{% static 'bom/style.css' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'indabom/img/favicon.ico' %}"/>
+</head>
+
+<body>
+    <!--Import jQuery before materialize.js-->
+    <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script type="text/javascript" src="{% static 'indabom/js/materialize.min.js' %}"></script>
+    <script>
+        $(document).ready(function() {
+            $('select').material_select();
+            $(".button-collapse").sideNav();
+        });
+    </script>
+
+    <div class="navbar-fixed">
+        <nav class="green lighten-1">
+            <div class="nav-wrapper">
+                <a href="/" class="brand-logo left hide-on-med-and-down"><img style="margin-top: 2px; margin-right: 6px;" width="52" src="{% static 'indabom/img/indabom.png' %}"/><span style="position: absolute;">IndaBOM</span></a>
+                <a href="/" class="brand-logo left hide-on-large-only" style="left: 2.5rem;"><img style="margin-top: 2px; margin-right: 6px;" width="52" src="{% static 'indabom/img/indabom.png' %}"/><span style="position: absolute;">IndaBOM</span></a>
+                <a href="#" data-activates="mobile-menu" class="button-collapse"><i class="material-icons">menu</i></a>
+                <ul id="nav-mobile" class="right hide-on-med-and-down">
+                    {% block menu %}{% endblock %}
+                    {% if user.is_superuser and user.is_authenticated %}<li><a href="/admin/">Admin</a></li>{% endif %}
+                    {% if user.is_authenticated %}<li><a href="{% url 'logout' %}">Logout</a></li>{% endif %}
+                    {% if not user.is_authenticated %}<li><a href="{% url 'login' %}">Login</a></li>{% endif %}
+                </ul>
+            </div>
+        </nav>
+    </div>
+    
+    <!-- Make sure this is not in navbar-fixed or it will be disabled -->
+    <ul class="side-nav" id="mobile-menu">
+        {% block mobilemenu %}{% endblock %}
+        {% if user.is_superuser and user.is_authenticated %}<li><a href="/admin/">Admin</a></li>{% endif %}
+        {% if user.is_authenticated %}<li><a href="{% url 'logout' %}">Logout</a></li>{% endif %}
+        {% if not user.is_authenticated %}<li><a href="{% url 'login' %}">Login</a></li>{% endif %}
+    </ul>
+    
+    <main>
+        <h4 class="col s12 light header container" style="padding-top: 20px;">{% block title %}{% endblock %}</h4>
+        <div id="content" class="container">
+            {% block content %}{% endblock %}
+            {% block action-btn %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="page-footer green lighten-1">
+        <div class="container">
+            <div class="row">
+              <div class="col l6 s12">
+                <h5 class="white-text">Help IndaBOM Grow</h5>
+                <p class="grey-text text-lighten-4">We hope you are as excited about IndaBOM as we are! Please reach out if you'd like to learn more at <a href="mailto:info@indabom.com">info@indabom.com</a></p>
+              </div>
+              <div class="col l4 offset-l2 s12">
+                <h5 class="white-text">Links</h5>
+                <ul>
+                  <!-- <li><a class="grey-text text-lighten-3" href="{% url 'about' %}">About</a></li> -->
+                  <!-- <li><a class="grey-text text-lighten-3" href="#!">Link 2</a></li> -->
+                </ul>
+              </div>
+            </div>
+            <div class="row center">
+                <!-- Place this tag where you want the button to render. -->
+                <a class="github-button" href="https://github.com/mpkasp/django-bom" data-size="large" data-show-count="true" aria-label="Star mpkasp/django-bom on GitHub">Star</a>
+            </div>
+        </div>
+        <div class="footer-copyright">
+            <div class="container">
+            © 2017 Copyright IndaBOM
+            <!-- <a class="grey-text text-lighten-4 right" href="#!">More Links</a> -->
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

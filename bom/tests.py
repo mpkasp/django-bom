@@ -266,7 +266,7 @@ class TestForms(TestCase):
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
         form_data = {'assembly_subpart': p2.id, 'count': 10}
-        form = AddSubpartForm(organization=self.organization, data=form_data)
+        form = AddSubpartForm(organization=self.organization, data=form_data, part_id=p1.id)
         self.assertTrue(form.is_valid())
 
     def test_add_subpart_form_blank(self):
