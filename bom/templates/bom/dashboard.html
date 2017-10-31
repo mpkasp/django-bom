@@ -18,7 +18,6 @@
     <div class="col s12">
         <div class="input-field col s12">
             <form action="{% url 'home' %}" method="get" enctype="multipart/form-data">
-                {% csrf_token %}
                 <i class="material-icons prefix">search</i>
                 <input type="text" id="autocomplete-input" class="autocomplete" name="q">
                 <label for="autocomplete-input">Find a part</label>
