@@ -55,6 +55,7 @@
 </div>
 
 <script>
+console.log('{{ autocomplete|safe }}');
 var data = JSON.parse('{{ autocomplete|safe }}');;
 $(document).ready(function(){
     console.log(data);

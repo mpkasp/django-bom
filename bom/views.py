@@ -45,9 +45,11 @@ def home(request):
 
     autocomplete_dict = {}
     for part in parts:
-        autocomplete_dict.update({ part.description: None })
+        if part.description:
+            autocomplete_dict.update({ part.description: None })
         # autocomplete_dict.update({ part.full_part_number(): None }) # TODO: query full part number
-        autocomplete_dict.update({ part.manufacturer_part_number: None })
+        if part.manufacturer_part_number:
+            autocomplete_dict.update({ part.manufacturer_part_number: None })
         if part.manufacturer is not None:
             autocomplete_dict.update({ part.manufacturer.name: None })
 
