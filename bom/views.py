@@ -57,7 +57,7 @@ def home(request):
 
     query = request.GET.get('q', '')
     if query:
-        parts = parts.filter(Q(description=query) | Q(manufacturer_part_number=query) | Q(manufacturer__name=query))
+        parts = parts.filter(Q(description__icontains=query) | Q(manufacturer_part_number__icontains=query) | Q(manufacturer__name__icontains=query))
         # TODO: query full part number
 
     return TemplateResponse(request, 'bom/dashboard.html', locals())
