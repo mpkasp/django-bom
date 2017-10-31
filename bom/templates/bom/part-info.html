@@ -28,14 +28,15 @@
         {% endfor %}
     </ul>
     {% endif %}
+    
 
     <div class="row">
         <div class="col s12">
             <ul class="tabs tabs-fixed-width">
-                <li class="tab col s3"><a class="active" href="#specs">Specifications</a></li>
-                <li class="tab col s3"><a href="#bom">Bill of Materials</a></li>
-                <li class="tab col s3"><a href="#used">Where Used</a></li>
-                <li class="tab col s3"><a href="#sourcing">Sourcing</a></li>
+                <li class="tab"><a href="#specs">Specifications</a></li>
+                <li class="tab"><a href="#bom">Bill of Materials</a></li>
+                <li class="tab"><a href="#used">Where Used</a></li>
+                <li class="tab"><a href="#sourcing">Sourcing</a></li>
             </ul>
         </div>
 
@@ -161,19 +162,19 @@
             <table class="highlight part-list tight">
                 <thead>
                     <tr>
-                        <th class="text-normal td-small">Level</th>
+                        <th class="text-normal td-small"><a href="?order_by=indented">Level</a></th>
                         <th class="text-normal td-med">Part No.</th>
                         <th class="text-normal td-small">Qty</th>
                         <th class="text-normal td-large">Description</th>
                         <th class="text-normal td-small">Rev</th>
                         <th class="text-normal td-med">Manufacturer</th>
                         <th class="text-normal td-med">MPN</th>
-<!--                             <th class="text-normal td-small"><i>Ext. Qty</i></th>
-                        <th class="text-normal td-small"><i>Order Qty</i></th>
+                        <!-- <th class="text-normal td-small"><i>Ext. Qty</i></th> -->
+                        <!-- <th class="text-normal td-small"><i>Order Qty</i></th> -->
                         <th class="text-normal td-med"><i>Seller</i></th>
-                        <th class="text-normal td-small"><i>Price</i></th>
-                        <th class="text-normal td-small"><i>Ext Cost</i></th>
-                        <th class="text-normal td-small"><i>NRE</i></th> -->
+                        <th class="text-normal td-small"><a href="?order_by=seller_price"><i>Price</i></a></th>
+                        <!-- <th class="text-normal td-small"><i>Ext Cost</i></th> -->
+                        <th class="text-normal td-small"><a href="?order_by=seller_nre"><i>NRE</i></a></th>
                     </tr>
                 </thead>
                 {% for subpart in parts %}
@@ -189,16 +190,16 @@
                         </td>
                         <td class="text-normal"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
                         <td class="text-normal td-small">{{ subpart.quantity }}</td>
-                        <td class="text-normal td-large" style="position: relative;"><div style="display: inline-block; white-space: nowrap; top: 0; position: absolute; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 3px; ">{{ subpart.part.description }}<div></td>
+                        <td class="text-normal td-large"><div class="limited">{{ subpart.part.description }}<div></td>
                         <td class="text-normal td-small">{{ subpart.part.revision }}</td>
-                        <td class="text-normal td-med">{{ subpart.part.manufacturer.name }}</td>
-                        <td class="text-normal td-med">{{ subpart.part.manufacturer_part_number }}</td>
-<!--                             <td class="text-normal td-small">{{ subpart.extended_quantity }}</td>
-                        <td class="text-normal td-small">{{ subpart.order_quantity }}</td>
-                        <td class="text-normal td-med">{{ subpart.seller_part.seller.name | default:"-" }}</td>
+                        <td class="text-normal td-med"><div class="limited">{{ subpart.part.manufacturer.name }}</div></td>
+                        <td class="text-normal td-med"><div class="limited">{{ subpart.part.manufacturer_part_number }}</div></td>
+                            <!-- <td class="text-normal td-small">{{ subpart.extended_quantity }}</td> -->
+                        <!-- <td class="text-normal td-small">{{ subpart.order_quantity }}</td> -->
+                        <td class="text-normal td-med"><div class="limited">{{ subpart.seller_part.seller.name | default:"-" }}</div></td>
                         <td class="text-normal td-small">{{ subpart.seller_price | default:"-"}}</td>
-                        <td class="text-normal td-small">{{ subpart.extended_cost | default:"-" }}</td>
-                        <td class="text-normal td-small">{{ subpart.seller_nre | default:"-" }}</td> -->
+                        <!-- <td class="text-normal td-small">{{ subpart.extended_cost | default:"-" }}</td> -->
+                        <td class="text-normal td-small">{{ subpart.seller_nre | default:"-" }}</td>
                     </tr>
                 {% empty %}
                 <tr>
@@ -317,4 +318,13 @@
         });
     });
 </script>
+
+{% if anchor %}
+<script type='text/javascript'>
+    $(document).ready(function(){
+        $('ul.tabs').tabs('select_tab', '{{ anchor }}');
+    });
+</script>
+{% endif %}
+
 {% endblock %}

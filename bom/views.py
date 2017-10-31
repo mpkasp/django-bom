@@ -2,9 +2,7 @@ import csv
 import codecs
 import logging
 import uuid
-
 from .settings import MEDIA_URL
-
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.template.response import TemplateResponse
@@ -13,16 +11,13 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
 from django.contrib import messages
-
 from json import loads, dumps
-
 from .convert import full_part_number_to_broken_part
 from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer
 from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm, AddSellerPartForm
 from .octopart_parts_match import match_part
 
 logger = logging.getLogger(__name__)
-
 
 @login_required
 def home(request):
@@ -66,6 +61,9 @@ def bom_signup(request):
 
 @login_required
 def part_info(request, part_id):
+    order_by = request.GET.get('order_by', 'defaultOrderField')
+    anchor = None
+
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
@@ -125,12 +123,21 @@ def part_info(request, part_id):
         if seller is None:
             extended_cost_complete = False
 
+
+    # seller_price, seller_nre
+
     extended_cost = unit_cost * int(qty)
     total_out_of_pocket_cost = unit_out_of_pocket_cost + unit_nre
 
     where_used = part.where_used()
     files = part.files()
     seller_parts = part.seller_parts()
+
+    if order_by != 'defaultOrderField' and order_by != 'indented':
+        anchor = 'bom'
+        parts = sorted(parts, key=lambda k: k[order_by], reverse=True)
+    elif order_by == 'indented':
+        anchor = 'bom'
 
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
@@ -415,7 +422,7 @@ def part_octopart_match(request, part_id):
         messages.error(
             request,
             "Error communicating with Octopart. {}".format(e))
-        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')))
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
 
     if len(seller_parts) > 0:
         for dp in seller_parts:
@@ -429,7 +436,7 @@ def part_octopart_match(request, part_id):
             "Octopart wasn't able to find any parts with manufacturer part number: {}".format(
                 part.manufacturer_part_number))
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')))
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
 
 
 @login_required
@@ -682,9 +689,9 @@ def add_sellerpart(request, part_id):
         return HttpResponseRedirect(reverse('error'))
 
     if request.method == 'POST':
-        form = AddSellerPartForm(request.POST, organization=organization, part_id=part_id)
+        form = AddSellerPartForm(request.POST, organization=organization)
         if form.is_valid():
-            new_sellerpart = Sellerpart.objects.create(
+            new_sellerpart = SellerPart.objects.create(
                 part=part,
                 seller=form.cleaned_data['seller'],
                 minimum_order_quantity=form.cleaned_data['minimum_order_quantity'],

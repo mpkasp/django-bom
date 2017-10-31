@@ -12,9 +12,9 @@ Add Seller Part to Part {{ part.full_part_number }}
 {% endblock%}
 
 {% block content %}
-<form action="{% url 'part-add-sellerpart' part_id=part.id %}" method="post">
+<form name='seller' action="{% url 'part-add-sellerpart' part_id=part.id %}" method="post">
     {% csrf_token %}
-    {{ add_sellerpart_form.as_p }}
+    {{ add_sellerpart_form }}
     <input class="waves-effect waves-light btn green lighten-1" type="submit" value="Save" />
     <a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
 </form>

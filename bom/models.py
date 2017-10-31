@@ -185,6 +185,9 @@ class Seller(models.Model):
     organization = models.ForeignKey(Organization)
     name = models.CharField(max_length=128, default=None)
 
+    def __unicode__(self):
+        return u'%s' % (self.name)
+
 
 class SellerPart(models.Model):
     seller = models.ForeignKey(Seller)

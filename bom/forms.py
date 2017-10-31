@@ -82,7 +82,7 @@ class AddSellerPartForm(forms.Form):
             organization=self.organization).order_by('name', )
     
     def clean(self):
-        cleaned_data = super(PartForm, self).clean()
+        cleaned_data = super(AddSellerPartForm, self).clean()
         seller = cleaned_data.get("seller")
         new_seller = cleaned_data.get("new_seller")
 

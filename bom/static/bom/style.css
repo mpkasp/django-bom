@@ -2,7 +2,7 @@
 
 .tabs { 
     /* Materialize has a bug that shows the scrollbar sometimes, this prevents it */
-    overflow-x: hidden;
+    /*overflow-x: hidden;*/
 }
 
 td, tr {
@@ -46,12 +46,36 @@ td, tr {
 .td-med {
     width: 160px;
     min-width: 120px;
+    position: relative;
 }
 
 .td-large {
     width: 450px;
     /*max-width: 450px;*/
     min-width: 150px;
+    position: relative;
+
+    .limited {
+        display: inline-block; 
+        white-space: nowrap; 
+        top: 0; 
+        position: absolute; 
+        overflow: hidden; 
+        text-overflow: ellipsis; 
+        width: 100%; 
+        padding: 3px;
+    }
+}
+
+.limited {
+    display: inline-block; 
+    white-space: nowrap; 
+    top: 0; 
+    position: absolute; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    width: 100%; 
+    padding: 3px;
 }
 
 .push-footer {
