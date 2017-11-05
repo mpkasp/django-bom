@@ -439,9 +439,10 @@ def part_octopart_match(request, part_id):
     try:
         seller_parts = match_part(part)
     except IOError as e:
-        messages.error(
-            request,
-            "Error communicating with Octopart. {}".format(e))
+        messages.error(request, "Error communicating with Octopart. {}".format(e))
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
+    except Exception, e:
+        messages.error(request, "Unknown Error: {}".format(e))
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
 
     if len(seller_parts) > 0:
@@ -474,10 +475,11 @@ def part_octopart_match_bom(request, part_id):
         try:
             seller_parts = match_part(part)
         except IOError as e:
-            messages.error(
-                request,
-                "Error communicating with Octopart.")
+            messages.error(request, "Error communicating with Octopart.")
             continue
+        except Exception, e:
+            messages.error(request, "Unknown Error: {}".format(e))
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
 
         if len(seller_parts) > 0:
             for dp in seller_parts:

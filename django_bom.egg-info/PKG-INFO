@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: django-bom
-Version: 0.41
+Version: 0.42
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian
@@ -41,6 +41,13 @@ Description: BOM
            to manage the bom (you'll need the Admin app enabled).
         
         5. Visit http://127.0.0.1:8000/bom/ to begin.
+        
+        
+        Octopart Integration
+        --------------------
+        For part matching, make sure to add the environment variable `OCTOPART_API_KEY`.
+        `echo 'export OCTOPART_API_KEY=supersecretapikey' >> ~/.bashrc`
+        `source ~/.bashrc`
         
 Platform: UNKNOWN
 Classifier: Environment :: Web Environment

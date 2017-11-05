@@ -1,12 +1,16 @@
 import json
 import urllib
+import os
 
 from .models import Part, Seller, SellerPart
-from .local_settings import OCTOPART_API_KEY
-
 
 def match_part(part):
     # returns [{ seller: seller, }]
+    OCTOPART_API_KEY = os.environ.get('OCTOPART_API_KEY')
+
+    if not OCTOPART_API_KEY:
+        raise ValueError('No API key found on server. Contact administrator for help.')
+
     query = [{'mpn': part.manufacturer_part_number}]
 
     url = 'https://octopart.com/api/v3/parts/match?queries=%s' \

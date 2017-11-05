@@ -33,3 +33,10 @@ pip install django-bom
    to manage the bom (you'll need the Admin app enabled).
 
 5. Visit http://127.0.0.1:8000/bom/ to begin.
+
+
+Octopart Integration
+--------------------
+For part matching, make sure to add the environment variable `OCTOPART_API_KEY`.
+`echo 'export OCTOPART_API_KEY=supersecretapikey' >> ~/.bashrc`
+`source ~/.bashrc`
