@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: django-bom
-Version: 0.42
+Version: 0.43
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian
@@ -45,9 +45,14 @@ Description: BOM
         
         Octopart Integration
         --------------------
-        For part matching, make sure to add the environment variable `OCTOPART_API_KEY`.
-        `echo 'export OCTOPART_API_KEY=supersecretapikey' >> ~/.bashrc`
-        `source ~/.bashrc`
+        For part matching, make sure to add your Octopart api key to your settings.py in 
+        the BOM_CONFIG dictionary.
+        ```
+        BOM_CONFIG = {
+            'octopart_api_key': 'supersecretkey',
+        }
+        ```
+        You can get an Octopart api key [here](https://octopart.com/api/home).
         
 Platform: UNKNOWN
 Classifier: Environment :: Web Environment

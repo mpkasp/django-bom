@@ -37,6 +37,11 @@ pip install django-bom
 
 Octopart Integration
 --------------------
-For part matching, make sure to add the environment variable `OCTOPART_API_KEY`.
-`echo 'export OCTOPART_API_KEY=supersecretapikey' >> ~/.bashrc`
-`source ~/.bashrc`
+For part matching, make sure to add your Octopart api key to your settings.py in 
+the BOM_CONFIG dictionary.
+```
+BOM_CONFIG = {
+    'octopart_api_key': 'supersecretkey',
+}
+```
+You can get an Octopart api key [here](https://octopart.com/api/home).

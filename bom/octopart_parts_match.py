@@ -3,10 +3,14 @@ import urllib
 import os
 
 from .models import Part, Seller, SellerPart
+from django.conf import settings
 
 def match_part(part):
     # returns [{ seller: seller, }]
-    OCTOPART_API_KEY = os.environ.get('OCTOPART_API_KEY')
+    # OCTOPART_API_KEY = os.environ.get('OCTOPART_API_KEY')
+    OCTOPART_API_KEY = settings.BOM_CONFIG['octopart_api_key']
+    print settings
+    print OCTOPART_API_KEY
 
     if not OCTOPART_API_KEY:
         raise ValueError('No API key found on server. Contact administrator for help.')
