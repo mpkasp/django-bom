@@ -15,9 +15,11 @@ class PartForm(forms.Form):
     number_item = forms.CharField(
         max_length=4,
         label='Part Number',
-        required=False)
+        required=False, 
+        widget=forms.TextInput(attrs={'placeholder': 'Auto-Generated if blank'}))
     number_variation = forms.CharField(
-        max_length=2, label='Part Variation', required=False)
+        max_length=2, label='Part Variation', required=False, 
+        widget=forms.TextInput(attrs={'placeholder': 'Auto-Generated if blank'}))
     description = forms.CharField(max_length=255, label='Description*')
     revision = forms.CharField(max_length=2, label='Revision*')
     manufacturer_part_number = forms.CharField(max_length=128, required=False)

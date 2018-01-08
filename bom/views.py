@@ -277,6 +277,17 @@ def part_upload_bom(request, part_id):
             headers = reader.next()
             # Subpart.objects.filter(assembly_part=part).delete()
 
+            header_error = False
+            if 'part_number' not in headers:
+                header_error = True
+                messages.error(request, "Header `part_number` required for upload.")
+            if 'quantity' not in headers:
+                header_error = True
+                messages.error(request, "Header `quantity` required for upload.")
+
+            if header_error:
+                return HttpResponseRedirect(reverse('part-manage-bom', kwargs={'part_id': part_id}))
+
             for row in reader:
                 partData = {}
                 for idx, item in enumerate(row):
@@ -300,7 +311,7 @@ def part_upload_bom(request, part_id):
                     if part == subpart:
                         messages.error(
                             request, "Recursive part association: a part cant be a subpart of itsself")
-                        return HttpResponseRedirect(reverse('error'))
+                        return HttpResponseRedirect(reverse('part-manage-bom', kwargs={'part_id': part_id}))
 
                     sp = Subpart(
                         assembly_part=part,
@@ -312,7 +323,7 @@ def part_upload_bom(request, part_id):
                 request,
                 "File form not valid: {}".format(
                     form.errors))
-            return HttpResponseRedirect(reverse('error'))
+            return HttpResponseRedirect(reverse('part-manage-bom', kwargs={'part_id': part_id}))
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')))
 

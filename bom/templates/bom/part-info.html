@@ -19,17 +19,6 @@
     <p class="light">Item #{{ part.full_part_number}}</p>
     <h4 class="light header">{{ part.description }}</h5>
 
-    {% if messages %}
-    <ul class="messages">
-        {% for message in messages %}
-        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
-            {{ message.message }}
-        </li>
-        {% endfor %}
-    </ul>
-    {% endif %}
-    
-
     <div class="row">
         <div class="col s12">
             <ul class="tabs tabs-fixed-width">
