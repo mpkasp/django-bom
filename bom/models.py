@@ -1,10 +1,10 @@
 from __future__ import unicode_literals
 
 from django.db import models
-from django.core.validators import MaxValueValidator
 from django.db.models.signals import post_delete
 from django.dispatch.dispatcher import receiver
 from django.contrib.auth.models import User, Group
+from .validators import alphanumeric, numeric
 
 
 class Organization(models.Model):
@@ -62,8 +62,8 @@ class Part(models.Model):
     
     number_class = models.ForeignKey(
         PartClass, default=None, related_name='number_class')
-    number_item = models.CharField(max_length=4, default=None, blank=True)
-    number_variation = models.CharField(max_length=2, default=None, blank=True)
+    number_item = models.CharField(max_length=4, default=None, blank=True, validators=[numeric])
+    number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
     
     description = models.CharField(max_length=255, default=None)
     revision = models.CharField(max_length=2)
@@ -147,8 +147,9 @@ class Part(models.Model):
 
     def save(self, **kwargs):
         if self.number_item is None or self.number_item == '':
-            last_number_item = Part.objects.all().filter(
-                number_class=self.number_class).order_by('number_item').last()
+            last_number_item = Part.objects.filter(
+                number_class=self.number_class, 
+                organization=self.organization).order_by('number_item').last()
             if not last_number_item:
                 self.number_item = '0001'
             else:

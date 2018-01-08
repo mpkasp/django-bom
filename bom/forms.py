@@ -1,6 +1,7 @@
 from django import forms
 
 from .models import Part, PartClass, Manufacturer, Subpart, Seller
+from .validators import numeric, alphanumeric
 
 
 class PartInfoForm(forms.Form):
@@ -16,9 +17,11 @@ class PartForm(forms.Form):
         max_length=4,
         label='Part Number',
         required=False, 
+        validators=[numeric],
         widget=forms.TextInput(attrs={'placeholder': 'Auto-Generated if blank'}))
     number_variation = forms.CharField(
         max_length=2, label='Part Variation', required=False, 
+        validators=[alphanumeric],
         widget=forms.TextInput(attrs={'placeholder': 'Auto-Generated if blank'}))
     description = forms.CharField(max_length=255, label='Description*')
     revision = forms.CharField(max_length=2, label='Revision*')
@@ -47,6 +50,9 @@ class PartForm(forms.Form):
         elif new_mfg:
             obj = Manufacturer(name=new_mfg, organization=self.organization)
             obj.save()
+            cleaned_data['manufacturer'] = obj
+        else:
+            obj, c = Manufacturer.objects.get_or_create(name=self.organization.name.upper(), organization=self.organization)
             cleaned_data['manufacturer'] = obj
 
 

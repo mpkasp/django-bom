@@ -16,6 +16,7 @@ bom/test_new_parts.csv
 bom/test_parts.csv
 bom/tests.py
 bom/urls.py
+bom/validators.py
 bom/views.py
 bom/migrations/0001_squashed_0018_auto_20170418_0330.py
 bom/migrations/0002_auto_20170616_0420.py
