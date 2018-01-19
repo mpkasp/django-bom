@@ -12,6 +12,7 @@ from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
+from django.utils.encoding import smart_str
 from django.contrib import messages
 from json import loads, dumps
 from .convert import full_part_number_to_broken_part
@@ -250,7 +251,7 @@ def part_export_bom(request, part_id):
             'part_ext_cost': item['extended_cost'] if item['extended_cost'] is not None else 0,
             'part_nre': item['seller_nre'] if item['seller_nre'] is not None else 0,
         }
-        writer.writerow(row)
+        writer.writerow({k:smart_str(v) for k,v in row.items()})
     return response
 
 
@@ -433,7 +434,7 @@ def export_part_list(request):
             'part_manufacturer': item.manufacturer.name if item.manufacturer is not None else '',
             'part_manufacturer_part_number': item.manufacturer_part_number if item.manufacturer is not None else '',
         }
-        writer.writerow(row)
+        writer.writerow({k:smart_str(v) for k,v in row.items()})
 
     return response
 
