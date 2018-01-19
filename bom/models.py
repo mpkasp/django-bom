@@ -121,10 +121,14 @@ class Part(models.Model):
                 return
             else:
                 for sp in part.subparts.all():
-                    subpart = Subpart.objects.get(
+                    subparts = Subpart.objects.filter(
                         assembly_part=part, assembly_subpart=sp)
-                    qty = subpart.count
-                    indented_given_bom(bom, sp, qty, indent_level, subpart)
+                    # since assembly_part and assembly_subpart are not unique together in a Subpart
+                    # there is a possibility that there are two (or more) separate Subparts of the
+                    # same Part, thus we filter and iterate again
+                    for subpart in subparts:
+                        qty = subpart.count
+                        indented_given_bom(bom, sp, qty, indent_level, subpart)
 
         bom = []
         cost = 0
