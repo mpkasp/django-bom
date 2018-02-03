@@ -6,6 +6,7 @@ from django.dispatch.dispatcher import receiver
 from django.contrib.auth.models import User, Group
 from .validators import alphanumeric, numeric
 from django.core.exceptions import ValidationError
+from django.utils.translation import ugettext as _
 
 
 class Organization(models.Model):
@@ -201,9 +202,9 @@ class Subpart(models.Model):
     def clean(self):
         unusable_parts = self.assembly_part.where_used()
         if self.assembly_subpart in unusable_parts:
-            raise ValidationError(_('Recursive relationship: cannot add a subpart to a part that uses itsself.'))
+            raise ValidationError(_('Recursive relationship: cannot add a subpart to a part that uses itsself.'), code='invalid')
         if self.assembly_subpart == self.assembly_part:
-            raise ValidationError(_('Recursive relationship: cannot add a subpart to itsself.'))
+            raise ValidationError(_('Recursive relationship: cannot add a subpart to itsself.'), code='invalid')
 
 
 class Seller(models.Model):

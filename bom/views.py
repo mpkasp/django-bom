@@ -111,7 +111,13 @@ def part_info(request, part_id):
             qty = request.POST.get('quantity', 100)
     
     cache.set(qty_cache_key, qty, 3600)
-    parts = part.indented()
+    
+    try:
+        parts = part.indented()
+    except RuntimeError:
+        messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
+        parts = []
+
     extended_cost_complete = True
     unit_cost = 0
     unit_nre = 0
