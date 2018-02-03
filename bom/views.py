@@ -11,6 +11,7 @@ from django.db import IntegrityError
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.cache import cache
 from django.urls import reverse
 from django.utils.encoding import smart_str
 from django.contrib import messages
@@ -99,15 +100,17 @@ def part_info(request, part_id):
         messages.error(request, "Cant access a part that is not yours!")
         return HttpResponseRedirect(reverse('error'))
 
-    part_info_form = PartInfoForm(initial={'quantity': 100})
+    qty_cache_key = part_id + '_qty'
+    qty = cache.get(qty_cache_key, 100)
+    part_info_form = PartInfoForm(initial={'quantity': qty})
     upload_file_to_part_form = FileForm()
 
-    qty = 100
     if request.method == 'POST':
         part_info_form = PartInfoForm(request.POST)
         if part_info_form.is_valid():
             qty = request.POST.get('quantity', 100)
-
+    
+    cache.set(qty_cache_key, qty, 3600)
     parts = part.indented()
     extended_cost_complete = True
     unit_cost = 0

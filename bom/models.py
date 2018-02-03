@@ -5,6 +5,7 @@ from django.db.models.signals import post_delete
 from django.dispatch.dispatcher import receiver
 from django.contrib.auth.models import User, Group
 from .validators import alphanumeric, numeric
+from django.core.exceptions import ValidationError
 
 
 class Organization(models.Model):
@@ -103,6 +104,18 @@ class Part(models.Model):
         used_in_parts = [subpart.assembly_part for subpart in used_in_subparts]
         return used_in_parts
 
+    def where_used_full(self):
+        def where_used_given_part(used_in_parts, part):
+            where_used = part.where_used()
+            used_in_parts.update(where_used)
+            for p in where_used:
+                where_used_given_part(used_in_parts, p)
+            return used_in_parts
+
+        used_in_parts = set()
+        where_used_given_part(used_in_parts, self)
+        return list(used_in_parts)
+
     def files(self):
         partfiles = PartFile.objects.filter(part=self)
         return partfiles
@@ -184,6 +197,13 @@ class Subpart(models.Model):
     assembly_subpart = models.ForeignKey(
         Part, related_name='assembly_subpart', null=True)
     count = models.IntegerField(default=1)
+
+    def clean(self):
+        unusable_parts = self.assembly_part.where_used()
+        if self.assembly_subpart in unusable_parts:
+            raise ValidationError(_('Recursive relationship: cannot add a subpart to a part that uses itsself.'))
+        if self.assembly_subpart == self.assembly_part:
+            raise ValidationError(_('Recursive relationship: cannot add a subpart to itsself.'))
 
 
 class Seller(models.Model):

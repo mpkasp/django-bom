@@ -68,9 +68,10 @@ class PartClassAdmin(admin.ModelAdmin):
 
 
 class PartAdmin(admin.ModelAdmin):
-    ordering = ('number_class__code', 'number_item', 'number_variation')
+    ordering = ('organization', 'number_class__code', 'number_item', 'number_variation')
     readonly_fields = ('get_full_part_number', )
     list_display = (
+        'organization',
         'get_full_part_number',
         'revision',
         'description',
