@@ -538,12 +538,14 @@ def create_part(request):
                           'revision': form.cleaned_data['revision'],
                           }
             )
+            
+            if not new_part.manufacturer_part_number:
+                new_part.manufacturer_part_number = new_part.full_part_number()
+                new_part.save()
+            
             return HttpResponseRedirect(
-                reverse(
-                    'part-info',
-                    kwargs={
-                        'part_id': str(
-                            new_part.id)}))
+                reverse('part-info',
+                    kwargs={'part_id': str(new_part.id)}))
     else:
         form = PartForm(organization=organization)
 
@@ -744,14 +746,15 @@ def add_sellerpart(request, part_id):
                 nre_cost=form.cleaned_data['nre_cost'],
                 ncnr=form.cleaned_data['ncnr'],
             )
+        else:
+            messages.error(request,"Form not valid. See error(s) below.")
+            return TemplateResponse(request, 'bom/add-sellerpart.html', locals())
     else:
         if part.organization != organization:
             messages.error(request, "Cant access a part that is not yours!")
             return HttpResponseRedirect(reverse('error'))
 
-        add_sellerpart_form = AddSellerPartForm(
-            organization=organization)
-
+        form = AddSellerPartForm(organization=organization)
         return TemplateResponse(request, 'bom/add-sellerpart.html', locals())
 
     return HttpResponseRedirect(reverse('part-info', kwargs={'part_id': part_id}) + '#sourcing')

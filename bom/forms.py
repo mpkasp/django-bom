@@ -24,7 +24,7 @@ class PartForm(forms.Form):
         validators=[alphanumeric],
         widget=forms.TextInput(attrs={'placeholder': 'Auto-Generated if blank'}))
     description = forms.CharField(max_length=255, label='Description*')
-    revision = forms.CharField(max_length=2, label='Revision*')
+    revision = forms.CharField(max_length=2, label='Revision*', initial=1)
     manufacturer_part_number = forms.CharField(max_length=128, required=False)
     manufacturer = forms.ModelChoiceField(queryset=None, required=False)
     new_manufacturer = forms.CharField(
@@ -82,13 +82,29 @@ class AddSubpartForm(forms.Form):
 
 
 class AddSellerPartForm(forms.Form):
-    seller = forms.ModelChoiceField(queryset=None, required=True, label="Seller")
-    new_seller = forms.CharField(max_length=128, label='Create New Seller', required=False)
-    minimum_order_quantity = forms.IntegerField(required=False, label='MOQ')
-    minimum_pack_quantity = forms.IntegerField(required=False, label='MPQ')
-    unit_cost = forms.DecimalField(required=False, label='Unit Cost')
-    lead_time_days = forms.IntegerField(required=False, label='Lead Time (days)')
-    nre_cost = forms.DecimalField(required=False, label='NRE Cost')
+    seller = forms.ModelChoiceField(queryset=None, required=False, label="Seller")
+    new_seller = forms.CharField(max_length=128, label='Create New Seller', required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Leave blank if selecting a seller.'}))
+    minimum_order_quantity = forms.IntegerField(required=False, 
+        label='MOQ', 
+        validators=[numeric],
+        widget=forms.TextInput(attrs={'placeholder': 'None'}))
+    minimum_pack_quantity = forms.IntegerField(required=False, 
+        label='MPQ', 
+        validators=[numeric],
+        widget=forms.TextInput(attrs={'placeholder': 'None'}))
+    unit_cost = forms.DecimalField(required=True, 
+        label='Unit Cost', 
+        validators=[numeric],
+        widget=forms.TextInput(attrs={'placeholder': '0.00'}))
+    lead_time_days = forms.IntegerField(required=False, 
+        label='Lead Time (days)', 
+        validators=[numeric],
+        widget=forms.TextInput(attrs={'placeholder': 'None'}))
+    nre_cost = forms.DecimalField(required=False, 
+        label='NRE Cost', 
+        validators=[numeric],
+        widget=forms.TextInput(attrs={'placeholder': 'None'}))
     ncnr = forms.BooleanField(required=False, label='NCNR')
 
     def __init__(self, *args, **kwargs):
@@ -104,12 +120,16 @@ class AddSellerPartForm(forms.Form):
 
         if seller and new_seller:
             raise forms.ValidationError(
-                ('Cannot have a seller and a new seller'),
+                ('Cannot have a seller and a new seller.'),
                 code='invalid')
         elif new_seller:
             obj = Seller(name=new_seller, organization=self.organization)
             obj.save()
             cleaned_data['seller'] = obj
+        elif not seller:
+            raise forms.ValidationError(
+                ('Must specify a seller.'),
+                code='invalid')
 
 class FileForm(forms.Form):
     file = forms.FileField()

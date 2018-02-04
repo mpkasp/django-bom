@@ -47,21 +47,26 @@ Edit Part {{ part.full_part_number }}
             </div>
         </div>
         <div class="row">
+            <div class="col">
+                <p>Manufacturer <i>(skip if custom part)</i></p>
+            </div>
+        </div>
+        <div class="row">
             <div class="fieldWrapper col s6">
+                <label for="{{ form.manufacturer.id_for_label }}">Select existing Manufacturer</label>
                 {{ form.manufacturer.errors }}
-                <label for="{{ form.manufacturer.id_for_label }}"><b>Manufacturer</b><br>Select existing Manufacturer</label>
                 {{ form.manufacturer }}
             </div>
             <div class="fieldWrapper col s6">
+                <label for="{{ form.new_manufacturer.id_for_label }}">-or- Create New Manufacturer</label>
                 {{ form.new_manufacturer.errors }}
-                <label for="{{ form.new_manufacturer.id_for_label }}"><br>-or- Create New Manufacturer</label>
                 {{ form.new_manufacturer }}
             </div>
         </div>
         <div class="row">
-            <div class="fieldWrapper col s12">
-                {{ form.manufacturer_part_number.errors }}
+            <div class="fieldWrapper col s6">
                 <label for="{{ form.manufacturer_part_number.id_for_label }}"><b>Manufacturer Part Number</b></label>
+                {{ form.manufacturer_part_number.errors }}
                 {{ form.manufacturer_part_number }}
             </div>
         </div>
