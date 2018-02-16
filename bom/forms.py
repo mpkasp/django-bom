@@ -51,7 +51,7 @@ class PartForm(forms.Form):
             obj = Manufacturer(name=new_mfg, organization=self.organization)
             obj.save()
             cleaned_data['manufacturer'] = obj
-        else:
+        elif not mfg and not new_mfg:
             obj, c = Manufacturer.objects.get_or_create(name=self.organization.name.upper(), organization=self.organization)
             cleaned_data['manufacturer'] = obj
 
