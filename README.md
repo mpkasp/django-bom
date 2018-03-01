@@ -18,14 +18,24 @@ pip install django-bom
 
 1. Add "bom" to your INSTALLED_APPS setting like this::
 
+```
     INSTALLED_APPS = [
         ...
         'bom',
     ]
+```
 
-2. Include the bom URLconf in your project urls.py like this::
+2. Update your URLconf in your project urls.py like this::
 
+```
     url(r'^bom/', include('bom.urls')),
+```
+    
+    And don't forget to import include:
+
+```
+    from django.conf.urls import include
+```
 
 3. Run `python manage.py migrate` to create the bom models.
 

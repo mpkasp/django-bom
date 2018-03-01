@@ -22,6 +22,10 @@ bom/migrations/0001_squashed_0018_auto_20170418_0330.py
 bom/migrations/0002_auto_20170616_0420.py
 bom/migrations/__init__.py
 bom/static/bom/style.css
+bom/static/bom/css/materialize.min.css
+bom/static/bom/img/favicon.ico
+bom/static/bom/img/indabom.png
+bom/static/bom/js/materialize.min.js
 bom/templates/bom/add-sellerpart.html
 bom/templates/bom/base.html
 bom/templates/bom/bom-action-btn.html
