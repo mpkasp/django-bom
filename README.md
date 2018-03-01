@@ -30,16 +30,16 @@ pip install django-bom
 ```
     url(r'^bom/', include('bom.urls')),
 ```
-    
-    And don't forget to import include:
+
+And don't forget to import include:
 
 ```
     from django.conf.urls import include
 ```
 
 3. Add the bom context processor `'bom.context_processors.bom_config',` to your TEMPLATES variable in settings:
-```
 
+```
 TEMPLATES = [
     {
         ...
@@ -53,12 +53,12 @@ TEMPLATES = [
 ]
 ```
 
-3. Run `python manage.py migrate` to create the bom models.
+4. Run `python manage.py migrate` to create the bom models.
 
-4. Start the development server and visit http://127.0.0.1:8000/admin/
+5. Start the development server and visit http://127.0.0.1:8000/admin/
    to manage the bom (you'll need the Admin app enabled).
 
-5. Visit http://127.0.0.1:8000/bom/ to begin.
+6. Visit http://127.0.0.1:8000/bom/ to begin.
 
 Customize Base Template
 --------------------
