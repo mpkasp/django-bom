@@ -37,6 +37,22 @@ pip install django-bom
     from django.conf.urls import include
 ```
 
+3. Add the bom context processor `'bom.context_processors.bom_config',` to your TEMPLATES variable in settings:
+```
+
+TEMPLATES = [
+    {
+        ...
+        'OPTIONS': {
+            'context_processors': [
+                ...
+                'bom.context_processors.bom_config',
+            ],
+        },
+    },
+]
+```
+
 3. Run `python manage.py migrate` to create the bom models.
 
 4. Start the development server and visit http://127.0.0.1:8000/admin/
@@ -44,6 +60,17 @@ pip install django-bom
 
 5. Visit http://127.0.0.1:8000/bom/ to begin.
 
+Customize Base Template
+--------------------
+The base template can be customized to your pleasing. Just add the following configuration to your settings.py:
+
+```
+BOM_CONFIG = {
+    'base_template': 'base.html',
+}
+```
+
+where `base.html` is your base template.
 
 Octopart Integration
 --------------------

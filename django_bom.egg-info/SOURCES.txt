@@ -5,6 +5,7 @@ setup.py
 bom/__init__.py
 bom/admin.py
 bom/apps.py
+bom/context_processors.py
 bom/convert.py
 bom/forms.py
 bom/helpers.py
