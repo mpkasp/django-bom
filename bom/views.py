@@ -288,9 +288,9 @@ def part_upload_bom(request, part_id):
             # Subpart.objects.filter(assembly_part=part).delete()
 
             header_error = False
-            if 'part_number' not in headers:
+            if 'part_number' not in headers and 'manufacturer_part_number' not in headers:
                 header_error = True
-                messages.error(request, "Header `part_number` required for upload.")
+                messages.error(request, "Header `part_number` or `manufacturer_part_number` required for upload.")
             if 'quantity' not in headers:
                 header_error = True
                 messages.error(request, "Header `quantity` required for upload.")
@@ -312,8 +312,30 @@ def part_upload_bom(request, part_id):
 
                     if len(subparts) == 0:
                         messages.info(
-                            request, "Subpart: {} doesn't exist".format(
+                            request, "Subpart: `{}` doesn't exist".format(
                                 partData['part_number']))
+                        continue
+
+                    subpart = subparts[0]
+                    count = partData['quantity']
+                    if part == subpart:
+                        messages.error(
+                            request, "Recursive part association: a part cant be a subpart of itsself")
+                        return HttpResponseRedirect(reverse('part-manage-bom', kwargs={'part_id': part_id}))
+
+                    sp = Subpart(
+                        assembly_part=part,
+                        assembly_subpart=subpart,
+                        count=count)
+                    sp.save()
+                elif 'manufacturer_part_number' in partData and 'quantity' in partData:
+                    mpn = partData['manufacturer_part_number']
+                    subparts = Part.objects.filter(manufacturer_part_number=mpn)
+
+                    if len(subparts) == 0:
+                        messages.info(
+                            request, "Subpart: `{}` doesn't exist".format(
+                                partData['manufacturer_part_number']))
                         continue
 
                     subpart = subparts[0]

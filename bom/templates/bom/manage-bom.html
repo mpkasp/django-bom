@@ -39,7 +39,7 @@ Manage BOM
             </div>
         </form>
         <br><h5>Batch Add Subparts</h5>
-        <p>To add batch subparts, upload a csv that contains at least two columns with the headers: <b>part_number</b> and <b>quantity</b>; the 'part_number' column must contain part numbers that have already been created in this system.</p>
+        <p>To add batch subparts, upload a csv that contains at least two columns with the headers: <b>part_number</b> <i>or</i> <b>manufacturer_part_number</b> and <b>quantity</b>; the 'part_number' or 'manufacturer_part_number' column must contain part numbers that have already been created in this system.</p>
         <form action="{% url 'part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="row">
