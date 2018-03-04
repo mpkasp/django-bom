@@ -284,7 +284,7 @@ def part_upload_bom(request, part_id):
                     "utf-8"),
                 delimiter=',',
                 dialect=dialect)
-            headers = reader.next()
+            headers = [h.lower() for h in reader.next()]
             # Subpart.objects.filter(assembly_part=part).delete()
 
             header_error = False
@@ -302,13 +302,19 @@ def part_upload_bom(request, part_id):
                 partData = {}
                 for idx, item in enumerate(row):
                     partData[headers[idx]] = item
-                if 'part_number' in partData and 'quantity' in partData:
-                    civ = full_part_number_to_broken_part(
-                        partData['part_number'])
-                    subparts = Part.objects.filter(
-                        number_class=civ['class'],
-                        number_item=civ['item'],
-                        number_variation=civ['variation'])
+                
+                if 'part_number' in partData and 'quantity' in partData and len(partData['part_number']) > 0:
+                    try:
+                        civ = full_part_number_to_broken_part(
+                            partData['part_number'])
+                        subparts = Part.objects.filter(
+                            number_class=civ['class'],
+                            number_item=civ['item'],
+                            number_variation=civ['variation'])
+                    except IndexError:
+                        messages.error(
+                            request, "Invalid part_number: {}".format(partData['part_number']))
+                        continue
 
                     if len(subparts) == 0:
                         messages.info(
@@ -379,7 +385,7 @@ def upload_parts(request):
                     "utf-8"),
                 delimiter=',',
                 dialect=dialect)
-            headers = reader.next()
+            headers = [h.lower() for h in reader.next()]
             for row in reader:
                 partData = {}
                 for idx, item in enumerate(row):
