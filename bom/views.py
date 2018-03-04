@@ -381,7 +381,7 @@ def upload_parts(request):
                                 partData['part_class']))
                         return HttpResponseRedirect(reverse('error'))
 
-                    part, created = Part.objects.get_or_create(part_class=part_class,
+                    part, created = Part.objects.get_or_create(number_class=part_class,
                                                                description=partData['description'],
                                                                revision=partData['revision'],
                                                                organization=organization,
@@ -399,10 +399,10 @@ def upload_parts(request):
                     messages.error(
                         request,
                         "File must contain at least the 3 columns (with headers): 'part_class', 'description', and 'revision'.")
-                    return HttpResponseRedirect(reverse('error'))
+                    return TemplateResponse(request, 'bom/upload-parts.html', locals())
         else:
             messages.error(request, "Invalid form input.")
-            return HttpResponseRedirect(reverse('error'))
+            return TemplateResponse(request, 'bom/upload-parts.html', locals())
     else:
         form = FileForm()
         return TemplateResponse(request, 'bom/upload-parts.html', locals())
