@@ -555,17 +555,20 @@ def create_part(request):
     if request.method == 'POST':
         form = PartForm(request.POST, organization=organization)
         if form.is_valid():
-            new_part, created = Part.objects.get_or_create(
-                number_class=form.cleaned_data['number_class'],
-                number_item=form.cleaned_data['number_item'],
-                number_variation=form.cleaned_data['number_variation'],
-                manufacturer_part_number=form.cleaned_data['manufacturer_part_number'],
-                manufacturer=form.cleaned_data['manufacturer'],
-                organization=organization,
-                defaults={'description': form.cleaned_data['description'],
-                          'revision': form.cleaned_data['revision'],
-                          }
-            )
+            try:
+                new_part, created = Part.objects.get_or_create(
+                    number_class=form.cleaned_data['number_class'],
+                    number_item=form.cleaned_data['number_item'],
+                    number_variation=form.cleaned_data['number_variation'],
+                    manufacturer_part_number=form.cleaned_data['manufacturer_part_number'],
+                    manufacturer=form.cleaned_data['manufacturer'],
+                    organization=organization,
+                    defaults={'description': form.cleaned_data['description'],
+                            'revision': form.cleaned_data['revision'],
+                            }
+                )
+            except IntegrityError as e:
+                messages.error(request, "Error creating part, please contact info@indabom.com with this information: {}".format(e))
             
             if not new_part.manufacturer_part_number:
                 new_part.manufacturer_part_number = new_part.full_part_number()
