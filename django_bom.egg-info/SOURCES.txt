@@ -22,6 +22,7 @@ bom/views.py
 bom/migrations/0001_squashed_0018_auto_20170418_0330.py
 bom/migrations/0002_auto_20170616_0420.py
 bom/migrations/0003_auto_20180301_0202.py
+bom/migrations/0004_auto_20180317_1751.py
 bom/migrations/__init__.py
 bom/static/bom/style.css
 bom/static/bom/css/materialize.min.css
