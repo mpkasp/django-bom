@@ -784,7 +784,6 @@ def add_sellerpart(request, part_id):
         if part.organization != organization:
             messages.error(request, "Cant access a part that is not yours!")
             return HttpResponseRedirect(reverse('error'))
-
         form = AddSellerPartForm(organization=organization)
         return TemplateResponse(request, 'bom/add-sellerpart.html', locals())
 

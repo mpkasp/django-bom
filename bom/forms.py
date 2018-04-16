@@ -1,8 +1,8 @@
 from django import forms
-from django.core.validators import DecimalValidator
+# from django.core.validators import DecimalValidator
 
 from .models import Part, PartClass, Manufacturer, Subpart, Seller
-from .validators import numeric, alphanumeric
+from .validators import decimal, alphanumeric, numeric
 
 
 class PartInfoForm(forms.Form):
@@ -92,11 +92,10 @@ class AddSellerPartForm(forms.Form):
         widget=forms.TextInput(attrs={'placeholder': 'None'}))
     minimum_pack_quantity = forms.IntegerField(required=False, 
         label='MPQ', 
-        validators=[numeric],
-        widget=forms.TextInput(attrs={'placeholder': 'None'}))
+        validators=[numeric], widget=forms.TextInput(attrs={'placeholder': 'None'}))
     unit_cost = forms.DecimalField(required=True, 
         label='Unit Cost', 
-        validators=[DecimalValidator, ],
+        validators=[decimal, ],
         widget=forms.TextInput(attrs={'placeholder': '0.00'}))
     lead_time_days = forms.IntegerField(required=False, 
         label='Lead Time (days)', 
@@ -104,13 +103,13 @@ class AddSellerPartForm(forms.Form):
         widget=forms.TextInput(attrs={'placeholder': 'None'}))
     nre_cost = forms.DecimalField(required=False, 
         label='NRE Cost', 
-        validators=[DecimalValidator, ],
+        validators=[decimal, ],
         widget=forms.TextInput(attrs={'placeholder': 'None'}))
     ncnr = forms.BooleanField(required=False, label='NCNR')
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
-        super(AddSellerPartForm, self).__init__(self, *args, **kwargs)
+        super(AddSellerPartForm, self).__init__(*args, **kwargs)
         self.fields['seller'].queryset = Seller.objects.filter(
             organization=self.organization).order_by('name', )
     
