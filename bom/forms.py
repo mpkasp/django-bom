@@ -110,7 +110,7 @@ class AddSellerPartForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
-        super(AddSellerPartForm, self).__init__(*args, **kwargs)
+        super(AddSellerPartForm, self).__init__(self, *args, **kwargs)
         self.fields['seller'].queryset = Seller.objects.filter(
             organization=self.organization).order_by('name', )
     
