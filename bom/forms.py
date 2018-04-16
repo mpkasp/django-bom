@@ -1,4 +1,5 @@
 from django import forms
+from django.core.validators import DecimalValidator
 
 from .models import Part, PartClass, Manufacturer, Subpart, Seller
 from .validators import numeric, alphanumeric
@@ -95,7 +96,7 @@ class AddSellerPartForm(forms.Form):
         widget=forms.TextInput(attrs={'placeholder': 'None'}))
     unit_cost = forms.DecimalField(required=True, 
         label='Unit Cost', 
-        validators=[numeric],
+        validators=[DecimalValidator, ],
         widget=forms.TextInput(attrs={'placeholder': '0.00'}))
     lead_time_days = forms.IntegerField(required=False, 
         label='Lead Time (days)', 
@@ -103,7 +104,7 @@ class AddSellerPartForm(forms.Form):
         widget=forms.TextInput(attrs={'placeholder': 'None'}))
     nre_cost = forms.DecimalField(required=False, 
         label='NRE Cost', 
-        validators=[numeric],
+        validators=[DecimalValidator, ],
         widget=forms.TextInput(attrs={'placeholder': 'None'}))
     ncnr = forms.BooleanField(required=False, label='NCNR')
 
