@@ -178,9 +178,6 @@ def part_export_bom(request, part_id):
     profile = user.bom_profile()
     organization = profile.organization
 
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="indabom_parts_indented.csv"'
-
     try:
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
@@ -191,8 +188,12 @@ def part_export_bom(request, part_id):
         messages.error(request, "Cant export a part that is not yours!")
         return HttpResponseRedirect(reverse('error'))
 
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_indented.csv"'.format(part.full_part_number())
+
     bom = part.indented()
-    qty = 1000
+    qty_cache_key = part_id + '_qty'
+    qty = cache.get(qty_cache_key, 1000)
     unit_cost = 0
     unit_out_of_pocket_cost = 0
     unit_nre = 0
@@ -210,7 +211,8 @@ def part_export_bom(request, part_id):
         'part_seller',
         'part_cost',
         'part_ext_cost',
-        'part_nre']
+        'part_nre',
+        'part_lead_time_days', ]
 
     writer = csv.DictWriter(response, fieldnames=fieldnames)
     writer.writeheader()
@@ -226,6 +228,7 @@ def part_export_bom(request, part_id):
         item['seller_nre'] = seller.nre_cost if seller is not None else 0
         item['seller_part'] = seller
         item['order_quantity'] = order_qty
+        item['seller_lead_time_days'] = seller.lead_time_days if seller is not None else 0
 
         # then extend that price
         item['extended_cost'] = extended_quantity * \
@@ -259,6 +262,7 @@ def part_export_bom(request, part_id):
             'part_cost': item['seller_price'] if item['seller_price'] is not None else 0,
             'part_ext_cost': item['extended_cost'] if item['extended_cost'] is not None else 0,
             'part_nre': item['seller_nre'] if item['seller_nre'] is not None else 0,
+            'part_lead_time_days': item['seller_lead_time_days'], 
         }
         writer.writerow({k:smart_str(v) for k,v in row.items()})
     return response
@@ -531,9 +535,9 @@ def part_octopart_match_bom(request, part_id):
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
 
         if len(seller_parts) > 0:
-            for dp in seller_parts:
+            for sp in seller_parts:
                 try:
-                    dp.save()
+                    sp.save()
                 except IntegrityError:
                     continue
         else:
