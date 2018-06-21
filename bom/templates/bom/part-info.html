@@ -282,14 +282,20 @@
     }
 
     $(".clickable").click(function() {
-        var currentLevel = getLevelFromClass($(this).context.className);
-        var visible = $(this).next().is(":visible");
+        var currentLevel = getLevelFromClass($(this).context.className),
+            visible = $(this).next().is(":visible"),
+            lastRow = $(this).find('tr:last');
+        
         // var visible = $(this).next().css("visibility") != "collapse";
 
         $(this).nextUntil(".subpart-level-" + currentLevel).each(function() {
+            console.log('Searching for level: ' + currentLevel);
+
             if(currentLevel >= getLevelFromClass($(this).context.className)) {
                 return false;
             }
+            
+            console.log($(this).context.className);
 
             if($(this).data().clicksToUnhide == null) {
                 $(this).data().clicksToUnhide = 0;
@@ -298,10 +304,13 @@
             if(visible) {
                 $(this).hide();
                 $(this).data().clicksToUnhide += 1;
+                lastRow.addClass('cell-collapsed');
+                
             }
             else if($(this).data().clicksToUnhide == 1) {
                 $(this).show();
                 $(this).data().clicksToUnhide = 0;
+                lastRow.removeClass('cell-collapsed');
             }
             else {
                 $(this).data().clicksToUnhide -= 1;

@@ -91,3 +91,8 @@ td, tr {
 .hidden {
     display: none;
 }
+
+.cell-collapsed {
+    /* background: grey; */
+    background-color: #f2f2f2;
+}
