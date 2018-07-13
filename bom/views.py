@@ -138,6 +138,7 @@ def part_info(request, part_id):
         item['seller_price'] = seller.unit_cost if seller is not None else 0
         item['seller_nre'] = seller.nre_cost if seller is not None else 0
         item['seller_part'] = seller
+        item['seller_moq'] = seller.minimum_order_quantity if seller is not None else 0
         item['order_quantity'] = order_qty
 
         # then extend that price
@@ -215,6 +216,7 @@ def part_export_bom(request, part_id):
         'part_order_qty',
         'part_seller',
         'part_cost',
+        'part_moq',
         'part_ext_cost',
         'part_out_of_pocket_cost',
         'part_nre',
@@ -235,6 +237,7 @@ def part_export_bom(request, part_id):
         item['seller_price'] = seller.unit_cost if seller is not None else 0
         item['seller_nre'] = seller.nre_cost if seller is not None else 0
         item['seller_part'] = seller
+        item['seller_moq'] = seller.minimum_order_quantity if seller is not None else 0
         item['order_quantity'] = order_qty
         item['seller_lead_time_days'] = seller.lead_time_days if seller is not None else 0
 
@@ -268,6 +271,7 @@ def part_export_bom(request, part_id):
             'part_order_qty': item['order_quantity'],
             'part_seller': item['seller_part'].seller.name if item['seller_part'] is not None else '',
             'part_cost': item['seller_price'] if item['seller_price'] is not None else 0,
+            'part_moq': item['seller_moq'] if item['seller_moq'] is not None else 0,
             'part_ext_cost': item['extended_cost'] if item['extended_cost'] is not None else 0,
             'part_out_of_pocket_cost': item['out_of_pocket_cost'],
             'part_nre': item['seller_nre'] if item['seller_nre'] is not None else 0,
