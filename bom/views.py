@@ -133,7 +133,7 @@ def part_info(request, part_id):
         seller = subpart.optimal_seller(quantity=extended_quantity)
         order_qty = extended_quantity
         if seller is not None and seller.minimum_order_quantity is not None and extended_quantity > seller.minimum_order_quantity:
-            order_qty = ceil(extended_quantity / seller.minimum_order_quantity) * seller.minimum_order_quantity
+            order_qty = ceil(extended_quantity / float(seller.minimum_order_quantity)) * seller.minimum_order_quantity
 
         item['seller_price'] = seller.unit_cost if seller is not None else 0
         item['seller_nre'] = seller.nre_cost if seller is not None else 0
@@ -232,7 +232,7 @@ def part_export_bom(request, part_id):
         seller = subpart.optimal_seller(quantity=extended_quantity)
         order_qty = extended_quantity
         if seller is not None and seller.minimum_order_quantity is not None and extended_quantity > seller.minimum_order_quantity:
-            order_qty = ceil(extended_quantity / seller.minimum_order_quantity) * seller.minimum_order_quantity
+            order_qty = ceil(extended_quantity / float(seller.minimum_order_quantity)) * seller.minimum_order_quantity
 
         item['seller_price'] = seller.unit_cost if seller is not None else 0
         item['seller_nre'] = seller.nre_cost if seller is not None else 0
