@@ -2,7 +2,7 @@ import csv
 import codecs
 import logging
 import uuid
-import json
+
 from .settings import MEDIA_URL
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
@@ -15,7 +15,10 @@ from django.core.cache import cache
 from django.urls import reverse
 from django.utils.encoding import smart_str
 from django.contrib import messages
+
 from json import loads, dumps
+from math import ceil
+
 from .convert import full_part_number_to_broken_part
 from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer
 from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm, AddSellerPartForm
@@ -55,7 +58,7 @@ def home(request):
         if part.manufacturer is not None and part.manufacturer.name:
             autocomplete_dict.update({ part.manufacturer.name.replace('"', ''): None })
 
-    autocomplete = json.dumps(autocomplete_dict)
+    autocomplete = dumps(autocomplete_dict)
 
     query = request.GET.get('q', '')
     if query:
@@ -128,7 +131,9 @@ def part_info(request, part_id):
 
         subpart = item['part']
         seller = subpart.optimal_seller(quantity=extended_quantity)
-        order_qty = extended_quantity if seller is None or extended_quantity > seller.minimum_order_quantity else seller.minimum_order_quantity
+        order_qty = extended_quantity
+        if seller is not None and seller.minimum_order_quantity is not None and extended_quantity > seller.minimum_order_quantity:
+            order_qty = ceil(extended_quantity / seller.minimum_order_quantity) * seller.minimum_order_quantity
 
         item['seller_price'] = seller.unit_cost if seller is not None else 0
         item['seller_nre'] = seller.nre_cost if seller is not None else 0
@@ -139,7 +144,7 @@ def part_info(request, part_id):
         item['extended_cost'] = extended_quantity * \
             seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
         item['out_of_pocket_cost'] = order_qty * \
-            seller.unit_cost if seller is not None and seller.unit_cost is not None else 0
+            float(seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
 
         unit_cost = (
             unit_cost +
@@ -222,7 +227,9 @@ def part_export_bom(request, part_id):
 
         subpart = item['part']
         seller = subpart.optimal_seller(quantity=extended_quantity)
-        order_qty = extended_quantity if seller is None or extended_quantity > seller.minimum_order_quantity else seller.minimum_order_quantity
+        order_qty = extended_quantity
+        if seller is not None and seller.minimum_order_quantity is not None and extended_quantity > seller.minimum_order_quantity:
+            order_qty = ceil(extended_quantity / seller.minimum_order_quantity) * seller.minimum_order_quantity
 
         item['seller_price'] = seller.unit_cost if seller is not None else 0
         item['seller_nre'] = seller.nre_cost if seller is not None else 0
@@ -234,7 +241,7 @@ def part_export_bom(request, part_id):
         item['extended_cost'] = extended_quantity * \
             seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
         item['out_of_pocket_cost'] = order_qty * \
-            seller.unit_cost if seller is not None and seller.unit_cost is not None else 0
+            float(seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
 
         unit_cost = (
             unit_cost +
