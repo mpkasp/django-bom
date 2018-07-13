@@ -216,6 +216,7 @@ def part_export_bom(request, part_id):
         'part_seller',
         'part_cost',
         'part_ext_cost',
+        'part_out_of_pocket_cost',
         'part_nre',
         'part_lead_time_days', ]
 
@@ -268,6 +269,7 @@ def part_export_bom(request, part_id):
             'part_seller': item['seller_part'].seller.name if item['seller_part'] is not None else '',
             'part_cost': item['seller_price'] if item['seller_price'] is not None else 0,
             'part_ext_cost': item['extended_cost'] if item['extended_cost'] is not None else 0,
+            'part_out_of_pocket_cost': item['out_of_pocket_cost'],
             'part_nre': item['seller_nre'] if item['seller_nre'] is not None else 0,
             'part_lead_time_days': item['seller_lead_time_days'], 
         }
