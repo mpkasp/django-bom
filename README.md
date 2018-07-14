@@ -8,6 +8,12 @@ An example of the app in use can be seen [here](https://www.indabom.com).
 
 If you already have a django project, you can skip to [Add Django Bom To Your App](#add-django-bom-to-your-app), otherwise [Start From Scratch](#start-from-scratch).
 
+## Table of contents
+   * [Start From Scratch](#start-from-scratch)
+   * [Add Django Bom To Your App](#add-django-bom-to-your-app)
+   * [Customize Base Template](#customize-base-template)
+   * [Octopart Integration](#octopart-integration)
+   
 ## Start From Scratch
 1. To start from scratch we recommend setting up a virtual environment
 ```
