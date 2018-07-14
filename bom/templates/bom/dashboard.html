@@ -6,7 +6,7 @@
 
 {% block title %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
-{% if organization %}{{ organization }}{% elif request.user.name %}{{ request.user.name }}'s {% endif %}Parts List
+{% if organization %}{{ organization }}{% elif user.first_name %}{{ user.first_name }}'s {% endif %}Parts List
 {% endblock %}
 
 {% block menu %}
