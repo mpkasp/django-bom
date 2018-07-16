@@ -19,6 +19,7 @@ bom/tests.py
 bom/urls.py
 bom/validators.py
 bom/views.py
+bom/wsgi.py
 bom/migrations/0001_squashed_0018_auto_20170418_0330.py
 bom/migrations/0002_auto_20170616_0420.py
 bom/migrations/0003_auto_20180301_0202.py
@@ -40,6 +41,7 @@ bom/templates/bom/error.html
 bom/templates/bom/manage-bom.html
 bom/templates/bom/part-info.html
 bom/templates/bom/upload-parts.html
+bom/templates/registration/login.html
 django_bom.egg-info/PKG-INFO
 django_bom.egg-info/SOURCES.txt
 django_bom.egg-info/dependency_links.txt

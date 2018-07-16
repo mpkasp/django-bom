@@ -1,13 +1,12 @@
 Metadata-Version: 1.1
 Name: django-bom
-Version: 0.73
+Version: 0.74
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian
 Author-email: mpkasp@gmail.com
 License: MIT License
 Description: # BOM
-        =====
         
         BOM is a simple Django app to manage a bill of materials. It is
         a level up from an excel spreadsheet including an indented
@@ -17,23 +16,31 @@ Description: # BOM
         
         If you already have a django project, you can skip to [Add Django Bom To Your App](#add-django-bom-to-your-app), otherwise [Start From Scratch](#start-from-scratch).
         
+        ## Table of contents
+           * [Start From Scratch](#start-from-scratch)
+           * [Add Django Bom To Your App](#add-django-bom-to-your-app)
+           * [Customize Base Template](#customize-base-template)
+           * [Octopart Integration](#octopart-integration)
+           
         ## Start From Scratch
-        -----------
         1. To start from scratch we recommend setting up a virtual environment
-        ```virtualenv mysite
+        ```
+        virtualenv mysite
         cd mysite
-        source bin/activate```
+        source bin/activate
+        ```
         
         2. From here install django, and set up your project.
-        ```pip install django==1.11.14
+        ```
+        pip install django==1.11.14
         django-admin startproject mysite
         cd mysite
-        python manage.py createsuperuser # make a user for your development environment```
+        python manage.py createsuperuser # make a user for your development environment
+        ```
         
         3. Continue on to [Add Django Bom To Your App](#add-django-bom-to-your-app).
         
         ## Add Django Bom To Your App
-        -----------
         django-bom is a [reusable django application](https://docs.djangoproject.com/en/1.11/intro/reusable-apps/). If you don't already have a django project, you can follow some quick steps below to get up and running, or read about creating your first django app [here](https://docs.djangoproject.com/en/1.11/intro/tutorial01/). Note that django-bom currently supports python 2.7.
         
         ```
@@ -43,22 +50,22 @@ Description: # BOM
         1. Add "bom" to your INSTALLED_APPS setting like this::
         
         ```
-            INSTALLED_APPS = [
-                ...
-                'bom',
-            ]
+        INSTALLED_APPS = [
+            ...
+            'bom',
+        ]
         ```
         
         2. Update your URLconf in your project urls.py like this::
         
         ```
-            url(r'^bom/', include('bom.urls')),
+        url(r'^bom/', include('bom.urls')),
         ```
         
         And don't forget to import include:
         
         ```
-            from django.conf.urls import include
+        from django.conf.urls import include
         ```
         
         3. Update your settings.py to add the bom context processor `'bom.context_processors.bom_config',` to your TEMPLATES variable, and create a new empty dictionary BOM_CONFIG.
@@ -91,7 +98,6 @@ Description: # BOM
         6. Visit http://127.0.0.1:8000/bom/ to begin.
         
         ## Customize Base Template
-        --------------------
         The base template can be customized to your pleasing. Just add the following configuration to your settings.py:
         
         ```
@@ -103,7 +109,6 @@ Description: # BOM
         where `base.html` is your base template.
         
         ## Octopart Integration
-        --------------------
         For part matching, make sure to add your Octopart api key to your settings.py in 
         the BOM_CONFIG dictionary.
         ```

@@ -163,7 +163,7 @@ def part_info(request, part_id):
     # seller_price, seller_nre
 
     extended_cost = unit_cost * int(qty)
-    total_out_of_pocket_cost = unit_out_of_pocket_cost + unit_nre
+    total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
 
     where_used = part.where_used()
     files = part.files()

@@ -1,0 +1,23 @@
+{% extends BASE_TEMPLATE %}
+
+{% load staticfiles %}
+
+{% block head-title %}Login!{% endblock %}
+
+{% block title %}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+
+<div class="text-center">Login...</div>
+
+{% endblock %}
+
+{% block menu %}
+{% endblock%}
+{% block content %}
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="waves-effect waves-light btn green lighten-1" type="submit">Login</button>
+</form>
+{% endblock %}
+

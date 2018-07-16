@@ -68,14 +68,16 @@ def create_a_fake_seller_part(
         moq,
         mpq,
         unit_cost,
-        lead_time_days):
+        lead_time_days,
+        nre_cost=None):
     sp1 = SellerPart(
         seller=seller,
         part=part,
         minimum_order_quantity=moq,
         minimum_pack_quantity=mpq,
         unit_cost=unit_cost,
-        lead_time_days=lead_time_days)
+        lead_time_days=lead_time_days,
+        nre_cost=nre_cost)
     sp1.save()
 
     return sp1
@@ -124,19 +126,28 @@ def create_some_fake_parts(organization):
         unit_cost=None,
         lead_time_days=None)
     create_a_fake_seller_part(
+        s1,
+        pt1,
+        moq=1,
+        mpq=1,
+        unit_cost=1.2,
+        lead_time_days=20,
+        nre_cost=500)
+    create_a_fake_seller_part(
         s2,
         pt1,
         moq=1000,
         mpq=5000,
         unit_cost=0.1005,
-        lead_time_days=7)
+        lead_time_days=7,)
     create_a_fake_seller_part(
         s2,
         pt2,
         moq=200,
         mpq=200,
-        unit_cost=0,
-        lead_time_days=47)
+        unit_cost=0.5,
+        lead_time_days=47,
+        nre_cost=1)
 
     return pt1, pt2, pt3
 
