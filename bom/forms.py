@@ -123,8 +123,7 @@ class AddSellerPartForm(forms.Form):
                 ('Cannot have a seller and a new seller.'),
                 code='invalid')
         elif new_seller:
-            obj = Seller(name=new_seller, organization=self.organization)
-            obj.save()
+            obj, created = Seller.objects.get_or_create(name__iexact=new_seller, organization=self.organization, defaults={'name': new_seller})
             cleaned_data['seller'] = obj
         elif not seller:
             raise forms.ValidationError(
