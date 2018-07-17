@@ -255,6 +255,7 @@
                         <td>{{ seller_part.lead_time_days }}</td>
                         <td>{{ seller_part.nre_cost }}</td>
                         <td>{{ seller_part.ncnr }}</td>
+                        <td><a href="{% url 'sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a></td>
                     </tr>
                     {% empty %}
                     <tr>

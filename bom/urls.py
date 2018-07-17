@@ -32,4 +32,5 @@ urlpatterns = [
     url(r'^part/(?P<part_id>[0-9]+)/delete-file/(?P<partfile_id>[0-9]+)/$', views.delete_file_from_part, name='part-delete-partfile'),
     url(r'^part/(?P<part_id>[0-9]+)/remove-all-subparts/$', views.remove_all_subparts, name='part-remove-all-subparts'),
     url(r'^part/(?P<part_id>[0-9]+)/remove-subpart/(?P<subpart_id>[0-9]+)/$', views.remove_subpart, name='part-remove-subpart'),
+    url(r'^sellerpart/(?P<sellerpart_id>[0-9]+)/delete/$', views.delete_sellerpart, name='sellerpart-delete'),
 ]

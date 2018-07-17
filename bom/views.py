@@ -805,3 +805,17 @@ def add_sellerpart(request, part_id):
         return TemplateResponse(request, 'bom/add-sellerpart.html', locals())
 
     return HttpResponseRedirect(reverse('part-info', kwargs={'part_id': part_id}) + '#sourcing')
+
+
+@login_required
+def delete_sellerpart(request, sellerpart_id):
+    # TODO: Add test
+    try:
+        sellerpart = SellerPart.objects.get(id=sellerpart_id)
+    except ObjectDoesNotExist:
+        messages.error(request, "No sellerpart found with given sellerpart_id.")
+        return HttpResponseRedirect(reverse('error'))
+
+    sellerpart.delete()
+
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')))
