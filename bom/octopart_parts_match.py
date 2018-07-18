@@ -5,7 +5,7 @@ import os
 from .models import Part, Seller, SellerPart
 from django.conf import settings
 
-def match_part(part):
+def match_part(part, organization):
     # returns [{ seller: seller, }]
     # OCTOPART_API_KEY = os.environ.get('OCTOPART_API_KEY')
     OCTOPART_API_KEY = settings.BOM_CONFIG['octopart_api_key']
@@ -38,19 +38,25 @@ def match_part(part):
             for offer in item['offers']:
                 if (offer['seller']['id'] == DIGI_KEY_SELLER_ID or
                         offer['seller']['id'] == MOUSER_SELLER_ID):
-                    seller = Seller.objects.filter(
-                        name=offer['seller']['name'])[0]
+                    seller_name = offer['seller']['name']
+                    seller, created = Seller.objects.get_or_create(
+                        name__iexact=seller_name, 
+                        organization=organization, 
+                        defaults={'name': seller_name})
                     ltd = offer['factory_lead_days']
                     if 'USD' in offer['prices']:
                         for price in offer['prices']['USD']:
-                            moq = price[0]
-                            price = price[1]
-                            seller_parts.append(
-                                SellerPart(
-                                    seller=seller,
-                                    part=part,
-                                    minimum_order_quantity=moq,
-                                    unit_cost=price,
-                                    lead_time_days=ltd))
+                            try:
+                                moq = price[0]
+                                price = price[1]
+                                seller_parts.append(
+                                    SellerPart(
+                                        seller=seller,
+                                        part=part,
+                                        minimum_order_quantity=moq,
+                                        unit_cost=price,
+                                        lead_time_days=ltd))
+                            except Exception as e:
+                                raise
 
     return seller_parts

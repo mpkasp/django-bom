@@ -1,6 +1,8 @@
 import csv
 import codecs
 import logging
+import os
+import sys
 import uuid
 
 from .settings import MEDIA_URL
@@ -503,12 +505,14 @@ def part_octopart_match(request, part_id):
 
     seller_parts = []
     try:
-        seller_parts = match_part(part)
+        seller_parts = match_part(part, request.user.bom_profile().organization)
     except IOError as e:
         messages.error(request, "Error communicating with Octopart. {}".format(e))
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
     except Exception, e:
-        messages.error(request, "Unknown Error: {}".format(e))
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        messages.error(request, "Error - {}: {}, ({}, {})".format(exc_type, e, fname, exc_tb.tb_lineno))
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
 
     if len(seller_parts) > 0:
@@ -539,7 +543,7 @@ def part_octopart_match_bom(request, part_id):
 
     for part in subparts:
         try:
-            seller_parts = match_part(part)
+            seller_parts = match_part(part, request.user.bom_profile().organization)
         except IOError as e:
             messages.error(request, "Error communicating with Octopart.")
             continue
