@@ -62,10 +62,42 @@ def home(request):
 
     autocomplete = dumps(autocomplete_dict)
 
+    def numbers_from_part_string(s):
+        number_class = None
+        number_item = None
+        number_variation = None
+
+        if len(s) >= 3:
+            number_class = s[:3]
+            if len(s) >= 8 and s[3] == '-':
+                number_item = s[4:8]
+                if len(s) >= 10 and s[8] == '-':
+                    number_variation = s[9:]
+        
+        return (number_class, number_item, number_variation)
+
     query = request.GET.get('q', '')
     if query:
-        parts = parts.filter(Q(description__icontains=query) | Q(manufacturer_part_number__icontains=query) | Q(manufacturer__name__icontains=query))
-        # TODO: query full part number
+        rq = query.strip()
+        (number_class, number_item, number_variation) = numbers_from_part_string(rq)
+        if number_class and number_item and number_variation:
+            parts = parts.filter(
+                Q(number_class__code=number_class, number_item=number_item, number_variation=number_variation) | 
+                Q(description__icontains=query) | 
+                Q(manufacturer_part_number__icontains=query) | 
+                Q(manufacturer__name__icontains=query))
+        elif number_class and number_item:
+            parts = parts.filter(
+                Q(number_class__code=number_class, number_item=number_item) | 
+                Q(description__icontains=query) | 
+                Q(manufacturer_part_number__icontains=query) | 
+                Q(manufacturer__name__icontains=query))
+        else:
+            parts = parts.filter(
+                Q(description__icontains=query) | 
+                Q(manufacturer_part_number__icontains=query) | 
+                Q(manufacturer__name__icontains=query) |
+                Q(number_class__code=query))
 
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
@@ -788,7 +820,7 @@ def add_sellerpart(request, part_id):
     if request.method == 'POST':
         form = AddSellerPartForm(request.POST, organization=organization)
         if form.is_valid():
-            new_sellerpart = SellerPart.objects.create(
+            new_sellerpart, created = SellerPart.objects.get_or_create(
                 part=part,
                 seller=form.cleaned_data['seller'],
                 minimum_order_quantity=form.cleaned_data['minimum_order_quantity'],
