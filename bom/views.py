@@ -88,7 +88,7 @@ def bom_signup(request):
 
 @login_required
 def part_info(request, part_id):
-    order_by = request.GET.get('order_by', 'defaultOrderField')
+    order_by = request.GET.get('order_by', 'indented')
     anchor = None
 
     user = request.user

@@ -6,6 +6,8 @@
 
 {% block title %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+<link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}" />
+<link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}" />
 {% endblock %}
 
 {% block menu %}
@@ -150,10 +152,11 @@
         </div>
 
         <div id="bom" class="col s12">
-            <table class="highlight part-list tight">
+            {% if order_by == 'indented' %}<a href="#" onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand all</a>{% endif %}
+            <table id="indented-bom" class="highlight part-list tight">
                 <thead>
                     <tr>
-                        <th class="text-normal td-small"><a href="?order_by=indented">Level</a></th>
+                        <th class="text-normal td-med"><a href="?order_by=indented">Level</a></th>
                         <th class="text-normal td-med">Part No.</th>
                         <th class="text-normal td-small">Qty</th>
                         <th class="text-normal td-large">Description</th>
@@ -169,14 +172,8 @@
                     </tr>
                 </thead>
                 {% for subpart in parts %}
-                    {% ifchanged subpart.indent_level %}<tbody class="clickable part-group subpart-level-{{ subpart.indent_level }}">{% endifchanged %}
-                    <tr>
+                    <tr data-tt-id="{{ subpart.part.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
                         <td class="text-normal">
-                        {% with ''|center:subpart.indent_level as range %}
-                        {% for _ in range %}
-                            &nbsp;
-                        {% endfor %}
-                        {% endwith %}
                         {{ subpart.indent_level }}
                         </td>
                         <td class="text-normal"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
@@ -270,55 +267,16 @@
         </div>
     </div>
 </div>
+{% if order_by == 'indented' %}
+<!-- http://ludo.cubicphuse.nl/jquery-treetable -->
+<script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
 <script>
-    function getLevelFromClass(className) {
-        // todo: handle > 9 levels
-        var idx = className.indexOf("subpart-level-");
-        if(idx < 0) {
-            return idx;
-        }
-        else {
-            return parseInt(className[idx + 14]);
-        }
-    }
-
-    $(".clickable").click(function() {
-        var currentLevel = getLevelFromClass($(this).context.className),
-            visible = $(this).next().is(":visible"),
-            lastRow = $(this).find('tr:last');
-        
-        // var visible = $(this).next().css("visibility") != "collapse";
-
-        $(this).nextUntil(".subpart-level-" + currentLevel).each(function() {
-            console.log('Searching for level: ' + currentLevel);
-
-            if(currentLevel >= getLevelFromClass($(this).context.className)) {
-                return false;
-            }
-            
-            console.log($(this).context.className);
-
-            if($(this).data().clicksToUnhide == null) {
-                $(this).data().clicksToUnhide = 0;
-            }
-
-            if(visible) {
-                $(this).hide();
-                $(this).data().clicksToUnhide += 1;
-                lastRow.addClass('cell-collapsed');
-                
-            }
-            else if($(this).data().clicksToUnhide == 1) {
-                $(this).show();
-                $(this).data().clicksToUnhide = 0;
-                lastRow.removeClass('cell-collapsed');
-            }
-            else {
-                $(this).data().clicksToUnhide -= 1;
-            }
-        });
-    });
+    $("#indented-bom").treetable({ 
+        expandable: true, 
+        indent: 2,
+        initialState: 'expanded' });
 </script>
+{% endif %}
 
 {% if anchor %}
 <script type='text/javascript'>

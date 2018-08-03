@@ -122,11 +122,12 @@ class Part(models.Model):
         return partfiles
 
     def indented(self):
-        def indented_given_bom(bom, part, qty=1, indent_level=0, subpart=None):
+        def indented_given_bom(bom, part, parent=None, qty=1, indent_level=0, subpart=None):
             bom.append({
                 'part': part,
                 'quantity': qty,
                 'indent_level': indent_level,
+                'parent_id': parent.id if parent is not None else None,
                 'subpart': subpart,
             })
 
@@ -142,7 +143,7 @@ class Part(models.Model):
                     # same Part, thus we filter and iterate again
                     for subpart in subparts:
                         qty = subpart.count
-                        indented_given_bom(bom, sp, qty, indent_level, subpart)
+                        indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart)
 
         bom = []
         cost = 0

@@ -27,6 +27,7 @@ source bin/activate
 pip install django==1.11.14
 django-admin startproject mysite
 cd mysite
+python manage.py migrate
 python manage.py createsuperuser # make a user for your development environment
 ```
 
