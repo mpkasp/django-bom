@@ -153,114 +153,120 @@
 
         <div id="bom" class="col s12">
             {% if order_by == 'indented' %}<a href="#" onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand all</a>{% endif %}
-            <table id="indented-bom" class="highlight part-list tight">
-                <thead>
+            <div class="responsive-table-wrapper">
+                <table id="indented-bom" class="highlight part-list tight single-line">
+                    <thead>
+                        <tr>
+                            <th class="text-normal"><a href="?order_by=indented">Level</a></th>
+                            <th class="text-normal">Part No.</th>
+                            <th class="text-normal">Qty</th>
+                            <th class="text-normal">Description</th>
+                            <th class="text-normal">Rev</th>
+                            <th class="text-normal">Manufacturer</th>
+                            <th class="text-normal">MPN</th>
+                            <!-- <th class="text-normal"><i>Ext. Qty</i></th> -->
+                            <!-- <th class="text-normal"><i>Order Qty</i></th> -->
+                            <th class="text-normal"><i>Seller</i></th>
+                            <th class="text-normal"><a href="?order_by=seller_price"><i>Price</i></a></th>
+                            <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
+                            <th class="text-normal"><a href="?order_by=seller_nre"><i>NRE</i></a></th>
+                        </tr>
+                    </thead>
+                    {% for subpart in parts %}
+                        <tr data-tt-id="{{ subpart.part.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
+                            <td class="text-normal">
+                            {{ subpart.indent_level }}
+                            </td>
+                            <td class="text-normal"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
+                            <td class="text-normal">{{ subpart.quantity }}</td>
+                            <td class="text-normal">{{ subpart.part.description }}</td>
+                            <td class="text-normal">{{ subpart.part.revision }}</td>
+                            <td class="text-normal">{{ subpart.part.manufacturer.name }}</td>
+                            <td class="text-normal">{{ subpart.part.manufacturer_part_number }}</td>
+                                <!-- <td class="text-normal">{{ subpart.extended_quantity }}</td> -->
+                            <!-- <td class="text-normal">{{ subpart.order_quantity }}</td> -->
+                            <td class="text-normal">{{ subpart.seller_part.seller.name | default:"-" }}</td>
+                            <td class="text-normal">{{ subpart.seller_price | default:"-"}}</td>
+                            <!-- <td class="text-normal">{{ subpart.extended_cost | default:"-" }}</td> -->
+                            <td class="text-normal">{{ subpart.seller_nre | default:"-" }}</td>
+                        </tr>
+                    {% empty %}
                     <tr>
-                        <th class="text-normal td-med"><a href="?order_by=indented">Level</a></th>
-                        <th class="text-normal td-med">Part No.</th>
-                        <th class="text-normal td-small">Qty</th>
-                        <th class="text-normal td-large">Description</th>
-                        <th class="text-normal td-small">Rev</th>
-                        <th class="text-normal td-med">Manufacturer</th>
-                        <th class="text-normal td-med">MPN</th>
-                        <!-- <th class="text-normal td-small"><i>Ext. Qty</i></th> -->
-                        <!-- <th class="text-normal td-small"><i>Order Qty</i></th> -->
-                        <th class="text-normal td-med"><i>Seller</i></th>
-                        <th class="text-normal td-small"><a href="?order_by=seller_price"><i>Price</i></a></th>
-                        <!-- <th class="text-normal td-small"><i>Ext Cost</i></th> -->
-                        <th class="text-normal td-small"><a href="?order_by=seller_nre"><i>NRE</i></a></th>
+                        <td colspan="99" style="text-align: center;"><i>This part does not contain any other parts.</i></td>
                     </tr>
-                </thead>
-                {% for subpart in parts %}
-                    <tr data-tt-id="{{ subpart.part.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
-                        <td class="text-normal">
-                        {{ subpart.indent_level }}
-                        </td>
-                        <td class="text-normal"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
-                        <td class="text-normal td-small">{{ subpart.quantity }}</td>
-                        <td class="text-normal td-large"><div class="limited">{{ subpart.part.description }}<div></td>
-                        <td class="text-normal td-small">{{ subpart.part.revision }}</td>
-                        <td class="text-normal td-med"><div class="limited">{{ subpart.part.manufacturer.name }}</div></td>
-                        <td class="text-normal td-med"><div class="limited">{{ subpart.part.manufacturer_part_number }}</div></td>
-                            <!-- <td class="text-normal td-small">{{ subpart.extended_quantity }}</td> -->
-                        <!-- <td class="text-normal td-small">{{ subpart.order_quantity }}</td> -->
-                        <td class="text-normal td-med"><div class="limited">{{ subpart.seller_part.seller.name | default:"-" }}</div></td>
-                        <td class="text-normal td-small">{{ subpart.seller_price | default:"-"}}</td>
-                        <!-- <td class="text-normal td-small">{{ subpart.extended_cost | default:"-" }}</td> -->
-                        <td class="text-normal td-small">{{ subpart.seller_nre | default:"-" }}</td>
-                    </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="99" style="text-align: center;"><i>This part does not contain any other parts.</i></td>
-                </tr>
-                {% endfor %}
-            </table>
+                    {% endfor %}
+                </table>
+            </div>
             <br>
         </div>
 
         <div id="used" class="col s12">
-            <table class="highlight tight">
-                <thead>
-                    <tr>
-                        <th>Part Number</th>
-                        <th>Description</th>
-                        <th>Rev</th>
-                        <th>Manufacturer</th>
-                        <th>MPN</th>
-                    </tr>
-                </thead>
+            <div class="responsive-table-wrapper">
+                <table class="highlight tight">
+                    <thead>
+                        <tr>
+                            <th>Part Number</th>
+                            <th>Description</th>
+                            <th>Rev</th>
+                            <th>Manufacturer</th>
+                            <th>MPN</th>
+                        </tr>
+                    </thead>
 
-                <tbody>
-                    {% for used_part in where_used %}
-                    <tr>
-                        <td><a href="{% url 'part-info' part_id=used_part.id %}">{{ used_part.full_part_number }}</a></td>
-                        <td>{{ used_part.description }}</td>
-                        <td>{{ used_part.revision }}</td>
-                        <td>{{ used_part.manufacturer.name }}</td>
-                        <td>{{ used_part.manufacturer_part_number }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="99" style="text-align: center;"><i>This part is not currently used in any of your other parts.</i></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    <tbody>
+                        {% for used_part in where_used %}
+                        <tr>
+                            <td><a href="{% url 'part-info' part_id=used_part.id %}">{{ used_part.full_part_number }}</a></td>
+                            <td>{{ used_part.description }}</td>
+                            <td>{{ used_part.revision }}</td>
+                            <td>{{ used_part.manufacturer.name }}</td>
+                            <td>{{ used_part.manufacturer_part_number }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="99" style="text-align: center;"><i>This part is not currently used in any of your other parts.</i></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div id="sourcing" class="col s12">
-            <table class="highlight tight">
-                <thead>
-                    <tr>
-                        <th>Seller</th>
-                        <th>MOQ</th>
-                        <th>MPQ</th>
-                        <th>Price</th>
-                        <th>Lead Time (days)</th>
-                        <th>NRE</th>
-                        <th>NCNR</th>
-                    </tr>
-                </thead>
+            <div class="responsive-table-wrapper">
+                <table class="highlight tight">
+                    <thead>
+                        <tr>
+                            <th>Seller</th>
+                            <th>MOQ</th>
+                            <th>MPQ</th>
+                            <th>Price</th>
+                            <th>Lead Time (days)</th>
+                            <th>NRE</th>
+                            <th>NCNR</th>
+                        </tr>
+                    </thead>
 
-                <tbody>
-                    {% for seller_part in seller_parts %}
-                    <tr>
-                        <td>{{ seller_part.seller.name }}</td>
-                        <td>{{ seller_part.minimum_order_quantity }}</td>
-                        <td>{{ seller_part.minimum_pack_quantity }}</td>
-                        <td>{{ seller_part.unit_cost }}</td>
-                        <td>{{ seller_part.lead_time_days }}</td>
-                        <td>{{ seller_part.nre_cost }}</td>
-                        <td>{{ seller_part.ncnr }}</td>
-                        <td><a href="{% url 'sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a></td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="99" style="text-align: center;"><i>This part has no sellers entered yet.</i></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    <tbody>
+                        {% for seller_part in seller_parts %}
+                        <tr>
+                            <td>{{ seller_part.seller.name }}</td>
+                            <td>{{ seller_part.minimum_order_quantity }}</td>
+                            <td>{{ seller_part.minimum_pack_quantity }}</td>
+                            <td>{{ seller_part.unit_cost }}</td>
+                            <td>{{ seller_part.lead_time_days }}</td>
+                            <td>{{ seller_part.nre_cost }}</td>
+                            <td>{{ seller_part.ncnr }}</td>
+                            <td><a href="{% url 'sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="99" style="text-align: center;"><i>This part has no sellers entered yet.</i></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             <div style="text-align: center; width: 100%;">
                 <a class="btn green lighten-1 waves-button-input" href="{% url 'part-add-sellerpart' part_id=part.id %}" style="margin: 10px;">Add Seller Part</a>
                 <a class="btn green lighten-1 waves-button-input" href="{% url 'part-octopart-match' part_id=part.id %}" style="margin: 10px;">Find Sellers From Octopart</a></div>

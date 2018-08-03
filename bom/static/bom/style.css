@@ -39,7 +39,7 @@ td, tr {
     color: red;
 }
 
-.td-small {
+/* .td-small {
     width: 60px;
 }
 
@@ -51,7 +51,6 @@ td, tr {
 
 .td-large {
     width: 450px;
-    /*max-width: 450px;*/
     min-width: 150px;
     position: relative;
 
@@ -76,6 +75,17 @@ td, tr {
     text-overflow: ellipsis; 
     width: 100%; 
     padding: 3px;
+} */
+
+.single-line {
+    white-space: nowrap;
+}
+
+.responsive-table-wrapper {
+    overflow-x: auto;
+    min-width: 100%;
+    max-width: 110%;
+    margin: 0 -5%;
 }
 
 .push-footer {
