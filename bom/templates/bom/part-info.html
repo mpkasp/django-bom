@@ -174,9 +174,7 @@
                     </thead>
                     {% for subpart in parts %}
                         <tr data-tt-id="{{ subpart.part.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
-                            <td class="text-normal">
-                            {{ subpart.indent_level }}
-                            </td>
+                            <td class="text-normal">{{ subpart.indent_level }}</td>
                             <td class="text-normal"><a href="{% url 'part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
                             <td class="text-normal">{{ subpart.quantity }}</td>
                             <td class="text-normal">{{ subpart.part.description }}</td>
@@ -280,7 +278,8 @@
     $("#indented-bom").treetable({ 
         expandable: true, 
         indent: 2,
-        initialState: 'expanded' });
+        initialState: 'expanded'
+        });
 </script>
 {% endif %}
 
