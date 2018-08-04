@@ -17,13 +17,17 @@ Create New Part
 <div class="row">
     <form action="{% url 'create-part' %}" method="post" class="col s12">
         {% csrf_token %}
-
         {{ form.non_field_errors }}
         <div class="row">
             <div class="fieldWrapper col s6">
-                <label name="number_class" for="{{ form.number_class.id_for_label }}"><b>Part Number Class:</b></label>
+                <label for="{{ form.number_class.id_for_label }}"><b>Part Number Class:</b></label>
                 {{ form.number_class.errors }}
-                {{ form.number_class }}
+                <select name="number_class">
+                        <option value="" disabled selected>- Select Part Number Class -</option>
+                        {% for class in form.partclasses %}
+                        <option  value="{{ class.id }}">{{ class.code }} : {{ class.name }}</option>
+                        {% endfor %}
+                </select>
             </div>
             <div class="fieldWrapper col s3">
                 <label for="{{ form.number_item.id_for_label }}">Part Number:</label>

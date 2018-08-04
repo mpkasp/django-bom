@@ -3,7 +3,7 @@ from django import forms
 
 from .models import Part, PartClass, Manufacturer, Subpart, Seller
 from .validators import decimal, alphanumeric, numeric
-
+from json import dumps
 
 class PartInfoForm(forms.Form):
     quantity = forms.IntegerField(label='Quantity', min_value=1)
@@ -24,7 +24,9 @@ class PartForm(forms.Form):
         max_length=2, label='Part Variation', required=False, 
         validators=[alphanumeric],
         widget=forms.TextInput(attrs={'placeholder': 'Auto-Generated if blank'}))
-    description = forms.CharField(max_length=255, label='Description*')
+    description = forms.CharField(
+        max_length=255, label='Description*',
+        widget=forms.TextInput(attrs={'placeholder': 'E.g. CAPACITOR, CERAMIC, 4.7uF, 0402, 10V, +/-20%'}))
     revision = forms.CharField(max_length=2, label='Revision*', initial=1)
     manufacturer_part_number = forms.CharField(max_length=128, required=False)
     manufacturer = forms.ModelChoiceField(queryset=None, required=False)
