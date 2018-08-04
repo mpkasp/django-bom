@@ -21,7 +21,7 @@ Create New Part
         {{ form.non_field_errors }}
         <div class="row">
             <div class="fieldWrapper col s6">
-                <label for="{{ form.number_class.id_for_label }}"><b>Part Number Class:</b></label>
+                <label name="number_class" for="{{ form.number_class.id_for_label }}"><b>Part Number Class:</b></label>
                 {{ form.number_class.errors }}
                 {{ form.number_class }}
             </div>
