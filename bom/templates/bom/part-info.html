@@ -272,7 +272,7 @@
     </div>
 </div>
 {% if order_by == 'indented' %}
-<!-- http://ludo.cubicphuse.nl/jquery-treetable -->
+<!-- Tree Table -->
 <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
 <script>
     $("#indented-bom").treetable({ 
@@ -283,6 +283,7 @@
 </script>
 {% endif %}
 
+<!-- Handle if there's an anchor, select tab -->
 {% if anchor %}
 <script type='text/javascript'>
     $(document).ready(function(){
@@ -290,5 +291,13 @@
     });
 </script>
 {% endif %}
+
+<!-- Floating Horizontal Scrollbar -->
+<script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
+<script>
+$(function() {
+  $('.responsive-table-wrapper').floatingScrollbar();
+});
+</script>
 
 {% endblock %}

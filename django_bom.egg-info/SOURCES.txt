@@ -35,6 +35,7 @@ bom/static/bom/css/materialize.min.css
 bom/static/bom/img/favicon.ico
 bom/static/bom/img/indabom.png
 bom/static/bom/js/.DS_Store
+bom/static/bom/js/jquery.ba-floatingscrollbar.min.js
 bom/static/bom/js/jquery.treetable.js
 bom/static/bom/js/materialize.min.js
 bom/templates/bom/add-sellerpart.html

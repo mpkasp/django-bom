@@ -112,6 +112,7 @@ Manage BOM
     </div>
 </div>
 
+<!-- Tree Table -->
 <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
 <script>
     $("#indented-bom").treetable({ 
@@ -122,5 +123,13 @@ Manage BOM
                 $("#indented-bom").treetable("reveal", {{ part.id }});
             } 
         });
+</script>
+
+<!-- Floating Horizontal Scrollbar -->
+<script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
+<script>
+$(function() {
+  $('.responsive-table-wrapper').floatingScrollbar();
+});
 </script>
 {% endblock %}

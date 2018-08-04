@@ -59,11 +59,10 @@
     </div>
 </div>
 
+<!-- Autocomplete -->
 <script>
-// console.log('{{ autocomplete|safe }}');
 var data = JSON.parse('{{ autocomplete|safe }}');;
 $(document).ready(function(){
-    console.log(data);
     $('input.autocomplete').autocomplete({
         data: data,
         limit: 10, // The max amount of results that can be shown at once. Default: Infinity.
@@ -72,6 +71,14 @@ $(document).ready(function(){
         },
         minLength: 1, // The minimum length of the input for the autocomplete to start. Default: 1.
     });
+});
+</script>
+
+<!-- Floating Horizontal Scrollbar -->
+<script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
+<script>
+$(function() {
+  $('.responsive-table-wrapper').floatingScrollbar();
 });
 </script>
 {% endblock %}
