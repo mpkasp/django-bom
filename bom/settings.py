@@ -16,8 +16,9 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from local_settings import *
-except ImportError:
+    from bom.local_settings import *
+except ImportError as e:
+    print(e)
     pass
 
 # Quick-start development settings - unsuitable for production

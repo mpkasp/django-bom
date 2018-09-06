@@ -541,7 +541,7 @@ def part_octopart_match(request, part_id):
     except IOError as e:
         messages.error(request, "Error communicating with Octopart. {}".format(e))
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
-    except Exception, e:
+    except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         messages.error(request, "Error - {}: {}, ({}, {})".format(exc_type, e, fname, exc_tb.tb_lineno))
@@ -579,7 +579,7 @@ def part_octopart_match_bom(request, part_id):
         except IOError as e:
             messages.error(request, "Error communicating with Octopart.")
             continue
-        except Exception, e:
+        except Exception as e:
             messages.error(request, "Unknown Error: {}".format(e))
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
 

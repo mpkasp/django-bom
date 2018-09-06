@@ -1,5 +1,15 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto');
 
+body {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+}
+
+main {
+     flex: 1 0 auto;
+}
+
 .tabs { 
     /* Materialize has a bug that shows the scrollbar sometimes, this prevents it */
     /*overflow-x: hidden;*/

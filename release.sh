@@ -5,6 +5,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]
 then
     vim setup.py
     rm dist/*
+    rm build/*
     python setup.py sdist
     python setup.py install
     twine upload dist/*

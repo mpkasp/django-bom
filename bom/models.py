@@ -14,15 +14,15 @@ class Organization(models.Model):
     subscription = models.CharField(
         max_length=1, choices=(
             ('F', 'Free'), ('P', 'Pro'), ))
-    owner = models.ForeignKey(User)
+    owner = models.ForeignKey(User, on_delete=models.PROTECT)
 
     def __unicode__(self):
         return u'%s' % (self.name)
 
 
 class UserMeta(models.Model):
-    user = models.OneToOneField(User, db_index=True)
-    organization = models.ForeignKey(Organization, blank=True, null=True)
+    user = models.OneToOneField(User, db_index=True, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, blank=True, null=True, on_delete=models.PROTECT)
     role = models.CharField(
         max_length=1, choices=(
             ('A', 'Admin'), ('V', 'Viewer'), ))
@@ -48,7 +48,7 @@ class PartClass(models.Model):
 
 class Manufacturer(models.Model):
     name = models.CharField(max_length=128, default=None)
-    organization = models.ForeignKey(Organization)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
 
     class Meta:
         ordering = ['name']
@@ -60,19 +60,17 @@ class Manufacturer(models.Model):
 # Numbering scheme is hard coded for now, may want to change this to a
 # setting depending on a part numbering scheme
 class Part(models.Model):
-    organization = models.ForeignKey(Organization)
-    
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     number_class = models.ForeignKey(
-        PartClass, default=None, related_name='number_class')
+        PartClass, default=None, related_name='number_class', on_delete=models.PROTECT)
     number_item = models.CharField(max_length=4, default=None, blank=True, validators=[numeric])
     number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
-    
     description = models.CharField(max_length=255, default=None)
     revision = models.CharField(max_length=2)
     manufacturer_part_number = models.CharField(
         max_length=128, default='', blank=True)
     manufacturer = models.ForeignKey(
-        Manufacturer, default=None, blank=True, null=True)
+        Manufacturer, default=None, blank=True, null=True, on_delete=models.PROTECT)
     subparts = models.ManyToManyField(
         'self',
         blank=True,
@@ -154,9 +152,8 @@ class Part(models.Model):
         sellerparts = SellerPart.objects.filter(part=self)
         seller = None
         for sellerpart in sellerparts:
-            if (sellerpart.minimum_order_quantity <= quantity and (
-                    seller is None or
-                    sellerpart.unit_cost < seller.unit_cost) and
+            if (sellerpart.minimum_order_quantity <= quantity and 
+                (seller is None or sellerpart.unit_cost < seller.unit_cost) and
                     sellerpart.unit_cost is not None):
                 seller = sellerpart
             elif seller is None:
@@ -167,7 +164,7 @@ class Part(models.Model):
     def save(self, **kwargs):
         if self.number_item is None or self.number_item == '':
             last_number_item = Part.objects.filter(
-                number_class=self.number_class, 
+                number_class=self.number_class,
                 organization=self.organization).order_by('number_item').last()
             if not last_number_item:
                 self.number_item = '0001'
@@ -195,9 +192,9 @@ class Part(models.Model):
 
 class Subpart(models.Model):
     assembly_part = models.ForeignKey(
-        Part, related_name='assembly_part', null=True)
+        Part, related_name='assembly_part', null=True, on_delete=models.PROTECT)
     assembly_subpart = models.ForeignKey(
-        Part, related_name='assembly_subpart', null=True)
+        Part, related_name='assembly_subpart', null=True, on_delete=models.PROTECT)
     count = models.IntegerField(default=1)
 
     def clean(self):
@@ -209,7 +206,7 @@ class Subpart(models.Model):
 
 
 class Seller(models.Model):
-    organization = models.ForeignKey(Organization)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     name = models.CharField(max_length=128, default=None)
 
     def __unicode__(self):
@@ -217,8 +214,8 @@ class Seller(models.Model):
 
 
 class SellerPart(models.Model):
-    seller = models.ForeignKey(Seller)
-    part = models.ForeignKey(Part)
+    seller = models.ForeignKey(Seller, on_delete=models.CASCADE)
+    part = models.ForeignKey(Part, on_delete=models.CASCADE)
     minimum_order_quantity = models.IntegerField(null=True, blank=True)
     minimum_pack_quantity = models.IntegerField(null=True, blank=True)
     unit_cost = models.DecimalField(
@@ -245,7 +242,7 @@ class SellerPart(models.Model):
 class PartFile(models.Model):
     file = models.FileField(upload_to='partfiles/')
     upload_date = models.DateField(auto_now=True)
-    part = models.ForeignKey(Part)
+    part = models.ForeignKey(Part, on_delete=models.CASCADE)
 
 
 @receiver(post_delete, sender=PartFile)
