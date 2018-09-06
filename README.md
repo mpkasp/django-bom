@@ -17,14 +17,14 @@ If you already have a django project, you can skip to [Add Django Bom To Your Ap
 ## Start From Scratch
 1. To start from scratch we recommend setting up a virtual environment
 ```
-virtualenv mysite
+virtualenv -p python3 mysite
 cd mysite
 source bin/activate
 ```
 
 2. From here install django, and set up your project.
 ```
-pip install django==1.11.14
+pip install django==2.1.1
 django-admin startproject mysite
 cd mysite
 python manage.py migrate
