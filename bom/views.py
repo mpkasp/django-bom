@@ -327,15 +327,10 @@ def part_upload_bom(request, part_id):
         form = FileForm(request.POST, request.FILES)
         if form.is_valid():
             csvfile = request.FILES['file']
-            dialect = csv.Sniffer().sniff(csvfile.readline())
+            # dialect = csv.Sniffer().sniff(csvfile.readline())
             csvfile.open()
-            reader = csv.reader(
-                codecs.EncodedFile(
-                    csvfile,
-                    "utf-8"),
-                delimiter=',',
-                dialect=dialect)
-            headers = [h.lower() for h in reader.next()]
+            reader = csv.reader(codecs.iterdecode(csvfile, 'utf-8'))
+            headers = [h.lower() for h in next(reader)]
             # Subpart.objects.filter(assembly_part=part).delete()
 
             header_error = False
@@ -428,15 +423,10 @@ def upload_parts(request):
         form = FileForm(request.POST, request.FILES)
         if form.is_valid():
             csvfile = request.FILES['file']
-            dialect = csv.Sniffer().sniff(csvfile.readline())
+            # dialect = csv.Sniffer().sniff(csvfile.readline())
             csvfile.open()
-            reader = csv.reader(
-                codecs.EncodedFile(
-                    csvfile,
-                    "utf-8"),
-                delimiter=',',
-                dialect=dialect)
-            headers = [h.lower() for h in reader.next()]
+            reader = csv.reader(codecs.iterdecode(csvfile, 'utf-8'))
+            headers = [h.lower() for h in next(reader)]
             for row in reader:
                 partData = {}
                 for idx, item in enumerate(row):

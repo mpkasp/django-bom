@@ -152,9 +152,10 @@ class Part(models.Model):
         sellerparts = SellerPart.objects.filter(part=self)
         seller = None
         for sellerpart in sellerparts:
-            if (sellerpart.minimum_order_quantity <= quantity and 
-                (seller is None or sellerpart.unit_cost < seller.unit_cost) and
-                    sellerpart.unit_cost is not None):
+            # TODO: Make this smarter and more readable.
+            if (sellerpart.unit_cost is not None and
+                (sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
+                (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
                 seller = sellerpart
             elif seller is None:
                 seller = sellerpart
@@ -192,9 +193,9 @@ class Part(models.Model):
 
 class Subpart(models.Model):
     assembly_part = models.ForeignKey(
-        Part, related_name='assembly_part', null=True, on_delete=models.PROTECT)
+        Part, related_name='assembly_part', null=True, on_delete=models.CASCADE)
     assembly_subpart = models.ForeignKey(
-        Part, related_name='assembly_subpart', null=True, on_delete=models.PROTECT)
+        Part, related_name='assembly_subpart', null=True, on_delete=models.CASCADE)
     count = models.IntegerField(default=1)
 
     def clean(self):
