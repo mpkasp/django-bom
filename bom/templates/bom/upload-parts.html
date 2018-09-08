@@ -9,14 +9,14 @@
 {% endblock %}
 
 {% block menu %}
-<li><a href="{% url 'home' %}">Cancel</a></li>
+<li><a href="{% url 'bom:home' %}">Cancel</a></li>
 {% endblock%}
 
 {% block content %}
 <h5>Upload Parts</h5>
 
 <p>To batch add parts, upload a csv that contains at least three columns with the headers: <b>'part_class'</b>, <b>'description'</b>, and <b>'revision'</b> at a minimum. You may also specify a 'manufacturer_part_number' and a 'manufacturer'. If neither is specified the manufacturer_part_number will default to the generated part number, and the manufacturer will default to your organization.</i></p>
-<form action="{% url 'upload-parts' %}" method="post" enctype="multipart/form-data">
+<form action="{% url 'bom:upload-parts' %}" method="post" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="row">
         <div class="col s8 file-field input-field">

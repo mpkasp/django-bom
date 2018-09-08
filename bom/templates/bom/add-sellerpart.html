@@ -10,14 +10,14 @@ Add Seller Part
 {% endblock %}
 
 {% block menu %}
-<li><a href="{% url 'part-info' part_id=part.id %}">Cancel</a></li>
+<li><a href="{% url 'bom:part-info' part_id=part.id %}">Cancel</a></li>
 {% endblock%}
 
 {% block content %}
 <h5>{{ part.full_part_number }} {{ part.description }}</h5>
 
 <div class="row">
-    <form name="seller" action="{% url 'part-add-sellerpart' part_id=part.id %}" method="post" class="col s12">
+    <form name="seller" action="{% url 'bom:part-add-sellerpart' part_id=part.id %}" method="post" class="col s12">
         {% csrf_token %}
         {{ form.non_field_errors }}
 

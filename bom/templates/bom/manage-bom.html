@@ -12,8 +12,8 @@ Manage BOM
 {% endblock %}
 
 {% block menu %}
-<li><a href="{% url 'part-octopart-match-bom' part_id=part.id %}">Octopart Match All Subparts</a></li>
-<li><a href="{% url 'part-info' part_id=part.id %}">Cancel</a></li>
+<li><a href="{% url 'bom:part-octopart-match-bom' part_id=part.id %}">Octopart Match All Subparts</a></li>
+<li><a href="{% url 'bom:part-info' part_id=part.id %}">Cancel</a></li>
 {% endblock%}
 
 {% block content %}
@@ -22,7 +22,7 @@ Manage BOM
     <!-- <h5>{{ part.description }}</h5> -->
     <div id="bom" class="col s12">
         <br><h5>Add Subpart</h5>
-        <form action="{% url 'part-add-subpart' part_id=part.id %}" method="post">
+        <form action="{% url 'bom:part-add-subpart' part_id=part.id %}" method="post">
             {% csrf_token %}
             <div class="row">
                 <div class="col s7 input-field">
@@ -42,7 +42,7 @@ Manage BOM
         </form>
         <br><h5>Batch Add Subparts</h5>
         <p>To add batch subparts, upload a csv that contains at least two columns with the headers: <b>part_number</b> <i>or</i> <b>manufacturer_part_number</b> and <b>quantity</b>; the 'part_number' or 'manufacturer_part_number' column must contain part numbers that have already been created in this system.</p>
-        <form action="{% url 'part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
+        <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="row">
                 <div class="col s9 file-field input-field">
@@ -93,9 +93,9 @@ Manage BOM
                     <td>{{ subpart.part.manufacturer_part_number }}</td>
                     <td>{{ subpart.seller_part.seller.name | default:"-" }}</td>
                     <td>{{ subpart.seller_price | default:"-"}}</td>
-                    <td><a href="{% url 'part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td>
+                    <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td>
                     {% if subpart.indent_level == 1 and subpart.subpart is not None %}
-                    <td><a href="{% url 'part-remove-subpart' part_id=part.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
+                    <td><a href="{% url 'bom:part-remove-subpart' part_id=part.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
                     {% else %}
                     <td></td>
                     {% endif %}
@@ -106,7 +106,7 @@ Manage BOM
         </div>
         <br><br>
         <div class="center">
-            <a class="waves-effect waves-light red lighten-2 btn" href="{% url 'part-remove-all-subparts' part_id=part.id %}" onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts</a>
+            <a class="waves-effect waves-light red lighten-2 btn" href="{% url 'bom:part-remove-all-subparts' part_id=part.id %}" onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts</a>
         </div>
         <br>
     </div>

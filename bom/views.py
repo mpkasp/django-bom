@@ -28,6 +28,7 @@ from .octopart_parts_match import match_part
 
 logger = logging.getLogger(__name__)
 
+
 @login_required
 def home(request):
     profile = request.user.bom_profile()
@@ -73,7 +74,7 @@ def home(request):
                 number_item = s[4:8]
                 if len(s) >= 10 and s[8] == '-':
                     number_variation = s[9:]
-        
+
         return (number_class, number_item, number_variation)
 
     query = request.GET.get('q', '')
@@ -137,7 +138,7 @@ def part_info(request, part_id):
         messages.error(request, "Cant access a part that is not yours!")
         return HttpResponseRedirect(reverse('error'))
 
-    qty_cache_key = part_id + '_qty'
+    qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 100)
     part_info_form = PartInfoForm(initial={'quantity': qty})
     upload_file_to_part_form = FileForm()
@@ -193,7 +194,6 @@ def part_info(request, part_id):
         if seller is None:
             extended_cost_complete = False
 
-
     # seller_price, seller_nre
 
     extended_cost = unit_cost * int(qty)
@@ -232,7 +232,7 @@ def part_export_bom(request, part_id):
     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_indented.csv"'.format(part.full_part_number())
 
     bom = part.indented()
-    qty_cache_key = part_id + '_qty'
+    qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 1000)
     unit_cost = 0
     unit_out_of_pocket_cost = 0

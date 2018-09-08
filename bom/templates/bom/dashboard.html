@@ -6,20 +6,18 @@
 
 {% block title %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
-{% if organization %}{{ organization }}{% elif user.first_name %}{{ user.first_name }}'s{% endif %} Parts List
+{% if organization %}{{ organization.name }}{% elif user.first_name %}{{ user.first_name }}'s{% endif %} Parts List
 {% endblock %}
 
 {% block menu %}
-<!-- <li><a href="{% url 'create-part' %}">New Part</a></li>
-<li><a href="{% url 'upload-parts' %}">Upload Parts</a></li> -->
-<li><a href="{% url 'export-part-list' %}">Export</a></li>
+<li><a href="{% url 'bom:export-part-list' %}">Export</a></li>
 {% endblock%}
 
 {% block content %}
 <div class="row">
     <div class="col s12">
         <div class="input-field col s12">
-            <form action="{% url 'home' %}" method="get" enctype="multipart/form-data">
+            <form action="{% url 'bom:home' %}" method="get" enctype="multipart/form-data">
                 <i class="material-icons prefix">search</i>
                 <input type="text" id="autocomplete-input" class="autocomplete" name="q">
                 <label for="autocomplete-input">Find a part</label>
@@ -43,7 +41,7 @@
             <tbody>
                 {% for part in parts %}
                 <tr>
-                    <td class="text-normal td-med"><a href="{% url 'part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
+                    <td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
                     <td class="text-normal td-large">{{ part.description }}</td>
                     <td class="text-normal td-small">{{ part.revision }}</td>
                     <td class="text-normal td-small">{{ part.manufacturer.name }}</td>

@@ -10,12 +10,12 @@ Edit Part {{ part.full_part_number }}
 {% endblock %}
 
 {% block menu %}
-<li><a href="{% url 'home' %}">Cancel</a></li>
+<li><a href="{% url 'bom:home' %}">Cancel</a></li>
 {% endblock%}
 
 {% block content %}
 <div class="row">
-    <form action="{% url 'part-edit' part_id=part.id %}" method="post" class="col s12">
+    <form action="{% url 'bom:part-edit' part_id=part.id %}" method="post" class="col s12">
         {% csrf_token %}
 
         {{ form.non_field_errors }}
@@ -75,7 +75,7 @@ Edit Part {{ part.full_part_number }}
 
         <input class="waves-effect waves-light btn green lighten-1" type="submit" value="Save" />
         <a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
-        <a href="{% url 'part-delete' part_id=part.id %}" onclick="return confirm('Are you sure? This part will be deleted forever!')" class="waves-effect waves-light btn red lighten-1">Delete Part</a>
+        <a href="{% url 'bom:part-delete' part_id=part.id %}" onclick="return confirm('Are you sure? This part will be deleted forever!')" class="waves-effect waves-light btn red lighten-1">Delete Part</a>
     </form>
 </div>
 {% endblock %}

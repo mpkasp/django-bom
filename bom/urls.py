@@ -1,40 +1,39 @@
 from django.conf.urls import url
-from django.urls import path
+from django.urls import path, reverse
 from django.contrib.auth import views as auth_views
 from django.contrib import admin
 from django.views.generic import TemplateView
 
 from . import views
 
+app_name = 'bom'
+
 urlpatterns = [
     # these will likely be overridden by your app
     path('admin/', admin.site.urls),
-    path('login/', auth_views.LoginView.as_view(), {'redirect_authenticated_user': True}, name='login'),
+    path('login/', auth_views.LoginView.as_view(), {'redirect_authenticated_user': True, }, name='login'),
     path('logout/', auth_views.LogoutView.as_view(), {'next_page': '/'}, name='logout'),
-    # url(r'^admin/', admin.site.urls),
-    # url(r'^login/$', auth_views.LoginView, {'redirect_authenticated_user': True}, name='login'),
-    # url(r'^logout/$', auth_views.LogoutView, {'next_page': '/'}, name='logout'),
-    url(r'^about/$', TemplateView.as_view(template_name='error.html'), name='about'), # TODO: remove this and make tests pass..
 
-    url(r'^$', views.home, name='home'),
-    url(r'^error/$', views.error, name='error'),
-    url(r'^signup/$', views.bom_signup, name='bom-signup'),
-    url(r'^export/$', views.export_part_list, name='export-part-list'),
-    url(r'^create-part/$', views.create_part, name='create-part'),
-    url(r'^upload-parts/$', views.upload_parts, name='upload-parts'),
-    url(r'^part/(?P<part_id>[0-9]+)/$', views.part_info, name='part-info'),
-    url(r'^part/(?P<part_id>[0-9]+)/export/$', views.part_export_bom, name='part-export-bom'),
-    url(r'^part/(?P<part_id>[0-9]+)/upload/$', views.part_upload_bom, name='part-upload-bom'),
-    url(r'^part/(?P<part_id>[0-9]+)/octopart-match/$', views.part_octopart_match, name='part-octopart-match'),
-    url(r'^part/(?P<part_id>[0-9]+)/octopart-match-indented/$', views.part_octopart_match_bom, name='part-octopart-match-bom'),
-    url(r'^part/(?P<part_id>[0-9]+)/edit/$', views.part_edit, name='part-edit'),
-    url(r'^part/(?P<part_id>[0-9]+)/delete/$', views.part_delete, name='part-delete'),
-    url(r'^part/(?P<part_id>[0-9]+)/manage-bom/$', views.manage_bom, name='part-manage-bom'),
-    url(r'^part/(?P<part_id>[0-9]+)/add-subpart/$', views.add_subpart, name='part-add-subpart'),
-    url(r'^part/(?P<part_id>[0-9]+)/add-sellerpart/$', views.add_sellerpart, name='part-add-sellerpart'),
-    url(r'^part/(?P<part_id>[0-9]+)/upload-file/$', views.upload_file_to_part, name='part-upload-partfile'),
-    url(r'^part/(?P<part_id>[0-9]+)/delete-file/(?P<partfile_id>[0-9]+)/$', views.delete_file_from_part, name='part-delete-partfile'),
-    url(r'^part/(?P<part_id>[0-9]+)/remove-all-subparts/$', views.remove_all_subparts, name='part-remove-all-subparts'),
-    url(r'^part/(?P<part_id>[0-9]+)/remove-subpart/(?P<subpart_id>[0-9]+)/$', views.remove_subpart, name='part-remove-subpart'),
-    url(r'^sellerpart/(?P<sellerpart_id>[0-9]+)/delete/$', views.delete_sellerpart, name='sellerpart-delete'),
+    # BOM urls
+    path('', views.home, name='home'),
+    path('error/', views.error, name='error'),
+    path('signup/', views.bom_signup, name='bom-signup'),
+    path('export/', views.export_part_list, name='export-part-list'),
+    path('create-part/', views.create_part, name='create-part'),
+    path('upload-parts/', views.upload_parts, name='upload-parts'),
+    path('part/<int:part_id>/', views.part_info, name='part-info'),
+    path('part/<int:part_id>/export/', views.part_export_bom, name='part-export-bom'),
+    path('part/<int:part_id>/upload/', views.part_upload_bom, name='part-upload-bom'),
+    path('part/<int:part_id>/octopart-match/', views.part_octopart_match, name='part-octopart-match'),
+    path('part/<int:part_id>/octopart-match-indented/', views.part_octopart_match_bom, name='part-octopart-match-bom'),
+    path('part/<int:part_id>/edit/', views.part_edit, name='part-edit'),
+    path('part/<int:part_id>/delete/', views.part_delete, name='part-delete'),
+    path('part/<int:part_id>/manage-bom/', views.manage_bom, name='part-manage-bom'),
+    path('part/<int:part_id>/add-subpart/', views.add_subpart, name='part-add-subpart'),
+    path('part/<int:part_id>/add-sellerpart/', views.add_sellerpart, name='part-add-sellerpart'),
+    path('part/<int:part_id>/upload-file/', views.upload_file_to_part, name='part-upload-partfile'),
+    path('part/<int:part_id>/delete-file/<int:partfile_id>/', views.delete_file_from_part, name='part-delete-partfile'),
+    path('part/<int:part_id>/remove-all-subparts/', views.remove_all_subparts, name='part-remove-all-subparts'),
+    path('part/<int:part_id>/remove-subpart/<int:subpart_id>/', views.remove_subpart, name='part-remove-subpart'),
+    path('sellerpart/<int:sellerpart_id>/delete/', views.delete_sellerpart, name='sellerpart-delete'),
 ]

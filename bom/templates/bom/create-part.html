@@ -10,12 +10,12 @@ Create New Part
 {% endblock %}
 
 {% block menu %}
-<li><a href="{% url 'home' %}">Cancel</a></li>
+<li><a href="{% url 'bom:home' %}">Cancel</a></li>
 {% endblock%}
 
 {% block content %}
 <div class="row">
-    <form action="{% url 'create-part' %}" method="post" class="col s12">
+    <form action="{% url 'bom:create-part' %}" method="post" class="col s12">
         {% csrf_token %}
         {{ form.non_field_errors }}
         <div class="row">
@@ -78,7 +78,7 @@ Create New Part
         </div>
 
         <input class="waves-effect waves-light btn green lighten-1" type="submit" value="Create" />
-        <a href="{% url 'home' %}" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+        <a href="{% url 'bom:home' %}" class="waves-effect waves-light btn green lighten-1">Cancel</a>
     </form>
 </div>
 {% endblock %}
