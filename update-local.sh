@@ -2,4 +2,4 @@
 rm dist/*
 rm dist/*
 python setup.py sdist
-python setup.py install
+source ~/Code/virtualenv/indabom/bin/activate && python setup.py install

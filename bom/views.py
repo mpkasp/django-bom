@@ -99,7 +99,7 @@ def home(request):
                 Q(manufacturer_part_number__icontains=query) | 
                 Q(manufacturer__name__icontains=query) |
                 Q(number_class__code=query))
-
+    
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
 
@@ -114,7 +114,7 @@ def bom_signup(request):
     organization = user.bom_profile().organization
 
     if organization is not None:
-        return HttpResponseRedirect(reverse('home'))
+        return HttpResponseRedirect(reverse('bom:home'))
 
     return TemplateResponse(request, 'bom/bom-signup.html', locals())
 
@@ -132,11 +132,11 @@ def part_info(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "Part object does not exist.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 100)
@@ -222,11 +222,11 @@ def part_export_bom(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "Part object does not exist.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     if part.organization != organization:
         messages.error(request, "Cant export a part that is not yours!")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_indented.csv"'.format(part.full_part_number())
@@ -321,7 +321,7 @@ def part_upload_bom(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
         form = FileForm(request.POST, request.FILES)
@@ -342,7 +342,7 @@ def part_upload_bom(request, part_id):
                 messages.error(request, "Header `quantity` required for upload.")
 
             if header_error:
-                return HttpResponseRedirect(reverse('part-manage-bom', kwargs={'part_id': part_id}))
+                return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
             for row in reader:
                 partData = {}
@@ -373,7 +373,7 @@ def part_upload_bom(request, part_id):
                     if part == subpart:
                         messages.error(
                             request, "Recursive part association: a part cant be a subpart of itsself")
-                        return HttpResponseRedirect(reverse('part-manage-bom', kwargs={'part_id': part_id}))
+                        return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
                     sp = Subpart(
                         assembly_part=part,
@@ -395,7 +395,7 @@ def part_upload_bom(request, part_id):
                     if part == subpart:
                         messages.error(
                             request, "Recursive part association: a part cant be a subpart of itsself")
-                        return HttpResponseRedirect(reverse('part-manage-bom', kwargs={'part_id': part_id}))
+                        return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
                     sp = Subpart(
                         assembly_part=part,
@@ -407,9 +407,9 @@ def part_upload_bom(request, part_id):
                 request,
                 "File form not valid: {}".format(
                     form.errors))
-            return HttpResponseRedirect(reverse('part-manage-bom', kwargs={'part_id': part_id}))
+            return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')))
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
 
 @login_required
@@ -448,7 +448,7 @@ def upload_parts(request):
                         messages.error(
                             request, "Partclass {} doesn't exist.".format(
                                 partData['part_class']))
-                        return HttpResponseRedirect(reverse('error'))
+                        return HttpResponseRedirect(reverse('bom:error'))
 
                     part, created = Part.objects.get_or_create(number_class=part_class,
                                                                description=partData['description'],
@@ -476,7 +476,7 @@ def upload_parts(request):
         form = FileForm()
         return TemplateResponse(request, 'bom/upload-parts.html', locals())
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')))
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
 
 @login_required
@@ -523,19 +523,19 @@ def part_octopart_match(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     seller_parts = []
     try:
         seller_parts = match_part(part, request.user.bom_profile().organization)
     except IOError as e:
         messages.error(request, "Error communicating with Octopart. {}".format(e))
-        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         messages.error(request, "Error - {}: {}, ({}, {})".format(exc_type, e, fname, exc_tb.tb_lineno))
-        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
     if len(seller_parts) > 0:
         for dp in seller_parts:
@@ -549,7 +549,7 @@ def part_octopart_match(request, part_id):
             "Octopart wasn't able to find any parts with manufacturer part number: {}".format(
                 part.manufacturer_part_number))
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
 
 @login_required
@@ -558,7 +558,7 @@ def part_octopart_match_bom(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     subparts = part.subparts.all()
     seller_parts = []
@@ -571,7 +571,7 @@ def part_octopart_match_bom(request, part_id):
             continue
         except Exception as e:
             messages.error(request, "Unknown Error: {}".format(e))
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')) + '#sourcing')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
         if len(seller_parts) > 0:
             for sp in seller_parts:
@@ -586,7 +586,7 @@ def part_octopart_match_bom(request, part_id):
                     part.manufacturer_part_number))
             continue
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')))
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
 
 @login_required
@@ -618,7 +618,7 @@ def create_part(request):
                 new_part.save()
             
             return HttpResponseRedirect(
-                reverse('part-info',
+                reverse('bom:part-info',
                     kwargs={'part_id': str(new_part.id)}))
     else:
         form = PartForm(organization=organization)
@@ -636,7 +636,7 @@ def part_edit(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
         form = PartForm(request.POST, organization=organization)
@@ -654,7 +654,7 @@ def part_edit(request, part_id):
 
             return HttpResponseRedirect(
                 reverse(
-                    'part-info',
+                    'bom:part-info',
                     kwargs={
                         'part_id': part_id}))
     else:
@@ -683,11 +683,11 @@ def manage_bom(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "Part object does not exist.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     add_subpart_form = AddSubpartForm(
         initial={'count': 1, }, organization=organization, part_id=part_id)
@@ -709,11 +709,11 @@ def part_delete(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     part.delete()
 
-    return HttpResponseRedirect(reverse('home'))
+    return HttpResponseRedirect(reverse('bom:home'))
 
 
 @login_required
@@ -726,7 +726,7 @@ def add_subpart(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
         form = AddSubpartForm(request.POST, organization=organization, part_id=part_id)
@@ -737,7 +737,7 @@ def add_subpart(request, part_id):
                 count=form.cleaned_data['count']
             )
 
-    return HttpResponseRedirect(reverse('part-info', kwargs={'part_id': part_id}) + '#bom')
+    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#bom')
 
 
 @login_required
@@ -746,11 +746,11 @@ def remove_subpart(request, part_id, subpart_id):
         subpart = Subpart.objects.get(id=subpart_id)
     except ObjectDoesNotExist:
         messages.error(request, "No subpart found with given part_id.")
-        return HttpResponseRedirect(reverse('part-info', kwargs={'part_id': part_id}) + '#bom')
+        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#bom')
 
     subpart.delete()
 
-    return HttpResponseRedirect(reverse('part-manage-bom', kwargs={'part_id': part_id}))
+    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
 
 @login_required
@@ -760,7 +760,7 @@ def remove_all_subparts(request, part_id):
     for subpart in subparts:
         subpart.delete()
 
-    return HttpResponseRedirect(reverse('part-manage-bom', kwargs={'part_id': part_id}))
+    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
 
 @login_required
@@ -769,17 +769,17 @@ def upload_file_to_part(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
         form = FileForm(request.POST, request.FILES)
         if form.is_valid():
             partfile = PartFile(file=request.FILES['file'], part=part)
             partfile.save()
-            return HttpResponseRedirect(reverse('part-info', kwargs={'part_id': part_id}) + '#specs')
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#specs')
 
     messages.error(request, "Error uploading file.")
-    return HttpResponseRedirect(reverse('error'))
+    return HttpResponseRedirect(reverse('bom:error'))
 
 
 @login_required
@@ -788,11 +788,11 @@ def delete_file_from_part(request, part_id, partfile_id):
         partfile = PartFile.objects.get(id=partfile_id)
     except ObjectDoesNotExist:
         messages.error(request, "No file found with given file id.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     partfile.delete()
 
-    return HttpResponseRedirect(reverse('part-info', kwargs={'part_id': part_id}) + '#specs')
+    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#specs')
 
 
 @login_required
@@ -805,7 +805,7 @@ def add_sellerpart(request, part_id):
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
         form = AddSellerPartForm(request.POST, organization=organization)
@@ -826,11 +826,11 @@ def add_sellerpart(request, part_id):
     else:
         if part.organization != organization:
             messages.error(request, "Cant access a part that is not yours!")
-            return HttpResponseRedirect(reverse('error'))
+            return HttpResponseRedirect(reverse('bom:error'))
         form = AddSellerPartForm(organization=organization)
         return TemplateResponse(request, 'bom/add-sellerpart.html', locals())
 
-    return HttpResponseRedirect(reverse('part-info', kwargs={'part_id': part_id}) + '#sourcing')
+    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#sourcing')
 
 
 @login_required
@@ -840,8 +840,8 @@ def delete_sellerpart(request, sellerpart_id):
         sellerpart = SellerPart.objects.get(id=sellerpart_id)
     except ObjectDoesNotExist:
         messages.error(request, "No sellerpart found with given sellerpart_id.")
-        return HttpResponseRedirect(reverse('error'))
+        return HttpResponseRedirect(reverse('bom:error'))
 
     sellerpart.delete()
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('home')))
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))

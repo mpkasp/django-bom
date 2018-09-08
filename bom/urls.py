@@ -1,4 +1,4 @@
-from django.conf.urls import url
+from django.conf.urls import url, include
 from django.urls import path, reverse
 from django.contrib.auth import views as auth_views
 from django.contrib import admin
@@ -6,9 +6,9 @@ from django.views.generic import TemplateView
 
 from . import views
 
-app_name = 'bom'
+# app_name = 'bom'
 
-urlpatterns = [
+bom_patterns = [
     # these will likely be overridden by your app
     path('admin/', admin.site.urls),
     path('login/', auth_views.LoginView.as_view(), {'redirect_authenticated_user': True, }, name='login'),
@@ -36,4 +36,9 @@ urlpatterns = [
     path('part/<int:part_id>/remove-all-subparts/', views.remove_all_subparts, name='part-remove-all-subparts'),
     path('part/<int:part_id>/remove-subpart/<int:subpart_id>/', views.remove_subpart, name='part-remove-subpart'),
     path('sellerpart/<int:sellerpart_id>/delete/', views.delete_sellerpart, name='sellerpart-delete'),
+]
+
+urlpatterns = [
+    path('', views.home),
+    path('bom/', include((bom_patterns, 'bom'))),
 ]

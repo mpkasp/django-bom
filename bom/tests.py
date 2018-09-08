@@ -24,11 +24,11 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(reverse('home'))
+        response = self.client.post(reverse('bom:home'))
         self.assertEqual(response.status_code, 200)
 
     def test_error(self):
-        response = self.client.post(reverse('error'))
+        response = self.client.post(reverse('bom:error'))
         self.assertEqual(response.status_code, 200)
 
     def test_part_info(self):
@@ -38,14 +38,14 @@ class TestBOM(TransactionTestCase):
 
         response = self.client.post(
             reverse(
-                'part-info',
+                'bom:part-info',
                 kwargs={
                     'part_id': p1.id}))
         self.assertEqual(response.status_code, 200)
 
         response = self.client.post(
             reverse(
-                'part-info',
+                'bom:part-info',
                 kwargs={
                     'part_id': p2.id}))
         self.assertEqual(response.status_code, 200)
@@ -57,7 +57,7 @@ class TestBOM(TransactionTestCase):
 
         response = self.client.post(
             reverse(
-                'part-export-bom',
+                'bom:part-export-bom',
                 kwargs={
                     'part_id': p1.id}))
         self.assertEqual(response.status_code, 200)
@@ -66,7 +66,7 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
         with open('bom/test_parts.csv') as test_csv:
             response = self.client.post(
-                reverse('part-upload-bom', kwargs={'part_id': p1.id}),
+                reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}),
                 {'file': test_csv})
         self.assertEqual(response.status_code, 302)
 
@@ -75,7 +75,7 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(reverse('export-part-list'))
+        response = self.client.post(reverse('bom:export-part-list'))
         self.assertEqual(response.status_code, 200)
 
     @skip("only test when we want to hit octopart's api")
@@ -97,7 +97,7 @@ class TestBOM(TransactionTestCase):
 
         response = self.client.post(
             reverse(
-                'part-octopart-match-bom',
+                'bom:part-octopart-match-bom',
                 kwargs={
                     'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
@@ -110,7 +110,7 @@ class TestBOM(TransactionTestCase):
 
         response = self.client.post(
             reverse(
-                'part-octopart-match',
+                'bom:part-octopart-match',
                 kwargs={
                     'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
@@ -120,7 +120,7 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(reverse('create-part'))
+        response = self.client.post(reverse('bom:create-part'))
         self.assertEqual(response.status_code, 200)
 
     def test_part_edit(self):
@@ -130,7 +130,7 @@ class TestBOM(TransactionTestCase):
 
         response = self.client.post(
             reverse(
-                'part-edit',
+                'bom:part-edit',
                 kwargs={
                     'part_id': p1.id}))
         self.assertEqual(response.status_code, 200)
@@ -142,7 +142,7 @@ class TestBOM(TransactionTestCase):
 
         response = self.client.post(
             reverse(
-                'part-delete',
+                'bom:part-delete',
                 kwargs={
                     'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
@@ -154,7 +154,7 @@ class TestBOM(TransactionTestCase):
 
         response = self.client.post(
             reverse(
-                'part-add-subpart',
+                'bom:part-add-subpart',
                 kwargs={
                     'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
@@ -167,7 +167,7 @@ class TestBOM(TransactionTestCase):
 
         response = self.client.post(
             reverse(
-                'part-remove-subpart',
+                'bom:part-remove-subpart',
                 kwargs={
                     'part_id': p1.id,
                     'subpart_id': s1.id}))
@@ -180,7 +180,7 @@ class TestBOM(TransactionTestCase):
 
         response = self.client.post(
             reverse(
-                'part-remove-all-subparts',
+                'bom:part-remove-all-subparts',
                 kwargs={
                     'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
@@ -191,7 +191,7 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
         with open('bom/test_parts.csv') as test_csv:
             response = self.client.post(
-                reverse('part-upload-partfile', kwargs={'part_id': p1.id}),
+                reverse('bom:part-upload-partfile', kwargs={'part_id': p1.id}),
                 {'file': test_csv})
         self.assertEqual(response.status_code, 302)
 
@@ -199,7 +199,7 @@ class TestBOM(TransactionTestCase):
         for pf in partfiles:
             response = self.client.post(
                 reverse(
-                    'part-delete-partfile',
+                    'bom:part-delete-partfile',
                     kwargs={
                         'part_id': p1.id,
                         'partfile_id': pf.id}))
@@ -213,7 +213,7 @@ class TestBOM(TransactionTestCase):
             pf1 = create_a_fake_partfile(test_csv, p1)
             response = self.client.post(
                 reverse(
-                    'part-delete-partfile',
+                    'bom:part-delete-partfile',
                     kwargs={
                         'part_id': p1.id,
                         'partfile_id': pf1.id}))
@@ -224,7 +224,7 @@ class TestBOM(TransactionTestCase):
 
         with open('bom/test_new_parts.csv') as test_csv:
             response = self.client.post(
-                reverse('upload-parts'), {'file': test_csv})
+                reverse('bom:upload-parts'), {'file': test_csv})
         self.assertEqual(response.status_code, 302)
 
 

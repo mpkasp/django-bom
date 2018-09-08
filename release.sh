@@ -7,6 +7,6 @@ then
     rm dist/*
     rm build/*
     python setup.py sdist
-    python setup.py install
     twine upload dist/*
 fi
+./update-local.sh
