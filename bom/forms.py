@@ -36,6 +36,7 @@ class PartForm(forms.Form):
         required=False)
 
     def __init__(self, *args, **kwargs):
+        self.partclasses = PartClass.objects.all()
         self.organization = kwargs.pop('organization', None)
         super(PartForm, self).__init__(*args, **kwargs)
         self.fields['manufacturer'].queryset = Manufacturer.objects.filter(

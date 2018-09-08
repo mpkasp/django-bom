@@ -278,7 +278,10 @@
     $("#indented-bom").treetable({ 
         expandable: true, 
         indent: 2,
-        initialState: 'expanded'
+        initialState: 'collapsed',
+        onInitialized: function () {
+            $("#indented-bom").treetable("reveal", {{ part.id }});
+        }
         });
 </script>
 {% endif %}
