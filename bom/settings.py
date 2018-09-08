@@ -132,7 +132,7 @@ LOGGING = {
         # django-bom app
         'bom': {
             'handlers': ['logfile'],
-            'level': 'INFO', # Or maybe INFO or DEBUG
+            'level': 'INFO',  # Or maybe INFO or DEBUG
             'propagate': False
         },
     },

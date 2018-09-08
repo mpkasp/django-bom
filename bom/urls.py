@@ -6,10 +6,8 @@ from django.views.generic import TemplateView
 
 from . import views
 
-# app_name = 'bom'
-
 bom_patterns = [
-    # these will likely be overridden by your app
+    # you will likely have your own implementation of these in your app
     path('admin/', admin.site.urls),
     path('login/', auth_views.LoginView.as_view(), {'redirect_authenticated_user': True, }, name='login'),
     path('logout/', auth_views.LogoutView.as_view(), {'next_page': '/'}, name='logout'),
@@ -39,6 +37,5 @@ bom_patterns = [
 ]
 
 urlpatterns = [
-    path('', views.home),
-    path('bom/', include((bom_patterns, 'bom'))),
+    path('', include((bom_patterns, 'bom'))),
 ]
