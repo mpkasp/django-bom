@@ -540,9 +540,10 @@ def part_octopart_match(request, part_id):
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
     if len(seller_parts) > 0:
-        for dp in seller_parts:
+        SellerPart.objects.filter(part__id=part.id, data_source='octopart').delete()
+        for sp in seller_parts:
             try:
-                dp.save()
+                sp.save()
             except IntegrityError:
                 continue
     else:
@@ -576,6 +577,7 @@ def part_octopart_match_bom(request, part_id):
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
         if len(seller_parts) > 0:
+            SellerPart.objects.filter(part__id=part.id, data_source='octopart').delete()
             for sp in seller_parts:
                 try:
                     sp.save()

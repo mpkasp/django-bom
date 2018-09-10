@@ -55,7 +55,8 @@ def match_part(part, organization):
                                         part=part,
                                         minimum_order_quantity=moq,
                                         unit_cost=price,
-                                        lead_time_days=ltd))
+                                        lead_time_days=ltd,
+                                        data_source='octopart'))
                             except Exception as e:
                                 raise
 

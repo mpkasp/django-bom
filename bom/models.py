@@ -219,6 +219,7 @@ class SellerPart(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE)
     minimum_order_quantity = models.IntegerField(null=True, blank=True)
     minimum_pack_quantity = models.IntegerField(null=True, blank=True)
+    data_source = models.CharField(max_length=32, default=None, null=True)
     unit_cost = models.DecimalField(
         null=True,
         max_digits=8,
