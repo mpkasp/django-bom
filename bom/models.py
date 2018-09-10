@@ -16,7 +16,7 @@ class Organization(models.Model):
             ('F', 'Free'), ('P', 'Pro'), ))
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
 
-    def __unicode__(self):
+    def __str__(self):
         return u'%s' % (self.name)
 
 
@@ -42,7 +42,7 @@ class PartClass(models.Model):
     name = models.CharField(max_length=255, default=None)
     comment = models.CharField(max_length=255, default=None, blank=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return u'%s' % (self.code + ': ' + self.name)
 
 
@@ -53,7 +53,7 @@ class Manufacturer(models.Model):
     class Meta:
         ordering = ['name']
 
-    def __unicode__(self):
+    def __str__(self):
         return u'%s' % (self.name)
 
 
@@ -187,7 +187,7 @@ class Part(models.Model):
                 name__iexact=self.organization.name)
         super(Part, self).save()
 
-    def __unicode__(self):
+    def __str__(self):
         return u'%s' % (self.full_part_number())
 
 
@@ -210,7 +210,7 @@ class Seller(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     name = models.CharField(max_length=128, default=None)
 
-    def __unicode__(self):
+    def __str__(self):
         return u'%s' % (self.name)
 
 

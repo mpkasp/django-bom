@@ -432,8 +432,8 @@ def upload_parts(request):
                 for idx, item in enumerate(row):
                     partData[headers[idx]] = item
                 if 'part_class' in partData and 'description' in partData and 'revision' in partData:
-                    mpn = None
-                    mfg = ''
+                    mpn = ''
+                    mfg = None
                     if 'manufacturer_part_number' in partData:
                         mpn = partData['manufacturer_part_number']
                     if 'manufacturer' in partData:
@@ -451,11 +451,13 @@ def upload_parts(request):
                         return HttpResponseRedirect(reverse('bom:error'))
 
                     part, created = Part.objects.get_or_create(number_class=part_class,
-                                                               description=partData['description'],
-                                                               revision=partData['revision'],
                                                                organization=organization,
                                                                manufacturer_part_number=mpn,
-                                                               manufacturer=mfg)
+                                                               manufacturer=mfg,
+                                                               defaults={
+                                                                   'description': partData['description'],
+                                                                   'revision': partData['revision'],
+                                                               })
                     if created:
                         messages.info(
                             request, "{}: {} created.".format(
