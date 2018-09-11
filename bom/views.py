@@ -147,9 +147,9 @@ def part_info(request, part_id):
         part_info_form = PartInfoForm(request.POST)
         if part_info_form.is_valid():
             qty = request.POST.get('quantity', 100)
-    
+
     cache.set(qty_cache_key, qty, 3600)
-    
+
     try:
         parts = part.indented()
     except RuntimeError:

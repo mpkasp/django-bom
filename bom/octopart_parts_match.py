@@ -16,11 +16,11 @@ def match_part(part, organization):
     query = [{'mpn': part.manufacturer_part_number}]
 
     url = 'https://octopart.com/api/v3/parts/match?queries=%s' \
-        % urllib.quote(json.dumps(query))
+        % urllib.parse.quote(json.dumps(query))
     url += '&apikey=' + OCTOPART_API_KEY
 
     try:
-        data = urllib.urlopen(url).read()
+        data = urllib.request.urlopen(url).read()
     except Exception as e:
         raise
 

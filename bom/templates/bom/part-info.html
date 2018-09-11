@@ -76,7 +76,7 @@
                     <div class="col s8">
                         <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
                         {% csrf_token %}
-                            ${{ unit_cost }} at
+                            ${{ unit_cost|floatformat:4 }} at
                             <div class="input-field inline">
                                 {{ part_info_form }}
                             </div>
@@ -89,7 +89,7 @@
                         Est. Total NRE:
                     </div>
                     <div class="col s8">
-                        ${{ unit_nre }}
+                        ${{ unit_nre|floatformat:2 }}
                     </div>
                 </div>
                 <div class="row">
@@ -97,7 +97,7 @@
                         Est. Unit Out Of Pocket:
                     </div>
                     <div class="col s8">
-                        ${{ unit_out_of_pocket_cost }}
+                        ${{ unit_out_of_pocket_cost|floatformat:2 }}
                     </div>
                 </div>
                 <div class="row">
@@ -105,7 +105,7 @@
                         <b>Est. Total Out Of Pocket:</b>
                     </div>
                     <div class="col s8">
-                        <b>${{ total_out_of_pocket_cost }}</b>
+                        <b>${{ total_out_of_pocket_cost|floatformat:2 }}</b>
                     </div>
                 </div>
 
