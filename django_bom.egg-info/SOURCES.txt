@@ -23,6 +23,7 @@ bom/wsgi.py
 bom/migrations/0001_initial.py
 bom/migrations/0002_auto_20180908_2151.py
 bom/migrations/0003_sellerpart_data_source.py
+bom/migrations/0004_auto_20180911_0011.py
 bom/migrations/__init__.py
 bom/static/bom/style.css
 bom/static/bom/treetable-theme.css
@@ -30,6 +31,7 @@ bom/static/bom/css/jquery.treetable.css
 bom/static/bom/css/materialize.min.css
 bom/static/bom/img/favicon.ico
 bom/static/bom/img/indabom.png
+bom/static/bom/img/octopart_blue.svg
 bom/static/bom/js/jquery.ba-floatingscrollbar.min.js
 bom/static/bom/js/jquery.treetable.js
 bom/static/bom/js/materialize.min.js

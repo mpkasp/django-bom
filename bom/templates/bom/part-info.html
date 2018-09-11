@@ -242,6 +242,8 @@
                             <th>Lead Time (days)</th>
                             <th>NRE</th>
                             <th>NCNR</th>
+                            <th></th>
+                            <th></th>
                         </tr>
                     </thead>
 
@@ -255,6 +257,7 @@
                             <td>{{ seller_part.lead_time_days }}</td>
                             <td>{{ seller_part.nre_cost }}</td>
                             <td>{{ seller_part.ncnr }}</td>
+                            <td style="min-width: 0px;">{% if seller_part.data_source == 'octopart' %}<img title="Sourcing information via Octopart." style="width: 20px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img>{% endif %}</td>
                             <td><a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a></td>
                         </tr>
                         {% empty %}
