@@ -8,5 +8,5 @@ then
     rm build/*
     python setup.py sdist
     twine upload dist/*
+    ./update-local.sh
 fi
-./update-local.sh
