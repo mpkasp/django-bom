@@ -330,7 +330,13 @@ def part_upload_bom(request, part_id):
             # dialect = csv.Sniffer().sniff(csvfile.readline())
             csvfile.open()
             reader = csv.reader(codecs.iterdecode(csvfile, 'utf-8'))
-            headers = [h.lower() for h in next(reader)]
+            
+            try:
+                headers = [h.lower() for h in next(reader)]
+            except UnicodeDecodeError as e:
+                messages.error(request, "CSV File Encoding error, try encoding your file as utf-8, and upload again. \
+                    If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to fix your issue!")
+                return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
             # Subpart.objects.filter(assembly_part=part).delete()
 
             header_error = False
@@ -426,7 +432,14 @@ def upload_parts(request):
             # dialect = csv.Sniffer().sniff(csvfile.readline())
             csvfile.open()
             reader = csv.reader(codecs.iterdecode(csvfile, 'utf-8'))
-            headers = [h.lower() for h in next(reader)]
+
+            try:
+                headers = [h.lower() for h in next(reader)]
+            except UnicodeDecodeError as e:
+                messages.error(request, "CSV File Encoding error, try encoding your file as utf-8, and upload again. \
+                    If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to fix your issue!")
+                return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
+
             for row in reader:
                 partData = {}
                 for idx, item in enumerate(row):
