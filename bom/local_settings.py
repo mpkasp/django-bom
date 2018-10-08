@@ -5,3 +5,7 @@ SECRET_KEY = 'supersecretkey'
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+
+BOM_CONFIG = {
+    'octopart_api_key': '46b1a32d',
+}

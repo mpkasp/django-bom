@@ -67,10 +67,7 @@ class Part(models.Model):
     number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
     description = models.CharField(max_length=255, default=None)
     revision = models.CharField(max_length=2)
-    manufacturer_part_number = models.CharField(
-        max_length=128, default='', blank=True)
-    manufacturer = models.ForeignKey(
-        Manufacturer, default=None, blank=True, null=True, on_delete=models.PROTECT)
+    primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True, on_delete=models.CASCADE, related_name='primary_manufacturer_part')
     subparts = models.ManyToManyField(
         'self',
         blank=True,
@@ -87,15 +84,10 @@ class Part(models.Model):
         return "{0}-{1}-{2}".format(self.number_class.code,
                                     self.number_item, self.number_variation)
 
-    # def distributor_parts(self):
-    #     return SellerPart.objects.filter(
-    #         part=self).order_by(
-    #         'seller',
-    #         'minimum_order_quantity')
-
     def seller_parts(self):
+        manufacturer_parts = ManufacturerPart.objects.filter(part=self)
         return SellerPart.objects.filter(
-            part=self).order_by(
+            manufacturer_part__in=manufacturer_parts).order_by(
             'seller', 'minimum_order_quantity')
 
     def where_used(self):
@@ -149,7 +141,8 @@ class Part(models.Model):
         return bom
 
     def optimal_seller(self, quantity=1000):
-        sellerparts = SellerPart.objects.filter(part=self)
+        manufacturer_parts = ManufacturerPart.objects.filter(part=self)
+        sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)
         seller = None
         for sellerpart in sellerparts:
             # TODO: Make this smarter and more readable.
@@ -181,10 +174,6 @@ class Part(models.Model):
             else:
                 self.number_variation = "{0:0=2d}".format(
                     int(last_number_variation.number_variation) + 1)
-        if self.manufacturer_part_number == '' and self.manufacturer is None and self.organization is not None:
-            self.manufacturer_part_number = self.full_part_number()
-            self.manufacturer, c = Manufacturer.objects.get_or_create(
-                name__iexact=self.organization.name)
         super(Part, self).save()
 
     def __str__(self):
@@ -206,6 +195,23 @@ class Subpart(models.Model):
             raise ValidationError(_('Recursive relationship: cannot add a subpart to itsself.'), code='invalid')
 
 
+class ManufacturerPart(models.Model):
+    part = models.ForeignKey(Part, on_delete=models.CASCADE)
+    manufacturer_part_number = models.CharField(
+        max_length=128, default='', blank=True)
+    manufacturer = models.ForeignKey(
+        Manufacturer, default=None, blank=True, null=True, on_delete=models.PROTECT)
+
+    class Meta():
+        unique_together = [
+            'part',
+            'manufacturer_part_number',
+            'manufacturer']
+
+    def __str__(self):
+        return u'%s' % (self.manufacturer_part_number)
+
+
 class Seller(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     name = models.CharField(max_length=128, default=None)
@@ -216,7 +222,7 @@ class Seller(models.Model):
 
 class SellerPart(models.Model):
     seller = models.ForeignKey(Seller, on_delete=models.CASCADE)
-    part = models.ForeignKey(Part, on_delete=models.CASCADE)
+    manufacturer_part = models.ForeignKey(ManufacturerPart, on_delete=models.CASCADE)
     minimum_order_quantity = models.IntegerField(null=True, blank=True)
     minimum_pack_quantity = models.IntegerField(null=True, blank=True)
     data_source = models.CharField(max_length=32, default=None, null=True, blank=True)
@@ -236,12 +242,12 @@ class SellerPart(models.Model):
     class Meta():
         unique_together = [
             'seller',
-            'part',
+            'manufacturer_part',
             'minimum_order_quantity',
             'unit_cost']
 
     def __str__(self):
-        return u'%s' % (self.part.full_part_number() + ' ' + self.seller.name)
+        return u'%s' % (self.manufacturer_part.part.full_part_number() + ' ' + self.seller.name)
 
 
 class PartFile(models.Model):

@@ -6,7 +6,7 @@
 
 {% block title %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
-{% if organization %}{{ organization.name }}'s{% elif user.first_name %}{{ user.first_name }}'s{% endif %} Parts List
+{% if organization.name %}{{ organization.name }}'s {% elif user.first_name %}{{ user.first_name }}'s {% endif %}Parts List
 {% endblock %}
 
 {% block menu %}
@@ -34,6 +34,7 @@
                     <th class="text-normal td-med">Part Number</th>
                     <th class="text-normal td-large">Description</th> 
                     <th class="text-normal td-small">Revision</th>
+                    <th class="text-normal td-med">Category</th>
                     <th class="text-normal td-med">Manufacturer</th>
                     <th class="text-normal td-med">MPN</th>
                 </tr>
@@ -44,8 +45,9 @@
                     <td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
                     <td class="text-normal td-large">{{ part.description }}</td>
                     <td class="text-normal td-small">{{ part.revision }}</td>
-                    <td class="text-normal td-small">{{ part.manufacturer.name }}</td>
-                    <td class="text-normal td-med">{{ part.manufacturer_part_number }}</td>
+                    <td class="text-normal td-small">{{ part.number_class.name }}</td>
+                    <td class="text-normal td-small">{{ part.primary_manufacturer_part.manufacturer.name }}</td>
+                    <td class="text-normal td-med">{{ part.primary_manufacturer_part.manufacturer_part_number }}</td>
                 </tr>
                 {% empty %}
                 <tr>

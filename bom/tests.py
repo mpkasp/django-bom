@@ -8,7 +8,7 @@ from .helpers import create_some_fake_parts, create_a_fake_organization, \
     create_some_fake_part_classes, create_some_fake_manufacturers
 from .models import PartFile, Part
 from .forms import PartInfoForm, PartForm, AddSubpartForm
-from .octopart_parts_match import match_part
+from .octopart import match_part
 
 
 class TestBOM(TransactionTestCase):
@@ -257,7 +257,7 @@ class TestForms(TestCase):
             'revision': 'AA'
         }
 
-        form = PartForm(organization=self.organization, data=form_data)
+        form = PartForm(data=form_data)
         self.assertTrue(form.is_valid())
 
         (m1, m2, m3) = create_some_fake_manufacturers(self.organization)
@@ -266,18 +266,15 @@ class TestForms(TestCase):
             'number_class': pc2.id,
             'description': "ASSY, ATLAS WRISTBAND 5",
             'revision': '1',
-            'manufacturer': m1.id,
         }
 
-        form = PartForm(organization=self.organization, data=form_data)
+        form = PartForm(data=form_data)
         self.assertTrue(form.is_valid())
         
         new_part, created = Part.objects.get_or_create(
                 number_class=form.cleaned_data['number_class'],
                 number_item=form.cleaned_data['number_item'],
                 number_variation=form.cleaned_data['number_variation'],
-                manufacturer_part_number=form.cleaned_data['manufacturer_part_number'],
-                manufacturer=form.cleaned_data['manufacturer'],
                 organization=self.organization,
                 defaults={'description': form.cleaned_data['description'],
                           'revision': form.cleaned_data['revision'],
@@ -285,10 +282,10 @@ class TestForms(TestCase):
             )
 
         self.assertTrue(created)
-        self.assertEqual(new_part.manufacturer, m1)
+        self.assertEqual(new_part.number_class.id, pc2.id)
 
     def test_part_form_blank(self):
-        form = PartForm({}, organization=self.organization)
+        form = PartForm({})
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors, {
             'number_class': [u'This field is required.'],

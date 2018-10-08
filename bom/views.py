@@ -22,9 +22,9 @@ from json import loads, dumps
 from math import ceil
 
 from .convert import full_part_number_to_broken_part
-from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer
-from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm, AddSellerPartForm
-from .octopart_parts_match import match_part
+from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer, ManufacturerPart
+from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, ManufacturerPartForm
+from .octopart import match_part, get_latest_datasheets
 
 logger = logging.getLogger(__name__)
 
@@ -51,15 +51,19 @@ def home(request):
         'number_item',
         'number_variation')
 
+    manufacturer_part = ManufacturerPart.objects.filter(part__in=parts)
+
     autocomplete_dict = {}
     for part in parts:
         if part.description:
-            autocomplete_dict.update({ part.description.replace('"', ''): None })
+            autocomplete_dict.update({part.description.replace('"', ''): None})
         # autocomplete_dict.update({ part.full_part_number(): None }) # TODO: query full part number
-        if part.manufacturer_part_number:
-            autocomplete_dict.update({ part.manufacturer_part_number.replace('"', ''): None })
-        if part.manufacturer is not None and part.manufacturer.name:
-            autocomplete_dict.update({ part.manufacturer.name.replace('"', ''): None })
+
+    for mpn in manufacturer_part:
+        if mpn.manufacturer_part_number:
+            autocomplete_dict.update({mpn.manufacturer_part_number.replace('"', ''): None})
+        if mpn.manufacturer is not None and mpn.manufacturer.name:
+            autocomplete_dict.update({mpn.manufacturer.name.replace('"', ''): None})
 
     autocomplete = dumps(autocomplete_dict)
 
@@ -83,23 +87,23 @@ def home(request):
         (number_class, number_item, number_variation) = numbers_from_part_string(rq)
         if number_class and number_item and number_variation:
             parts = parts.filter(
-                Q(number_class__code=number_class, number_item=number_item, number_variation=number_variation) | 
-                Q(description__icontains=query) | 
-                Q(manufacturer_part_number__icontains=query) | 
+                Q(number_class__code=number_class, number_item=number_item, number_variation=number_variation) |
+                Q(description__icontains=query) |
+                Q(manufacturer_part_number__icontains=query) |
                 Q(manufacturer__name__icontains=query))
         elif number_class and number_item:
             parts = parts.filter(
-                Q(number_class__code=number_class, number_item=number_item) | 
-                Q(description__icontains=query) | 
-                Q(manufacturer_part_number__icontains=query) | 
+                Q(number_class__code=number_class, number_item=number_item) |
+                Q(description__icontains=query) |
+                Q(manufacturer_part_number__icontains=query) |
                 Q(manufacturer__name__icontains=query))
         else:
             parts = parts.filter(
-                Q(description__icontains=query) | 
-                Q(manufacturer_part_number__icontains=query) | 
+                Q(description__icontains=query) |
+                Q(manufacturer_part_number__icontains=query) |
                 Q(manufacturer__name__icontains=query) |
                 Q(number_class__code=query))
-    
+
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
 
@@ -117,6 +121,14 @@ def bom_signup(request):
         return HttpResponseRedirect(reverse('bom:home'))
 
     return TemplateResponse(request, 'bom/bom-signup.html', locals())
+
+
+@login_required
+def bom_settings(request):
+    user = request.user
+    organization = user.bom_profile().organization
+
+    return TemplateResponse(request, 'bom/settings.html', locals())
 
 
 @login_required
@@ -149,6 +161,12 @@ def part_info(request, part_id):
             qty = request.POST.get('quantity', 100)
 
     cache.set(qty_cache_key, qty, 3600)
+
+    # try:
+    datasheets = get_latest_datasheets(part.primary_manufacturer_part.manufacturer_part_number)
+    # except Exception as e:
+        # messages.warning(request, "Octopart error: {}".format(e))
+        # datasheets = []
 
     try:
         parts = part.indented()
@@ -299,8 +317,8 @@ def part_export_bom(request, part_id):
             'quantity': item['quantity'],
             'part_description': item['part'].description,
             'part_revision': item['part'].revision,
-            'part_manufacturer': item['part'].manufacturer.name if item['part'].manufacturer is not None else '',
-            'part_manufacturer_part_number': item['part'].manufacturer_part_number,
+            'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item['part'].primary_manufacturer_part is not None and item['part'].primary_manufacturer_part.manufacturer is not None else '',
+            'part_manufacturer_part_number': item['part'].primary_manufacturer_part.manufacturer_part_number if item['part'].primary_manufacturer_part is not None else '',
             'part_ext_qty': item['extended_quantity'],
             'part_order_qty': item['order_quantity'],
             'part_seller': item['seller_part'].seller.name if item['seller_part'] is not None else '',
@@ -524,8 +542,8 @@ def export_part_list(request):
             'part_number': item.full_part_number(),
             'part_description': item.description,
             'part_revision': item.revision,
-            'part_manufacturer': item.manufacturer.name if item.manufacturer is not None else '',
-            'part_manufacturer_part_number': item.manufacturer_part_number if item.manufacturer is not None else '',
+            'part_manufacturer': item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
+            'part_manufacturer_part_number': item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
         }
         writer.writerow({k:smart_str(v) for k,v in row.items()})
 
@@ -534,6 +552,7 @@ def export_part_list(request):
 
 @login_required
 def part_octopart_match(request, part_id):
+    # TODO: update this to apply to a manufacturer part, not a part
     try:
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
@@ -542,7 +561,7 @@ def part_octopart_match(request, part_id):
 
     seller_parts = []
     try:
-        seller_parts = match_part(part, request.user.bom_profile().organization)
+        seller_parts = match_part(part.primary_manufacturer_part, request.user.bom_profile().organization)
     except IOError as e:
         messages.error(request, "Error communicating with Octopart. {}".format(e))
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
@@ -553,7 +572,7 @@ def part_octopart_match(request, part_id):
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
     if len(seller_parts) > 0:
-        SellerPart.objects.filter(part__id=part.id, data_source='octopart').delete()
+        SellerPart.objects.filter(manufacturer_part_id=part.primary_manufacturer_part.id, data_source='octopart').delete()
         for sp in seller_parts:
             try:
                 sp.save()
@@ -613,32 +632,56 @@ def create_part(request):
     organization = profile.organization
 
     if request.method == 'POST':
-        form = PartForm(request.POST, organization=organization)
-        if form.is_valid():
-            try:
-                new_part, created = Part.objects.get_or_create(
-                    number_class=form.cleaned_data['number_class'],
-                    number_item=form.cleaned_data['number_item'],
-                    number_variation=form.cleaned_data['number_variation'],
-                    manufacturer_part_number=form.cleaned_data['manufacturer_part_number'],
-                    manufacturer=form.cleaned_data['manufacturer'],
-                    organization=organization,
-                    defaults={'description': form.cleaned_data['description'],
-                            'revision': form.cleaned_data['revision'],
-                            }
-                )
-            except IntegrityError as e:
-                messages.error(request, "Error creating part, please contact info@indabom.com with this information: {}".format(e))
-            
-            if not new_part.manufacturer_part_number:
-                new_part.manufacturer_part_number = new_part.full_part_number()
+        part_form = PartForm(request.POST)
+        manufacturer_form = ManufacturerForm(request.POST)
+        manufacturer_part_form = ManufacturerPartForm(request.POST)
+        if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
+            manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
+            old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
+            new_manufacturer_name = manufacturer_form.cleaned_data['name']
+
+            manufacturer_part = None
+            if manufacturer_part_number:
+                if old_manufacturer and not new_manufacturer_name:
+                    new_part, created = Part.objects.get_or_create(
+                        number_class=part_form.cleaned_data['number_class'],
+                        number_item=part_form.cleaned_data['number_item'],
+                        number_variation=part_form.cleaned_data['number_variation'],
+                        organization=organization,
+                        defaults={'description': part_form.cleaned_data['description'],
+                                    'revision': part_form.cleaned_data['revision'], })
+                    manufacturer = old_manufacturer
+                    manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
+                elif new_manufacturer_name and not old_manufacturer:
+                    new_part, created = Part.objects.get_or_create(
+                        number_class=part_form.cleaned_data['number_class'],
+                        number_item=part_form.cleaned_data['number_item'],
+                        number_variation=part_form.cleaned_data['number_variation'],
+                        organization=organization,
+                        defaults={'description': part_form.cleaned_data['description'],
+                                    'revision': part_form.cleaned_data['revision'], })
+                    manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
+                    manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
+                else:
+                    messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
+                    return TemplateResponse(request, 'bom/create-part.html', locals())
+            elif old_manufacturer or new_manufacturer_name:
+                messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
+
+            if new_part.primary_manufacturer_part is None and manufacturer_part is not None:
+                new_part.primary_manufacturer_part = manufacturer_part
                 new_part.save()
-            
+
             return HttpResponseRedirect(
-                reverse('bom:part-info',
-                    kwargs={'part_id': str(new_part.id)}))
+                reverse('bom:part-info', kwargs={'part_id': str(new_part.id)}))
+        else:
+            messages.error(request, "{}".format(part_form.is_valid()))
+            messages.error(request, "{}".format(manufacturer_form.is_valid()))
+            messages.error(request, "{}".format(manufacturer_part_form.is_valid()))
     else:
-        form = PartForm(organization=organization)
+        part_form = PartForm(initial={'revision': 1, 'organization': organization}, exclude=('primary_manufacturer_part', ))
+        manufacturer_form = ManufacturerForm(initial={'organization': organization})
+        manufacturer_part_form = ManufacturerPartForm()
 
     return TemplateResponse(request, 'bom/create-part.html', locals())
 
@@ -656,36 +699,12 @@ def part_edit(request, part_id):
         return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
-        form = PartForm(request.POST, organization=organization)
+        form = PartForm(request.POST, instance=part)
         if form.is_valid():
-            old_part = Part.objects.get(id=part_id)
-
-            old_part.number_class = form.cleaned_data['number_class']
-            old_part.number_item = form.cleaned_data['number_item']
-            old_part.number_variation = form.cleaned_data['number_variation']
-            old_part.manufacturer_part_number = form.cleaned_data['manufacturer_part_number']
-            old_part.manufacturer = form.cleaned_data['manufacturer']
-            old_part.description = form.cleaned_data['description']
-            old_part.revision = form.cleaned_data['revision']
-            old_part.save()
-
-            return HttpResponseRedirect(
-                reverse(
-                    'bom:part-info',
-                    kwargs={
-                        'part_id': part_id}))
+            form.save()
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
-        form = PartForm(
-            initial={
-                'number_class': part.number_class,
-                'number_item': part.number_item,
-                'number_variation': part.number_variation,
-                'description': part.description,
-                'revision': part.revision,
-                'manufacturer_part_number': part.manufacturer_part_number,
-                'manufacturer': part.manufacturer,
-            },
-            organization=organization)
+        form = PartForm(instance=part)
 
     return TemplateResponse(request, 'bom/edit-part.html', locals())
 

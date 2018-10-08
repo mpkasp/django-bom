@@ -1,63 +1,58 @@
 from django import forms
+from django.utils.translation import gettext_lazy as _
 # from django.core.validators import DecimalValidator
 
-from .models import Part, PartClass, Manufacturer, Subpart, Seller
+from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller
 from .validators import decimal, alphanumeric, numeric
 from json import dumps
+
 
 class PartInfoForm(forms.Form):
     quantity = forms.IntegerField(label='Quantity', min_value=1)
 
 
-class PartForm(forms.Form):
-    partclasses = PartClass.objects.all()
+class ManufacturerForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].required = False
 
-    number_class = forms.ModelChoiceField(
-        queryset=partclasses, label='Part Class*')
-    number_item = forms.CharField(
-        max_length=4,
-        label='Part Number',
-        required=False, 
-        validators=[numeric],
-        widget=forms.TextInput(attrs={'placeholder': 'Auto-Generated if blank'}))
-    number_variation = forms.CharField(
-        max_length=2, label='Part Variation', required=False, 
-        validators=[alphanumeric],
-        widget=forms.TextInput(attrs={'placeholder': 'Auto-Generated if blank'}))
-    description = forms.CharField(
-        max_length=255, label='Description*',
-        widget=forms.TextInput(attrs={'placeholder': 'E.g. CAPACITOR, CERAMIC, 4.7uF, 0402, 10V, +/-20%'}))
-    revision = forms.CharField(max_length=2, label='Revision*', initial=1)
-    manufacturer_part_number = forms.CharField(max_length=128, required=False)
-    manufacturer = forms.ModelChoiceField(queryset=None, required=False)
-    new_manufacturer = forms.CharField(
-        max_length=128,
-        label='Create New Manufacturer',
-        required=False)
+    class Meta:
+        model = Manufacturer
+        exclude = ['organization', ]
+
+
+class ManufacturerPartForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['manufacturer'].required = False
+        self.fields['manufacturer_part_number'].required = False
+
+    class Meta:
+        model = ManufacturerPart
+        exclude = ['part', ]
+
+
+class PartForm(forms.ModelForm):
+    number_class = forms.ModelChoiceField(queryset=PartClass.objects.all(), empty_label="- Select Part Number Class -", label='Part Class*',)
 
     def __init__(self, *args, **kwargs):
-        self.partclasses = PartClass.objects.all()
-        self.organization = kwargs.pop('organization', None)
         super(PartForm, self).__init__(*args, **kwargs)
-        self.fields['manufacturer'].queryset = Manufacturer.objects.filter(
-            organization=self.organization)
+        queryset = ManufacturerPart.objects.none()
+        if 'instance' in kwargs and type(kwargs['instance']) is Part:
+            queryset = ManufacturerPart.objects.filter(part=kwargs['instance'])
+        self.fields['primary_manufacturer_part'].queryset = queryset
+        for _, value in self.fields.items():
+            value.widget.attrs['placeholder'] = value.help_text
 
-    def clean(self):
-        cleaned_data = super(PartForm, self).clean()
-        mfg = cleaned_data.get("manufacturer")
-        new_mfg = cleaned_data.get("new_manufacturer")
-
-        if mfg and new_mfg:
-            raise forms.ValidationError(
-                ('Cannot have a manufacturer and a new manufacturer'),
-                code='invalid')
-        elif new_mfg:
-            obj = Manufacturer(name=new_mfg, organization=self.organization)
-            obj.save()
-            cleaned_data['manufacturer'] = obj
-        elif not mfg and not new_mfg:
-            obj, c = Manufacturer.objects.get_or_create(name=self.organization.name.upper(), organization=self.organization)
-            cleaned_data['manufacturer'] = obj
+    class Meta:
+        model = Part
+        exclude = ['organization', 'subparts', ]
+        help_texts = {
+            'number_class': _('Select a number class.'),
+            'number_item': _('Auto generated if blank.'),
+            'number_variation': 'Auto generated if blank.',
+            'description': 'E.g. CAPACITOR, CERAMIC, 100pF, 0402 50V, +/-5%',
+        }
 
 
 class AddSubpartForm(forms.Form):
@@ -79,7 +74,6 @@ class AddSubpartForm(forms.Form):
         self.fields['assembly_subpart'].queryset = Part.objects.filter(
             organization=self.organization).exclude(id__in=unusable_part_ids).order_by(
             'number_class__code', 'number_item', 'number_variation')
-            
         self.fields['assembly_subpart'].label_from_instance = \
             lambda obj: "%s" % obj.full_part_number(
         ) + ' ' + obj.description

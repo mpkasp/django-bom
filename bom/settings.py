@@ -169,4 +169,12 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
 # django-bom config
-BOM_CONFIG = {}
+# django-bom configuration
+bom_config_default = {
+    'base_template': 'base.html',
+}
+
+if BOM_CONFIG:
+    BOM_CONFIG.update(bom_config_default)
+else:
+    BOM_CONFIG = bom_config_default

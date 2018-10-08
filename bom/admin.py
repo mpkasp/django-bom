@@ -34,7 +34,7 @@ class SellerAdmin(admin.ModelAdmin):
 
 class SellerPartAdmin(admin.ModelAdmin):
     list_display = (
-        'part',
+        'manufacturer_part',
         'seller',
         'minimum_order_quantity',
         'minimum_pack_quantity',
@@ -46,7 +46,23 @@ class SellerPartAdmin(admin.ModelAdmin):
 
 class SellerPartAdminInline(admin.TabularInline):
     model = SellerPart
-    raw_id_fields = ('seller', 'part', )
+    raw_id_fields = ('seller', 'manufacturer_part', )
+
+
+class ManufacturerPartAdmin(admin.ModelAdmin):
+    list_display = (
+        'manufacturer_part_number',
+        'manufacturer',
+        'part',)
+    raw_id_fields = ('manufacturer', 'part', )
+    inlines = [
+        SellerPartAdminInline,
+    ]
+
+
+class ManufacturerPartAdminInline(admin.TabularInline):
+    model = ManufacturerPart
+    raw_id_fields = ('part', 'manufacturer', )
 
 
 class PartFileAdmin(admin.ModelAdmin):
@@ -75,13 +91,11 @@ class PartAdmin(admin.ModelAdmin):
         'get_full_part_number',
         'revision',
         'description',
-        'manufacturer',
-        'manufacturer_part_number',
     )
-    raw_id_fields = ('number_class', 'manufacturer', )
+    raw_id_fields = ('number_class', 'primary_manufacturer_part', )
     inlines = [
         SubpartInline,
-        SellerPartAdminInline,
+        ManufacturerPartAdminInline,
         PartFileAdminInline,
     ]
 
@@ -92,7 +106,7 @@ class PartAdmin(admin.ModelAdmin):
 
 
 class ManufacturerAdmin(admin.ModelAdmin):
-    list_display = ('name', )
+    list_display = ('name', 'organization', )
 
 
 admin.site.unregister(User)
@@ -101,6 +115,7 @@ admin.site.register(User, UserAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Seller, SellerAdmin)
 admin.site.register(SellerPart, SellerPartAdmin)
+admin.site.register(ManufacturerPart, ManufacturerPartAdmin)
 admin.site.register(PartClass, PartClassAdmin)
 admin.site.register(Part, PartAdmin)
 admin.site.register(Manufacturer, ManufacturerAdmin)

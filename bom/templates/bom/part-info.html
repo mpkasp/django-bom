@@ -52,7 +52,7 @@
                         {{ part.revision }}
                     </div>
                 </div>
-                <div class="row">
+<!--                 <div class="row">
                     <div class="col s4 text-right">
                         Manufacturer:
                     </div>
@@ -67,7 +67,7 @@
                     <div class="col s8">
                         {{ part.manufacturer_part_number }}
                     </div>
-                </div>
+                </div> -->
                 <div class="row">
                     <div class="col s4 text-right">
                         <br> <!-- Hacked for now... -->
@@ -106,6 +106,18 @@
                     </div>
                     <div class="col s8">
                         <b>${{ total_out_of_pocket_cost|floatformat:2 }}</b>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        <img title="Via Octopart.com" style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img>&nbsp;Datasheets:
+                    </div>
+                    <div class="col s8">
+                        {% for source, datasheet in datasheets.items %}
+                        <a href="{{ datasheet.url }}" target="blank">{{ source }}</a>&nbsp;{% if datasheet.last_updated %}<i>(Updated {{ datasheet.last_updated|date:"M d, Y" }})</i>{% endif %}<br>
+                        {% empty %}
+                        None found.
+                        {% endfor %}
                     </div>
                 </div>
 

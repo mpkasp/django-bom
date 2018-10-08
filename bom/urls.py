@@ -11,6 +11,7 @@ bom_patterns = [
     path('', views.home, name='home'),
     path('error/', views.error, name='error'),
     path('signup/', views.bom_signup, name='bom-signup'),
+    path('settings/', views.bom_settings, name='bom-settings'),
     path('export/', views.export_part_list, name='export-part-list'),
     path('create-part/', views.create_part, name='create-part'),
     path('upload-parts/', views.upload_parts, name='upload-parts'),

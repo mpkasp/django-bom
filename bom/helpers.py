@@ -1,6 +1,6 @@
-from bom.octopart_parts_match import match_part
+from bom.octopart import match_part
 from bom.models import Part, PartClass, Seller, SellerPart, Subpart, \
-    Manufacturer, Organization, PartFile
+    Manufacturer, Organization, PartFile, ManufacturerPart
 
 
 def create_a_fake_organization(user, free=False):
@@ -64,7 +64,7 @@ def create_some_fake_manufacturers(organization):
 
 def create_a_fake_seller_part(
         seller,
-        part,
+        manufacturer_part,
         moq,
         mpq,
         unit_cost,
@@ -72,7 +72,7 @@ def create_a_fake_seller_part(
         nre_cost=None):
     sp1 = SellerPart(
         seller=seller,
-        part=part,
+        manufacturer_part=manufacturer_part,
         minimum_order_quantity=moq,
         minimum_pack_quantity=mpq,
         unit_cost=unit_cost,
@@ -88,30 +88,34 @@ def create_some_fake_parts(organization):
     (m1, m2, m3) = create_some_fake_manufacturers(organization=organization)
 
     pt1 = Part(
-        manufacturer_part_number='STM32F401CEU6',
         number_class=pc2,
         number_item='3333',
         description='Brown dog',
         revision='1',
-        manufacturer=m1,
         organization=organization)
+    pt1.save()
+    mp1 = ManufacturerPart(part=pt1, manufacturer=m1, manufacturer_part_number='STM32F401CEU6')
+    mp1.save()
+    pt1.primary_manufacturer_part = mp1
     pt1.save()
 
     pt2 = Part(
-        manufacturer_part_number='GRM1555C1H100JA01D',
         number_class=pc1,
         description='',
-        manufacturer=None,
         organization=organization)
+    pt2.save()
+    mp2 = ManufacturerPart(part=pt2, manufacturer=None, manufacturer_part_number='GRM1555C1H100JA01D')
+    mp2.save()
+    pt2.primary_manufacturer_part = mp2
     pt2.save()
 
     pt3 = Part(
-        manufacturer_part_number='NRF51822',
         number_class=pc3,
         description='Friendly ghost',
-        manufacturer=m3,
         organization=organization)
     pt3.save()
+    mp3 = ManufacturerPart(part=pt3, manufacturer=m3, manufacturer_part_number='NRF51822')
+    mp3.save()
 
     create_a_fake_subpart(pt1, pt2)
     create_a_fake_subpart(pt1, pt3, count=10)
@@ -120,14 +124,14 @@ def create_some_fake_parts(organization):
 
     create_a_fake_seller_part(
         s1,
-        pt1,
+        mp1,
         moq=None,
         mpq=None,
         unit_cost=None,
         lead_time_days=None)
     create_a_fake_seller_part(
         s1,
-        pt1,
+        mp1,
         moq=1,
         mpq=1,
         unit_cost=1.2,
@@ -135,14 +139,14 @@ def create_some_fake_parts(organization):
         nre_cost=500)
     create_a_fake_seller_part(
         s2,
-        pt1,
+        mp1,
         moq=1000,
         mpq=5000,
         unit_cost=0.1005,
         lead_time_days=7,)
     create_a_fake_seller_part(
         s2,
-        pt2,
+        mp2,
         moq=200,
         mpq=200,
         unit_cost=0.5,

@@ -17,39 +17,39 @@ Create New Part
 <div class="row">
     <form action="{% url 'bom:create-part' %}" method="post" class="col s12">
         {% csrf_token %}
-        {{ form.non_field_errors }}
+        {{ part_form.non_field_errors }}
+        {{ manufacturer_form.non_field_errors }}
+        {{ manufacturer_part_form.non_field_errors }}
+        {{ part_form.errors }}
+        {{ manufacturer_form.errors }}
+        {{ manufacturer_part_form.errors }}
         <div class="row">
             <div class="fieldWrapper col s6">
-                <label for="{{ form.number_class.id_for_label }}"><b>Part Number Class:</b></label>
-                {{ form.number_class.errors }}
-                <select name="number_class">
-                        <option value="" disabled selected>- Select Part Number Class -</option>
-                        {% for class in form.partclasses %}
-                        <option  value="{{ class.id }}">{{ class.code }} : {{ class.name }}</option>
-                        {% endfor %}
-                </select>
+                <label for="{{ part_form.number_class.id_for_label }}"><b>Part Number Class:</b></label>
+                {{ part_form.number_class.errors }}
+                {{ part_form.number_class }}
             </div>
             <div class="fieldWrapper col s3">
-                <label for="{{ form.number_item.id_for_label }}">Part Number:</label>
-                {{ form.number_item.errors }}
-                {{ form.number_item }}
+                <label for="{{ part_form.number_item.id_for_label }}">Part Number:</label>
+                {{ part_form.number_item.errors }}
+                {{ part_form.number_item }}
             </div>
             <div class="fieldWrapper col s3">
-                <label for="{{ form.number_variation.id_for_label }}">Part Variation:</label>
-                {{ form.number_variation.errors }}
-                {{ form.number_variation }}
+                <label for="{{ part_form.number_variation.id_for_label }}">Part Variation:</label>
+                {{ part_form.number_variation.errors }}
+                {{ part_form.number_variation }}
             </div>
         </div>
         <div class="row">
             <div class="fieldWrapper col s2">
-                <label for="{{ form.revision.id_for_label }}"><b>Revision</b><br></label>
-                {{ form.revision.errors }}
-                {{ form.revision }}
+                <label for="{{ part_form.revision.id_for_label }}"><b>Revision</b><br></label>
+                {{ part_form.revision.errors }}
+                {{ part_form.revision }}
             </div>
             <div class="fieldWrapper col s10">
-                <label for="{{ form.description.id_for_label }}"><b>Description</b> <i>(Max 255 characters.)</i></label>
-                {{ form.description.errors }}
-                {{ form.description }}
+                <label for="{{ part_form.description.id_for_label }}"><b>Description</b> <i>(Max 255 characters.)</i></label>
+                {{ part_form.description.errors }}
+                {{ part_form.description }}
             </div>
         </div>
         <div class="row">
@@ -59,21 +59,21 @@ Create New Part
         </div>
         <div class="row">
             <div class="fieldWrapper col s6">
-                <label for="{{ form.manufacturer.id_for_label }}">Select existing Manufacturer</label>
-                {{ form.manufacturer.errors }}
-                {{ form.manufacturer }}
+                <label for="{{ manufacturer_part_form.manufacturer.id_for_label }}">Select existing Manufacturer</label>
+                {{ manufacturer_part_form.manufacturer.errors }}
+                {{ manufacturer_part_form.manufacturer }}
             </div>
             <div class="fieldWrapper col s6">
-                <label for="{{ form.new_manufacturer.id_for_label }}">-or- Create New Manufacturer</label>
-                {{ form.new_manufacturer.errors }}
-                {{ form.new_manufacturer }}
+                <label for="{{ manufacturer_form.name.id_for_label }}">-or- Create New Manufacturer</label>
+                {{ manufacturer_form.name.errors }}
+                {{ manufacturer_form.name }}
             </div>
         </div>
         <div class="row">
             <div class="fieldWrapper col s6">
-                <label for="{{ form.manufacturer_part_number.id_for_label }}"><b>Manufacturer Part Number</b></label>
-                {{ form.manufacturer_part_number.errors }}
-                {{ form.manufacturer_part_number }}
+                <label for="{{ manufacturer_part_form.manufacturer_part_number.id_for_label }}"><b>Manufacturer Part Number</b></label>
+                {{ manufacturer_part_form.manufacturer_part_number.errors }}
+                {{ manufacturer_part_form.manufacturer_part_number }}
             </div>
         </div>
 
