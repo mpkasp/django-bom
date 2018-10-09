@@ -84,18 +84,18 @@ def get_latest_datasheets(manufacturer_part_number):
     for result in response['results']:
         for item in result['items']:
             for datasheet in item['datasheets']:
-                if datasheet['metadata']['last_updated'] is not None:
-                    lu = datetime.strptime(datasheet['metadata']['last_updated'], '%Y-%m-%dT%H:%M:%SZ')
-                else:
-                    lu = None
-
-                if datasheet['metadata']['date_created'] is not None:
-                    dc = datetime.strptime(datasheet['metadata']['date_created'], '%Y-%m-%dT%H:%M:%SZ')
-                else:
-                    dc = None
-
-                last_updated = lu if lu is not None and lu > dc else dc
                 try:
+                    if datasheet['metadata']['last_updated'] is not None:
+                        lu = datetime.strptime(datasheet['metadata']['last_updated'], '%Y-%m-%dT%H:%M:%SZ')
+                    else:
+                        lu = None
+
+                    if datasheet['metadata']['date_created'] is not None:
+                        dc = datetime.strptime(datasheet['metadata']['date_created'], '%Y-%m-%dT%H:%M:%SZ')
+                    else:
+                        dc = None
+
+                    last_updated = lu if lu is not None and lu > dc else dc
                     name = datasheet['attribution']['sources'][0]['name']
                     url = datasheet['url']
                     num_pages = datasheet['metadata']['num_pages']

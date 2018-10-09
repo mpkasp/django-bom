@@ -80,26 +80,26 @@ class AddSubpartForm(forms.Form):
 
 
 class AddSellerPartForm(forms.Form):
-    seller = forms.ModelChoiceField(queryset=None, required=False, label="Seller")
+    seller = forms.ModelChoiceField(queryset=Seller.objects.none(), required=False, label="Seller")
     new_seller = forms.CharField(max_length=128, label='Create New Seller', required=False,
         widget=forms.TextInput(attrs={'placeholder': 'Leave blank if selecting a seller.'}))
-    minimum_order_quantity = forms.IntegerField(required=False, 
-        label='MOQ', 
+    minimum_order_quantity = forms.IntegerField(required=False,
+        label='MOQ',
         validators=[numeric],
         widget=forms.TextInput(attrs={'placeholder': 'None'}))
-    minimum_pack_quantity = forms.IntegerField(required=False, 
-        label='MPQ', 
+    minimum_pack_quantity = forms.IntegerField(required=False,
+        label='MPQ',
         validators=[numeric], widget=forms.TextInput(attrs={'placeholder': 'None'}))
     unit_cost = forms.DecimalField(required=True, 
-        label='Unit Cost', 
+        label='Unit Cost',
         validators=[decimal, ],
         widget=forms.TextInput(attrs={'placeholder': '0.00'}))
-    lead_time_days = forms.IntegerField(required=False, 
-        label='Lead Time (days)', 
+    lead_time_days = forms.IntegerField(required=False,
+        label='Lead Time (days)',
         validators=[numeric],
         widget=forms.TextInput(attrs={'placeholder': 'None'}))
-    nre_cost = forms.DecimalField(required=False, 
-        label='NRE Cost', 
+    nre_cost = forms.DecimalField(required=False,
+        label='NRE Cost',
         validators=[decimal, ],
         widget=forms.TextInput(attrs={'placeholder': 'None'}))
     ncnr = forms.BooleanField(required=False, label='NCNR')
@@ -109,7 +109,7 @@ class AddSellerPartForm(forms.Form):
         super(AddSellerPartForm, self).__init__(*args, **kwargs)
         self.fields['seller'].queryset = Seller.objects.filter(
             organization=self.organization).order_by('name', )
-    
+
     def clean(self):
         cleaned_data = super(AddSellerPartForm, self).clean()
         seller = cleaned_data.get("seller")

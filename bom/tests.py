@@ -6,8 +6,8 @@ from unittest import skip
 from .helpers import create_some_fake_parts, create_a_fake_organization, \
     create_a_fake_subpart, create_a_fake_partfile, \
     create_some_fake_part_classes, create_some_fake_manufacturers
-from .models import PartFile, Part
-from .forms import PartInfoForm, PartForm, AddSubpartForm
+from .models import PartFile, Part, SellerPart, ManufacturerPart, Seller
+from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
 from .octopart import match_part
 
 
@@ -25,6 +25,9 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:home'))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.get(reverse('bom:home'), {'q': p1.primary_manufacturer_part.manufacturer_part_number})
         self.assertEqual(response.status_code, 200)
 
     def test_error(self):
@@ -227,6 +230,15 @@ class TestBOM(TransactionTestCase):
                 reverse('bom:upload-parts'), {'file': test_csv})
         self.assertEqual(response.status_code, 302)
 
+    def test_add_sellerpart(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.post(reverse('bom:part-add-sellerpart', kwargs={'part_id': p1.id}))
+        # TODO: test a valid form
+        self.assertEqual(response.status_code, 200)
+
 
 class TestForms(TestCase):
     def setUp(self):
@@ -270,7 +282,7 @@ class TestForms(TestCase):
 
         form = PartForm(data=form_data)
         self.assertTrue(form.is_valid())
-        
+
         new_part, created = Part.objects.get_or_create(
                 number_class=form.cleaned_data['number_class'],
                 number_item=form.cleaned_data['number_item'],
@@ -278,8 +290,7 @@ class TestForms(TestCase):
                 organization=self.organization,
                 defaults={'description': form.cleaned_data['description'],
                           'revision': form.cleaned_data['revision'],
-                          }
-            )
+                          })
 
         self.assertTrue(created)
         self.assertEqual(new_part.number_class.id, pc2.id)
@@ -307,3 +318,23 @@ class TestForms(TestCase):
             'assembly_subpart': [u'This field is required.'],
             'count': [u'This field is required.'],
         })
+
+    def test_add_sellerpart_form(self):
+        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        form = AddSellerPartForm()
+        self.assertFalse(form.is_valid())
+
+        seller = Seller.objects.filter(organization=self.organization)[0]
+
+        form_data = {
+            'seller': seller.id,
+            'minimum_order_quantity': 1000,
+            'minimum_pack_quantity': 100,
+            'unit_cost': 1.2332,
+            'lead_time_days': 14,
+            'nre_cost': 1000,
+            'ncnr': True,
+        }
+
+        form = AddSellerPartForm(organization=self.organization, data=form_data)
+        self.assertTrue(form.is_valid())

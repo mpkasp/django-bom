@@ -11,7 +11,7 @@ bom/forms.py
 bom/helpers.py
 bom/local_settings.py
 bom/models.py
-bom/octopart_parts_match.py
+bom/octopart.py
 bom/settings.py
 bom/test_new_parts.csv
 bom/test_parts.csv
@@ -24,6 +24,8 @@ bom/migrations/0001_initial.py
 bom/migrations/0002_auto_20180908_2151.py
 bom/migrations/0003_sellerpart_data_source.py
 bom/migrations/0004_auto_20180911_0011.py
+bom/migrations/0005_auto_20181007_1934.py
+bom/migrations/0006_auto_20181007_1949.py
 bom/migrations/__init__.py
 bom/static/bom/style.css
 bom/static/bom/treetable-theme.css
@@ -45,6 +47,7 @@ bom/templates/bom/edit-part.html
 bom/templates/bom/error.html
 bom/templates/bom/manage-bom.html
 bom/templates/bom/part-info.html
+bom/templates/bom/settings.html
 bom/templates/bom/upload-parts.html
 bom/templates/registration/login.html
 django_bom.egg-info/PKG-INFO

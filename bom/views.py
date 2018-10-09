@@ -89,19 +89,19 @@ def home(request):
             parts = parts.filter(
                 Q(number_class__code=number_class, number_item=number_item, number_variation=number_variation) |
                 Q(description__icontains=query) |
-                Q(manufacturer_part_number__icontains=query) |
-                Q(manufacturer__name__icontains=query))
+                Q(primary_manufacturer_part__manufacturer_part_number__icontains=query) |
+                Q(primary_manufacturer_part__manufacturer__name__icontains=query))
         elif number_class and number_item:
             parts = parts.filter(
                 Q(number_class__code=number_class, number_item=number_item) |
                 Q(description__icontains=query) |
-                Q(manufacturer_part_number__icontains=query) |
-                Q(manufacturer__name__icontains=query))
+                Q(primary_manufacturer_part__manufacturer_part_number__icontains=query) |
+                Q(primary_manufacturer_part__manufacturer__name__icontains=query))
         else:
             parts = parts.filter(
                 Q(description__icontains=query) |
-                Q(manufacturer_part_number__icontains=query) |
-                Q(manufacturer__name__icontains=query) |
+                Q(primary_manufacturer_part__manufacturer_part_number__icontains=query) |
+                Q(primary_manufacturer_part__manufacturer__name__icontains=query) |
                 Q(number_class__code=query))
 
     return TemplateResponse(request, 'bom/dashboard.html', locals())
@@ -679,7 +679,7 @@ def create_part(request):
             messages.error(request, "{}".format(manufacturer_form.is_valid()))
             messages.error(request, "{}".format(manufacturer_part_form.is_valid()))
     else:
-        part_form = PartForm(initial={'revision': 1, 'organization': organization}, exclude=('primary_manufacturer_part', ))
+        part_form = PartForm(initial={'revision': 1, 'organization': organization})
         manufacturer_form = ManufacturerForm(initial={'organization': organization})
         manufacturer_part_form = ManufacturerPartForm()
 
@@ -847,7 +847,7 @@ def add_sellerpart(request, part_id):
         form = AddSellerPartForm(request.POST, organization=organization)
         if form.is_valid():
             new_sellerpart, created = SellerPart.objects.get_or_create(
-                part=part,
+                part=part.primary_manufacturer_part,
                 seller=form.cleaned_data['seller'],
                 minimum_order_quantity=form.cleaned_data['minimum_order_quantity'],
                 minimum_pack_quantity=form.cleaned_data['minimum_pack_quantity'],
