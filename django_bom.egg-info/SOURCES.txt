@@ -26,6 +26,7 @@ bom/migrations/0003_sellerpart_data_source.py
 bom/migrations/0004_auto_20180911_0011.py
 bom/migrations/0005_auto_20181007_1934.py
 bom/migrations/0006_auto_20181007_1949.py
+bom/migrations/0007_auto_20181009_0256.py
 bom/migrations/__init__.py
 bom/static/bom/style.css
 bom/static/bom/treetable-theme.css
