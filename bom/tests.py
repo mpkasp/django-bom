@@ -123,8 +123,34 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(reverse('bom:create-part'))
-        self.assertEqual(response.status_code, 200)
+        new_part_form_data = {
+            'manufacturer_part_number': 'STM32F401',
+            'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
+            'number_class': p1.number_class.id,
+            'number_item': '',
+            'number_variation': '',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
+
+        new_part_form_data = {
+            'manufacturer_part_number': '',
+            'manufacturer': '',
+            'number_class': p1.number_class.id,
+            'number_item': '',
+            'number_variation': '',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
 
     def test_part_edit(self):
         self.client.login(username='kasper', password='ghostpassword')

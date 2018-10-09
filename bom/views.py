@@ -640,33 +640,29 @@ def create_part(request):
             old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
             new_manufacturer_name = manufacturer_form.cleaned_data['name']
 
-            manufacturer_part = None
+            manufacturer = None
             if manufacturer_part_number:
                 if old_manufacturer and not new_manufacturer_name:
-                    new_part, created = Part.objects.get_or_create(
-                        number_class=part_form.cleaned_data['number_class'],
-                        number_item=part_form.cleaned_data['number_item'],
-                        number_variation=part_form.cleaned_data['number_variation'],
-                        organization=organization,
-                        defaults={'description': part_form.cleaned_data['description'],
-                                    'revision': part_form.cleaned_data['revision'], })
                     manufacturer = old_manufacturer
-                    manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
                 elif new_manufacturer_name and not old_manufacturer:
-                    new_part, created = Part.objects.get_or_create(
-                        number_class=part_form.cleaned_data['number_class'],
-                        number_item=part_form.cleaned_data['number_item'],
-                        number_variation=part_form.cleaned_data['number_variation'],
-                        organization=organization,
-                        defaults={'description': part_form.cleaned_data['description'],
-                                    'revision': part_form.cleaned_data['revision'], })
                     manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
-                    manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
                 else:
                     messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
                     return TemplateResponse(request, 'bom/create-part.html', locals())
             elif old_manufacturer or new_manufacturer_name:
                 messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
+
+            new_part, created = Part.objects.get_or_create(
+                number_class=part_form.cleaned_data['number_class'],
+                number_item=part_form.cleaned_data['number_item'],
+                number_variation=part_form.cleaned_data['number_variation'],
+                organization=organization,
+                defaults={'description': part_form.cleaned_data['description'],
+                            'revision': part_form.cleaned_data['revision'], })
+
+            manufacturer_part = None
+            if manufacturer is not None:
+                manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
 
             if new_part.primary_manufacturer_part is None and manufacturer_part is not None:
                 new_part.primary_manufacturer_part = manufacturer_part
