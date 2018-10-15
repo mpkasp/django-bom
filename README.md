@@ -58,7 +58,7 @@ url(r'^bom/', include('bom.urls')),
 And don't forget to import include:
 
 ```
-from django.conf.urls import include
+from django.conf.urls import include, url
 ```
 
 3. Update your settings.py to add the bom context processor `'bom.context_processors.bom_config',` to your TEMPLATES variable, and create a new empty dictionary BOM_CONFIG.

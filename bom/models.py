@@ -147,7 +147,7 @@ class Part(models.Model):
 
     def optimal_seller(self, quantity=100):
         qty_cache_key = str(self.id) + '_qty'
-        quantity = cache.get(qty_cache_key, 100)
+        quantity = int(cache.get(qty_cache_key, 100))
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
         sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)
         seller = None
@@ -220,7 +220,7 @@ class ManufacturerPart(models.Model):
 
     def optimal_seller(self, quantity=100):
         qty_cache_key = str(self.part.id) + '_qty'
-        quantity = cache.get(qty_cache_key, 100)
+        quantity = int(cache.get(qty_cache_key, 100))
         sellerparts = SellerPart.objects.filter(manufacturer_part=self)
         seller = None
         for sellerpart in sellerparts:
