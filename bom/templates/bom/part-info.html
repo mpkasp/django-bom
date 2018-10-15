@@ -339,14 +339,6 @@
 <!-- Tree Table -->
 <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
 <script>
-    $("#manufacturer-parts").treetable({ 
-        expandable: true, 
-        indent: 2,
-        initialState: 'collapsed',
-        onInitialized: function () {
-            $("#indented-bom").treetable("reveal", {{ part.id }});
-        }
-        });
     $("#indented-bom").treetable({ 
         expandable: true, 
         indent: 2,
@@ -354,6 +346,11 @@
         onInitialized: function () {
             $("#indented-bom").treetable("reveal", {{ part.id }});
         }
+        });
+    $("#manufacturer-parts").treetable({ 
+        expandable: true, 
+        indent: 2,
+        initialState: 'collapsed',
         });
 </script>
 {% endif %}

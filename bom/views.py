@@ -162,11 +162,11 @@ def part_info(request, part_id):
 
     cache.set(qty_cache_key, qty, 3600)
 
-    # try:
-    datasheets = get_latest_datasheets(part.primary_manufacturer_part.manufacturer_part_number)
-    # except Exception as e:
-        # messages.warning(request, "Octopart error: {}".format(e))
-        # datasheets = []
+    try:
+        datasheets = get_latest_datasheets(part.primary_manufacturer_part.manufacturer_part_number)
+    except Exception as e:
+        messages.warning(request, "Octopart error: {}".format(e))
+        datasheets = []
 
     try:
         parts = part.indented()

@@ -28,6 +28,8 @@ bom/migrations/0005_auto_20181007_1934.py
 bom/migrations/0006_auto_20181007_1949.py
 bom/migrations/0007_auto_20181009_0256.py
 bom/migrations/__init__.py
+bom/static/.DS_Store
+bom/static/bom/.DS_Store
 bom/static/bom/style.css
 bom/static/bom/treetable-theme.css
 bom/static/bom/css/jquery.treetable.css
@@ -38,12 +40,15 @@ bom/static/bom/img/octopart_blue.svg
 bom/static/bom/js/jquery.ba-floatingscrollbar.min.js
 bom/static/bom/js/jquery.treetable.js
 bom/static/bom/js/materialize.min.js
+bom/templates/bom/add-manufacturer-part.html
 bom/templates/bom/add-sellerpart.html
 bom/templates/bom/base.html
 bom/templates/bom/bom-action-btn.html
+bom/templates/bom/bom-form.html
 bom/templates/bom/bom-signup.html
 bom/templates/bom/create-part.html
 bom/templates/bom/dashboard.html
+bom/templates/bom/edit-manufacturer-part.html
 bom/templates/bom/edit-part.html
 bom/templates/bom/error.html
 bom/templates/bom/manage-bom.html

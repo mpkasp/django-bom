@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: django-bom
-Version: 1.20
+Version: 1.23
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian
@@ -66,7 +66,7 @@ Description: # BOM
         And don't forget to import include:
         
         ```
-        from django.conf.urls import include
+        from django.conf.urls import include, url
         ```
         
         3. Update your settings.py to add the bom context processor `'bom.context_processors.bom_config',` to your TEMPLATES variable, and create a new empty dictionary BOM_CONFIG.
