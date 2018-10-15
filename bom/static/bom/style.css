@@ -1,13 +1,15 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto');
 
-body {
-    display: flex;
-    min-height: 100vh;
-    flex-direction: column;
+html {
+    line-height: normal;
 }
 
-main {
-     flex: 1 0 auto;
+h1 {
+    font-size: 3.5rem;
+}
+
+h2 {
+    font-size: 3.3rem;
 }
 
 .tabs { 
@@ -81,6 +83,25 @@ td, tr {
 
 .page-footer {
     margin-top: 50px;
+}
+
+.tabs .tab a{
+    /*@extend .green .lighten-3;*/
+    color:#a5d6a7;
+}
+.tabs .tab a:hover,.tabs .tab a.active {
+    background-color:transparent;
+    color:#66bb6a;
+}
+.tabs .tab.disabled a,.tabs .tab.disabled a:hover {
+    color:rgba(165,214,167,0.5);    
+}
+.tabs .indicator {
+    background-color:#66bb6a;
+}
+
+.tabs .tab a:focus, .tabs .tab a:focus.active {
+    background-color:transparent;
 }
 
 /* Override Materialize container */

@@ -23,7 +23,7 @@ from math import ceil
 
 from .convert import full_part_number_to_broken_part
 from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer, ManufacturerPart
-from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, ManufacturerPartForm
+from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, ManufacturerPartForm, SellerPartForm
 from .octopart import match_part, get_latest_datasheets
 
 logger = logging.getLogger(__name__)
@@ -1026,16 +1026,28 @@ def manufacturer_part_delete(request, manufacturer_part_id):
 
 @login_required
 def sellerpart_edit(request, sellerpart_id):
-    # TODO: Add test
+    # TODO: Add test, finish endpoint
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+    title = "Edit Seller Part"
+    action = reverse('bom:sellerpart-edit', kwargs={'sellerpart_id': sellerpart_id})
+
     try:
         sellerpart = SellerPart.objects.get(id=sellerpart_id)
     except ObjectDoesNotExist:
         messages.error(request, "No sellerpart found with given sellerpart_id.")
         return HttpResponseRedirect(reverse('bom:error'))
 
-    # TODO: create sellerpart form
+    if request.method == 'POST':
+        form = SellerPartForm(request.POST, instance=sellerpart)
+        if form.is_valid():
+            form.save()
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': sellerpart.manufacturer_part.part.id}))
+    else:
+        form = SellerPartForm(instance=sellerpart)
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
+    return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
 @login_required

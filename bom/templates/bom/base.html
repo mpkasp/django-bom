@@ -17,9 +17,6 @@
     <!--Let browser know website is optimized for mobile-->
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-    <!-- Github star link -->
-    <script async defer src="https://buttons.github.io/buttons.js"></script>
-
     <!-- Custom -->
     <link rel="stylesheet" href="{% static 'bom/style.css' %}">
     <link rel="shortcut icon" type="image/png" href="{% static 'bom/img/favicon.ico' %}"/>
@@ -28,43 +25,34 @@
 <body>
     <!--Import jQuery before materialize.js-->
     <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-    <script type="text/javascript" src="{% static 'bom/js/materialize.min.js' %}"></script>
-    <script>
-        $(document).ready(function() {
-            $('select').material_select();
-            $(".button-collapse").sideNav();
-        });
-    </script>
 
     <div class="navbar-fixed">
         <nav class="green lighten-1">
             <div class="nav-wrapper">
-                <a href="/" class="brand-logo left hide-on-med-and-down"><img style="margin-top: 2px; margin-right: 6px;" width="52" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a>
-                <a href="/" class="brand-logo left hide-on-large-only" style="left: 2.5rem;"><img style="margin-top: 2px; margin-right: 6px;" width="52" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a>
-                <a href="#" data-activates="mobile-menu" class="button-collapse"><i class="material-icons">menu</i></a>
-                <ul id="nav-mobile" class="right hide-on-med-and-down">
+                <a href="/" title="IndaBOM | Home" class="brand-logo left hide-on-med-and-down"><img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a>
+                <a href="/" title="IndaBOM | Home" class="brand-logo left hide-on-large-only" style="left: 2.5rem;"><img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a>
+                <a href="#" data-target="mobile-menu" class="sidenav-trigger"><i class="material-icons">menu</i></a>
+                <ul class="right hide-on-med-and-down">
                     {% block menu %}{% endblock %}
-                    {% if user.is_superuser and user.is_authenticated %}<li><a href="/admin/">Admin</a></li>{% endif %}
-                    {% if user.is_authenticated %}
-                    <!-- <li><a href="{% url 'bom:bom-settings' %}">Settings</a></li> -->
-                    <li><a href="{% url 'logout' %}">Logout</a></li>
-                    {% endif %}
-                    {% if not user.is_authenticated %}<li><a href="{% url 'login' %}">Login</a></li>{% endif %}
+                    {% if user.is_superuser and user.is_authenticated %}<li><a title="IndaBOM | Admin" href="/admin/">Admin</a></li>{% endif %}
+                    {% if user.is_authenticated %}<li><a title="IndaBOM | Log Out" href="{% url 'logout' %}">Logout</a></li>{% endif %}
+                    {% if not user.is_authenticated %}<li><a title="IndaBOM | Log In" href="{% url 'login' %}">Login</a></li>{% endif %}
                 </ul>
+
             </div>
         </nav>
     </div>
     
     <!-- Make sure this is not in navbar-fixed or it will be disabled -->
-    <ul class="side-nav" id="mobile-menu">
+    <ul class="sidenav" id="mobile-menu">
         {% block mobilemenu %}{% endblock %}
-        {% if user.is_superuser and user.is_authenticated %}<li><a href="/admin/">Admin</a></li>{% endif %}
-        {% if user.is_authenticated %}<li><a href="{% url 'logout' %}">Logout</a></li>{% endif %}
-        {% if not user.is_authenticated %}<li><a href="{% url 'login' %}">Login</a></li>{% endif %}
+        {% if user.is_superuser and user.is_authenticated %}<li><a title="IndaBOM | Admin" href="/admin/">Admin</a></li>{% endif %}
+        {% if user.is_authenticated %}<li><a title="IndaBOM | Log Out" href="{% url 'logout' %}">Logout</a></li>{% endif %}
+        {% if not user.is_authenticated %}<li><a title="IndaBOM | Log In" href="{% url 'login' %}">Login</a></li>{% endif %}
     </ul>
     
     <main>
-        <h4 class="col s12 light header container" style="padding: 20px 0px;">{% block title %}{% endblock %}</h4>
+        <h1 class="col s12 light header container" style="padding: 20px 0px;">{% block title %}{% endblock %}</h1>
         <div id="content" class="container">
             {% if messages %}
             <ul class="messages">
@@ -107,5 +95,19 @@
             </div>
         </div>
     </footer>
+
+    <script type="text/javascript" src="{% static 'bom/js/materialize.min.js' %}"></script>
+
+    <!-- Github star link -->
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            $('select').formSelect();
+            $('.sidenav').sidenav();
+        });
+    </script>
+
+    {% block script%}{% endblock script %}
 </body>
 </html>

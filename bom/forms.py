@@ -2,7 +2,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 # from django.core.validators import DecimalValidator
 
-from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller
+from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart
 from .validators import decimal, alphanumeric, numeric
 from json import dumps
 
@@ -30,6 +30,15 @@ class ManufacturerPartForm(forms.ModelForm):
     class Meta:
         model = ManufacturerPart
         exclude = ['part', ]
+
+
+class SellerPartForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    class Meta:
+        model = SellerPart
+        exclude = ['manufacturer_part', ]
 
 
 class PartForm(forms.ModelForm):

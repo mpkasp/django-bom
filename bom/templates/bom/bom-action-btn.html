@@ -13,4 +13,10 @@
       <li><a class="btn-floating blue lighten-1 tooltipped" data-position="left" data-delay="50" data-tooltip="New Part" href="{% url 'bom:create-part' %}"><i class="material-icons">library_add</i></a></li>
     </ul>
   </div>
+  <script>
+    $(document).ready(function(){
+      $('.fixed-action-btn').floatingActionButton();
+      $('.tooltipped').tooltip();
+    });
+  </script>
 {% endblock %}

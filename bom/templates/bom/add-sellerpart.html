@@ -1,6 +1,7 @@
 {% extends BASE_TEMPLATE %}
 
 {% load staticfiles %}
+{% load materializecss %}
 
 {% block head-title %}Add Sellerpart{% endblock %}
 
@@ -67,12 +68,11 @@ Add Seller Part
         <div class="row">
             <div class="fieldWrapper col s3">
                 {{ form.ncnr.errors }}
-                {{ form.ncnr }}
-                <label for="{{ form.ncnr.id_for_label }}">NCNR</label>
+                {{ form.ncnr|materializecss }}
             </div>
         </div>
 
-        <input class="waves-effect waves-light btn green lighten-1" type="submit" value="Save" />
+        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
         <a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
     </form>
 </div>

@@ -4,7 +4,7 @@
 
 {% block head-title %}Part Info{% endblock %}
 
-{% block title %}
+{% block title %}{{ part.description }}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
 <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}" />
 <link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}" />
@@ -22,8 +22,7 @@
 <div class="part-info push-footer">
     <div class="row">
         <div class="col s8">
-            <h3 class="light header" style="text-overflow:ellipsis; overflow: hidden; white-space: nowrap;">{{ part.description }}</h3>
-            <p class="light">Part Number: {{ part.full_part_number}}</p>
+            <h5 class="light">Part Number: {{ part.full_part_number}}</h5>
         </div>
         <div class="col s4 right-align">
             <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
@@ -39,7 +38,7 @@
 
     <div class="row">
         <div class="col s12">
-            <ul class="tabs tabs-fixed-width">
+            <ul id="tabs" class="tabs tabs-fixed-width">
                 <li class="tab"><a href="#specs">Specifications</a></li>
                 <li class="tab"><a href="#bom">Bill of Materials</a></li>
                 <li class="tab"><a href="#used">Where Used</a></li>
@@ -279,16 +278,16 @@
                             <th>NRE</th>
                             <th>NCNR</th>
                             <th></th>
-                            <th></th>
+                            <th colspan=2></th>
                         </tr>
                     </thead>
                     <tbody>
                     {% for manufacturer_part in part.manufacturer_parts %}
                         <tr data-tt-id="{{ manufacturer_part.id }}">
                             <td>{{ manufacturer_part.manufacturer_part_number }}<br>
-                                <a href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}">[ edit ]</a><br>
-                                <a href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}">[ delete ]</a><br>
-                                <a href="{% url 'bom:manufacturer-part-octopart-match' manufacturer_part_id=manufacturer_part.id %}">[ find sellers <img title="Sourcing information via Octopart." style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img> ]</a><br>
+                                <a href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}">edit</a><br>
+                                <a href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}">delete</a><br>
+                                <a href="{% url 'bom:manufacturer-part-octopart-match' manufacturer_part_id=manufacturer_part.id %}">find sellers <img title="Sourcing information via Octopart." style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img></a><br>
                             </td>
                             <td>{{ manufacturer_part.manufacturer }}</td>
                             <td>{{ manufacturer_part.optimal_seller.seller.name }}</td>
@@ -299,7 +298,7 @@
                             <td>{{ manufacturer_part.optimal_seller.nre_cost }}</td>
                             <td>{{ manufacturer_part.optimal_seller.ncnr }}</td>
                             <td style="min-width: 0px;">{% if manufacturer_part.optimal_seller.data_source == 'octopart' %}<img title="Sourcing information via Octopart." style="width: 20px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img>{% endif %}</td>
-                            <td>{% if manufacturer_part.optimal_seller %}<a href="{% url 'bom:sellerpart-delete' sellerpart_id=manufacturer_part.optimal_seller.id %}">delete</a>{% endif %}</td>
+                            <td colspan=2></td>
                         </tr>
                         {% for seller_part in manufacturer_part.seller_parts %}
                         <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}">
@@ -313,6 +312,7 @@
                             <td>{{ seller_part.nre_cost }}</td>
                             <td>{{ seller_part.ncnr }}</td>
                             <td style="min-width: 0px;">{% if seller_part.data_source == 'octopart' %}<img title="Sourcing information via Octopart." style="width: 20px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img>{% endif %}</td>
+                            <td><a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a></td>
                             <td><a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a></td>
                         </tr>
                         {% empty %}
@@ -333,6 +333,8 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block script %}
 {% if order_by == 'indented' %}
 <!-- Tree Table -->
 <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
@@ -357,13 +359,15 @@
 {% endif %}
 
 <!-- Handle if there's an anchor, select tab -->
-{% if anchor %}
 <script type='text/javascript'>
     $(document).ready(function(){
-        $('ul.tabs').tabs('select_tab', '{{ anchor }}');
+        {% if anchor %}
+        $('.tabs').tabs('select_tab', '{{ anchor }}');
+        {% else %}
+        $('.tabs').tabs();
+        {% endif %}
     });
 </script>
-{% endif %}
 
 <!-- Floating Horizontal Scrollbar -->
 <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
@@ -372,5 +376,4 @@ $(function() {
   $('.responsive-table-wrapper').floatingScrollbar();
 });
 </script>
-
-{% endblock %}
+{% endblock script %}
