@@ -1,0 +1,28 @@
+{% extends BASE_TEMPLATE %}
+
+{% load materializecss %}
+{% load staticfiles %}
+
+{% block head-title %}Add Sellerpart{% endblock %}
+
+{% block title %}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{{ title }}
+{% endblock %}
+
+{% block menu %}
+<li><a href="javascript:history.back()">Cancel</a></li>
+{% endblock%}
+
+{% block content %}
+<div class="row">
+    <form name="seller" action="{{ action }}" method="post" class="col s12">
+        {% csrf_token %}
+		{{ form|materializecss:'m6' }}
+        <div class="fieldWrapper">
+        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+        <a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+    	</div>
+    </form>
+</div>
+{% endblock %}
