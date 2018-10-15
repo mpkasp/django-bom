@@ -10,7 +10,7 @@ Edit Part {{ part.full_part_number }}
 {% endblock %}
 
 {% block menu %}
-<li><a href="{% url 'bom:home' %}">Cancel</a></li>
+<li><a href="{% url 'bom:part-info' part_id=part.id %}">Cancel</a></li>
 {% endblock%}
 
 {% block content %}
@@ -57,7 +57,7 @@ Edit Part {{ part.full_part_number }}
         </div>
 
         <input class="waves-effect waves-light btn green lighten-1" type="submit" value="Save" />
-        <a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+        <a href="{% url 'bom:part-info' part_id=part.id %}" class="waves-effect waves-light btn green lighten-1">Cancel</a>
         <a href="{% url 'bom:part-delete' part_id=part.id %}" onclick="return confirm('Are you sure? This part will be deleted forever!')" class="waves-effect waves-light btn red lighten-1">Delete Part</a>
     </form>
 </div>

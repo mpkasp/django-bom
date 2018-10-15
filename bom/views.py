@@ -225,7 +225,8 @@ def part_info(request, part_id):
         anchor = 'bom'
         parts = sorted(parts, key=lambda k: k[order_by], reverse=True)
     elif order_by == 'indented':
-        anchor = 'bom'
+        # anchor = 'bom'
+        anchor = None
 
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
@@ -552,16 +553,53 @@ def export_part_list(request):
 
 @login_required
 def part_octopart_match(request, part_id):
-    # TODO: update this to apply to a manufacturer part, not a part
     try:
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
         return HttpResponseRedirect(reverse('bom:error'))
 
+    manufacturer_parts = ManufacturerPart.objects.filter(part=part)
+    for manufacturer_part in manufacturer_parts:
+        seller_parts = []
+        try:
+            seller_parts = match_part(manufacturer_part, request.user.bom_profile().organization)
+        except IOError as e:
+            messages.error(request, "Error communicating with Octopart. {}".format(e))
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            messages.error(request, "Error - {}: {}, ({}, {})".format(exc_type, e, fname, exc_tb.tb_lineno))
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
+
+        if len(seller_parts) > 0:
+            SellerPart.objects.filter(manufacturer_part_id=manufacturer_part.id, data_source='octopart').delete()
+            for sp in seller_parts:
+                try:
+                    sp.save()
+                except IntegrityError:
+                    continue
+        else:
+            messages.info(
+                request,
+                "Octopart wasn't able to find any parts with manufacturer part number: {}".format(
+                    manufacturer_part.manufacturer_part_number))
+
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
+
+
+@login_required
+def manufacturer_part_octopart_match(request, manufacturer_part_id):
+    try:
+        manufacturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
+    except ObjectDoesNotExist:
+        messages.error(request, "No manufacturer part found with given part_id.")
+        return HttpResponseRedirect(reverse('bom:error'))
+
     seller_parts = []
     try:
-        seller_parts = match_part(part.primary_manufacturer_part, request.user.bom_profile().organization)
+        seller_parts = match_part(manufacturer_part, request.user.bom_profile().organization)
     except IOError as e:
         messages.error(request, "Error communicating with Octopart. {}".format(e))
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
@@ -572,7 +610,7 @@ def part_octopart_match(request, part_id):
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
     if len(seller_parts) > 0:
-        SellerPart.objects.filter(manufacturer_part_id=part.primary_manufacturer_part.id, data_source='octopart').delete()
+        SellerPart.objects.filter(manufacturer_part_id=manufacturer_part.id, data_source='octopart').delete()
         for sp in seller_parts:
             try:
                 sp.save()
@@ -582,7 +620,7 @@ def part_octopart_match(request, part_id):
         messages.info(
             request,
             "Octopart wasn't able to find any parts with manufacturer part number: {}".format(
-                part.manufacturer_part_number))
+                manufacturer_part.manufacturer_part_number))
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
@@ -866,7 +904,142 @@ def add_sellerpart(request, part_id):
 
 
 @login_required
-def delete_sellerpart(request, sellerpart_id):
+def add_manufacturer_part(request, part_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    try:
+        part = Part.objects.get(id=part_id)
+    except ObjectDoesNotExist:
+        messages.error(request, "No part found with given part_id.")
+        return HttpResponseRedirect(reverse('bom:error'))
+
+    if request.method == 'POST':
+        manufacturer_form = ManufacturerForm(request.POST)
+        manufacturer_part_form = ManufacturerPartForm(request.POST)
+        if manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
+            manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
+            old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
+            new_manufacturer_name = manufacturer_form.cleaned_data['name']
+
+            manufacturer = None
+            if manufacturer_part_number:
+                if old_manufacturer and not new_manufacturer_name:
+                    manufacturer = old_manufacturer
+                elif new_manufacturer_name and not old_manufacturer:
+                    manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
+                else:
+                    messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
+                    return TemplateResponse(request, 'bom/create-part.html', locals())
+            elif old_manufacturer or new_manufacturer_name:
+                messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
+
+            manufacturer_part = None
+            if manufacturer is not None:
+                manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
+
+            if part.primary_manufacturer_part is None and manufacturer_part is not None:
+                part.primary_manufacturer_part = manufacturer_part
+                part.save()
+
+            return HttpResponseRedirect(
+                reverse('bom:part-info', kwargs={'part_id': str(part.id)}))
+        else:
+            messages.error(request, "{}".format(manufacturer_form.is_valid()))
+            messages.error(request, "{}".format(manufacturer_part_form.is_valid()))
+    else:
+        manufacturer_form = ManufacturerForm(initial={'organization': organization})
+        manufacturer_part_form = ManufacturerPartForm()
+
+    return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
+
+
+@login_required
+def manufacturer_part_edit(request, manufacturer_part_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    try:
+        manufacturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
+    except ObjectDoesNotExist:
+        messages.error(request, "No manufacturer part found with given manufacturer_part_id.")
+        return HttpResponseRedirect(reverse('bom:error'))
+
+    part = manufacturer_part.part
+
+    if request.method == 'POST':
+        manufacturer_part_form = ManufacturerPartForm(request.POST, instance=manufacturer_part)
+        manufacturer_form = ManufacturerForm(request.POST, instance=manufacturer_part.manufacturer)
+        if manufacturer_part_form.is_valid() and manufacturer_form.is_valid():
+            manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
+            old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
+            new_manufacturer_name = manufacturer_form.cleaned_data['name']
+
+            manufacturer = None
+            if manufacturer_part_number:
+                if old_manufacturer and not new_manufacturer_name:
+                    manufacturer = old_manufacturer
+                elif new_manufacturer_name and not old_manufacturer:
+                    manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
+                    manufacturer_part_form.cleaned_data['manufacturer'] = manufacturer
+                else:
+                    messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
+                    return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
+            elif old_manufacturer or new_manufacturer_name:
+                messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
+
+            manufacturer_part_form.save()
+
+            if part.primary_manufacturer_part is None and manufacturer_part is not None:
+                part.primary_manufacturer_part = manufacturer_part
+                part.save()
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}))
+        else:
+            messages.error(request, manufacturer_part_form.errors)
+            messages.error(request, manufacturer_form.errors)
+    else:
+        if manufacturer_part.manufacturer is None:
+            manufacturer_form = ManufacturerForm(instance=manufacturer_part.manufacturer, initial={'organization': organization})
+        else:
+            manufacturer_form = ManufacturerForm(initial={'organization': organization})
+
+        manufacturer_part_form = ManufacturerPartForm(instance=manufacturer_part)
+
+    return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
+
+
+@login_required
+def manufacturer_part_delete(request, manufacturer_part_id):
+    # TODO: Add test
+    try:
+        manufaturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
+    except ObjectDoesNotExist:
+        messages.error(request, "No Manufacturer Part found with given manufacturer_part_id.")
+        return HttpResponseRedirect(reverse('bom:error'))
+
+    manufaturer_part.delete()
+
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
+
+
+@login_required
+def sellerpart_edit(request, sellerpart_id):
+    # TODO: Add test
+    try:
+        sellerpart = SellerPart.objects.get(id=sellerpart_id)
+    except ObjectDoesNotExist:
+        messages.error(request, "No sellerpart found with given sellerpart_id.")
+        return HttpResponseRedirect(reverse('bom:error'))
+
+    # TODO: create sellerpart form
+
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
+
+
+@login_required
+def sellerpart_delete(request, sellerpart_id):
     # TODO: Add test
     try:
         sellerpart = SellerPart.objects.get(id=sellerpart_id)

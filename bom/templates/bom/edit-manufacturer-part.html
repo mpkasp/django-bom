@@ -1,0 +1,53 @@
+{% extends BASE_TEMPLATE %}
+
+{% load staticfiles %}
+
+{% block head-title %}Manufacturer Part{% endblock %}
+
+{% block title %}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+Manufacturer Part
+{% endblock %}
+
+{% block menu %}
+<li><a href="{% url 'bom:part-info' part_id=part.id %}">Cancel</a></li>
+{% endblock%}
+
+{% block content %}
+<div class="row">
+    <form action="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}" method="post" class="col s12">
+        {% csrf_token %}
+        {{ manufacturer_form.non_field_errors }}
+        {{ manufacturer_part_form.non_field_errors }}
+        {{ manufacturer_form.errors }}
+        {{ manufacturer_part_form.errors }}
+        <div class="row">
+            <div class="col">
+                <p>Manufacturer <i>(skip if custom part)</i></p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="fieldWrapper col s6">
+                <label for="{{ manufacturer_part_form.manufacturer.id_for_label }}">Select existing Manufacturer</label>
+                {{ manufacturer_part_form.manufacturer.errors }}
+                {{ manufacturer_part_form.manufacturer }}
+            </div>
+            <div class="fieldWrapper col s6">
+                <label for="{{ manufacturer_form.name.id_for_label }}">-or- Create New Manufacturer</label>
+                {{ manufacturer_form.name.errors }}
+                {{ manufacturer_form.name }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="fieldWrapper col s6">
+                <label for="{{ manufacturer_part_form.manufacturer_part_number.id_for_label }}"><b>Manufacturer Part Number</b></label>
+                {{ manufacturer_part_form.manufacturer_part_number.errors }}
+                {{ manufacturer_part_form.manufacturer_part_number }}
+            </div>
+        </div>
+
+        <input class="waves-effect waves-light btn green lighten-1" type="submit" value="Create" />
+        <a href="{% url 'bom:part-info' part_id=part.id %}" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+    </form>
+</div>
+{% endblock %}

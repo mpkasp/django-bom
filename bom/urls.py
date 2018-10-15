@@ -24,12 +24,17 @@ bom_patterns = [
     path('part/<int:part_id>/delete/', views.part_delete, name='part-delete'),
     path('part/<int:part_id>/manage-bom/', views.manage_bom, name='part-manage-bom'),
     path('part/<int:part_id>/add-subpart/', views.add_subpart, name='part-add-subpart'),
+    path('part/<int:part_id>/add-manufacturer-part/', views.add_manufacturer_part, name='part-add-manufacturer-part'),
     path('part/<int:part_id>/add-sellerpart/', views.add_sellerpart, name='part-add-sellerpart'),
     path('part/<int:part_id>/upload-file/', views.upload_file_to_part, name='part-upload-partfile'),
     path('part/<int:part_id>/delete-file/<int:partfile_id>/', views.delete_file_from_part, name='part-delete-partfile'),
     path('part/<int:part_id>/remove-all-subparts/', views.remove_all_subparts, name='part-remove-all-subparts'),
     path('part/<int:part_id>/remove-subpart/<int:subpart_id>/', views.remove_subpart, name='part-remove-subpart'),
-    path('sellerpart/<int:sellerpart_id>/delete/', views.delete_sellerpart, name='sellerpart-delete'),
+    path('sellerpart/<int:sellerpart_id>/edit/', views.sellerpart_edit, name='sellerpart-edit'),
+    path('sellerpart/<int:sellerpart_id>/delete/', views.sellerpart_delete, name='sellerpart-delete'),
+    path('manufacturer-part/<int:manufacturer_part_id>/edit', views.manufacturer_part_edit, name='manufacturer-part-edit'),
+    path('manufacturer-part/<int:manufacturer_part_id>/delete', views.manufacturer_part_delete, name='manufacturer-part-delete'),
+    path('manufacturer-part/<int:manufacturer_part_id>/octopart-match/', views.part_octopart_match, name='manufacturer-part-octopart-match'),
 ]
 
 urlpatterns = [

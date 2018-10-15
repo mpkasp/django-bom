@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from django.core.cache import cache
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch.dispatcher import receiver
@@ -90,6 +91,10 @@ class Part(models.Model):
             manufacturer_part__in=manufacturer_parts).order_by(
             'seller', 'minimum_order_quantity')
 
+    def manufacturer_parts(self):
+        manufacturer_parts = ManufacturerPart.objects.filter(part=self)
+        return manufacturer_parts
+
     def where_used(self):
         used_in_subparts = Subpart.objects.filter(assembly_subpart=self)
         used_in_parts = [subpart.assembly_part for subpart in used_in_subparts]
@@ -140,7 +145,9 @@ class Part(models.Model):
         indented_given_bom(bom, self)
         return bom
 
-    def optimal_seller(self, quantity=1000):
+    def optimal_seller(self, quantity=100):
+        qty_cache_key = str(self.id) + '_qty'
+        quantity = cache.get(qty_cache_key, 100)
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
         sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)
         seller = None
@@ -207,6 +214,25 @@ class ManufacturerPart(models.Model):
             'part',
             'manufacturer_part_number',
             'manufacturer']
+
+    def seller_parts(self):
+        return SellerPart.objects.filter(manufacturer_part=self).order_by('seller', 'minimum_order_quantity')
+
+    def optimal_seller(self, quantity=100):
+        qty_cache_key = str(self.part.id) + '_qty'
+        quantity = cache.get(qty_cache_key, 100)
+        sellerparts = SellerPart.objects.filter(manufacturer_part=self)
+        seller = None
+        for sellerpart in sellerparts:
+            # TODO: Make this smarter and more readable.
+            if (sellerpart.unit_cost is not None and
+                (sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
+                (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
+                seller = sellerpart
+            elif seller is None:
+                seller = sellerpart
+
+        return seller
 
     def __str__(self):
         return u'%s' % (self.manufacturer_part_number)
