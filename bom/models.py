@@ -145,17 +145,19 @@ class Part(models.Model):
         indented_given_bom(bom, self)
         return bom
 
-    def optimal_seller(self, quantity=100):
-        qty_cache_key = str(self.id) + '_qty'
-        quantity = int(cache.get(qty_cache_key, 100))
+    def optimal_seller(self, quantity=None):
+        if quantity is None:
+            qty_cache_key = str(self.id) + '_qty'
+            quantity = int(cache.get(qty_cache_key, 100))
+
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
         sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)
         seller = None
         for sellerpart in sellerparts:
             # TODO: Make this smarter and more readable.
             if (sellerpart.unit_cost is not None and
-                (sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
-                (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
+               (sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
+               (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
                 seller = sellerpart
             elif seller is None:
                 seller = sellerpart
@@ -218,9 +220,11 @@ class ManufacturerPart(models.Model):
     def seller_parts(self):
         return SellerPart.objects.filter(manufacturer_part=self).order_by('seller', 'minimum_order_quantity')
 
-    def optimal_seller(self, quantity=100):
-        qty_cache_key = str(self.part.id) + '_qty'
-        quantity = int(cache.get(qty_cache_key, 100))
+    def optimal_seller(self, quantity=None):
+        if quantity is None:
+            qty_cache_key = str(self.part.id) + '_qty'
+            quantity = int(cache.get(qty_cache_key, 100))
+
         sellerparts = SellerPart.objects.filter(manufacturer_part=self)
         seller = None
         for sellerpart in sellerparts:
