@@ -317,11 +317,13 @@
                         </tr>
                         {% empty %}
                         <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}">
-                            <td colspan="99" style="text-align: center;"><i>This part has no sellers entered yet.</i></td>
+                            <td colspan="99" style="text-align: center;"><i>This manufacturer part has no sellers entered yet.</i></td>
                         </tr>
                         {% endfor %}
                     {% empty %}
-                    <i>This part has no manufacturer parts.</i>
+                        <tr>
+                            <td colspan="99" style="text-align: center;"><i>This part has no manufacturer parts.</i></td>
+                        </tr>
                     {% endfor %}
                     </tbody>
                 </table>

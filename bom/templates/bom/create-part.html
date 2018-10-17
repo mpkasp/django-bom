@@ -1,6 +1,7 @@
 {% extends BASE_TEMPLATE %}
 
 {% load staticfiles %}
+{% load materializecss %}
 
 {% block head-title %}Create Part{% endblock %}
 
@@ -24,33 +25,14 @@ Create New Part
         {{ manufacturer_form.errors }}
         {{ manufacturer_part_form.errors }}
         <div class="row">
-            <div class="fieldWrapper col s6">
-                <label for="{{ part_form.number_class.id_for_label }}"><b>Part Number Class:</b></label>
-                {{ part_form.number_class.errors }}
-                {{ part_form.number_class }}
-            </div>
-            <div class="fieldWrapper col s3">
-                <label for="{{ part_form.number_item.id_for_label }}">Part Number:</label>
-                {{ part_form.number_item.errors }}
-                {{ part_form.number_item }}
-            </div>
-            <div class="fieldWrapper col s3">
-                <label for="{{ part_form.number_variation.id_for_label }}">Part Variation:</label>
-                {{ part_form.number_variation.errors }}
-                {{ part_form.number_variation }}
-            </div>
+            <!-- For some reason using django's default form, number_class form validation errors don't show up, seems to be working with the materializecss filter -->
+            {{ part_form.number_class|materializecss:'s6' }}
+            {{ part_form.number_item|materializecss:'s3' }}
+            {{ part_form.number_variation|materializecss:'s3' }}
         </div>
         <div class="row">
-            <div class="fieldWrapper col s2">
-                <label for="{{ part_form.revision.id_for_label }}"><b>Revision</b><br></label>
-                {{ part_form.revision.errors }}
-                {{ part_form.revision }}
-            </div>
-            <div class="fieldWrapper col s10">
-                <label for="{{ part_form.description.id_for_label }}"><b>Description</b> <i>(Max 255 characters.)</i></label>
-                {{ part_form.description.errors }}
-                {{ part_form.description }}
-            </div>
+                {{ part_form.revision|materializecss:'s2' }}
+                {{ part_form.description|materializecss:'s10' }}
         </div>
         <div class="row">
             <div class="col">
@@ -70,11 +52,7 @@ Create New Part
             </div>
         </div>
         <div class="row">
-            <div class="fieldWrapper col s6">
-                <label for="{{ manufacturer_part_form.manufacturer_part_number.id_for_label }}"><b>Manufacturer Part Number</b></label>
-                {{ manufacturer_part_form.manufacturer_part_number.errors }}
-                {{ manufacturer_part_form.manufacturer_part_number }}
-            </div>
+            {{ manufacturer_part_form.manufacturer_part_number|materializecss:'s6' }}
         </div>
 
         <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>

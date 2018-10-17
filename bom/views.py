@@ -162,11 +162,12 @@ def part_info(request, part_id):
 
     cache.set(qty_cache_key, qty, 3600)
 
-    try:
-        datasheets = get_latest_datasheets(part.primary_manufacturer_part.manufacturer_part_number)
-    except Exception as e:
-        messages.warning(request, "Octopart error: {}".format(e))
-        datasheets = []
+    if part.primary_manufacturer_part is not None:
+        try:
+            datasheets = get_latest_datasheets(part.primary_manufacturer_part.manufacturer_part_number)
+        except Exception as e:
+            messages.warning(request, "Octopart error: {}".format(e))
+            datasheets = []
 
     try:
         parts = part.indented()
@@ -672,7 +673,7 @@ def create_part(request):
     if request.method == 'POST':
         part_form = PartForm(request.POST)
         manufacturer_form = ManufacturerForm(request.POST)
-        manufacturer_part_form = ManufacturerPartForm(request.POST)
+        manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
         if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
             manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
             old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
@@ -708,14 +709,10 @@ def create_part(request):
 
             return HttpResponseRedirect(
                 reverse('bom:part-info', kwargs={'part_id': str(new_part.id)}))
-        else:
-            messages.error(request, "{}".format(part_form.is_valid()))
-            messages.error(request, "{}".format(manufacturer_form.is_valid()))
-            messages.error(request, "{}".format(manufacturer_part_form.is_valid()))
     else:
         part_form = PartForm(initial={'revision': 1, 'organization': organization})
         manufacturer_form = ManufacturerForm(initial={'organization': organization})
-        manufacturer_part_form = ManufacturerPartForm()
+        manufacturer_part_form = ManufacturerPartForm(organization=organization)
 
     return TemplateResponse(request, 'bom/create-part.html', locals())
 
@@ -917,7 +914,7 @@ def add_manufacturer_part(request, part_id):
 
     if request.method == 'POST':
         manufacturer_form = ManufacturerForm(request.POST)
-        manufacturer_part_form = ManufacturerPartForm(request.POST)
+        manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
         if manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
             manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
             old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
@@ -950,7 +947,7 @@ def add_manufacturer_part(request, part_id):
             messages.error(request, "{}".format(manufacturer_part_form.is_valid()))
     else:
         manufacturer_form = ManufacturerForm(initial={'organization': organization})
-        manufacturer_part_form = ManufacturerPartForm()
+        manufacturer_part_form = ManufacturerPartForm(organization=organization)
 
     return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
 
@@ -970,7 +967,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
     part = manufacturer_part.part
 
     if request.method == 'POST':
-        manufacturer_part_form = ManufacturerPartForm(request.POST, instance=manufacturer_part)
+        manufacturer_part_form = ManufacturerPartForm(request.POST, instance=manufacturer_part, organization=organization)
         manufacturer_form = ManufacturerForm(request.POST, instance=manufacturer_part.manufacturer)
         if manufacturer_part_form.is_valid() and manufacturer_form.is_valid():
             manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
@@ -1005,7 +1002,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
         else:
             manufacturer_form = ManufacturerForm(initial={'organization': organization})
 
-        manufacturer_part_form = ManufacturerPartForm(instance=manufacturer_part)
+        manufacturer_part_form = ManufacturerPartForm(instance=manufacturer_part, organization=organization,)
 
     return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
 

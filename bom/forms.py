@@ -23,9 +23,12 @@ class ManufacturerForm(forms.ModelForm):
 
 class ManufacturerPartForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.organization = kwargs.pop('organization', None)
+        super(ManufacturerPartForm, self).__init__(*args, **kwargs)
         self.fields['manufacturer'].required = False
         self.fields['manufacturer_part_number'].required = False
+        self.fields['manufacturer'].queryset = Manufacturer.objects.filter(
+            organization=self.organization).order_by('name')
 
     class Meta:
         model = ManufacturerPart
@@ -42,7 +45,7 @@ class SellerPartForm(forms.ModelForm):
 
 
 class PartForm(forms.ModelForm):
-    number_class = forms.ModelChoiceField(queryset=PartClass.objects.all(), empty_label="- Select Part Number Class -", label='Part Class*',)
+    number_class = forms.ModelChoiceField(queryset=PartClass.objects.all(), empty_label="- Select Part Number Class -", label='Part Number Class*', required=True)
 
     def __init__(self, *args, **kwargs):
         super(PartForm, self).__init__(*args, **kwargs)
@@ -52,6 +55,7 @@ class PartForm(forms.ModelForm):
         self.fields['primary_manufacturer_part'].queryset = queryset
         for _, value in self.fields.items():
             value.widget.attrs['placeholder'] = value.help_text
+            value.help_text = ''
 
     class Meta:
         model = Part

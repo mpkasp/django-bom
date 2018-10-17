@@ -23,6 +23,10 @@ td, tr {
     min-width: 60px;
 }
 
+.help-block {
+    color: red;
+}
+
 .tight td {
     padding: 3px 3px;
 }
