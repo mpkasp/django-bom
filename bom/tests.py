@@ -288,8 +288,21 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:part-add-sellerpart', kwargs={'part_id': p1.id}))
-        # TODO: test a valid form
         self.assertEqual(response.status_code, 200)
+
+        new_sellerpart_form_data = {
+            'seller': p1.optimal_seller().id,
+            'minimum_order_quantity': 1000,
+            'minimum_pack_quantity': 500,
+            'unit_cost': '1.23',
+            'lead_time_days': 25,
+            'nre_cost': 2000,
+            'ncnr': False,
+        }
+
+        response = self.client.post(reverse('bom:part-add-sellerpart', kwargs={'part_id': p1.id}), new_sellerpart_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
 
     def test_sellerpart_delete(self):
         self.client.login(username='kasper', password='ghostpassword')

@@ -586,7 +586,7 @@ def part_octopart_match(request, part_id):
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
         if len(seller_parts) > 0:
-            SellerPart.objects.filter(manufacturer_part_id=manufacturer_part.id, data_source='octopart').delete()
+            SellerPart.objects.filter(manufacturer_part=manufacturer_part, data_source='octopart').delete()
             for sp in seller_parts:
                 try:
                     sp.save()
@@ -622,7 +622,7 @@ def manufacturer_part_octopart_match(request, manufacturer_part_id):
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
     if len(seller_parts) > 0:
-        SellerPart.objects.filter(manufacturer_part_id=manufacturer_part.id, data_source='octopart').delete()
+        SellerPart.objects.filter(manufacturer_part=manufacturer_part, data_source='octopart').delete()
         for sp in seller_parts:
             try:
                 sp.save()
@@ -649,28 +649,29 @@ def part_octopart_match_bom(request, part_id):
     seller_parts = []
 
     for part in subparts:
-        try:
-            seller_parts = match_part(part, request.user.bom_profile().organization)
-        except IOError as e:
-            messages.error(request, "Error communicating with Octopart.")
-            continue
-        except Exception as e:
-            messages.error(request, "Unknown Error: {}".format(e))
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
+        for manufacturer_part in part.manufacturer_parts():
+            try:
+                seller_parts = match_part(manufacturer_part, request.user.bom_profile().organization)
+            except IOError as e:
+                messages.error(request, "Error communicating with Octopart.")
+                continue
+            except Exception as e:
+                messages.error(request, "Unknown Error: {}".format(e))
+                return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
 
-        if len(seller_parts) > 0:
-            SellerPart.objects.filter(part__id=part.id, data_source='octopart').delete()
-            for sp in seller_parts:
-                try:
-                    sp.save()
-                except IntegrityError:
-                    continue
-        else:
-            messages.info(
-                request,
-                "Octopart wasn't able to find any parts with manufacturer part number: {}".format(
-                    part.manufacturer_part_number))
-            continue
+            if len(seller_parts) > 0:
+                SellerPart.objects.filter(manufacturer_part=manufacturer_part, data_source='octopart').delete()
+                for sp in seller_parts:
+                    try:
+                        sp.save()
+                    except IntegrityError:
+                        continue
+            else:
+                messages.info(
+                    request,
+                    "Octopart wasn't able to find any parts with manufacturer part number: {}".format(
+                        manufacturer_part.manufacturer_part_number))
+                continue
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
@@ -889,7 +890,7 @@ def add_sellerpart(request, part_id):
         form = AddSellerPartForm(request.POST, organization=organization)
         if form.is_valid():
             new_sellerpart, created = SellerPart.objects.get_or_create(
-                part=part.primary_manufacturer_part,
+                manufacturer_part=part.primary_manufacturer_part,
                 seller=form.cleaned_data['seller'],
                 minimum_order_quantity=form.cleaned_data['minimum_order_quantity'],
                 minimum_pack_quantity=form.cleaned_data['minimum_pack_quantity'],
