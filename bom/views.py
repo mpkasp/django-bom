@@ -337,6 +337,10 @@ def part_export_bom(request, part_id):
 
 @login_required
 def part_upload_bom(request, part_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
     try:
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
@@ -382,7 +386,8 @@ def part_upload_bom(request, part_id):
                         subparts = Part.objects.filter(
                             number_class=civ['class'],
                             number_item=civ['item'],
-                            number_variation=civ['variation'])
+                            number_variation=civ['variation'],
+                            organization=organization)
                     except IndexError:
                         messages.error(
                             request, "Invalid part_number: {}".format(partData['part_number']))
@@ -393,7 +398,13 @@ def part_upload_bom(request, part_id):
                             request, "Subpart: `{}` doesn't exist".format(
                                 partData['part_number']))
                         continue
+                    elif len(subparts) > 1:
+                        messages.info(
+                            request, "Subpart: found {} entries for subpart `{}`. This should not happen. Please let info@indabom.com know.".format(
+                                partData['part_number']))
+                        continue
 
+                    # TODO: handle more than one subpart
                     subpart = subparts[0]
                     count = partData['quantity']
                     if part == subpart:

@@ -212,8 +212,8 @@
                             <td class="text-normal">{{ subpart.quantity }}</td>
                             <td class="text-normal">{{ subpart.part.description }}</td>
                             <td class="text-normal">{{ subpart.part.revision }}</td>
-                            <td class="text-normal">{{ subpart.part.manufacturer.name }}</td>
-                            <td class="text-normal">{{ subpart.part.manufacturer_part_number }}</td>
+                            <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
+                            <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
                                 <!-- <td class="text-normal">{{ subpart.extended_quantity }}</td> -->
                             <!-- <td class="text-normal">{{ subpart.order_quantity }}</td> -->
                             <td class="text-normal">{% if subpart.seller_part.data_source == 'octopart' %}<img title="Seller via Octopart." style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img>&nbsp;{% endif %}{{ subpart.seller_part.seller.name | default:"-" }}</td>
@@ -250,8 +250,8 @@
                             <td><a href="{% url 'bom:part-info' part_id=used_part.id %}">{{ used_part.full_part_number }}</a></td>
                             <td>{{ used_part.description }}</td>
                             <td>{{ used_part.revision }}</td>
-                            <td>{{ used_part.manufacturer.name }}</td>
-                            <td>{{ used_part.manufacturer_part_number }}</td>
+                            <td>{{ used_part.primary_manufacturer_part.manufacturer.name }}</td>
+                            <td>{{ used_part.primary_manufacturer_part.manufacturer_part_number }}</td>
                         </tr>
                         {% empty %}
                         <tr>
