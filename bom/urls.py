@@ -34,7 +34,7 @@ bom_patterns = [
     path('sellerpart/<int:sellerpart_id>/delete/', views.sellerpart_delete, name='sellerpart-delete'),
     path('manufacturer-part/<int:manufacturer_part_id>/edit', views.manufacturer_part_edit, name='manufacturer-part-edit'),
     path('manufacturer-part/<int:manufacturer_part_id>/delete', views.manufacturer_part_delete, name='manufacturer-part-delete'),
-    path('manufacturer-part/<int:manufacturer_part_id>/octopart-match/', views.part_octopart_match, name='manufacturer-part-octopart-match'),
+    path('manufacturer-part/<int:manufacturer_part_id>/octopart-match/', views.manufacturer_part_octopart_match, name='manufacturer-part-octopart-match'),
 ]
 
 urlpatterns = [

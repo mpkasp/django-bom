@@ -81,18 +81,18 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:export-part-list'))
         self.assertEqual(response.status_code, 200)
 
-    @skip("only test when we want to hit octopart's api")
+    # @skip("only test when we want to hit octopart's api")
     def test_match_part(self):
         self.client.login(username='kasper', password='ghostpassword')
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        a = match_part(p1)
+        a = match_part(p1.primary_manufacturer_part, self.organization)
 
         partExists = len(a) > 0
 
         self.assertEqual(partExists, True)
 
-    @skip("only test when we want to hit octopart's api")
+    # @skip("only test when we want to hit octopart's api")
     def test_octopart_match_part_indented(self):
         self.client.login(username='kasper', password='ghostpassword')
 
@@ -105,7 +105,7 @@ class TestBOM(TransactionTestCase):
                     'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
 
-    @skip("only test when we want to hit octopart's api")
+    # @skip("only test when we want to hit octopart's api")
     def test_part_octopart_match(self):
         self.client.login(username='kasper', password='ghostpassword')
 
@@ -116,6 +116,19 @@ class TestBOM(TransactionTestCase):
                 'bom:part-octopart-match',
                 kwargs={
                     'part_id': p1.id}))
+        self.assertEqual(response.status_code, 302)
+
+    # @skip("only test when we want to hit octopart's api")
+    def test_manufacturer_part_octopart_match(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.post(
+            reverse(
+                'bom:manufacturer-part-octopart-match',
+                kwargs={
+                    'manufacturer_part_id': p1.primary_manufacturer_part.id}))
         self.assertEqual(response.status_code, 302)
 
     def test_create_part(self):
@@ -134,7 +147,20 @@ class TestBOM(TransactionTestCase):
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
 
+        new_part_form_data = {
+            'manufacturer_part_number': 'STM32F401',
+            'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
+            'number_class': p1.number_class.id,
+            'number_item': '9999',
+            'number_variation': '01',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
         self.assertEqual(response.status_code, 302)
         self.assertTrue('/part/' in response.url)
 
@@ -264,6 +290,30 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:part-add-sellerpart', kwargs={'part_id': p1.id}))
         # TODO: test a valid form
         self.assertEqual(response.status_code, 200)
+
+    def test_sellerpart_delete(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:sellerpart-delete', kwargs={'sellerpart_id': p1.optimal_seller().id}))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_manufacturer_part_edit(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_manufacturer_part_delete(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:manufacturer-part-delete', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+
+        self.assertEqual(response.status_code, 302)
 
 
 class TestForms(TestCase):

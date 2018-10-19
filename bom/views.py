@@ -804,7 +804,7 @@ def add_subpart(request, part_id):
                 count=form.cleaned_data['count']
             )
 
-    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#bom')
+    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
 
 @login_required
