@@ -287,6 +287,7 @@
                             <td>{{ manufacturer_part.manufacturer_part_number }}<br>
                                 <a href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}">edit</a><br>
                                 <a href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}">delete</a><br>
+                                <a href="{% url 'bom:manufacturer-part-add-sellerpart' manufacturer_part_id=manufacturer_part.id %}">add seller part</a><br>
                                 <a href="{% url 'bom:manufacturer-part-octopart-match' manufacturer_part_id=manufacturer_part.id %}">find sellers <img title="Sourcing information via Octopart." style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img></a><br>
                             </td>
                             <td>{{ manufacturer_part.manufacturer }}</td>
@@ -330,7 +331,6 @@
             </div>
             <div style="text-align: center; width: 100%;">
                 <a class="btn green lighten-1 waves-button-input" href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}" style="margin: 10px;">Add Manufacturer Part</a>
-                <a class="btn green lighten-1 waves-button-input" href="{% url 'bom:part-add-sellerpart' part_id=part.id %}" style="margin: 10px;">Add Seller Part</a>
                 <a class="btn green lighten-1 waves-button-input" href="{% url 'bom:part-octopart-match' part_id=part.id %}" style="margin: 10px;">Find Sellers From Octopart</a></div>
         </div>
     </div>

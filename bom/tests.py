@@ -287,7 +287,10 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(reverse('bom:part-add-sellerpart', kwargs={'part_id': p1.id}))
+        response = self.client.get(reverse('bom:manufacturer-part-add-sellerpart', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(reverse('bom:manufacturer-part-add-sellerpart', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
         self.assertEqual(response.status_code, 200)
 
         new_sellerpart_form_data = {
@@ -300,7 +303,7 @@ class TestBOM(TransactionTestCase):
             'ncnr': False,
         }
 
-        response = self.client.post(reverse('bom:part-add-sellerpart', kwargs={'part_id': p1.id}), new_sellerpart_form_data)
+        response = self.client.post(reverse('bom:manufacturer-part-add-sellerpart', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}), new_sellerpart_form_data)
         self.assertEqual(response.status_code, 302)
         self.assertTrue('/part/' in response.url)
 
@@ -317,8 +320,37 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+        self.assertEqual(response.status_code, 200)
 
+        data = {
+            'manufacturer_part_number': 'ABC123',
+            'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
+            'name': '',
+        }
+
+        response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}), data)
         self.assertEqual(response.status_code, 302)
+
+        data = {
+            'manufacturer_part_number': 'ABC123',
+            'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
+            'name': 'A new manufacturer',
+        }
+
+        old_id = p1.primary_manufacturer_part.manufacturer.id
+        response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}), data)
+        self.assertEqual(response.status_code, 302)
+        p1.refresh_from_db()
+        self.assertNotEqual(p1.primary_manufacturer_part.manufacturer.id, old_id)
+
+        data = {
+            'manufacturer_part_number': 'ABC123',
+            'manufacturer': '',
+            'name': '',
+        }
+
+        response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}), data)
+        self.assertEqual(response.status_code, 200)  # 200 means it failed validation
 
     def test_manufacturer_part_delete(self):
         self.client.login(username='kasper', password='ghostpassword')

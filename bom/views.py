@@ -713,7 +713,8 @@ def create_part(request):
 
             manufacturer_part = None
             if manufacturer is not None:
-                manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
+                manufacturer, created = Manufacturer.objects.get_or_create(organization=organization, name=organization.name)
+                manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part, manufacturer_part_number=new_part.full_part_number(), manufacturer=manufacturer)
 
             if new_part.primary_manufacturer_part is None and manufacturer_part is not None:
                 new_part.primary_manufacturer_part = manufacturer_part
@@ -875,22 +876,22 @@ def delete_file_from_part(request, part_id, partfile_id):
 
 
 @login_required
-def add_sellerpart(request, part_id):
+def add_sellerpart(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
 
     try:
-        part = Part.objects.get(id=part_id)
+        manufacturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
     except ObjectDoesNotExist:
-        messages.error(request, "No part found with given part_id.")
+        messages.error(request, "No manufacturer_part found with given manufacturer_part_id.")
         return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
         form = AddSellerPartForm(request.POST, organization=organization)
         if form.is_valid():
             new_sellerpart, created = SellerPart.objects.get_or_create(
-                manufacturer_part=part.primary_manufacturer_part,
+                manufacturer_part=manufacturer_part,
                 seller=form.cleaned_data['seller'],
                 minimum_order_quantity=form.cleaned_data['minimum_order_quantity'],
                 minimum_pack_quantity=form.cleaned_data['minimum_pack_quantity'],
@@ -903,13 +904,13 @@ def add_sellerpart(request, part_id):
             messages.error(request,"Form not valid. See error(s) below.")
             return TemplateResponse(request, 'bom/add-sellerpart.html', locals())
     else:
-        if part.organization != organization:
+        if manufacturer_part.part.organization != organization:
             messages.error(request, "Cant access a part that is not yours!")
             return HttpResponseRedirect(reverse('bom:error'))
         form = AddSellerPartForm(organization=organization)
         return TemplateResponse(request, 'bom/add-sellerpart.html', locals())
 
-    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#sourcing')
+    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '#sourcing')
 
 
 @login_required
@@ -929,24 +930,18 @@ def add_manufacturer_part(request, part_id):
         manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
         if manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
             manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
-            old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
+            manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
             new_manufacturer_name = manufacturer_form.cleaned_data['name']
 
-            manufacturer = None
-            if manufacturer_part_number:
-                if old_manufacturer and not new_manufacturer_name:
-                    manufacturer = old_manufacturer
-                elif new_manufacturer_name and not old_manufacturer:
-                    manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
-                else:
-                    messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
-                    return TemplateResponse(request, 'bom/create-part.html', locals())
-            elif old_manufacturer or new_manufacturer_name:
-                messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
+            if manufacturer is None and new_manufacturer_name == '':
+                messages.error(request, "Must either select an existing manufacturer, or enter a new manufacturer name.")
+                return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
 
-            manufacturer_part = None
-            if manufacturer is not None:
-                manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
+            if new_manufacturer_name != '' and new_manufacturer_name is not None:
+                manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
+                manufacturer_part_form.cleaned_data['manufacturer'] = manufacturer
+
+            manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
 
             if part.primary_manufacturer_part is None and manufacturer_part is not None:
                 part.primary_manufacturer_part = manufacturer_part
@@ -983,23 +978,21 @@ def manufacturer_part_edit(request, manufacturer_part_id):
         manufacturer_form = ManufacturerForm(request.POST, instance=manufacturer_part.manufacturer)
         if manufacturer_part_form.is_valid() and manufacturer_form.is_valid():
             manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
-            old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
+            manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
             new_manufacturer_name = manufacturer_form.cleaned_data['name']
 
-            manufacturer = None
-            if manufacturer_part_number:
-                if old_manufacturer and not new_manufacturer_name:
-                    manufacturer = old_manufacturer
-                elif new_manufacturer_name and not old_manufacturer:
-                    manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
-                    manufacturer_part_form.cleaned_data['manufacturer'] = manufacturer
-                else:
-                    messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
-                    return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
-            elif old_manufacturer or new_manufacturer_name:
-                messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
+            if manufacturer is None and new_manufacturer_name == '':
+                messages.error(request, "Must either select an existing manufacturer, or enter a new manufacturer name.")
+                return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
 
-            manufacturer_part_form.save()
+            new_manufacturer = None
+            if new_manufacturer_name != '' and new_manufacturer_name is not None:
+                new_manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
+                manufacturer_part = manufacturer_part_form.save(commit=False)
+                manufacturer_part.manufacturer = new_manufacturer
+                manufacturer_part.save()
+            else:
+                manufacturer_part = manufacturer_part_form.save()
 
             if part.primary_manufacturer_part is None and manufacturer_part is not None:
                 part.primary_manufacturer_part = manufacturer_part
