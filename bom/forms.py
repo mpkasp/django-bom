@@ -36,12 +36,39 @@ class ManufacturerPartForm(forms.ModelForm):
 
 
 class SellerPartForm(forms.ModelForm):
+    new_seller = forms.CharField(max_length=128, label='-or- Create new seller (leave blank if selecting)', required=False)
+    field_order = ['seller', 'new_seller', 'unit_cost', 'nre_cost', 'lead_time_days', 'minimum_order_quantity', 'minimum_pack_quantity', ]
+
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.organization = kwargs.pop('organization', None)
+        self.manufacturer_part = kwargs.pop('manufacturer_part', None)
+        super(SellerPartForm, self).__init__(*args, **kwargs)
+        if self.manufacturer_part is not None:
+            self.instance.manufacturer_part = self.manufacturer_part
+        self.fields['seller'].queryset = Seller.objects.filter(
+            organization=self.organization).order_by('name')
+        self.fields['seller'].required = False
 
     class Meta:
         model = SellerPart
-        exclude = ['manufacturer_part', ]
+        exclude = ['manufacturer_part', 'data_source', ]
+
+    def clean(self):
+        cleaned_data = super(SellerPartForm, self).clean()
+        seller = cleaned_data.get("seller")
+        new_seller = cleaned_data.get("new_seller")
+
+        if seller and new_seller:
+            raise forms.ValidationError(
+                ('Cannot have a seller and a new seller.'),
+                code='invalid')
+        elif new_seller:
+            obj, created = Seller.objects.get_or_create(name__iexact=new_seller, organization=self.organization, defaults={'name': new_seller})
+            cleaned_data['seller'] = obj
+        elif not seller:
+            raise forms.ValidationError(
+                ('Must specify a seller.'),
+                code='invalid')
 
 
 class PartForm(forms.ModelForm):

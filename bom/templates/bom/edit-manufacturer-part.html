@@ -47,7 +47,7 @@ Manufacturer Part
         </div>
 
         <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
-        <a href="{% url 'bom:part-info' part_id=part.id %}" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+        <a href="javascript:history.go(-1);" class="waves-effect waves-light btn green lighten-1">Cancel</a>
     </form>
 </div>
 {% endblock %}

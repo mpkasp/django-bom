@@ -108,6 +108,24 @@ td, tr {
     background-color:transparent;
 }
 
+.alert {
+    padding: 10px;
+    border-radius: 10px;
+}
+
+.alert-info {
+    background-color: #ffecb3;
+}
+
+/* Override treetable icon */
+table.treetable tr.collapsed span.indenter a {
+    background-image: url('img/_ionicons_svg_md-arrow-dropright.svg');
+}
+
+table.treetable tr.expanded span.indenter a {
+    background-image: url('img/_ionicons_svg_md-arrow-dropdown.svg');
+}
+
 /* Override Materialize container */
 .container {
     margin: 0 auto;

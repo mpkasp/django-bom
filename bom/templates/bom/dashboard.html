@@ -18,10 +18,12 @@
     <div class="col s12">
         <div class="input-field col s12">
             <form action="{% url 'bom:home' %}" method="get" enctype="multipart/form-data">
-                <i class="material-icons prefix">search</i>
-                <input type="text" id="autocomplete-input" class="autocomplete" name="q">
-                <label for="autocomplete-input">Find a part</label>
-                <input type="submit" class="btn hidden" value="Search"/>
+                <div class="input-field">
+                    <i class="material-icons prefix">search</i>
+                    <input type="text" id="autocomplete-input" class="autocomplete" name="q">
+                    <label for="autocomplete-input">Find a part</label>
+                    <input type="submit" class="btn hidden" value="Search"/>
+                </div>
             </form>
         </div>
     </div>

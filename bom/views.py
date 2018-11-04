@@ -134,7 +134,7 @@ def bom_settings(request):
 @login_required
 def part_info(request, part_id):
     order_by = request.GET.get('order_by', 'indented')
-    anchor = None
+    tab_anchor = request.GET.get('tab_anchor', None)
 
     user = request.user
     profile = user.bom_profile()
@@ -223,11 +223,11 @@ def part_info(request, part_id):
     seller_parts = part.seller_parts()
 
     if order_by != 'defaultOrderField' and order_by != 'indented':
-        anchor = 'bom'
+        # tab_anchor = 'bom'
         parts = sorted(parts, key=lambda k: k[order_by], reverse=True)
-    elif order_by == 'indented':
-        # anchor = 'bom'
-        anchor = None
+    # elif order_by == 'indented':
+    #     # anchor = 'bom'
+    #     tab_anchor = None
 
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
@@ -378,8 +378,12 @@ def part_upload_bom(request, part_id):
                 partData = {}
                 for idx, item in enumerate(row):
                     partData[headers[idx]] = item
+
+                if 'dnp' in partData and partData['dnp'].lower() == 'dnp':
+                    continue
                 
                 if 'part_number' in partData and 'quantity' in partData and len(partData['part_number']) > 0:
+
                     try:
                         civ = full_part_number_to_broken_part(
                             partData['part_number'])
@@ -578,12 +582,12 @@ def part_octopart_match(request, part_id):
             seller_parts = match_part(manufacturer_part, request.user.bom_profile().organization)
         except IOError as e:
             messages.error(request, "Error communicating with Octopart. {}".format(e))
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             messages.error(request, "Error - {}: {}, ({}, {})".format(exc_type, e, fname, exc_tb.tb_lineno))
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
         if len(seller_parts) > 0:
             SellerPart.objects.filter(manufacturer_part=manufacturer_part, data_source='octopart').delete()
@@ -598,7 +602,10 @@ def part_octopart_match(request, part_id):
                 "Octopart wasn't able to find any parts with manufacturer part number: {}".format(
                     manufacturer_part.manufacturer_part_number))
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
+    if request.META.get('HTTP_REFERER', None) is not None and '/part/' in request.META.get('HTTP_REFERER', None):
+        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '?tab_anchor=sourcing')
+
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:part-info', kwargs={'part_id': part_id}) + '?tab_anchor=sourcing'))
 
 
 @login_required
@@ -712,7 +719,7 @@ def create_part(request):
                             'revision': part_form.cleaned_data['revision'], })
 
             manufacturer_part = None
-            if manufacturer is not None:
+            if manufacturer is None:
                 manufacturer, created = Manufacturer.objects.get_or_create(organization=organization, name=organization.name)
                 manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part, manufacturer_part_number=new_part.full_part_number(), manufacturer=manufacturer)
 
@@ -856,7 +863,7 @@ def upload_file_to_part(request, part_id):
         if form.is_valid():
             partfile = PartFile(file=request.FILES['file'], part=part)
             partfile.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#specs')
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '?tab_anchor=specs')
 
     messages.error(request, "Error uploading file.")
     return HttpResponseRedirect(reverse('bom:error'))
@@ -872,7 +879,7 @@ def delete_file_from_part(request, part_id, partfile_id):
 
     partfile.delete()
 
-    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#specs')
+    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '?tab_anchor=specs')
 
 
 @login_required
@@ -880,6 +887,7 @@ def add_sellerpart(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
+    title = "Add Seller Part"
 
     try:
         manufacturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
@@ -888,29 +896,14 @@ def add_sellerpart(request, manufacturer_part_id):
         return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
-        form = AddSellerPartForm(request.POST, organization=organization)
+        form = SellerPartForm(request.POST, manufacturer_part=manufacturer_part, organization=organization)
         if form.is_valid():
-            new_sellerpart, created = SellerPart.objects.get_or_create(
-                manufacturer_part=manufacturer_part,
-                seller=form.cleaned_data['seller'],
-                minimum_order_quantity=form.cleaned_data['minimum_order_quantity'],
-                minimum_pack_quantity=form.cleaned_data['minimum_pack_quantity'],
-                unit_cost=form.cleaned_data['unit_cost'],
-                lead_time_days=form.cleaned_data['lead_time_days'],
-                nre_cost=form.cleaned_data['nre_cost'],
-                ncnr=form.cleaned_data['ncnr'],
-            )
-        else:
-            messages.error(request,"Form not valid. See error(s) below.")
-            return TemplateResponse(request, 'bom/add-sellerpart.html', locals())
+            form.save()
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '#sourcing')
     else:
-        if manufacturer_part.part.organization != organization:
-            messages.error(request, "Cant access a part that is not yours!")
-            return HttpResponseRedirect(reverse('bom:error'))
-        form = AddSellerPartForm(organization=organization)
-        return TemplateResponse(request, 'bom/add-sellerpart.html', locals())
+        form = SellerPartForm(organization=organization)
 
-    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '#sourcing')
+    return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
 @login_required
@@ -948,7 +941,7 @@ def add_manufacturer_part(request, part_id):
                 part.save()
 
             return HttpResponseRedirect(
-                reverse('bom:part-info', kwargs={'part_id': str(part.id)}))
+                reverse('bom:part-info', kwargs={'part_id': str(part.id)})  + '?tab_anchor=sourcing')
         else:
             messages.error(request, "{}".format(manufacturer_form.is_valid()))
             messages.error(request, "{}".format(manufacturer_part_form.is_valid()))
@@ -997,7 +990,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
             if part.primary_manufacturer_part is None and manufacturer_part is not None:
                 part.primary_manufacturer_part = manufacturer_part
                 part.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}))
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '?tab_anchor=sourcing')
         else:
             messages.error(request, manufacturer_part_form.errors)
             messages.error(request, manufacturer_form.errors)
@@ -1016,19 +1009,19 @@ def manufacturer_part_edit(request, manufacturer_part_id):
 def manufacturer_part_delete(request, manufacturer_part_id):
     # TODO: Add test
     try:
-        manufaturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
+        manufacturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No Manufacturer Part found with given manufacturer_part_id.")
         return HttpResponseRedirect(reverse('bom:error'))
 
-    manufaturer_part.delete()
+    part = manufacturer_part.part
+    manufacturer_part.delete()
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
+    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
 
 
 @login_required
 def sellerpart_edit(request, sellerpart_id):
-    # TODO: Add test, finish endpoint
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
@@ -1042,12 +1035,12 @@ def sellerpart_edit(request, sellerpart_id):
         return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
-        form = SellerPartForm(request.POST, instance=sellerpart)
+        form = SellerPartForm(request.POST, instance=sellerpart, organization=organization)
         if form.is_valid():
             form.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': sellerpart.manufacturer_part.part.id}))
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': sellerpart.manufacturer_part.part.id}) + '?tab_anchor=sourcing')
     else:
-        form = SellerPartForm(instance=sellerpart)
+        form = SellerPartForm(instance=sellerpart, organization=organization)
 
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
@@ -1061,6 +1054,7 @@ def sellerpart_delete(request, sellerpart_id):
         messages.error(request, "No sellerpart found with given sellerpart_id.")
         return HttpResponseRedirect(reverse('bom:error'))
 
+    part = sellerpart.manufacturer_part.part
     sellerpart.delete()
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
+    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')

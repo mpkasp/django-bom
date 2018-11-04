@@ -68,7 +68,7 @@ class Part(models.Model):
     number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
     description = models.CharField(max_length=255, default=None)
     revision = models.CharField(max_length=2)
-    primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True, on_delete=models.CASCADE, related_name='primary_manufacturer_part')
+    primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True, on_delete=models.SET_NULL, related_name='primary_manufacturer_part')
     subparts = models.ManyToManyField(
         'self',
         blank=True,

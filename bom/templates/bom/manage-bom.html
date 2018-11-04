@@ -89,8 +89,8 @@ Manage BOM
                     <td>{{ subpart.quantity }}</td> 
                     <td>{{ subpart.part.description }}</td> 
                     <td>{{ subpart.part.revision }}</td>
-                    <td>{{ subpart.part.manufacturer.name }}</td>
-                    <td>{{ subpart.part.manufacturer_part_number }}</td>
+                    <td>{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
+                    <td>{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
                     <td>{{ subpart.seller_part.seller.name | default:"-" }}</td>
                     <td>{{ subpart.seller_price | default:"-"}}</td>
                     <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td>
