@@ -22,8 +22,8 @@ from json import loads, dumps
 from math import ceil
 
 from .convert import full_part_number_to_broken_part
-from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer, ManufacturerPart
-from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, ManufacturerPartForm, SellerPartForm
+from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer, ManufacturerPart, User, UserMeta
+from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm
 from .octopart import match_part, get_latest_datasheets
 
 logger = logging.getLogger(__name__)
@@ -127,6 +127,20 @@ def bom_signup(request):
 def bom_settings(request):
     user = request.user
     organization = user.bom_profile().organization
+    pagename = 'settings'
+
+    users_in_organization = User.objects.filter(id__in=UserMeta.objects.filter(organization=organization)).order_by('first_name', 'last_name', 'email')
+
+    if request.method == 'POST':
+        user_form = UserForm(request.POST, instance=user)
+        organization_form = OrganizationForm(request.POST, instance=organization)
+        if user_form.is_valid() and organization_form.is_valid():
+            user = user_form.save()
+            organization_form.save()
+            return HttpResponseRedirect(reverse('bom:home'))
+    else:
+        user_form = UserForm(instance=user)
+        organization_form = OrganizationForm(instance=organization)
 
     return TemplateResponse(request, 'bom/settings.html', locals())
 

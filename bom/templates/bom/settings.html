@@ -1,10 +1,11 @@
 {% extends BASE_TEMPLATE %}
 
+{% load materializecss %}
 {% load staticfiles %}
 
 {% block head-title %}Settings{% endblock %}
 
-{% block title %}
+{% block title %}Settings
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
 {% endblock %}
 
@@ -12,7 +13,28 @@
 {% endblock%}
 
 {% block content %}
-<h1>Settings</h1>
-<h2>Octopart</h2>
-<p>Select Octopart sources to sync.</p>
+<form name="seller" action="{{ action }}" method="post" class="col s12">
+    {% csrf_token %}
+    <div class="row" style="margin-left: 0;">
+    	<h2>User Info</h2>
+    	{{ user_form|materializecss:'s12 m6' }}
+	</div>
+	<div class="row" style="margin-left: 0;">
+    	<h2>Organization</h2>
+		{{ organization_form|materializecss:'s12 m6' }}
+		<i>Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact info@indabom.com if you are interested.</i><
+		<h3>Users In {{ organization.name }}</h3>
+		{% if organization.owner == user %}
+		{% for user in users_in_organization %}
+		<ul>{{ user.first_name }} {{ user.last_name}} (<a href="mailto:{{ user.email }}">{{ user.email }}</a>)</ul>
+		{% empty %}
+		<span>No additional users in this organization.</span>
+		{% endfor %}
+		{% endif %}
+	</div>
+    <div class="fieldWrapper">
+        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+        <a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+	</div>
+</form>
 {% endblock %}

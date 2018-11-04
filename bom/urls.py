@@ -11,7 +11,7 @@ bom_patterns = [
     path('', views.home, name='home'),
     path('error/', views.error, name='error'),
     path('signup/', views.bom_signup, name='bom-signup'),
-    path('settings/', views.bom_settings, name='bom-settings'),
+    path('settings/', views.bom_settings, name='settings'),
     path('export/', views.export_part_list, name='export-part-list'),
     path('create-part/', views.create_part, name='create-part'),
     path('upload-parts/', views.upload_parts, name='upload-parts'),
@@ -39,7 +39,7 @@ bom_patterns = [
 
 urlpatterns = [
     path('', include((bom_patterns, 'bom'))),
-    
+
     # you will likely have your own implementation of these in your app
     path('admin/', admin.site.urls),
     path('login/', auth_views.LoginView.as_view(), {'redirect_authenticated_user': True, }, name='login'),

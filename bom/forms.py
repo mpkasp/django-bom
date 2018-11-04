@@ -2,9 +2,37 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 # from django.core.validators import DecimalValidator
 
-from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart
+from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, Organization
 from .validators import decimal, alphanumeric, numeric
 from json import dumps
+
+
+class UserModelChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, user):
+        return user.email
+
+
+class UserForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "email", ]
+
+
+class UserProfileForm(forms.ModelForm):
+    class Meta:
+        model = UserMeta
+        exclude = ['user', ]
+
+
+class OrganizationForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(OrganizationForm, self).__init__(*args, **kwargs)
+        user_queryset = User.objects.filter(id__in=UserMeta.objects.filter(organization=self.instance)).order_by('first_name')
+        self.fields['owner'] = UserModelChoiceField(queryset=user_queryset, label='Owner', required=True)
+
+    class Meta:
+        model = Organization
+        exclude = ['subscription', ]
 
 
 class PartInfoForm(forms.Form):
