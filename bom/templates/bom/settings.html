@@ -22,7 +22,7 @@
 	<div class="row" style="margin-left: 0;">
     	<h2>Organization</h2>
 		{{ organization_form|materializecss:'s12 m6' }}
-		<i>Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact info@indabom.com if you are interested.</i><
+		<i>Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact info@indabom.com if you are interested.</i>
 		<h3>Users In {{ organization.name }}</h3>
 		{% if organization.owner == user %}
 		{% for user in users_in_organization %}
