@@ -277,6 +277,7 @@ class TestBOM(TransactionTestCase):
     def test_upload_parts(self):
         self.client.login(username='kasper', password='ghostpassword')
 
+        create_some_fake_part_classes()
         with open('bom/test_new_parts.csv') as test_csv:
             response = self.client.post(
                 reverse('bom:upload-parts'), {'file': test_csv})

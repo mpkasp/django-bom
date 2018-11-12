@@ -473,7 +473,6 @@ def upload_parts(request):
     profile = user.bom_profile()
     organization = profile.organization
     partclasses = PartClass.objects.all()
-
     if request.method == 'POST' and request.FILES['file'] is not None:
         form = FileForm(request.POST, request.FILES)
         if form.is_valid():
@@ -511,15 +510,19 @@ def upload_parts(request):
                             request, "Partclass {} doesn't exist.".format(
                                 partData['part_class']))
                         return HttpResponseRedirect(reverse('bom:error'))
-
                     part, created = Part.objects.get_or_create(number_class=part_class,
                                                                organization=organization,
-                                                               manufacturer_part_number=mpn,
-                                                               manufacturer=mfg,
                                                                defaults={
                                                                    'description': partData['description'],
                                                                    'revision': partData['revision'],
                                                                })
+
+                    manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=mpn, manufacturer=mfg)
+
+                    if part.primary_manufacturer_part is None and manufacturer_part is not None:
+                        part.primary_manufacturer_part = manufacturer_part
+                        part.save()
+
                     if created:
                         messages.info(
                             request, "{}: {} created.".format(
