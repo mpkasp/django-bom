@@ -3,7 +3,7 @@
 {% load materializecss %}
 {% load staticfiles %}
 
-{% block head-title %}Add Sellerpart{% endblock %}
+{% block head-title %}{{title}}{% endblock %}
 
 {% block title %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
@@ -15,14 +15,17 @@
 {% endblock%}
 
 {% block content %}
-<div class="row">
+{% if h1 %}<h2 class="light" style="margin-top: 0px;">{{h1}}</h2>{% endif %}
     <form name="seller" action="{{ action }}" method="post" class="col s12">
+    	<div class="row">
         {% csrf_token %}
-		{{ form|materializecss:'m6' }}
-        <div class="fieldWrapper">
-        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
-        <a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+		{{ form|materializecss:'m6 s12' }}
+		</div>
+		<div class="row">
+	        <div class="fieldWrapper">
+	        	<button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+	        	<a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+	    	</div>
     	</div>
     </form>
-</div>
 {% endblock %}

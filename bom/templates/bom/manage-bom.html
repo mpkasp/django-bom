@@ -1,6 +1,7 @@
 {% extends BASE_TEMPLATE %}
 
 {% load staticfiles %}
+{% load materializecss %}
 
 {% block head-title %}Manage BOM{% endblock %}
 
@@ -9,6 +10,7 @@ Manage BOM
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
 <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}" />
 <link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}" />
+{{ add_subpart_form.media }}
 {% endblock %}
 
 {% block menu %}
@@ -22,24 +24,17 @@ Manage BOM
     <!-- <h5>{{ part.description }}</h5> -->
     <div id="bom" class="col s12">
         <br><h5>Add Subpart</h5>
-        <form action="{% url 'bom:part-add-subpart' part_id=part.id %}" method="post">
-            {% csrf_token %}
-            <div class="row">
-                <div class="col s7 input-field">
-                    <!-- {{ add_subpart_form.assembly_subpart.errors }} -->
-                    <!-- {{ add_subpart_form.assembly_subpart.label_tag }} -->
-                    {{ add_subpart_form.assembly_subpart }}
+        <div class="row">
+            <form action="{% url 'bom:part-add-subpart' part_id=part.id %}" method="post" class="col s12">
+                {% csrf_token %}
+                {{ add_subpart_form.assembly_subpart }}
+                {{ add_subpart_form.count|materializecss:'m6 s12' }}
+                {{ add_subpart_form.reference|materializecss:'m6 s12' }}
+                <div class="fieldWrapper">
+                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">add</button>
                 </div>
-                <div class="col s2 input-field">
-                    {{ add_subpart_form.count.errors }}
-                    {{ add_subpart_form.count.label_tag }}
-                    {{ add_subpart_form.count }}
-                </div>
-                <div class="col s1 input-field">
-                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Add</button>
-                </div>
-            </div>
-        </form>
+            </form>
+        </div>
         <br><h5>Batch Add Subparts</h5>
         <p>To add batch subparts, upload a csv that contains at least two columns with the headers: <b>part_number</b> <i>or</i> <b>manufacturer_part_number</b> and <b>quantity</b>; the 'part_number' or 'manufacturer_part_number' column must contain part numbers that have already been created in this system.</p>
         <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
@@ -73,10 +68,12 @@ Manage BOM
                     <th>Rev</th>
                     <th>Manufacturer</th>
                     <th>MPN</th>
-                    <th>Seller</th>
-                    <th>Price</th>
+                    <th>Reference</th>
+                    <!-- <th>Seller</th> -->
+                    <!-- <th>Price</th> -->
                     {% if profile.role == 'A' %}
-                    <th>Octopart Match</th>
+                    <!-- <th>Octopart Match</th> -->
+                    <th>Edit</th>
                     <th>Remove</th>
                     {% endif %}
                 </tr>
@@ -91,10 +88,12 @@ Manage BOM
                     <td>{{ subpart.part.revision }}</td>
                     <td>{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
                     <td>{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                    <td>{{ subpart.seller_part.seller.name | default:"-" }}</td>
-                    <td>{{ subpart.seller_price | default:"-"}}</td>
-                    <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td>
+                    <td>{{ subpart.reference }}</td>
+                    <!-- <td>{{ subpart.seller_part.seller.name | default:"-" }}</td> -->
+                    <!-- <td>{{ subpart.seller_price | default:"-"}}</td> -->
+                    <!-- <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td> -->
                     {% if subpart.indent_level == 1 and subpart.subpart is not None %}
+                    <td><a href="{% url 'bom:part-edit-subpart' part_id=part.id subpart_id=subpart.subpart.id %}">edit</a></td>
                     <td><a href="{% url 'bom:part-remove-subpart' part_id=part.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
                     {% else %}
                     <td></td>
@@ -111,7 +110,9 @@ Manage BOM
         <br>
     </div>
 </div>
+{% endblock %}
 
+{% block script%}
 <!-- Tree Table -->
 <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
 <script>

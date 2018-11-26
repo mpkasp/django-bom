@@ -117,13 +117,14 @@ class Part(models.Model):
         return partfiles
 
     def indented(self):
-        def indented_given_bom(bom, part, parent=None, qty=1, indent_level=0, subpart=None):
+        def indented_given_bom(bom, part, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
             bom.append({
                 'part': part,
                 'quantity': qty,
                 'indent_level': indent_level,
                 'parent_id': parent.id if parent is not None else None,
                 'subpart': subpart,
+                'reference': reference,
             })
 
             indent_level = indent_level + 1
@@ -138,7 +139,8 @@ class Part(models.Model):
                     # same Part, thus we filter and iterate again
                     for subpart in subparts:
                         qty = subpart.count
-                        indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart)
+                        reference = subpart.reference
+                        indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart, reference=reference)
 
         bom = []
         cost = 0
@@ -195,6 +197,7 @@ class Subpart(models.Model):
     assembly_subpart = models.ForeignKey(
         Part, related_name='assembly_subpart', null=True, on_delete=models.CASCADE)
     count = models.IntegerField(default=1)
+    reference = models.TextField(default='', blank=True, null=True)
 
     def clean(self):
         unusable_parts = self.assembly_part.where_used()

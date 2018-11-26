@@ -203,6 +203,7 @@
                             <th class="text-normal"><a href="?order_by=seller_price"><i>Price</i></a></th>
                             <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
                             <th class="text-normal"><a href="?order_by=seller_nre"><i>NRE</i></a></th>
+                            <th class="text-normal">Reference</th>
                         </tr>
                     </thead>
                     {% for subpart in parts %}
@@ -220,6 +221,7 @@
                             <td class="text-normal">{{ subpart.seller_price | default:"-"}}</td>
                             <!-- <td class="text-normal">{{ subpart.extended_cost | default:"-" }}</td> -->
                             <td class="text-normal">{{ subpart.seller_nre | default:"-" }}</td>
+                            <td class="text-normal">{{ subpart.reference | default:"-" }}</td>
                         </tr>
                     {% empty %}
                     <tr>

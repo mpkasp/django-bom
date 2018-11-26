@@ -123,10 +123,35 @@ class PartForm(forms.ModelForm):
         }
 
 
+class SubpartForm(forms.ModelForm):
+    class Meta:
+        model = Subpart
+        exclude = ['assembly_part', ]
+
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
+        self.part_id = kwargs.pop('part_id', None)
+        super(SubpartForm, self).__init__(*args, **kwargs)
+
+        part = None
+        unusable_part_ids = []
+        if self.part_id:
+            part = Part.objects.get(id=self.part_id)
+            unusable_part_ids = [p.id for p in part.where_used_full()]
+            unusable_part_ids.append(part.id)
+        self.fields['assembly_subpart'].queryset = Part.objects.filter(
+            organization=self.organization).exclude(id__in=unusable_part_ids).order_by(
+            'number_class__code', 'number_item', 'number_variation')
+        self.fields['assembly_subpart'].label_from_instance = \
+            lambda obj: "%s" % obj.full_part_number(
+        ) + ' ' + obj.description
+
+
 class AddSubpartForm(forms.Form):
     assembly_subpart = forms.ModelChoiceField(
         queryset=None, required=True, label="Subpart")
     count = forms.IntegerField(required=True, label='Quantity')
+    reference = forms.CharField(required=False, label="Reference")
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)

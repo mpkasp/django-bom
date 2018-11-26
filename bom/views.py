@@ -2,10 +2,11 @@ import csv
 import codecs
 import logging
 import os
+import requests
 import sys
 import uuid
 
-from .settings import MEDIA_URL
+from .settings import MEDIA_URL, SOCIAL_AUTH_GOOGLE_OAUTH2_KEY, SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.template.response import TemplateResponse
@@ -18,12 +19,15 @@ from django.urls import reverse
 from django.utils.encoding import smart_str
 from django.contrib import messages
 
+from social_django.models import UserSocialAuth
+from social_django.utils import load_strategy
+
 from json import loads, dumps
 from math import ceil
 
 from .convert import full_part_number_to_broken_part
 from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer, ManufacturerPart, User, UserMeta
-from .forms import PartInfoForm, PartForm, AddSubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm
+from .forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm
 from .octopart import match_part, get_latest_datasheets
 
 logger = logging.getLogger(__name__)
@@ -128,16 +132,40 @@ def bom_settings(request):
     user = request.user
     organization = user.bom_profile().organization
     pagename = 'settings'
+    action = reverse('bom:settings')
+    tab_anchor = request.GET.get('tab_anchor', None)
 
     users_in_organization = User.objects.filter(id__in=UserMeta.objects.filter(organization=organization)).order_by('first_name', 'last_name', 'email')
+    google_authentication = UserSocialAuth.objects.filter(user=user).first()
+
+    # Google Auth stuff
+    # try:
+    #     social = user.social_auth.get(provider='google-oauth2')
+    #     access_token = social.get_access_token(load_strategy())
+    #     response = requests.get(
+    #         'https://www.googleapis.com/drive/v3/files',
+    #         params={'access_token': access_token}
+    #     )
+    #     print(response.json())
+    # except Exception as e:
+    #     print(e)
+    # End Google Auth stuff
 
     if request.method == 'POST':
-        user_form = UserForm(request.POST, instance=user)
-        organization_form = OrganizationForm(request.POST, instance=organization)
-        if user_form.is_valid() and organization_form.is_valid():
-            user = user_form.save()
-            organization_form.save()
-            return HttpResponseRedirect(reverse('bom:home'))
+        if 'submit-user' in request.POST:
+            user_form = UserForm(request.POST, instance=user)
+            organization_form = OrganizationForm(instance=organization)
+            if user_form.is_valid():
+                user = user_form.save()
+            else:
+                messages.error(request, user_form.errors)
+        if 'submit-organization' in request.POST:
+            organization_form = OrganizationForm(request.POST, instance=organization)
+            user_form = UserForm(instance=user)
+            if organization_form.is_valid():
+                organization_form.save()
+            else:
+                messages.error(request, organization_form.errors)
     else:
         user_form = UserForm(instance=user)
         organization_form = OrganizationForm(instance=organization)
@@ -276,6 +304,7 @@ def part_export_bom(request, part_id):
         'level',
         'part_number',
         'quantity',
+        'reference',
         'part_description',
         'part_revision',
         'part_manufacturer',
@@ -331,6 +360,7 @@ def part_export_bom(request, part_id):
             'level': item['indent_level'],
             'part_number': item['part'].full_part_number(),
             'quantity': item['quantity'],
+            'reference': item['reference'],
             'part_description': item['part'].description,
             'part_revision': item['part'].revision,
             'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item['part'].primary_manufacturer_part is not None and item['part'].primary_manufacturer_part.manufacturer is not None else '',
@@ -425,6 +455,13 @@ def part_upload_bom(request, part_id):
                     # TODO: handle more than one subpart
                     subpart = subparts[0]
                     count = partData['quantity']
+
+                    reference = ''
+                    if 'reference' in partData:
+                        reference = partData['reference']
+                    elif 'designator' in partData:
+                        reference = partData['designator']
+
                     if part == subpart:
                         messages.error(
                             request, "Recursive part association: a part cant be a subpart of itsself")
@@ -433,7 +470,8 @@ def part_upload_bom(request, part_id):
                     sp = Subpart(
                         assembly_part=part,
                         assembly_subpart=subpart,
-                        count=count)
+                        count=count,
+                        reference=reference)
                     sp.save()
                 elif 'manufacturer_part_number' in partData and 'quantity' in partData:
                     mpn = partData['manufacturer_part_number']
@@ -451,11 +489,18 @@ def part_upload_bom(request, part_id):
                         messages.error(
                             request, "Recursive part association: a part cant be a subpart of itsself")
                         return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
+                    
+                    reference = ''
+                    if 'reference' in partData:
+                        reference = partData['reference']
+                    elif 'designator' in partData:
+                        reference = partData['designator']
 
                     sp = Subpart(
                         assembly_part=part,
                         assembly_subpart=subpart,
-                        count=count)
+                        count=count,
+                        reference=reference)
                     sp.save()
         else:
             messages.error(
@@ -838,7 +883,8 @@ def add_subpart(request, part_id):
             new_part = Subpart.objects.create(
                 assembly_part=part,
                 assembly_subpart=form.cleaned_data['assembly_subpart'],
-                count=form.cleaned_data['count']
+                count=form.cleaned_data['count'],
+                reference=form.cleaned_data['reference'],
             )
 
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
@@ -856,6 +902,30 @@ def remove_subpart(request, part_id, subpart_id):
 
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
+def edit_subpart(request, part_id, subpart_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+    action = reverse('bom:part-edit-subpart', kwargs={'part_id': part_id, 'subpart_id': subpart_id})
+
+    try:
+        subpart = Subpart.objects.get(id=subpart_id)
+    except ObjectDoesNotExist:
+        messages.error(request, "No subpart found with given subpart_id.")
+        return HttpResponseRedirect(reverse('bom:error'))
+
+    title = "Edit Subpart"
+    h1 = "{} {}".format(subpart.assembly_part.full_part_number(), subpart.assembly_part.description)
+
+    if request.method == 'POST':
+        form = SubpartForm(request.POST, instance=subpart, organization=organization)
+        if form.is_valid():
+            form.save()
+            return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
+    else:
+        form = SubpartForm(instance=subpart, organization=organization)
+
+    return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 @login_required
 def remove_all_subparts(request, part_id):

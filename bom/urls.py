@@ -24,6 +24,7 @@ bom_patterns = [
     path('part/<int:part_id>/delete/', views.part_delete, name='part-delete'),
     path('part/<int:part_id>/manage-bom/', views.manage_bom, name='part-manage-bom'),
     path('part/<int:part_id>/add-subpart/', views.add_subpart, name='part-add-subpart'),
+    path('part/<int:part_id>/edit-subpart/<int:subpart_id>', views.edit_subpart, name='part-edit-subpart'),
     path('part/<int:part_id>/add-manufacturer-part/', views.add_manufacturer_part, name='part-add-manufacturer-part'),
     path('part/<int:part_id>/upload-file/', views.upload_file_to_part, name='part-upload-partfile'),
     path('part/<int:part_id>/delete-file/<int:partfile_id>/', views.delete_file_from_part, name='part-delete-partfile'),
@@ -39,6 +40,7 @@ bom_patterns = [
 
 urlpatterns = [
     path('', include((bom_patterns, 'bom'))),
+    path('', include('social_django.urls', namespace='social')),
 
     # you will likely have your own implementation of these in your app
     path('admin/', admin.site.urls),
