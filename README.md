@@ -24,7 +24,7 @@ source bin/activate
 
 2. From here install django, and set up your project.
 ```
-pip install django==2.1.1
+pip install django==2.1.3
 django-admin startproject mysite
 cd mysite
 python manage.py migrate
@@ -110,3 +110,24 @@ BOM_CONFIG = {
 }
 ```
 You can get an Octopart api key [here](https://octopart.com/api/home).
+
+## Google Drive Integration
+Make sure to add the following to your settings.py:
+```
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.google.GoogleOpenId',
+    'social_core.backends.google.GoogleOAuth2',
+    'social_core.backends.google.GoogleOAuth',
+    'django.contrib.auth.backends.ModelBackend',
+)
+
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/plus.login']
+SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
+    'access_type': 'offline',
+    'approval_prompt': 'auto'
+}
+``` 
+And if you're using https on production add:
+```
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = not DEBUG
+```
