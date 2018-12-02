@@ -23,50 +23,50 @@ Add Seller Part
         {{ form.non_field_errors }}
 
         <div class="row">
-            <div class="fieldWrapper col s6">
+            <div class="fieldWrapper col m6 s12">
                 <label for="{{ form.seller.id_for_label }}"><b>Seller:</b></label>
                 {{ form.seller.errors }}
                 {{ form.seller }}
             </div>
-            <div class="fieldWrapper col s6">
+            <div class="fieldWrapper col m6 s12">
                 <label for="{{ form.new_seller.id_for_label }}"><b>-or- New Seller:</b></label>
                 {{ form.new_seller.errors }}
                 {{ form.new_seller }}
             </div>
         </div>
         <div class="row">
-            <div class="fieldWrapper col s3">
+            <div class="fieldWrapper col m3 s12">
                 <label for="{{ form.unit_cost.id_for_label }}"><b>Unit Cost:</b></label>
                 {{ form.unit_cost.errors }}
                 {{ form.unit_cost }}
             </div>
-            <div class="fieldWrapper col s3">
+            <div class="fieldWrapper col m3 s12">
                 <label for="{{ form.nre_cost.id_for_label }}">NRE Cost:</label>
                 {{ form.nre_cost.errors }}
                 {{ form.nre_cost }}
             </div>
         </div>
         <div class="row">
-            <div class="fieldWrapper col s3">
+            <div class="fieldWrapper col m3 s12">
                 <label for="{{ form.minimum_order_quantity.id_for_label }}">Minimum Order Quantity:</label>
                 {{ form.minimum_order_quantity.errors }}
                 {{ form.minimum_order_quantity }}
             </div>
-            <div class="fieldWrapper col s3">
+            <div class="fieldWrapper col m3 s12">
                 <label for="{{ form.minimum_pack_quantity.id_for_label }}">Minimum Pack Quantity:</label>
                 {{ form.minimum_pack_quantity.errors }}
                 {{ form.minimum_pack_quantity }}
             </div>
         </div>
         <div class="row">
-            <div class="fieldWrapper col s3">
+            <div class="fieldWrapper col m3 s12">
                 <label for="{{ form.lead_time_days.id_for_label }}">Lead Time (Days):</label>
                 {{ form.lead_time_days.errors }}
                 {{ form.lead_time_days }}
             </div>
         </div>
         <div class="row">
-            <div class="fieldWrapper col s3">
+            <div class="fieldWrapper col m3 s12">
                 {{ form.ncnr.errors }}
                 {{ form.ncnr|materializecss }}
             </div>

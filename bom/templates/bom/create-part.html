@@ -26,13 +26,13 @@ Create New Part
         {{ manufacturer_part_form.errors }}
         <div class="row">
             <!-- For some reason using django's default form, number_class form validation errors don't show up, seems to be working with the materializecss filter -->
-            {{ part_form.number_class|materializecss:'s6' }}
-            {{ part_form.number_item|materializecss:'s3' }}
-            {{ part_form.number_variation|materializecss:'s3' }}
+            {{ part_form.number_class|materializecss:'m6 s12' }}
+            {{ part_form.number_item|materializecss:'m3 s12' }}
+            {{ part_form.number_variation|materializecss:'m3 s12' }}
         </div>
         <div class="row">
-                {{ part_form.revision|materializecss:'s2' }}
-                {{ part_form.description|materializecss:'s10' }}
+                {{ part_form.revision|materializecss:'m2 s12' }}
+                {{ part_form.description|materializecss:'m10 s12' }}
         </div>
         <div class="row">
             <div class="col">
@@ -40,19 +40,19 @@ Create New Part
             </div>
         </div>
         <div class="row">
-            <div class="fieldWrapper col s6">
+            <div class="fieldWrapper col m6 s12">
                 <label for="{{ manufacturer_part_form.manufacturer.id_for_label }}">Select existing Manufacturer</label>
                 {{ manufacturer_part_form.manufacturer.errors }}
                 {{ manufacturer_part_form.manufacturer }}
             </div>
-            <div class="fieldWrapper col s6">
+            <div class="fieldWrapper col m6 s12">
                 <label for="{{ manufacturer_form.name.id_for_label }}">-or- Create New Manufacturer</label>
                 {{ manufacturer_form.name.errors }}
                 {{ manufacturer_form.name }}
             </div>
         </div>
         <div class="row">
-            {{ manufacturer_part_form.manufacturer_part_number|materializecss:'s6' }}
+            {{ manufacturer_part_form.manufacturer_part_number|materializecss:'m6 s12' }}
         </div>
 
         <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
