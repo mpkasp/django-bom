@@ -182,7 +182,7 @@ LOGOUT_REDIRECT_URL = '/'
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/settings?tab_anchor=file'
 SOCIAL_AUTH_DISCONNECT_REDIRECT_URL = '/settings?tab_anchor=file'
 
-SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile', 'https://www.googleapis.com/auth/drive.appdata']
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/plus.login']
 SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
     'access_type': 'offline',
     'approval_prompt': 'auto'
@@ -198,6 +198,15 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
+    'bom.google_drive.initialize_parent',
+)
+
+SOCIAL_AUTH_DISCONNECT_PIPELINE = (
+    'social_core.pipeline.disconnect.allowed_to_disconnect',
+    'bom.google_drive.uninitialize_parent',
+    'social_core.pipeline.disconnect.get_entries',
+    'social_core.pipeline.disconnect.revoke_tokens',
+    'social_core.pipeline.disconnect.disconnect',
 )
 
 # django-bom config

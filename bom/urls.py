@@ -1,10 +1,10 @@
-from django.conf.urls import url, include
-from django.urls import path, reverse
+from django.conf.urls import include
+from django.urls import path
 from django.contrib.auth import views as auth_views
 from django.contrib import admin
-from django.views.generic import TemplateView
 
 from . import views
+from . import google_drive
 
 bom_patterns = [
     # BOM urls
@@ -12,6 +12,7 @@ bom_patterns = [
     path('error/', views.error, name='error'),
     path('signup/', views.bom_signup, name='bom-signup'),
     path('settings/', views.bom_settings, name='settings'),
+    path('settings/<str:tab_anchor>/', views.bom_settings, name='settings'),
     path('export/', views.export_part_list, name='export-part-list'),
     path('create-part/', views.create_part, name='create-part'),
     path('upload-parts/', views.upload_parts, name='upload-parts'),
@@ -38,9 +39,14 @@ bom_patterns = [
     path('manufacturer-part/<int:manufacturer_part_id>/octopart-match/', views.manufacturer_part_octopart_match, name='manufacturer-part-octopart-match'),
 ]
 
+google_drive_patterns = [
+    path('add-folder/<int:part_id>/', google_drive.get_or_create_and_open_folder, name='add-folder'),
+]
+
 urlpatterns = [
     path('', include((bom_patterns, 'bom'))),
     path('', include('social_django.urls', namespace='social')),
+    path('', include((google_drive_patterns, 'google-drive'))),
 
     # you will likely have your own implementation of these in your app
     path('admin/', admin.site.urls),

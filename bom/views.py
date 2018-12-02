@@ -2,32 +2,29 @@ import csv
 import codecs
 import logging
 import os
-import requests
 import sys
-import uuid
 
-from .settings import MEDIA_URL, SOCIAL_AUTH_GOOGLE_OAUTH2_KEY, SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET
-from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.template.response import TemplateResponse
 from django.db import IntegrityError
 from django.db.models import Q
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
 from django.urls import reverse
 from django.utils.encoding import smart_str
-from django.contrib import messages
 
 from social_django.models import UserSocialAuth
-from social_django.utils import load_strategy
 
 from json import loads, dumps
 from math import ceil
 
 from .convert import full_part_number_to_broken_part
-from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer, ManufacturerPart, User, UserMeta
-from .forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm
+from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer, ManufacturerPart, User, \
+    UserMeta
+from .forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
+    ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm
 from .octopart import match_part, get_latest_datasheets
 
 logger = logging.getLogger(__name__)
@@ -128,28 +125,15 @@ def bom_signup(request):
 
 
 @login_required
-def bom_settings(request):
+def bom_settings(request, tab_anchor=None):
     user = request.user
     organization = user.bom_profile().organization
     pagename = 'settings'
     action = reverse('bom:settings')
-    tab_anchor = request.GET.get('tab_anchor', None)
 
-    users_in_organization = User.objects.filter(id__in=UserMeta.objects.filter(organization=organization)).order_by('first_name', 'last_name', 'email')
+    users_in_organization = User.objects.filter(id__in=UserMeta.objects.filter(organization=organization)).order_by(
+        'first_name', 'last_name', 'email')
     google_authentication = UserSocialAuth.objects.filter(user=user).first()
-
-    # Google Auth stuff
-    # try:
-    #     social = user.social_auth.get(provider='google-oauth2')
-    #     access_token = social.get_access_token(load_strategy())
-    #     response = requests.get(
-    #         'https://www.googleapis.com/drive/v3/files',
-    #         params={'access_token': access_token}
-    #     )
-    #     print(response.json())
-    # except Exception as e:
-    #     print(e)
-    # End Google Auth stuff
 
     if request.method == 'POST':
         if 'submit-user' in request.POST:
@@ -239,19 +223,20 @@ def part_info(request, part_id):
 
         # then extend that price
         item['extended_cost'] = extended_quantity * \
-            seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
+                                seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
         item['out_of_pocket_cost'] = order_qty * \
-            float(seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
+                                     float(
+                                         seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
 
         unit_cost = (
-            unit_cost +
-            seller.unit_cost *
-            item['quantity']) if seller is not None and seller.unit_cost is not None else unit_cost
+                unit_cost +
+                seller.unit_cost *
+                item['quantity']) if seller is not None and seller.unit_cost is not None else unit_cost
         unit_out_of_pocket_cost = unit_out_of_pocket_cost + \
-            item['out_of_pocket_cost']
+                                  item['out_of_pocket_cost']
         unit_nre = (
-            unit_nre +
-            item['seller_nre']) if item['seller_nre'] is not None else unit_nre
+                unit_nre +
+                item['seller_nre']) if item['seller_nre'] is not None else unit_nre
         if seller is None:
             extended_cost_complete = False
 
@@ -291,7 +276,8 @@ def part_export_bom(request, part_id):
         return HttpResponseRedirect(reverse('bom:error'))
 
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_indented.csv"'.format(part.full_part_number())
+    response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_indented.csv"'.format(
+        part.full_part_number())
 
     bom = part.indented()
     qty_cache_key = str(part_id) + '_qty'
@@ -340,19 +326,20 @@ def part_export_bom(request, part_id):
 
         # then extend that price
         item['extended_cost'] = extended_quantity * \
-            seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
+                                seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
         item['out_of_pocket_cost'] = order_qty * \
-            float(seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
+                                     float(
+                                         seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
 
         unit_cost = (
-            unit_cost +
-            seller.unit_cost *
-            item['quantity']) if seller is not None and seller.unit_cost is not None else unit_cost
+                unit_cost +
+                seller.unit_cost *
+                item['quantity']) if seller is not None and seller.unit_cost is not None else unit_cost
         unit_out_of_pocket_cost = unit_out_of_pocket_cost + \
-            item['out_of_pocket_cost']
+                                  item['out_of_pocket_cost']
         unit_nre = (
-            unit_nre +
-            item['seller_nre']) if item['seller_nre'] is not None else unit_nre
+                unit_nre +
+                item['seller_nre']) if item['seller_nre'] is not None else unit_nre
         if seller is None:
             extended_cost_complete = False
 
@@ -363,8 +350,12 @@ def part_export_bom(request, part_id):
             'reference': item['reference'],
             'part_description': item['part'].description,
             'part_revision': item['part'].revision,
-            'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item['part'].primary_manufacturer_part is not None and item['part'].primary_manufacturer_part.manufacturer is not None else '',
-            'part_manufacturer_part_number': item['part'].primary_manufacturer_part.manufacturer_part_number if item['part'].primary_manufacturer_part is not None else '',
+            'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item[
+                                                                                                 'part'].primary_manufacturer_part is not None and
+                                                                                             item[
+                                                                                                 'part'].primary_manufacturer_part.manufacturer is not None else '',
+            'part_manufacturer_part_number': item['part'].primary_manufacturer_part.manufacturer_part_number if item[
+                                                                                                                    'part'].primary_manufacturer_part is not None else '',
             'part_ext_qty': item['extended_quantity'],
             'part_order_qty': item['order_quantity'],
             'part_seller': item['seller_part'].seller.name if item['seller_part'] is not None else '',
@@ -373,9 +364,9 @@ def part_export_bom(request, part_id):
             'part_ext_cost': item['extended_cost'] if item['extended_cost'] is not None else 0,
             'part_out_of_pocket_cost': item['out_of_pocket_cost'],
             'part_nre': item['seller_nre'] if item['seller_nre'] is not None else 0,
-            'part_lead_time_days': item['seller_lead_time_days'], 
+            'part_lead_time_days': item['seller_lead_time_days'],
         }
-        writer.writerow({k:smart_str(v) for k,v in row.items()})
+        writer.writerow({k: smart_str(v) for k, v in row.items()})
     return response
 
 
@@ -398,7 +389,7 @@ def part_upload_bom(request, part_id):
             # dialect = csv.Sniffer().sniff(csvfile.readline())
             csvfile.open()
             reader = csv.reader(codecs.iterdecode(csvfile, 'utf-8'))
-            
+
             try:
                 headers = [h.lower() for h in next(reader)]
             except UnicodeDecodeError as e:
@@ -425,7 +416,7 @@ def part_upload_bom(request, part_id):
 
                 if 'dnp' in partData and partData['dnp'].lower() == 'dnp':
                     continue
-                
+
                 if 'part_number' in partData and 'quantity' in partData and len(partData['part_number']) > 0:
 
                     try:
@@ -448,7 +439,8 @@ def part_upload_bom(request, part_id):
                         continue
                     elif len(subparts) > 1:
                         messages.info(
-                            request, "Subpart: found {} entries for subpart `{}`. This should not happen. Please let info@indabom.com know.".format(
+                            request,
+                            "Subpart: found {} entries for subpart `{}`. This should not happen. Please let info@indabom.com know.".format(
                                 partData['part_number']))
                         continue
 
@@ -489,7 +481,7 @@ def part_upload_bom(request, part_id):
                         messages.error(
                             request, "Recursive part association: a part cant be a subpart of itsself")
                         return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
-                    
+
                     reference = ''
                     if 'reference' in partData:
                         reference = partData['reference']
@@ -562,7 +554,9 @@ def upload_parts(request):
                                                                    'revision': partData['revision'],
                                                                })
 
-                    manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=mpn, manufacturer=mfg)
+                    manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part,
+                                                                                        manufacturer_part_number=mpn,
+                                                                                        manufacturer=mfg)
 
                     if part.primary_manufacturer_part is None and manufacturer_part is not None:
                         part.primary_manufacturer_part = manufacturer_part
@@ -624,7 +618,7 @@ def export_part_list(request):
             'part_manufacturer': item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
             'part_manufacturer_part_number': item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
         }
-        writer.writerow({k:smart_str(v) for k,v in row.items()})
+        writer.writerow({k: smart_str(v) for k, v in row.items()})
 
     return response
 
@@ -667,7 +661,8 @@ def part_octopart_match(request, part_id):
     if request.META.get('HTTP_REFERER', None) is not None and '/part/' in request.META.get('HTTP_REFERER', None):
         return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '?tab_anchor=sourcing')
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:part-info', kwargs={'part_id': part_id}) + '?tab_anchor=sourcing'))
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:part-info', kwargs={
+        'part_id': part_id}) + '?tab_anchor=sourcing'))
 
 
 @login_required
@@ -765,12 +760,14 @@ def create_part(request):
                 if old_manufacturer and not new_manufacturer_name:
                     manufacturer = old_manufacturer
                 elif new_manufacturer_name and not old_manufacturer:
-                    manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
+                    manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name,
+                                                                               organization=organization)
                 else:
                     messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
                     return TemplateResponse(request, 'bom/create-part.html', locals())
             elif old_manufacturer or new_manufacturer_name:
-                messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
+                messages.warning(request,
+                                 "No manufacturer was selected or created, no manufacturer part number was assigned.")
 
             new_part, created = Part.objects.get_or_create(
                 number_class=part_form.cleaned_data['number_class'],
@@ -778,12 +775,15 @@ def create_part(request):
                 number_variation=part_form.cleaned_data['number_variation'],
                 organization=organization,
                 defaults={'description': part_form.cleaned_data['description'],
-                            'revision': part_form.cleaned_data['revision'], })
+                          'revision': part_form.cleaned_data['revision'], })
 
             manufacturer_part = None
             if manufacturer is None:
-                manufacturer, created = Manufacturer.objects.get_or_create(organization=organization, name=organization.name)
-                manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part, manufacturer_part_number=new_part.full_part_number(), manufacturer=manufacturer)
+                manufacturer, created = Manufacturer.objects.get_or_create(organization=organization,
+                                                                           name=organization.name)
+                manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part,
+                                                                                    manufacturer_part_number=new_part.full_part_number(),
+                                                                                    manufacturer=manufacturer)
 
             if new_part.primary_manufacturer_part is None and manufacturer_part is not None:
                 new_part.primary_manufacturer_part = manufacturer_part
@@ -902,6 +902,7 @@ def remove_subpart(request, part_id, subpart_id):
 
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
+
 def edit_subpart(request, part_id, subpart_id):
     user = request.user
     profile = user.bom_profile()
@@ -926,6 +927,7 @@ def edit_subpart(request, part_id, subpart_id):
         form = SubpartForm(instance=subpart, organization=organization)
 
     return TemplateResponse(request, 'bom/bom-form.html', locals())
+
 
 @login_required
 def remove_all_subparts(request, part_id):
@@ -986,7 +988,8 @@ def add_sellerpart(request, manufacturer_part_id):
         form = SellerPartForm(request.POST, manufacturer_part=manufacturer_part, organization=organization)
         if form.is_valid():
             form.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '#sourcing')
+            return HttpResponseRedirect(
+                reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '#sourcing')
     else:
         form = SellerPartForm(organization=organization)
 
@@ -1014,21 +1017,25 @@ def add_manufacturer_part(request, part_id):
             new_manufacturer_name = manufacturer_form.cleaned_data['name']
 
             if manufacturer is None and new_manufacturer_name == '':
-                messages.error(request, "Must either select an existing manufacturer, or enter a new manufacturer name.")
+                messages.error(request,
+                               "Must either select an existing manufacturer, or enter a new manufacturer name.")
                 return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
 
             if new_manufacturer_name != '' and new_manufacturer_name is not None:
-                manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
+                manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name,
+                                                                           organization=organization)
                 manufacturer_part_form.cleaned_data['manufacturer'] = manufacturer
 
-            manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
+            manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part,
+                                                                                manufacturer_part_number=manufacturer_part_number,
+                                                                                manufacturer=manufacturer)
 
             if part.primary_manufacturer_part is None and manufacturer_part is not None:
                 part.primary_manufacturer_part = manufacturer_part
                 part.save()
 
             return HttpResponseRedirect(
-                reverse('bom:part-info', kwargs={'part_id': str(part.id)})  + '?tab_anchor=sourcing')
+                reverse('bom:part-info', kwargs={'part_id': str(part.id)}) + '?tab_anchor=sourcing')
         else:
             messages.error(request, "{}".format(manufacturer_form.is_valid()))
             messages.error(request, "{}".format(manufacturer_part_form.is_valid()))
@@ -1054,7 +1061,8 @@ def manufacturer_part_edit(request, manufacturer_part_id):
     part = manufacturer_part.part
 
     if request.method == 'POST':
-        manufacturer_part_form = ManufacturerPartForm(request.POST, instance=manufacturer_part, organization=organization)
+        manufacturer_part_form = ManufacturerPartForm(request.POST, instance=manufacturer_part,
+                                                      organization=organization)
         manufacturer_form = ManufacturerForm(request.POST, instance=manufacturer_part.manufacturer)
         if manufacturer_part_form.is_valid() and manufacturer_form.is_valid():
             manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
@@ -1062,12 +1070,14 @@ def manufacturer_part_edit(request, manufacturer_part_id):
             new_manufacturer_name = manufacturer_form.cleaned_data['name']
 
             if manufacturer is None and new_manufacturer_name == '':
-                messages.error(request, "Must either select an existing manufacturer, or enter a new manufacturer name.")
+                messages.error(request,
+                               "Must either select an existing manufacturer, or enter a new manufacturer name.")
                 return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
 
             new_manufacturer = None
             if new_manufacturer_name != '' and new_manufacturer_name is not None:
-                new_manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name, organization=organization)
+                new_manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name,
+                                                                               organization=organization)
                 manufacturer_part = manufacturer_part_form.save(commit=False)
                 manufacturer_part.manufacturer = new_manufacturer
                 manufacturer_part.save()
@@ -1077,17 +1087,19 @@ def manufacturer_part_edit(request, manufacturer_part_id):
             if part.primary_manufacturer_part is None and manufacturer_part is not None:
                 part.primary_manufacturer_part = manufacturer_part
                 part.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '?tab_anchor=sourcing')
+            return HttpResponseRedirect(
+                reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '?tab_anchor=sourcing')
         else:
             messages.error(request, manufacturer_part_form.errors)
             messages.error(request, manufacturer_form.errors)
     else:
         if manufacturer_part.manufacturer is None:
-            manufacturer_form = ManufacturerForm(instance=manufacturer_part.manufacturer, initial={'organization': organization})
+            manufacturer_form = ManufacturerForm(instance=manufacturer_part.manufacturer,
+                                                 initial={'organization': organization})
         else:
             manufacturer_form = ManufacturerForm(initial={'organization': organization})
 
-        manufacturer_part_form = ManufacturerPartForm(instance=manufacturer_part, organization=organization,)
+        manufacturer_part_form = ManufacturerPartForm(instance=manufacturer_part, organization=organization, )
 
     return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
 
@@ -1125,7 +1137,8 @@ def sellerpart_edit(request, sellerpart_id):
         form = SellerPartForm(request.POST, instance=sellerpart, organization=organization)
         if form.is_valid():
             form.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': sellerpart.manufacturer_part.part.id}) + '?tab_anchor=sourcing')
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={
+                'part_id': sellerpart.manufacturer_part.part.id}) + '?tab_anchor=sourcing')
     else:
         form = SellerPartForm(instance=sellerpart, organization=organization)
 

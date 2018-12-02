@@ -9,13 +9,14 @@ from .validators import alphanumeric, numeric
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext as _
 
+from social_django.models import UserSocialAuth
+
 
 class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
-    subscription = models.CharField(
-        max_length=1, choices=(
-            ('F', 'Free'), ('P', 'Pro'), ))
+    subscription = models.CharField(max_length=1, choices=(('F', 'Free'), ('P', 'Pro'),))
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
+    google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
 
     def __str__(self):
         return u'%s' % (self.name)
@@ -24,9 +25,14 @@ class Organization(models.Model):
 class UserMeta(models.Model):
     user = models.OneToOneField(User, db_index=True, on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, blank=True, null=True, on_delete=models.PROTECT)
-    role = models.CharField(
-        max_length=1, choices=(
-            ('A', 'Admin'), ('V', 'Viewer'), ))
+    role = models.CharField(max_length=1, choices=(('A', 'Admin'), ('V', 'Viewer'),))
+
+    def google_authenticated(self):
+        try:
+            self.user.social_auth.get(provider='google-oauth2')
+            return True
+        except UserSocialAuth.DoesNotExist:
+            return False
 
 
 def _user_meta(self, organization=None):
@@ -68,7 +74,9 @@ class Part(models.Model):
     number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
     description = models.CharField(max_length=255, default=None)
     revision = models.CharField(max_length=2)
-    primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True, on_delete=models.SET_NULL, related_name='primary_manufacturer_part')
+    primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True,
+                                                  on_delete=models.SET_NULL, related_name='primary_manufacturer_part')
+    google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
     subparts = models.ManyToManyField(
         'self',
         blank=True,
@@ -128,7 +136,7 @@ class Part(models.Model):
             })
 
             indent_level = indent_level + 1
-            if(len(part.subparts.all()) == 0):
+            if (len(part.subparts.all()) == 0):
                 return
             else:
                 for sp in part.subparts.all():
@@ -140,7 +148,8 @@ class Part(models.Model):
                     for subpart in subparts:
                         qty = subpart.count
                         reference = subpart.reference
-                        indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart, reference=reference)
+                        indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart,
+                                           reference=reference)
 
         bom = []
         cost = 0
@@ -158,8 +167,9 @@ class Part(models.Model):
         for sellerpart in sellerparts:
             # TODO: Make this smarter and more readable.
             if (sellerpart.unit_cost is not None and
-               (sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
-               (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
+                    (
+                            sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
+                    (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
                 seller = sellerpart
             elif seller is None:
                 seller = sellerpart
@@ -202,7 +212,8 @@ class Subpart(models.Model):
     def clean(self):
         unusable_parts = self.assembly_part.where_used()
         if self.assembly_subpart in unusable_parts:
-            raise ValidationError(_('Recursive relationship: cannot add a subpart to a part that uses itsself.'), code='invalid')
+            raise ValidationError(_('Recursive relationship: cannot add a subpart to a part that uses itsself.'),
+                                  code='invalid')
         if self.assembly_subpart == self.assembly_part:
             raise ValidationError(_('Recursive relationship: cannot add a subpart to itsself.'), code='invalid')
 
@@ -233,8 +244,9 @@ class ManufacturerPart(models.Model):
         for sellerpart in sellerparts:
             # TODO: Make this smarter and more readable.
             if (sellerpart.unit_cost is not None and
-                (sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
-                (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
+                    (
+                            sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
+                    (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
                 seller = sellerpart
             elif seller is None:
                 seller = sellerpart

@@ -32,7 +32,7 @@ class OrganizationForm(forms.ModelForm):
 
     class Meta:
         model = Organization
-        exclude = ['subscription', ]
+        fields = ['name', 'owner', ]
 
 
 class PartInfoForm(forms.Form):

@@ -129,6 +129,16 @@
                         <b>${{ total_out_of_pocket_cost|floatformat:2 }}</b>
                     </div>
                 </div>
+
+                <div class="row">
+                    <div class="col s4 text-right">
+                        <img title="Via Google Drive" style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/google_drive_logo.svg' %}"></img>&nbsp;Files:
+                    </div>
+                    <div class="col s8">
+                        <a href="{% url 'google-drive:add-folder' part_id=part.id %}" target="_blank">Open Folder</a>
+                    </div>
+                </div>
+
                 <div class="row">
                     <div class="col s4 text-right">
                         <img title="Via Octopart.com" style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img>&nbsp;Datasheets:
@@ -142,45 +152,6 @@
                     </div>
                 </div>
 
-                <!-- File upload to come ! Need to pull in remote storage first... -->
-                <!-- <div class="row">
-                    <div class="col s4 text-right">
-                        Files:
-                    </div>
-                    <div class="col s8">
-                        {% if not files %}
-                            <i>None Found</i>
-                        {% else %}
-                        <ul>
-                        {% for partfile in files %}
-                            <li><a href="{{ partfile.file.url }}">{{ partfile.file.name }}</a>&nbsp;[<a href="{% url 'bom:part-delete-partfile' part_id=part.id partfile_id=partfile.id %}">delete</a>]</li>
-                        {% endfor %}
-                        </ul>
-                        {% endif %}
-                        {% if profile.role == 'A' and organization.subscription == 'P' %}
-                        <form action="{% url 'bom:part-upload-partfile' part_id=part.id %}" method="post" enctype="multipart/form-data">
-                            {% csrf_token %}
-                            <div class="row">
-                                <div class="col s8 file-field input-field">
-                                    <div class="green lighten-1 btn">
-                                        <span>File</span>
-                                        {{ upload_file_to_part_form.file }}
-                                    </div>
-                                    <div class="file-path-wrapper">
-                                        <input class="file-path validate" type="text" placeholder="Upload a file.">
-                                        {{ upload_file_to_part_form.file.errors }}
-                                    </div>
-                                </div>
-                                <div class="col s1 input-field">
-                                    <input class="green lighten-1 btn" type="submit" value="Upload"/>
-                                </div>
-                            </div>
-                        </form>
-                        {% elif organization.subscription == 'F' %}
-                        <i>Upgrade to pro to upload files.</i>
-                        {% endif %}
-                    </div>
-                </div> -->
             </div>
         </div>
 

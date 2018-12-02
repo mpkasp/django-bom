@@ -7,7 +7,9 @@ bom/admin.py
 bom/apps.py
 bom/context_processors.py
 bom/convert.py
+bom/decorators.py
 bom/forms.py
+bom/google_drive.py
 bom/helpers.py
 bom/local_settings.py
 bom/models.py
@@ -29,6 +31,8 @@ bom/migrations/0006_auto_20181007_1949.py
 bom/migrations/0007_auto_20181009_0256.py
 bom/migrations/0008_auto_20181030_0427.py
 bom/migrations/0009_subpart_reference.py
+bom/migrations/0010_auto_20181202_0733.py
+bom/migrations/0011_auto_20181202_2113.py
 bom/migrations/__init__.py
 bom/static/.DS_Store
 bom/static/bom/.DS_Store
@@ -40,6 +44,7 @@ bom/static/bom/img/.DS_Store
 bom/static/bom/img/_ionicons_svg_md-arrow-dropdown.svg
 bom/static/bom/img/_ionicons_svg_md-arrow-dropright.svg
 bom/static/bom/img/favicon.ico
+bom/static/bom/img/google_drive_logo.svg
 bom/static/bom/img/indabom.png
 bom/static/bom/img/octopart_blue.svg
 bom/static/bom/img/google/.DS_Store

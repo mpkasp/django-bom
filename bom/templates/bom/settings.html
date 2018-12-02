@@ -38,44 +38,47 @@
 		</form>
     </div>
     <div id="file" class="col s12">
-		<h2>Part File Storage with Google Drive</h2>
-		<p>Connect your Google account to enable file storage using Google Drive. When you connect, we will create a folder in your root of Google drive, and automatically store and organize files to keep them associated to your parts. You'll be able to access the files directly through Google Drive, and through the web portal here.</p>
+		<h2>Part File Storage with Google Drive <img title="Via Google Drive" style="height: 1em; vertical-align: middle;" src="{% static 'bom/img/google_drive_logo.svg' %}"></img></h2>
+		<p>Connect your Google account. Organization owners can enable file storage using Google Drive. {% if organization.owner == user %} Since you are the owner, you are able to enable file storage!{% else %}Contact your organization owner to enable.{% endif %}<p>
+        <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root of Google drive (and can be moved anywhere in your drive). To add files to a part, navigate to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img title="Via Google Drive" style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/google_drive_logo.svg' %}"></img>&nbsp;Google Drive link. This will create a folder for your part in your root IndaBOM directory, or take you there if it already exists.<p>
+        <p>You'll be able to access the files directly through Google Drive, and through IndaBOM.</p>
 		<h3>Google Connections</h3>
 		<ul>
 		{% if google_authentication %}
-		<p>Logged in to Google as: {{ google_authentication.uid }}</p>
+            <p>Logged in to Google as: {{ google_authentication.uid }}
 		<form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
 		    {% csrf_token %}
 		    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-organization">Disconnect</button>
 		</form>
 		{% else %}
-		<p><i>Coming Soon...</i></p>
-		<!-- <a href="{% url "social:begin" "google-oauth2" %}">
+		<a href="{% url "social:begin" "google-oauth2" %}">
     		<img title="Google sign-in." src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}"></img>
-    	</a> -->
+    	</a>
 		{% endif%}
 		</ul>
     </div>
     <div id="organization" class="col s12">
+    <h2>Organization</h2>
+    {% if organization.owner == user %}
 		<form name="seller" action="{{ action }}" method="post" class="col s12">
 		    {% csrf_token %}
 			<div class="row">
-		    	<h2>Organization</h2>
 				{{ organization_form|materializecss:'s12 m6' }}
 				<i>Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact info@indabom.com if you are interested.</i>
-				<h3>Users In {{ organization.name }}</h3>
-				{% if organization.owner == user %}
-				{% for user in users_in_organization %}
-				<ul>{{ user.first_name }} {{ user.last_name}} (<a href="mailto:{{ user.email }}">{{ user.email }}</a>)</ul>
-				{% empty %}
-				<span>No additional users in this organization.</span>
-				{% endfor %}
-				{% endif %}
 			</div>
 			<div class="fieldWrapper">
 		        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-organization">Save</button>
 			</div>
+            <h3>Users In {{ organization.name }}</h3>
+            {% for user in users_in_organization %}
+            <ul>{{ user.first_name }} {{ user.last_name}} (<a href="mailto:{{ user.email }}">{{ user.email }}</a>)</ul>
+            {% empty %}
+            <span>No additional users in this organization.</span>
+            {% endfor %}
 		</form>
+        {% else %}
+        <p>Nothing to see here 🙈. You aren't the organization owner.</p>
+    {% endif %}
     </div>
 </div>
 {% endblock %}
