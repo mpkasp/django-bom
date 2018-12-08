@@ -190,11 +190,27 @@ class Part(models.Model):
             last_number_variation = Part.objects.all().filter(
                 number_class=self.number_class,
                 number_item=self.number_item).order_by('number_variation').last()
+
+            def increment_char(c):
+                """
+                Increment an uppercase character, returning 'A' if 'Z' is given
+                """
+                return chr(ord(c) + 1) if c != 'Z' else 'A'
+
+            def increment_str(s):
+                lpart = s.rstrip('Z')
+                num_replacements = len(s) - len(lpart)
+                new_s = lpart[:-1] + increment_char(lpart[-1]) if lpart else 'A'
+                new_s += 'A' * num_replacements
+                return new_s
+
             if not last_number_variation:
                 self.number_variation = '01'
             else:
-                self.number_variation = "{0:0=2d}".format(
-                    int(last_number_variation.number_variation) + 1)
+                try:
+                    self.number_variation = "{0:0=2d}".format(int(last_number_variation.number_variation) + 1)
+                except ValueError as e:
+                    self.number_variation = "{}".format(increment_str(last_number_variation.number_variation))
         super(Part, self).save()
 
     def __str__(self):
