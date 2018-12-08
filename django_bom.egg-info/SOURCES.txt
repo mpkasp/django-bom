@@ -15,8 +15,6 @@ bom/local_settings.py
 bom/models.py
 bom/octopart.py
 bom/settings.py
-bom/test_new_parts.csv
-bom/test_parts.csv
 bom/tests.py
 bom/urls.py
 bom/validators.py
