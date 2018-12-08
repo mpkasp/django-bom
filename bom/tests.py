@@ -67,7 +67,7 @@ class TestBOM(TransactionTestCase):
 
     def test_part_upload_bom(self):
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        with open('bom/test_parts.csv') as test_csv:
+        with open('bom/test_files/test_parts.csv') as test_csv:
             response = self.client.post(
                 reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}),
                 {'file': test_csv})
@@ -178,6 +178,34 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue('/part/' in response.url)
 
+        new_part_form_data = {
+            'manufacturer_part_number': '',
+            'manufacturer': '',
+            'number_class': p1.number_class.id,
+            'number_item': '1234',
+            'number_variation': 'AZ',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
+
+        new_part_form_data = {
+            'manufacturer_part_number': '',
+            'manufacturer': '',
+            'number_class': p1.number_class.id,
+            'number_item': '1234',
+            'number_variation': '',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
+
     def test_part_edit(self):
         self.client.login(username='kasper', password='ghostpassword')
 
@@ -244,7 +272,7 @@ class TestBOM(TransactionTestCase):
         self.client.login(username='kasper', password='ghostpassword')
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        with open('bom/test_parts.csv') as test_csv:
+        with open('bom/test_files/test_parts.csv') as test_csv:
             response = self.client.post(
                 reverse('bom:part-upload-partfile', kwargs={'part_id': p1.id}),
                 {'file': test_csv})
@@ -264,7 +292,7 @@ class TestBOM(TransactionTestCase):
         self.client.login(username='kasper', password='ghostpassword')
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        with open('bom/test_parts.csv') as test_csv:
+        with open('bom/test_files/test_parts.csv') as test_csv:
             pf1 = create_a_fake_partfile(test_csv, p1)
             response = self.client.post(
                 reverse(
@@ -278,7 +306,12 @@ class TestBOM(TransactionTestCase):
         self.client.login(username='kasper', password='ghostpassword')
 
         create_some_fake_part_classes()
-        with open('bom/test_new_parts.csv') as test_csv:
+        with open('bom/test_files/test_new_parts.csv') as test_csv:
+            response = self.client.post(
+                reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertEqual(response.status_code, 302)
+
+        with open('bom/test_files/test_new_parts_2.csv') as test_csv:
             response = self.client.post(
                 reverse('bom:upload-parts'), {'file': test_csv})
         self.assertEqual(response.status_code, 302)

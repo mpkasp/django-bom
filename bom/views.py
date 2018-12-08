@@ -514,9 +514,9 @@ def upload_parts(request):
         form = FileForm(request.POST, request.FILES)
         if form.is_valid():
             csvfile = request.FILES['file']
-            # dialect = csv.Sniffer().sniff(csvfile.readline())
+            dialect = csv.Sniffer().sniff(csvfile.readline().decode('utf-8'))
             csvfile.open()
-            reader = csv.reader(codecs.iterdecode(csvfile, 'utf-8'))
+            reader = csv.reader(codecs.iterdecode(csvfile, 'utf-8'), dialect)
 
             try:
                 headers = [h.lower() for h in next(reader)]
@@ -534,8 +534,14 @@ def upload_parts(request):
                     mfg = None
                     if 'manufacturer_part_number' in partData:
                         mpn = partData['manufacturer_part_number']
+                    elif 'mpn' in partData:
+                        mpn = partData['mpn']
                     if 'manufacturer' in partData:
                         mfg_name = partData['manufacturer'] if partData['manufacturer'] is not None else ''
+                        mfg, created = Manufacturer.objects.get_or_create(
+                            name=mfg_name, organization=organization)
+                    elif 'mfg' in partData:
+                        mfg_name = partData['mfg'] if partData['mfg'] is not None else ''
                         mfg, created = Manufacturer.objects.get_or_create(
                             name=mfg_name, organization=organization)
 
