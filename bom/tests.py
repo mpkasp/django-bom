@@ -136,8 +136,9 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
+        new_part_mpn = 'STM32F401-NEW-PART'
         new_part_form_data = {
-            'manufacturer_part_number': 'STM32F401',
+            'manufacturer_part_number': new_part_mpn,
             'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
             'number_class': p1.number_class.id,
             'number_item': '',
@@ -149,6 +150,14 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
         self.assertEqual(response.status_code, 302)
         self.assertTrue('/part/' in response.url)
+
+        try:
+            created_part_id = response.url[6:-1]
+        except IndexError:
+            self.assertFalse(True, "Part maybe not created? Url looks like: {}".format(response.url))
+
+        created_part = Part.objects.get(id=created_part_id)
+        self.assertEqual(created_part.manufacturer_parts().first().manufacturer_part_number, new_part_mpn)
 
         new_part_form_data = {
             'manufacturer_part_number': 'STM32F401',
@@ -321,10 +330,12 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.get(reverse('bom:manufacturer-part-add-sellerpart', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+        response = self.client.get(reverse('bom:manufacturer-part-add-sellerpart',
+                                           kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
         self.assertEqual(response.status_code, 200)
 
-        response = self.client.post(reverse('bom:manufacturer-part-add-sellerpart', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+        response = self.client.post(reverse('bom:manufacturer-part-add-sellerpart',
+                                            kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
         self.assertEqual(response.status_code, 200)
 
         new_sellerpart_form_data = {
@@ -337,7 +348,9 @@ class TestBOM(TransactionTestCase):
             'ncnr': False,
         }
 
-        response = self.client.post(reverse('bom:manufacturer-part-add-sellerpart', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}), new_sellerpart_form_data)
+        response = self.client.post(reverse('bom:manufacturer-part-add-sellerpart',
+                                            kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}),
+                                    new_sellerpart_form_data)
         self.assertEqual(response.status_code, 302)
         self.assertTrue('/part/' in response.url)
 
@@ -353,7 +366,8 @@ class TestBOM(TransactionTestCase):
         self.client.login(username='kasper', password='ghostpassword')
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+        response = self.client.post(
+            reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
         self.assertEqual(response.status_code, 200)
 
         data = {
@@ -362,7 +376,9 @@ class TestBOM(TransactionTestCase):
             'name': '',
         }
 
-        response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}), data)
+        response = self.client.post(
+            reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}),
+            data)
         self.assertEqual(response.status_code, 302)
 
         data = {
@@ -372,7 +388,9 @@ class TestBOM(TransactionTestCase):
         }
 
         old_id = p1.primary_manufacturer_part.manufacturer.id
-        response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}), data)
+        response = self.client.post(
+            reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}),
+            data)
         self.assertEqual(response.status_code, 302)
         p1.refresh_from_db()
         self.assertNotEqual(p1.primary_manufacturer_part.manufacturer.id, old_id)
@@ -383,14 +401,17 @@ class TestBOM(TransactionTestCase):
             'name': '',
         }
 
-        response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}), data)
+        response = self.client.post(
+            reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}),
+            data)
         self.assertEqual(response.status_code, 200)  # 200 means it failed validation
 
     def test_manufacturer_part_delete(self):
         self.client.login(username='kasper', password='ghostpassword')
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        response = self.client.post(reverse('bom:manufacturer-part-delete', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+        response = self.client.post(
+            reverse('bom:manufacturer-part-delete', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
 
         self.assertEqual(response.status_code, 302)
 
@@ -439,13 +460,13 @@ class TestForms(TestCase):
         self.assertTrue(form.is_valid())
 
         new_part, created = Part.objects.get_or_create(
-                number_class=form.cleaned_data['number_class'],
-                number_item=form.cleaned_data['number_item'],
-                number_variation=form.cleaned_data['number_variation'],
-                organization=self.organization,
-                defaults={'description': form.cleaned_data['description'],
-                          'revision': form.cleaned_data['revision'],
-                          })
+            number_class=form.cleaned_data['number_class'],
+            number_item=form.cleaned_data['number_item'],
+            number_variation=form.cleaned_data['number_variation'],
+            organization=self.organization,
+            defaults={'description': form.cleaned_data['description'],
+                      'revision': form.cleaned_data['revision'],
+                      })
 
         self.assertTrue(created)
         self.assertEqual(new_part.number_class.id, pc2.id)

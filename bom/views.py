@@ -757,12 +757,12 @@ def create_part(request):
         manufacturer_form = ManufacturerForm(request.POST)
         manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
         if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
-            manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
+            mpn = manufacturer_part_form.cleaned_data['manufacturer_part_number']
             old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
             new_manufacturer_name = manufacturer_form.cleaned_data['name']
 
             manufacturer = None
-            if manufacturer_part_number:
+            if mpn:
                 if old_manufacturer and not new_manufacturer_name:
                     manufacturer = old_manufacturer
                 elif new_manufacturer_name and not old_manufacturer:
@@ -787,9 +787,11 @@ def create_part(request):
             if manufacturer is None:
                 manufacturer, created = Manufacturer.objects.get_or_create(organization=organization,
                                                                            name=organization.name)
-                manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=new_part,
-                                                                                    manufacturer_part_number=new_part.full_part_number(),
-                                                                                    manufacturer=manufacturer)
+
+            manufacturer_part, created = ManufacturerPart.objects.get_or_create(
+                part=new_part,
+                manufacturer_part_number=new_part.full_part_number() if mpn is None else mpn,
+                manufacturer=manufacturer)
 
             if new_part.primary_manufacturer_part is None and manufacturer_part is not None:
                 new_part.primary_manufacturer_part = manufacturer_part

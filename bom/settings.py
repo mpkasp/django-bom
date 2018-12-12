@@ -46,6 +46,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'social_django.middleware.SocialAuthExceptionMiddleware',
 ]
 
 ROOT_URLCONF = 'bom.urls'
@@ -177,6 +178,7 @@ LOGOUT_REDIRECT_URL = '/'
 
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/settings?tab_anchor=file'
 SOCIAL_AUTH_DISCONNECT_REDIRECT_URL = '/settings?tab_anchor=file'
+SOCIAL_AUTH_LOGIN_ERROR_URL = '/'
 
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile', 'https://www.googleapis.com/auth/drive',
                                    'https://www.googleapis.com/auth/plus.login']
