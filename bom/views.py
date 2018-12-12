@@ -514,15 +514,17 @@ def upload_parts(request):
         form = FileForm(request.POST, request.FILES)
         if form.is_valid():
             csvfile = request.FILES['file']
-            dialect = csv.Sniffer().sniff(csvfile.readline().decode('utf-8'))
-            csvfile.open()
-            reader = csv.reader(codecs.iterdecode(csvfile, 'utf-8'), dialect)
-
             try:
+                csvline_decoded = csvfile.readline().decode('utf-8')
+                dialect = csv.Sniffer().sniff(csvline_decoded)
+                csvfile.open()
+                reader = csv.reader(codecs.iterdecode(csvfile, 'utf-8'), dialect)
                 headers = [h.lower() for h in next(reader)]
             except UnicodeDecodeError as e:
                 messages.error(request, "CSV File Encoding error, try encoding your file as utf-8, and upload again. \
-                    If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to fix your issue!")
+                    If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to \
+                    fix your issue!")
+                messages.error(request, "Specific Error: {}".format(e))
                 return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
             for row in reader:
