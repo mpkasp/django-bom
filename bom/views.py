@@ -525,6 +525,7 @@ def upload_parts(request):
                     If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to \
                     fix your issue!")
                 messages.error(request, "Specific Error: {}".format(e))
+                logger.warning("UnicodeDecodeError: {}".format(e))
                 return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
             for row in reader:
