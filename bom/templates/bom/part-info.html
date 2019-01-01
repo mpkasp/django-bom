@@ -269,9 +269,9 @@
                             <td style="min-width: 0px;">{% if manufacturer_part.optimal_seller.data_source == 'octopart' %}<img title="Sourcing information via Octopart." style="width: 20px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img>{% endif %}</td>
                             <td colspan="2">
                                 <!-- Dropdown Trigger -->
-                                <a class='dropdown-trigger' href='#' data-target='dropdown1'><i class="material-icons green-text text-lighten-1">more_horiz</i></a>
+                                <a class='dropdown-trigger' href='#' data-target='dropdown{{ manufacturer_part.id }}'><i class="material-icons green-text text-lighten-1">more_horiz</i></a>
                                 <!-- Dropdown Structure -->
-                                <ul id='dropdown1' class='dropdown-content'>
+                                <ul id='dropdown{{ manufacturer_part.id }}' class='dropdown-content'>
                                     <li><a class="green-text text-lighten-1" href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}"><i class="material-icons green-text text-lighten-1">edit</i>edit</a></li>
                                     <li><a class="green-text text-lighten-1" href="{% url 'bom:manufacturer-part-add-sellerpart' manufacturer_part_id=manufacturer_part.id %}"><i class="material-icons green-text text-lighten-1">add</i>add seller part</a></li>
                                     <li><a class="green-text text-lighten-1" href="{% url 'bom:manufacturer-part-octopart-match' manufacturer_part_id=manufacturer_part.id %}"><i class="material-icons"><img title="Sourcing information via Octopart." src="{% static 'bom/img/octopart_blue.svg' %}"></img></i>find sellers</a></li>

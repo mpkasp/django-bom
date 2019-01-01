@@ -987,13 +987,14 @@ def add_sellerpart(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    title = "Add Seller Part"
 
     try:
         manufacturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
     except ObjectDoesNotExist:
         messages.error(request, "No manufacturer_part found with given manufacturer_part_id.")
         return HttpResponseRedirect(reverse('bom:error'))
+
+    title = "Add Seller Part to {}".format(manufacturer_part)
 
     if request.method == 'POST':
         form = SellerPartForm(request.POST, manufacturer_part=manufacturer_part, organization=organization)
