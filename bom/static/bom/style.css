@@ -4,6 +4,10 @@ html {
     line-height: normal;
 }
 
+main {
+    min-height: 100vh;
+}
+
 h1 {
     font-size: 3.3rem;
 }
@@ -76,10 +80,6 @@ td, tr {
     /*min-width: 100%;
     max-width: 110%;
     margin: 0 -5%;*/
-}
-
-.push-footer {
-    min-height: 100vh;
 }
 
 .autocomplete-content {

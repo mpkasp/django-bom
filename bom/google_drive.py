@@ -5,7 +5,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseRedirect
+from django.urls import reverse
 from social_django.utils import load_strategy
+from requests import HTTPError
 
 from .models import Part
 from .decorators import google_authenticated
@@ -14,7 +16,8 @@ from .decorators import google_authenticated
 # Helpers
 def get_service(user):
     social = user.social_auth.get(provider='google-oauth2')
-    access_token = social.get_access_token(load_strategy())
+    ls = load_strategy()
+    access_token = social.get_access_token(ls)
     credentials = Credentials(access_token)
     service = build('drive', 'v3', credentials=credentials)
     return service
@@ -82,7 +85,10 @@ def uninitialize_parent(backend, user, *args, **kwargs):
 def get_or_create_and_open_folder(request, part_id):
     user = request.user
     organization = user.bom_profile().organization
-    service = get_service(user)
+    try:
+        service = get_service(user)
+    except HTTPError as e:
+        return HttpResponseRedirect(reverse('social:begin', kwargs={'backend': "google-oauth2"}))
 
     if not organization.google_drive_parent:
         if user == organization.owner:
@@ -121,7 +127,10 @@ def get_or_create_and_open_folder(request, part_id):
 def update_folder_name(request, part_id):
     user = request.user
     organization = user.bom_profile().organization
-    service = get_service(user)
+    try:
+        service = get_service(user)
+    except HTTPError as e:
+        return HttpResponseRedirect(reverse('social:begin', kwargs={'backend': "google-oauth2"}))
 
     if not organization.google_drive_parent:
         create_root(user)
