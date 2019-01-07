@@ -101,4 +101,5 @@ bom/templates/registration/login.html
 django_bom.egg-info/PKG-INFO
 django_bom.egg-info/SOURCES.txt
 django_bom.egg-info/dependency_links.txt
+django_bom.egg-info/requires.txt
 django_bom.egg-info/top_level.txt

@@ -9,7 +9,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-bom',
-    version='1.52',
+    version='1.53',
     packages=find_packages(),
     include_package_data=True,
     license='MIT License',
@@ -29,5 +29,11 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
+    ],
+    install_requires=[
+        'python-social-auth',
+        'social-auth-app-django',
+        'google-api-python-client',
+        'django-materializecss-form',
     ],
 )

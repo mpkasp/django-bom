@@ -1,20 +1,21 @@
 # BOM
 
-BOM is a simple Django app to manage a bill of materials. It is
-a level up from an excel spreadsheet including an indented
-bill of materials, octopart price match, and more. It is written in Python 3.7 and Django 2.1.1.
+BOM is a simple Django app to manage a bill of materials. It is a level up from an excel spreadsheet including an indented bill of materials, Octopart price match, Google Drive integration, and more. It is written in Python 3.7 and Django 2.
+
+BOM can be added to an existing (or new) Django project, or stand alone on its own, which can be more convenient if you're interested in tweaking the tool. 
 
 An example of the app in use can be seen [here](https://www.indabom.com).
 
-If you already have a django project, you can skip to [Add Django Bom To Your App](#add-django-bom-to-your-app), otherwise [Start From Scratch](#start-from-scratch).
+If you already have a django project, you can skip to [Add Django Bom To Your App](#add-django-bom-to-your-app), otherwise [Start From Scratch: Add to new Django project](#start-from-scratch) to add it to a new django project, or [Start From Scratch: Use as standalone Django project](#start-from-scratch-standalone).
 
 ## Table of contents
-   * [Start From Scratch](#start-from-scratch)
+   * [Start From Scratch: Add to new Django project](#start-from-scratch)
    * [Add Django Bom To Your App](#add-django-bom-to-your-app)
+   * [Start From Scratch: Use as standalone Django project](#start-from-scratch-standalone)
    * [Customize Base Template](#customize-base-template)
    * [Octopart Integration](#octopart-integration)
    
-## Start From Scratch
+## Start From Scratch: Add to a new Django project
 1. To start from scratch we recommend setting up a virtual environment
 ```
 virtualenv -p python3 mysite
@@ -24,7 +25,7 @@ source bin/activate
 
 2. From here install django, and set up your project.
 ```
-pip install django==2.1.3
+pip install django
 django-admin startproject mysite
 cd mysite
 python manage.py migrate
@@ -46,19 +47,21 @@ pip install django-bom
 INSTALLED_APPS = [
     ...
     'bom',
+    'social_django', # to enable google drive sync in bom
+    'materializecssform',
 ]
 ```
 
 2. Update your URLconf in your project urls.py like this::
 
 ```
-url(r'^bom/', include('bom.urls')),
+path('bom/', include('bom.urls')),
 ```
 
 And don't forget to import include:
 
 ```
-from django.conf.urls import include, url
+from django.conf.urls import include
 ```
 
 3. Update your settings.py to add the bom context processor `'bom.context_processors.bom_config',` to your TEMPLATES variable, and create a new empty dictionary BOM_CONFIG.
@@ -89,6 +92,23 @@ BOM_CONFIG = {}
    to manage the bom (you'll need the Admin app enabled).
 
 6. Visit http://127.0.0.1:8000/bom/ to begin.
+
+   
+## Start From Scratch: Use as a standalone Django project
+1. To start from scratch we recommend setting up a virtual environment
+```
+virtualenv -p python3 mysite
+cd mysite
+source bin/activate
+```
+
+2. From here install django, and set up your project.
+```
+git clone https://github.com/mpkasp/django-bom.git
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
 
 ## Customize Base Template
 The base template can be customized to your pleasing. Just add the following configuration to your settings.py:
