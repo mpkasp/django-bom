@@ -2,9 +2,11 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 # from django.core.validators import DecimalValidator
 
-from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, Organization
+from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, Organization, ChangeHistory, AttributeHistory
 from .validators import decimal, alphanumeric, numeric
 from json import dumps
+
+import difflib
 
 
 class UserModelChoiceField(forms.ModelChoiceField):
@@ -122,6 +124,20 @@ class PartForm(forms.ModelForm):
             'description': 'E.g. CAPACITOR, CERAMIC, 100pF, 0402 50V, +/-5%',
         }
 
+    def update_attribute(attribute_str, new_number_item, new_number_variation, new_description, new_revision,part_id) :
+        history_ordered = ChangeHistory.objects.filter(part_id=part_id).order_by('-old_time_stamp')
+        id_list = list(history_ordered.values_list('id',flat=True))
+        try :
+            first_entry = getattr(history_ordered.get(pk=id_list[0]),attribute_str)
+            previous_entry = getattr(history_ordered.get(pk=id_list[1]),attribute_str)
+            d = difflib.SequenceMatcher(None, first_entry,previous_entry).ratio()
+            if d == 1.0:      #1.0 means no diff between old and new attributes
+                pass
+            else:
+                attribute_record = AttributeHistory(attribute=attribute_str, original_value=previous_entry, new_value=first_entry, part_id=part_id)
+                attribute_record.save()
+        except :
+            pass
 
 class SubpartForm(forms.ModelForm):
     class Meta:
@@ -183,7 +199,7 @@ class AddSellerPartForm(forms.Form):
     minimum_pack_quantity = forms.IntegerField(required=False,
         label='MPQ',
         validators=[numeric], widget=forms.TextInput(attrs={'placeholder': 'None'}))
-    unit_cost = forms.DecimalField(required=True, 
+    unit_cost = forms.DecimalField(required=True,
         label='Unit Cost',
         validators=[decimal, ],
         widget=forms.TextInput(attrs={'placeholder': '0.00'}))
