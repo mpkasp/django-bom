@@ -184,7 +184,7 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile', 'https://www.googleapis.c
                                    'https://www.googleapis.com/auth/plus.login']
 SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
     'access_type': 'offline',
-    'approval_prompt': 'auto'
+    'approval_prompt': 'force'  # forces storage of refresh token
 }
 
 SOCIAL_AUTH_PIPELINE = (
