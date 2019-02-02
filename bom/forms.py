@@ -144,7 +144,7 @@ class SubpartForm(forms.ModelForm):
             'number_class__code', 'number_item', 'number_variation')
         self.fields['assembly_subpart'].label_from_instance = \
             lambda obj: "%s" % obj.full_part_number(
-        ) + ' ' + obj.description
+            ) + ' ' + obj.description + ' ' + obj.primary_manufacturer_part
 
 
 class AddSubpartForm(forms.Form):
@@ -169,7 +169,7 @@ class AddSubpartForm(forms.Form):
             'number_class__code', 'number_item', 'number_variation')
         self.fields['assembly_subpart'].label_from_instance = \
             lambda obj: "%s" % obj.full_part_number(
-        ) + ' ' + obj.description
+            ) + ' ' + obj.description + ' ' + str(obj.primary_manufacturer_part)
 
 
 class AddSellerPartForm(forms.Form):

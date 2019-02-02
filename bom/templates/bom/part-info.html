@@ -184,8 +184,16 @@
                             <td class="text-normal">{{ subpart.quantity }}</td>
                             <td class="text-normal">{{ subpart.part.description }}</td>
                             <td class="text-normal">{{ subpart.part.revision }}</td>
-                            <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
-                            <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                            <td class="text-normal">
+                                {% for manufacturer_part in subpart.part.manufacturer_parts %}
+                                    {{ manufacturer_part.manufacturer.name }}<br>
+                                {% endfor %}
+                            </td>
+                            <td class="text-normal">
+                                {% for manufacturer_part in subpart.part.manufacturer_parts %}
+                                    {{ manufacturer_part.manufacturer_part_number }}<br>
+                                {% endfor %}
+                            </td>
                                 <!-- <td class="text-normal">{{ subpart.extended_quantity }}</td> -->
                             <!-- <td class="text-normal">{{ subpart.order_quantity }}</td> -->
                             <td class="text-normal">{% if subpart.seller_part.data_source == 'octopart' %}<img title="Seller via Octopart." style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img>&nbsp;{% endif %}{{ subpart.seller_part.seller.name | default:"-" }}</td>
