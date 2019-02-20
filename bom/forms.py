@@ -2,7 +2,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 # from django.core.validators import DecimalValidator
 
-from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, Organization, ChangeHistory, AttributeHistory
+from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, Organization, PartChangeHistory
 from .validators import decimal, alphanumeric, numeric
 from json import dumps
 
@@ -125,17 +125,26 @@ class PartForm(forms.ModelForm):
         }
 
     def update_attribute(attribute_str, new_number_item, new_number_variation, new_description, new_revision,part_id) :
-        history_ordered = ChangeHistory.objects.filter(part_id=part_id).order_by('-old_time_stamp')
+        history_ordered = PartChangeHistory.objects.filter(part_id=part_id).order_by('-old_time_stamp')
         id_list = list(history_ordered.values_list('id',flat=True))
         try :
-            first_entry = getattr(history_ordered.get(pk=id_list[0]),attribute_str)
-            previous_entry = getattr(history_ordered.get(pk=id_list[1]),attribute_str)
-            d = difflib.SequenceMatcher(None, first_entry,previous_entry).ratio()
+            old_entry = getattr(history_ordered.get(pk=id_list[0]), attribute_str)
+
+            if attribute_str == 'old_description':
+                new_entry = new_description
+            elif attribute_str == 'old_number_item':
+                new_entry = new_number_item
+            elif attribute_str == 'old_number_variation':
+                new_entry = new_number_variation
+            elif attribute_str == 'old_revision':
+                new_entry = new_revision
+
+            d = difflib.SequenceMatcher(None, old_entry,new_entry).ratio()
             if d == 1.0:      #1.0 means no diff between old and new attributes
                 pass
             else:
-                attribute_record = AttributeHistory(attribute=attribute_str, original_value=previous_entry, new_value=first_entry, part_id=part_id)
-                attribute_record.save()
+                attribute_record = [attribute_str, new_entry, old_entry]
+                return attribute_record
         except :
             pass
 
