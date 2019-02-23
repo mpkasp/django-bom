@@ -3,6 +3,7 @@ import codecs
 import logging
 import os
 import sys
+import difflib
 
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.template.response import TemplateResponse
@@ -22,7 +23,7 @@ from math import ceil
 
 from .convert import full_part_number_to_broken_part
 from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer, ManufacturerPart, User, \
-    UserMeta
+    UserMeta, PartChangeHistory
 from .forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
     ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm
 from .octopart import match_part, get_latest_datasheets
@@ -172,6 +173,8 @@ def part_info(request, part_id):
         messages.error(request, "Part object does not exist.")
         return HttpResponseRedirect(reverse('bom:error'))
 
+    attribute_history = PartChangeHistory.objects.filter(part=part_id).order_by('-attribute_time_stamp')
+
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
         return HttpResponseRedirect(reverse('bom:error'))
@@ -256,7 +259,7 @@ def part_info(request, part_id):
     #     # anchor = 'bom'
     #     tab_anchor = None
 
-    return TemplateResponse(request, 'bom/part-info.html', locals())
+    return TemplateResponse(request, 'bom/part-info.html', locals(), {'attribute_history': attribute_history})
 
 
 @login_required
@@ -800,6 +803,13 @@ def create_part(request):
                 new_part.primary_manufacturer_part = manufacturer_part
                 new_part.save()
 
+            new_number_item = request.POST.get('number_item')
+            new_number_variation = request.POST.get('number_variation')
+            new_description = request.POST.get('description')
+            new_revision = request.POST.get('revision')
+            history = PartChangeHistory(old_number_item=new_number_item,old_number_variation=new_number_variation, old_description=new_description, old_revision=new_revision, part=new_part, attribute= "Part was Created", original_value="N/A", new_value="N/A")
+            history.save()
+
             return HttpResponseRedirect(
                 reverse('bom:part-info', kwargs={'part_id': str(new_part.id)}))
     else:
@@ -818,15 +828,40 @@ def part_edit(request, part_id):
 
     try:
         part = Part.objects.get(id=part_id)
+
+        existing_number_item = part.number_item
+        existing_number_variation = part.number_variation
+        existing_description = part.description
+        existing_revision = part.revision
+
+
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
         return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
         form = PartForm(request.POST, instance=part)
-        if form.is_valid():
-            form.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
+        new_number_item = request.POST.get('number_item')
+        new_number_variation = request.POST.get('number_variation')
+        new_description = request.POST.get('description')
+        new_revision = request.POST.get('revision')
+
+
+        old_attribute_list = ['old_description','old_number_item','old_number_variation','old_revision']
+
+        for attribute_str in old_attribute_list:
+            check_delta = PartForm.update_attribute(attribute_str, new_number_item, new_number_variation, new_description, new_revision,part_id)
+            if check_delta != None:
+                if form.is_valid():
+                    form.save()
+                    history = PartChangeHistory(old_number_item=new_number_item,old_number_variation=new_number_variation, old_description=new_description, old_revision=new_revision, part=part, attribute =check_delta[0], original_value=check_delta[2], new_value=check_delta[1])
+                    history.save()
+            else:
+                if form.is_valid():
+                    form.save()
+                pass
+
+        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
         form = PartForm(instance=part)
 
@@ -898,17 +933,41 @@ def add_subpart(request, part_id):
                 reference=form.cleaned_data['reference'],
             )
 
+            attribute = "BOM Update: New subpart added"
+            original_value = "N/A"
+            new_value = form.cleaned_data['assembly_subpart']
+
+            existing_number_item = Part.objects.get(id=part_id).number_item
+            existing_number_variation = Part.objects.get(id=part_id).number_variation
+            existing_description = Part.objects.get(id=part_id).description
+            existing_revision = Part.objects.get(id=part_id).revision
+
+            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation, old_description=existing_description, old_revision=existing_revision, part=part, attribute =attribute, original_value=original_value, new_value=new_value)
+            h.save()
+
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
 
 @login_required
 def remove_subpart(request, part_id, subpart_id):
     try:
+        part = Part.objects.get(id=part_id)
         subpart = Subpart.objects.get(id=subpart_id)
     except ObjectDoesNotExist:
         messages.error(request, "No subpart found with given part_id.")
         return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#bom')
 
+    attribute = "BOM Update: Existing subpart removed"
+    original_value = subpart.assembly_subpart
+    new_value = "N/A"
+
+    existing_number_item = Part.objects.get(id=part_id).number_item
+    existing_number_variation = Part.objects.get(id=part_id).number_variation
+    existing_description = Part.objects.get(id=part_id).description
+    existing_revision = Part.objects.get(id=part_id).revision
+
+    h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation, old_description=existing_description, old_revision=existing_revision, part=part, attribute =attribute, original_value=original_value, new_value=new_value)
+    h.save()
     subpart.delete()
 
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
@@ -921,7 +980,13 @@ def edit_subpart(request, part_id, subpart_id):
     action = reverse('bom:part-edit-subpart', kwargs={'part_id': part_id, 'subpart_id': subpart_id})
 
     try:
+        part = Part.objects.get(id=part_id)
         subpart = Subpart.objects.get(id=subpart_id)
+
+        existing_assembly_subpart = subpart.assembly_subpart
+        existing_count = subpart.count
+        existing_reference = subpart.reference
+
     except ObjectDoesNotExist:
         messages.error(request, "No subpart found with given subpart_id.")
         return HttpResponseRedirect(reverse('bom:error'))
@@ -932,6 +997,18 @@ def edit_subpart(request, part_id, subpart_id):
     if request.method == 'POST':
         form = SubpartForm(request.POST, instance=subpart, organization=organization)
         if form.is_valid():
+            attribute = "BOM Update: Existing subpart was edited"
+            original_value = str(existing_assembly_subpart) + ", " + str(existing_count) + ", " + str(existing_reference)
+            new_value = str(form.cleaned_data['assembly_subpart']) + ", " + str(form.cleaned_data['count']) + ", " + str(form.cleaned_data['reference'])
+
+            existing_number_item = Part.objects.get(id=part_id).number_item
+            existing_number_variation = Part.objects.get(id=part_id).number_variation
+            existing_description = Part.objects.get(id=part_id).description
+            existing_revision = Part.objects.get(id=part_id).revision
+
+            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation, old_description=existing_description, old_revision=existing_revision, part=part, attribute =attribute, original_value=original_value, new_value=new_value)
+            h.save()
+
             form.save()
             return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
     else:
@@ -1046,6 +1123,18 @@ def add_manufacturer_part(request, part_id):
                 part.primary_manufacturer_part = manufacturer_part
                 part.save()
 
+            attribute = "New Manufacturer Part"
+            original_value = "N/A"
+            new_value = manufacturer_part_number + ", " + str(manufacturer)
+
+            existing_number_item = Part.objects.get(manufacturerpart=manufacturer_part).number_item
+            existing_number_variation = Part.objects.get(manufacturerpart=manufacturer_part).number_variation
+            existing_description = Part.objects.get(manufacturerpart=manufacturer_part).description
+            existing_revision = Part.objects.get(manufacturerpart=manufacturer_part).revision
+
+            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation, old_description=existing_description, old_revision=existing_revision, part=part, attribute =attribute, original_value=original_value, new_value=new_value)
+            h.save()
+
             return HttpResponseRedirect(
                 reverse('bom:part-info', kwargs={'part_id': str(part.id)}) + '?tab_anchor=sourcing')
         else:
@@ -1126,6 +1215,19 @@ def manufacturer_part_delete(request, manufacturer_part_id):
         return HttpResponseRedirect(reverse('bom:error'))
 
     part = manufacturer_part.part
+
+    attribute = "Delete Manufacturer Part"
+    original_value = manufacturer_part.manufacturer_part_number + ", " + str(manufacturer_part.manufacturer)
+    new_value = "N/A"
+
+    existing_number_item = Part.objects.get(manufacturerpart=manufacturer_part).number_item
+    existing_number_variation = Part.objects.get(manufacturerpart=manufacturer_part).number_variation
+    existing_description = Part.objects.get(manufacturerpart=manufacturer_part).description
+    existing_revision = Part.objects.get(manufacturerpart=manufacturer_part).revision
+
+    h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation, old_description=existing_description, old_revision=existing_revision, part=part, attribute =attribute, original_value=original_value, new_value=new_value)
+    h.save()
+
     manufacturer_part.delete()
 
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')

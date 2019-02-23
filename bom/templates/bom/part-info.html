@@ -43,6 +43,7 @@
                 <li class="tab"><a href="#bom">Bill of Materials</a></li>
                 <li class="tab"><a href="#used">Where Used</a></li>
                 <li class="tab"><a href="#sourcing">Sourcing</a></li>
+                <li class="tab"><a href="#history">Change History</a></li>
             </ul>
         </div>
 
@@ -308,7 +309,7 @@
                             <td colspan="99" style="text-align: center;"><i>This manufacturer part has no sellers entered yet.</i></td>
                         </tr>
                         {% endfor %}
-                    {% empty %}
+                        {% empty %}
                         <tr>
                             <td colspan="99" style="text-align: center;"><i>This part has no manufacturer parts.</i></td>
                         </tr>
@@ -321,6 +322,31 @@
                 <a class="btn green lighten-1 waves-button-input" href="{% url 'bom:part-octopart-match' part_id=part.id %}" style="margin: 10px;">Find Sellers From Octopart</a>
             </div>
         </div>
+
+        <div id="history" class="col s12">
+            <div class="responsive-table-wrapper">
+                <table id="change-history" class="highlight tight treetable">
+                    <thead>
+                        <tr>
+                            <th>Attribute</th>
+                            <th>Time Stamp</th>
+                            <th>Orignial Value</th>
+                            <th>New Value</th>
+                            <th colspan=2></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in attribute_history.all %}
+                        <tr data-tt-id="{{ a.id }}">
+                            <td>{{ a.attribute }}</td>
+                            <td>{{ a.attribute_time_stamp }}</td>
+                            <td>{{ a.original_value }}</td>
+                            <td>{{ a.new_value }}</td>
+                        </tr>
+                       {% endfor %}
+                    </tbody>
+                </table>
+            </div>
     </div>
 </div>
 {% endblock %}
@@ -329,16 +355,16 @@
 <!-- Tree Table -->
 <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
 <script>
-    $("#indented-bom").treetable({ 
-        expandable: true, 
+    $("#indented-bom").treetable({
+        expandable: true,
         indent: 2,
         initialState: 'collapsed',
         onInitialized: function () {
                 $("#indented-bom").treetable("reveal", {{ part.id }});
             }
     });
-    $("#manufacturer-parts").treetable({ 
-        expandable: true, 
+    $("#manufacturer-parts").treetable({
+        expandable: true,
         indent: 2,
         initialState: 'collapsed',
     });
@@ -366,7 +392,7 @@
           stopPropagation: false // Stops event propagation
         }
       );
-     
+
     });
 </script>
 

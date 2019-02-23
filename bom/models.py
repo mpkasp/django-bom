@@ -217,6 +217,19 @@ class Part(models.Model):
         return u'%s' % (self.full_part_number())
 
 
+class PartChangeHistory(models.Model):
+    part = models.ForeignKey(Part, on_delete=models.CASCADE)
+    old_number_item = models.CharField(max_length=4, default=None, blank=True, validators=[numeric])
+    old_number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
+    old_description = models.CharField(max_length=255, default=None)
+    old_revision = models.CharField(max_length=2)
+    old_time_stamp = models.DateTimeField(auto_now=True)
+    attribute = models.CharField(max_length=255, default=None)
+    original_value = models.CharField(max_length=255, default=None)
+    new_value = models.CharField(max_length=255, default=None)
+    attribute_time_stamp = models.DateTimeField(auto_now=True)
+
+
 class Subpart(models.Model):
     assembly_part = models.ForeignKey(
         Part, related_name='assembly_part', null=True, on_delete=models.CASCADE)
