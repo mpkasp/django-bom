@@ -218,7 +218,7 @@ class Part(models.Model):
 
 
 class PartChangeHistory(models.Model):
-    part_id = models.ForeignKey(Part, on_delete=models.CASCADE)
+    part = models.ForeignKey(Part, on_delete=models.CASCADE)
     old_number_item = models.CharField(max_length=4, default=None, blank=True, validators=[numeric])
     old_number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
     old_description = models.CharField(max_length=255, default=None)
