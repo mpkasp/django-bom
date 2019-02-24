@@ -225,7 +225,7 @@ class TestBOM(TransactionTestCase):
                 'bom:part-edit',
                 kwargs={
                     'part_id': p1.id}))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     def test_part_delete(self):
         self.client.login(username='kasper', password='ghostpassword')
