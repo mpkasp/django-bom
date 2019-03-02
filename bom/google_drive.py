@@ -114,10 +114,18 @@ def get_or_create_and_open_folder(request, part_id):
         except HttpError:
             if user == organization.owner:
                 # if they aren't the owner, let's just try to go to the folder...
-                create_part_folder(user, part)
+                try:
+                    create_part_folder(user, part)
+                except HttpError as e:
+                    messages.error(request, "Error: {}".format(e))
+                    return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
     # TODO: Check if the folder name exists already before creating it ?
     else:
-        create_part_folder(user, part)
+        try:
+            create_part_folder(user, part)
+        except HttpError as e:
+            messages.error(request, "Error: {}".format(e))
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
     return HttpResponseRedirect('https://drive.google.com/drive/folders/{}'.format(part.google_drive_parent))
 
