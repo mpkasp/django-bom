@@ -151,3 +151,9 @@ And if you're using https on production add:
 ```
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = not DEBUG
 ```
+
+## Contributing
+
+Contributions welcome! Before contributing your work please read the [contributing readme](https://github.com/mpkasp/django-bom/blob/master/CONTRIBUTING.md).
+
+Also reach out to mike@indabom.com to discuss features, and join our slack channel.
