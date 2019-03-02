@@ -4,9 +4,8 @@ from django.contrib.auth.models import User
 from unittest import skip
 
 from .helpers import create_some_fake_parts, create_a_fake_organization, \
-    create_a_fake_subpart, create_a_fake_partfile, \
-    create_some_fake_part_classes, create_some_fake_manufacturers
-from .models import PartFile, Part, SellerPart, ManufacturerPart, Seller
+    create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers
+from .models import Part, SellerPart, ManufacturerPart, Seller
 from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
 from .octopart import match_part
 
@@ -277,39 +276,6 @@ class TestBOM(TransactionTestCase):
                     'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
 
-    def test_upload_file_to_part_and_delete(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        with open('bom/test_files/test_parts.csv') as test_csv:
-            response = self.client.post(
-                reverse('bom:part-upload-partfile', kwargs={'part_id': p1.id}),
-                {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
-
-        partfiles = PartFile.objects.filter(part=p1)
-        for pf in partfiles:
-            response = self.client.post(
-                reverse(
-                    'bom:part-delete-partfile',
-                    kwargs={
-                        'part_id': p1.id,
-                        'partfile_id': pf.id}))
-            self.assertEqual(response.status_code, 302)
-
-    def test_delete_file_from_part(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        with open('bom/test_files/test_parts.csv') as test_csv:
-            pf1 = create_a_fake_partfile(test_csv, p1)
-            response = self.client.post(
-                reverse(
-                    'bom:part-delete-partfile',
-                    kwargs={
-                        'part_id': p1.id,
-                        'partfile_id': pf1.id}))
-        self.assertEqual(response.status_code, 302)
 
     def test_upload_parts(self):
         self.client.login(username='kasper', password='ghostpassword')

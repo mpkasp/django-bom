@@ -3,7 +3,6 @@ import codecs
 import logging
 import os
 import sys
-import difflib
 
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.template.response import TemplateResponse
@@ -22,7 +21,7 @@ from json import loads, dumps
 from math import ceil
 
 from .convert import full_part_number_to_broken_part
-from .models import Part, PartClass, Subpart, SellerPart, Organization, PartFile, Manufacturer, ManufacturerPart, User, \
+from .models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, \
     UserMeta, PartChangeHistory
 from .forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
     ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm
@@ -1039,38 +1038,6 @@ def remove_all_subparts(request, part_id):
         subpart.delete()
 
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
-
-
-@login_required
-def upload_file_to_part(request, part_id):
-    try:
-        part = Part.objects.get(id=part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
-
-    if request.method == 'POST':
-        form = FileForm(request.POST, request.FILES)
-        if form.is_valid():
-            partfile = PartFile(file=request.FILES['file'], part=part)
-            partfile.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '?tab_anchor=specs')
-
-    messages.error(request, "Error uploading file.")
-    return HttpResponseRedirect(reverse('bom:error'))
-
-
-@login_required
-def delete_file_from_part(request, part_id, partfile_id):
-    try:
-        partfile = PartFile.objects.get(id=partfile_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "No file found with given file id.")
-        return HttpResponseRedirect(reverse('bom:error'))
-
-    partfile.delete()
-
-    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '?tab_anchor=specs')
 
 
 @login_required

@@ -66,38 +66,37 @@ class Manufacturer(models.Model):
 
 # Numbering scheme is hard coded for now, may want to change this to a
 # setting depending on a part numbering scheme
+# Part contains the root information for a component. Parts have attributes that can be changed over time
+# (see PartChangeHistory). Part numbers can be changed over time, but these cannot be tracked, as it is not a practice
+# that should be done often.
 class Part(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    number_class = models.ForeignKey(
-        PartClass, default=None, related_name='number_class', on_delete=models.PROTECT)
+    number_class = models.ForeignKey(PartClass, default=None, related_name='number_class', on_delete=models.PROTECT)
     number_item = models.CharField(max_length=4, default=None, blank=True, validators=[numeric])
     number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
-    description = models.CharField(max_length=255, default=None)
-    revision = models.CharField(max_length=2)
     primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True,
                                                   on_delete=models.SET_NULL, related_name='primary_manufacturer_part')
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
-    subparts = models.ManyToManyField(
-        'self',
-        blank=True,
-        symmetrical=False,
-        through='Subpart',
-        through_fields=(
-            'assembly_part',
-            'assembly_subpart'))
 
     class Meta():
         unique_together = ['number_class', 'number_item', 'number_variation', 'organization', ]
 
     def full_part_number(self):
-        return "{0}-{1}-{2}".format(self.number_class.code,
-                                    self.number_item, self.number_variation)
+        return "{0}-{1}-{2}".format(self.number_class.code, self.number_item, self.number_variation)
+
+    def description(self):
+        return self.latest().description
+
+    def latest(self):
+        return self.revisions().order_by('revision').first()
+
+    def revisions(self):
+        return PartChangeHistory.objects.filter(part=self)
 
     def seller_parts(self):
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
-        return SellerPart.objects.filter(
-            manufacturer_part__in=manufacturer_parts).order_by(
-            'seller', 'minimum_order_quantity')
+        return SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts) \
+            .order_by('seller', 'minimum_order_quantity')
 
     def manufacturer_parts(self):
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
@@ -120,9 +119,6 @@ class Part(models.Model):
         where_used_given_part(used_in_parts, self)
         return list(used_in_parts)
 
-    def files(self):
-        partfiles = PartFile.objects.filter(part=self)
-        return partfiles
 
     def indented(self):
         def indented_given_bom(bom, part, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
@@ -136,7 +132,7 @@ class Part(models.Model):
             })
 
             indent_level = indent_level + 1
-            if (len(part.subparts.all()) == 0):
+            if len(part.subparts.all()) == 0:
                 return
             else:
                 for sp in part.subparts.all():
@@ -217,26 +213,29 @@ class Part(models.Model):
         return u'%s' % (self.full_part_number())
 
 
+# Below are attributes of a part that can be changed, but it's important to trace the change over time
 class PartChangeHistory(models.Model):
-    part = models.ForeignKey(Part, on_delete=models.CASCADE)
-    old_number_item = models.CharField(max_length=4, default=None, blank=True, validators=[numeric])
-    old_number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
-    old_description = models.CharField(max_length=255, default=None)
-    old_revision = models.CharField(max_length=2)
-    old_time_stamp = models.DateTimeField(auto_now=True)
+    part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
+    timestamp = models.DateTimeField(auto_now=True)
+    description = models.CharField(max_length=255, default=None)
+    revision = models.CharField(max_length=2, db_index=True)
     attribute = models.CharField(max_length=255, default=None)
-    original_value = models.CharField(max_length=255, default=None)
-    new_value = models.CharField(max_length=255, default=None)
-    attribute_time_stamp = models.DateTimeField(auto_now=True)
+    value = models.CharField(max_length=255, default=None)
+    assembly = models.ForeignKey('Assembly', default=None, on_delete=models.PROTECT) # Needs to point to a bunch of other PartChangeHistories
 
 
 class Subpart(models.Model):
-    assembly_part = models.ForeignKey(
-        Part, related_name='assembly_part', null=True, on_delete=models.CASCADE)
+    # assembly_part = models.ForeignKey(
+    #     Assembly, related_name='assembly_part', null=True, on_delete=models.CASCADE)
     assembly_subpart = models.ForeignKey(
-        Part, related_name='assembly_subpart', null=True, on_delete=models.CASCADE)
+        PartChangeHistory, related_name='assembly_subpart', null=True, on_delete=models.CASCADE)
     count = models.IntegerField(default=1)
     reference = models.TextField(default='', blank=True, null=True)
+
+
+class Assembly(models.Model):
+    subparts = models.ManyToManyField(Subpart)
+
 
     def clean(self):
         unusable_parts = self.assembly_part.where_used()
@@ -322,14 +321,3 @@ class SellerPart(models.Model):
 
     def __str__(self):
         return u'%s' % (self.manufacturer_part.part.full_part_number() + ' ' + self.seller.name)
-
-
-class PartFile(models.Model):
-    file = models.FileField(upload_to='partfiles/')
-    upload_date = models.DateField(auto_now=True)
-    part = models.ForeignKey(Part, on_delete=models.CASCADE)
-
-
-@receiver(post_delete, sender=PartFile)
-def partfile_post_delete_handler(sender, instance, **kwargs):
-    instance.file.delete(False)

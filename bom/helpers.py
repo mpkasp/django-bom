@@ -154,10 +154,3 @@ def create_some_fake_parts(organization):
         nre_cost=1)
 
     return pt1, pt2, pt3
-
-
-def create_a_fake_partfile(file, part):
-    pf1 = PartFile(file=None, part=part)
-    pf1.save()
-
-    return pf1

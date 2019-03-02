@@ -24,7 +24,7 @@ class SubpartInline(admin.TabularInline):
     readonly_fields = ('get_full_part_number', )
 
     def get_full_part_number(self, obj):
-        return obj.assembly_subpart.full_part_number()
+        return obj.assembly_subpart.part.full_part_number()
     get_full_part_number.short_description = 'PartNumber'
 
 
@@ -65,20 +65,6 @@ class ManufacturerPartAdminInline(admin.TabularInline):
     raw_id_fields = ('part', 'manufacturer', )
 
 
-class PartFileAdmin(admin.ModelAdmin):
-    list_display = ('file', 'upload_date', 'get_full_part_number')
-    raw_id_fields = ('part',)
-
-    def get_full_part_number(self, obj):
-        return obj.part.full_part_number()
-    get_full_part_number.short_description = 'PartNumber'
-
-
-class PartFileAdminInline(admin.TabularInline):
-    model = PartFile
-    raw_id_fields = ('part', )
-
-
 class PartClassAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'comment', )
 
@@ -89,20 +75,21 @@ class PartAdmin(admin.ModelAdmin):
     list_display = (
         'organization',
         'get_full_part_number',
-        'revision',
-        'description',
     )
     raw_id_fields = ('number_class', 'primary_manufacturer_part', )
     inlines = [
-        SubpartInline,
+        # SubpartInline,
         ManufacturerPartAdminInline,
-        PartFileAdminInline,
     ]
 
     def get_full_part_number(self, obj):
         return obj.full_part_number()
     get_full_part_number.short_description = 'PartNumber'
     get_full_part_number.admin_order_field = 'number_class__part_number'
+
+
+class PartChangeHistoryAdmin(admin.ModelAdmin):
+    list_display = ('part', 'timestamp', )
 
 
 class ManufacturerAdmin(admin.ModelAdmin):
@@ -118,5 +105,5 @@ admin.site.register(SellerPart, SellerPartAdmin)
 admin.site.register(ManufacturerPart, ManufacturerPartAdmin)
 admin.site.register(PartClass, PartClassAdmin)
 admin.site.register(Part, PartAdmin)
+admin.site.register(PartChangeHistory, PartChangeHistoryAdmin)
 admin.site.register(Manufacturer, ManufacturerAdmin)
-admin.site.register(PartFile, PartFileAdmin)
