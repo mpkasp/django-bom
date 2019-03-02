@@ -143,7 +143,7 @@ def create_some_fake_parts(organization):
         moq=1000,
         mpq=5000,
         unit_cost=0.1005,
-        lead_time_days=7,)
+        lead_time_days=7, )
     create_a_fake_seller_part(
         s2,
         mp2,

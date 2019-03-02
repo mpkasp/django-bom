@@ -2,7 +2,8 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 # from django.core.validators import DecimalValidator
 
-from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, Organization, PartChangeHistory
+from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
+    Organization, PartChangeHistory
 from .validators import decimal, alphanumeric, numeric
 from json import dumps
 
@@ -29,7 +30,8 @@ class UserProfileForm(forms.ModelForm):
 class OrganizationForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(OrganizationForm, self).__init__(*args, **kwargs)
-        user_queryset = User.objects.filter(id__in=UserMeta.objects.filter(organization=self.instance)).order_by('first_name')
+        user_queryset = User.objects.filter(id__in=UserMeta.objects.filter(organization=self.instance)).order_by(
+            'first_name')
         self.fields['owner'] = UserModelChoiceField(queryset=user_queryset, label='Owner', required=True)
 
     class Meta:
@@ -66,8 +68,10 @@ class ManufacturerPartForm(forms.ModelForm):
 
 
 class SellerPartForm(forms.ModelForm):
-    new_seller = forms.CharField(max_length=128, label='-or- Create new seller (leave blank if selecting)', required=False)
-    field_order = ['seller', 'new_seller', 'unit_cost', 'nre_cost', 'lead_time_days', 'minimum_order_quantity', 'minimum_pack_quantity', ]
+    new_seller = forms.CharField(max_length=128, label='-or- Create new seller (leave blank if selecting)',
+                                 required=False)
+    field_order = ['seller', 'new_seller', 'unit_cost', 'nre_cost', 'lead_time_days', 'minimum_order_quantity',
+                   'minimum_pack_quantity', ]
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
@@ -93,7 +97,8 @@ class SellerPartForm(forms.ModelForm):
                 ('Cannot have a seller and a new seller.'),
                 code='invalid')
         elif new_seller:
-            obj, created = Seller.objects.get_or_create(name__iexact=new_seller, organization=self.organization, defaults={'name': new_seller})
+            obj, created = Seller.objects.get_or_create(name__iexact=new_seller, organization=self.organization,
+                                                        defaults={'name': new_seller})
             cleaned_data['seller'] = obj
         elif not seller:
             raise forms.ValidationError(
@@ -102,7 +107,8 @@ class SellerPartForm(forms.ModelForm):
 
 
 class PartForm(forms.ModelForm):
-    number_class = forms.ModelChoiceField(queryset=PartClass.objects.all(), empty_label="- Select Part Number Class -", label='Part Number Class*', required=True)
+    number_class = forms.ModelChoiceField(queryset=PartClass.objects.all(), empty_label="- Select Part Number Class -",
+                                          label='Part Number Class*', required=True)
 
     def __init__(self, *args, **kwargs):
         super(PartForm, self).__init__(*args, **kwargs)
@@ -124,10 +130,10 @@ class PartForm(forms.ModelForm):
             'description': 'E.g. CAPACITOR, CERAMIC, 100pF, 0402 50V, +/-5%',
         }
 
-    def update_attribute(attribute_str, new_number_item, new_number_variation, new_description, new_revision,part_id) :
+    def update_attribute(attribute_str, new_number_item, new_number_variation, new_description, new_revision, part_id):
         history_ordered = PartChangeHistory.objects.filter(part_id=part_id).order_by('-old_time_stamp')
-        id_list = list(history_ordered.values_list('id',flat=True))
-        try :
+        id_list = list(history_ordered.values_list('id', flat=True))
+        try:
             old_entry = getattr(history_ordered.get(pk=id_list[0]), attribute_str)
 
             if attribute_str == 'old_description':
@@ -139,14 +145,15 @@ class PartForm(forms.ModelForm):
             elif attribute_str == 'old_revision':
                 new_entry = new_revision
 
-            d = difflib.SequenceMatcher(None, old_entry,new_entry).ratio()
-            if d == 1.0:      #1.0 means no diff between old and new attributes
+            d = difflib.SequenceMatcher(None, old_entry, new_entry).ratio()
+            if d == 1.0:  # 1.0 means no diff between old and new attributes
                 pass
             else:
                 attribute_record = [attribute_str, new_entry, old_entry]
                 return attribute_record
-        except :
+        except:
             pass
+
 
 class SubpartForm(forms.ModelForm):
     class Meta:
@@ -200,26 +207,27 @@ class AddSubpartForm(forms.Form):
 class AddSellerPartForm(forms.Form):
     seller = forms.ModelChoiceField(queryset=Seller.objects.none(), required=False, label="Seller")
     new_seller = forms.CharField(max_length=128, label='Create New Seller', required=False,
-        widget=forms.TextInput(attrs={'placeholder': 'Leave blank if selecting a seller.'}))
+                                 widget=forms.TextInput(attrs={'placeholder': 'Leave blank if selecting a seller.'}))
     minimum_order_quantity = forms.IntegerField(required=False,
-        label='MOQ',
-        validators=[numeric],
-        widget=forms.TextInput(attrs={'placeholder': 'None'}))
+                                                label='MOQ',
+                                                validators=[numeric],
+                                                widget=forms.TextInput(attrs={'placeholder': 'None'}))
     minimum_pack_quantity = forms.IntegerField(required=False,
-        label='MPQ',
-        validators=[numeric], widget=forms.TextInput(attrs={'placeholder': 'None'}))
+                                               label='MPQ',
+                                               validators=[numeric],
+                                               widget=forms.TextInput(attrs={'placeholder': 'None'}))
     unit_cost = forms.DecimalField(required=True,
-        label='Unit Cost',
-        validators=[decimal, ],
-        widget=forms.TextInput(attrs={'placeholder': '0.00'}))
+                                   label='Unit Cost',
+                                   validators=[decimal, ],
+                                   widget=forms.TextInput(attrs={'placeholder': '0.00'}))
     lead_time_days = forms.IntegerField(required=False,
-        label='Lead Time (days)',
-        validators=[numeric],
-        widget=forms.TextInput(attrs={'placeholder': 'None'}))
+                                        label='Lead Time (days)',
+                                        validators=[numeric],
+                                        widget=forms.TextInput(attrs={'placeholder': 'None'}))
     nre_cost = forms.DecimalField(required=False,
-        label='NRE Cost',
-        validators=[decimal, ],
-        widget=forms.TextInput(attrs={'placeholder': 'None'}))
+                                  label='NRE Cost',
+                                  validators=[decimal, ],
+                                  widget=forms.TextInput(attrs={'placeholder': 'None'}))
     ncnr = forms.BooleanField(required=False, label='NCNR')
 
     def __init__(self, *args, **kwargs):
@@ -238,12 +246,14 @@ class AddSellerPartForm(forms.Form):
                 ('Cannot have a seller and a new seller.'),
                 code='invalid')
         elif new_seller:
-            obj, created = Seller.objects.get_or_create(name__iexact=new_seller, organization=self.organization, defaults={'name': new_seller})
+            obj, created = Seller.objects.get_or_create(name__iexact=new_seller, organization=self.organization,
+                                                        defaults={'name': new_seller})
             cleaned_data['seller'] = obj
         elif not seller:
             raise forms.ValidationError(
                 ('Must specify a seller.'),
                 code='invalid')
+
 
 class FileForm(forms.Form):
     file = forms.FileField()

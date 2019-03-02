@@ -807,7 +807,9 @@ def create_part(request):
             new_number_variation = request.POST.get('number_variation')
             new_description = request.POST.get('description')
             new_revision = request.POST.get('revision')
-            history = PartChangeHistory(old_number_item=new_number_item,old_number_variation=new_number_variation, old_description=new_description, old_revision=new_revision, part=new_part, attribute= "Part was Created", original_value="N/A", new_value="N/A")
+            history = PartChangeHistory(old_number_item=new_number_item, old_number_variation=new_number_variation,
+                                        old_description=new_description, old_revision=new_revision, part=new_part,
+                                        attribute="Part was Created", original_value="N/A", new_value="N/A")
             history.save()
 
             return HttpResponseRedirect(
@@ -846,15 +848,19 @@ def part_edit(request, part_id):
         new_description = request.POST.get('description')
         new_revision = request.POST.get('revision')
 
-
-        old_attribute_list = ['old_description','old_number_item','old_number_variation','old_revision']
+        old_attribute_list = ['old_description', 'old_number_item', 'old_number_variation', 'old_revision']
 
         for attribute_str in old_attribute_list:
-            check_delta = PartForm.update_attribute(attribute_str, new_number_item, new_number_variation, new_description, new_revision,part_id)
+            check_delta = PartForm.update_attribute(attribute_str, new_number_item, new_number_variation,
+                                                    new_description, new_revision, part_id)
             if check_delta != None:
                 if form.is_valid():
                     form.save()
-                    history = PartChangeHistory(old_number_item=new_number_item,old_number_variation=new_number_variation, old_description=new_description, old_revision=new_revision, part=part, attribute =check_delta[0], original_value=check_delta[2], new_value=check_delta[1])
+                    history = PartChangeHistory(old_number_item=new_number_item,
+                                                old_number_variation=new_number_variation,
+                                                old_description=new_description, old_revision=new_revision, part=part,
+                                                attribute=check_delta[0], original_value=check_delta[2],
+                                                new_value=check_delta[1])
                     history.save()
             else:
                 if form.is_valid():
@@ -942,7 +948,9 @@ def add_subpart(request, part_id):
             existing_description = Part.objects.get(id=part_id).description
             existing_revision = Part.objects.get(id=part_id).revision
 
-            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation, old_description=existing_description, old_revision=existing_revision, part=part, attribute =attribute, original_value=original_value, new_value=new_value)
+            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation,
+                                  old_description=existing_description, old_revision=existing_revision, part=part,
+                                  attribute=attribute, original_value=original_value, new_value=new_value)
             h.save()
 
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
@@ -966,7 +974,9 @@ def remove_subpart(request, part_id, subpart_id):
     existing_description = Part.objects.get(id=part_id).description
     existing_revision = Part.objects.get(id=part_id).revision
 
-    h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation, old_description=existing_description, old_revision=existing_revision, part=part, attribute =attribute, original_value=original_value, new_value=new_value)
+    h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation,
+                          old_description=existing_description, old_revision=existing_revision, part=part,
+                          attribute=attribute, original_value=original_value, new_value=new_value)
     h.save()
     subpart.delete()
 
@@ -998,15 +1008,19 @@ def edit_subpart(request, part_id, subpart_id):
         form = SubpartForm(request.POST, instance=subpart, organization=organization)
         if form.is_valid():
             attribute = "BOM Update: Existing subpart was edited"
-            original_value = str(existing_assembly_subpart) + ", " + str(existing_count) + ", " + str(existing_reference)
-            new_value = str(form.cleaned_data['assembly_subpart']) + ", " + str(form.cleaned_data['count']) + ", " + str(form.cleaned_data['reference'])
+            original_value = str(existing_assembly_subpart) + ", " + str(existing_count) + ", " + str(
+                existing_reference)
+            new_value = str(form.cleaned_data['assembly_subpart']) + ", " + str(
+                form.cleaned_data['count']) + ", " + str(form.cleaned_data['reference'])
 
             existing_number_item = Part.objects.get(id=part_id).number_item
             existing_number_variation = Part.objects.get(id=part_id).number_variation
             existing_description = Part.objects.get(id=part_id).description
             existing_revision = Part.objects.get(id=part_id).revision
 
-            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation, old_description=existing_description, old_revision=existing_revision, part=part, attribute =attribute, original_value=original_value, new_value=new_value)
+            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation,
+                                  old_description=existing_description, old_revision=existing_revision, part=part,
+                                  attribute=attribute, original_value=original_value, new_value=new_value)
             h.save()
 
             form.save()
@@ -1132,7 +1146,9 @@ def add_manufacturer_part(request, part_id):
             existing_description = Part.objects.get(manufacturerpart=manufacturer_part).description
             existing_revision = Part.objects.get(manufacturerpart=manufacturer_part).revision
 
-            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation, old_description=existing_description, old_revision=existing_revision, part=part, attribute =attribute, original_value=original_value, new_value=new_value)
+            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation,
+                                  old_description=existing_description, old_revision=existing_revision, part=part,
+                                  attribute=attribute, original_value=original_value, new_value=new_value)
             h.save()
 
             return HttpResponseRedirect(
@@ -1225,7 +1241,9 @@ def manufacturer_part_delete(request, manufacturer_part_id):
     existing_description = Part.objects.get(manufacturerpart=manufacturer_part).description
     existing_revision = Part.objects.get(manufacturerpart=manufacturer_part).revision
 
-    h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation, old_description=existing_description, old_revision=existing_revision, part=part, attribute =attribute, original_value=original_value, new_value=new_value)
+    h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation,
+                          old_description=existing_description, old_revision=existing_revision, part=part,
+                          attribute=attribute, original_value=original_value, new_value=new_value)
     h.save()
 
     manufacturer_part.delete()

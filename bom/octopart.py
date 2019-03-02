@@ -32,7 +32,7 @@ def match_part(manufacturer_part, organization):
     query = [{'mpn': manufacturer_part.manufacturer_part_number}]
 
     suburl = 'parts/match?queries=%s' \
-        % urllib.parse.quote(json.dumps(query))
+             % urllib.parse.quote(json.dumps(query))
     response = request(suburl)
 
     # need for each part: digi-key, mouser prices, moqs, lead times
@@ -49,8 +49,8 @@ def match_part(manufacturer_part, organization):
                         offer['seller']['id'] == MOUSER_SELLER_ID):
                     seller_name = offer['seller']['name']
                     seller, created = Seller.objects.get_or_create(
-                        name__iexact=seller_name, 
-                        organization=organization, 
+                        name__iexact=seller_name,
+                        organization=organization,
                         defaults={'name': seller_name})
                     ltd = offer['factory_lead_days']
                     if 'USD' in offer['prices']:
@@ -76,7 +76,7 @@ def get_latest_datasheets(manufacturer_part_number):
     query = [{'mpn': manufacturer_part_number}]
 
     suburl = 'parts/match?queries=%s' \
-        % urllib.parse.quote(json.dumps(query)) + '&include[]=datasheets'
+             % urllib.parse.quote(json.dumps(query)) + '&include[]=datasheets'
     response = request(suburl)
 
     datasheets = {}
@@ -99,7 +99,8 @@ def get_latest_datasheets(manufacturer_part_number):
                     name = datasheet['attribution']['sources'][0]['name']
                     url = datasheet['url']
                     num_pages = datasheet['metadata']['num_pages']
-                    if (name not in datasheet) or (last_updated is not None and datasheet[name]['last_updated'] < last_updated):
+                    if (name not in datasheet) or (
+                            last_updated is not None and datasheet[name]['last_updated'] < last_updated):
                         datasheets[name] = {
                             'url': url,
                             'last_updated': last_updated,

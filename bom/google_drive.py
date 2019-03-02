@@ -29,6 +29,7 @@ def create_root(user):
     file_metadata = {
         'name': 'IndaBOM Part Files',
         'mimeType': 'application/vnd.google-apps.folder',
+        'folderColorRgb': 'green',
     }
     file = service.files().create(body=file_metadata, fields='id').execute()
     organization.google_drive_parent = file.get('id')
@@ -94,7 +95,8 @@ def get_or_create_and_open_folder(request, part_id):
         if user == organization.owner:
             create_root(user)
         else:
-            messages.error(request, "There's no root Google Drive directory and you're not the owner. Contact your organization owner to set up Google Drive")
+            messages.error(request,
+                           "There's no root Google Drive directory and you're not the owner. Contact your organization owner to set up Google Drive")
     else:
         if user == organization.owner:
             try:
