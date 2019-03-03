@@ -77,5 +77,5 @@ ENV/
 
 local_setting.py
 .DS_Store
-db.sqlite3
+*.sqlite3
 .idea

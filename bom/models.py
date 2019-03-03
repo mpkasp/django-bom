@@ -88,7 +88,7 @@ class Part(models.Model):
         return self.latest().description
 
     def latest(self):
-        return self.revisions().order_by('revision').first()
+        return self.revisions().order_by('-revision').first()
 
     def revisions(self):
         return PartChangeHistory.objects.filter(part=self)
@@ -118,7 +118,6 @@ class Part(models.Model):
         used_in_parts = set()
         where_used_given_part(used_in_parts, self)
         return list(used_in_parts)
-
 
     def indented(self):
         def indented_given_bom(bom, part, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
@@ -217,33 +216,37 @@ class Part(models.Model):
 class PartChangeHistory(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
     timestamp = models.DateTimeField(auto_now=True)
-    description = models.CharField(max_length=255, default=None)
+    description = models.CharField(max_length=255, default="")
     revision = models.CharField(max_length=2, db_index=True)
-    attribute = models.CharField(max_length=255, default=None)
-    value = models.CharField(max_length=255, default=None)
-    assembly = models.ForeignKey('Assembly', default=None, on_delete=models.PROTECT) # Needs to point to a bunch of other PartChangeHistories
+    attribute = models.CharField(max_length=255, default=None, null=True)
+    value = models.CharField(max_length=255, default=None, null=True)
+    assembly = models.ForeignKey('Assembly', default=None, null=True,
+                                 on_delete=models.PROTECT)  # Needs to point to a bunch of other PartChangeHistories
+
+    def __str__(self):
+        return u'{}, Rev {}'.format(self.part.full_part_number(), self.revision)
 
 
 class Subpart(models.Model):
-    # assembly_part = models.ForeignKey(
-    #     Assembly, related_name='assembly_part', null=True, on_delete=models.CASCADE)
-    assembly_subpart = models.ForeignKey(
-        PartChangeHistory, related_name='assembly_subpart', null=True, on_delete=models.CASCADE)
+    part_revision = models.ForeignKey(PartChangeHistory, related_name='assembly_subpart', null=True,
+                                         on_delete=models.CASCADE)
     count = models.IntegerField(default=1)
     reference = models.TextField(default='', blank=True, null=True)
+
+    def __str__(self):
+        return u'{} {}'.format(self.part_revision, self.count)
 
 
 class Assembly(models.Model):
     subparts = models.ManyToManyField(Subpart)
 
-
-    def clean(self):
-        unusable_parts = self.assembly_part.where_used()
-        if self.assembly_subpart in unusable_parts:
-            raise ValidationError(_('Recursive relationship: cannot add a subpart to a part that uses itsself.'),
-                                  code='invalid')
-        if self.assembly_subpart == self.assembly_part:
-            raise ValidationError(_('Recursive relationship: cannot add a subpart to itsself.'), code='invalid')
+    # def clean(self):
+    #     unusable_parts = self.assembly_part.where_used()
+    #     if self.assembly_subpart in unusable_parts:
+    #         raise ValidationError(_('Recursive relationship: cannot add a subpart to a part that uses itsself.'),
+    #                               code='invalid')
+    #     if self.assembly_subpart == self.assembly_part:
+    #         raise ValidationError(_('Recursive relationship: cannot add a subpart to itsself.'), code='invalid')
 
 
 class ManufacturerPart(models.Model):
