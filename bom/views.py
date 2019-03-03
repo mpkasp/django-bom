@@ -172,7 +172,7 @@ def part_info(request, part_id):
         messages.error(request, "Part object does not exist.")
         return HttpResponseRedirect(reverse('bom:error'))
 
-    attribute_history = PartChangeHistory.objects.filter(part=part_id).order_by('-attribute_time_stamp')
+    attribute_history = PartChangeHistory.objects.filter(part=part_id).order_by('-timestamp')
 
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
@@ -248,7 +248,6 @@ def part_info(request, part_id):
     total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
 
     where_used = part.where_used()
-    files = part.files()
     seller_parts = part.seller_parts()
 
     if order_by != 'defaultOrderField' and order_by != 'indented':
@@ -258,7 +257,7 @@ def part_info(request, part_id):
     #     # anchor = 'bom'
     #     tab_anchor = None
 
-    return TemplateResponse(request, 'bom/part-info.html', locals(), {'attribute_history': attribute_history})
+    return TemplateResponse(request, 'bom/part-info.html', locals())
 
 
 @login_required

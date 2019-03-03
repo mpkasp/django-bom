@@ -328,20 +328,23 @@
                 <table id="change-history" class="highlight tight treetable">
                     <thead>
                         <tr>
+                            <th>Revision</th>
+                            <th>Description</th>
+                            <th>BOM Components</th>
                             <th>Attribute</th>
+                            <th>Value</th>
                             <th>Time Stamp</th>
-                            <th>Orignial Value</th>
-                            <th>New Value</th>
-                            <th colspan=2></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for a in attribute_history.all %}
                         <tr data-tt-id="{{ a.id }}">
+                            <td>{{ a.revision }}</td>
+                            <td>{{ a.description }}</td>
+                            <td>{{ a.assembly.subparts.count }}</td>
                             <td>{{ a.attribute }}</td>
-                            <td>{{ a.attribute_time_stamp }}</td>
-                            <td>{{ a.original_value }}</td>
-                            <td>{{ a.new_value }}</td>
+                            <td>{{ a.value }}</td>
+                            <td>{{ a.timestamp }}</td>
                         </tr>
                        {% endfor %}
                     </tbody>

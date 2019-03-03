@@ -224,9 +224,12 @@ class PartChangeHistory(models.Model):
         # it gets used by being a subpart to an assembly of a partchangehistory
         # so we can look up subparts, then their assemblys, then their partchangehistories
         used_in_subparts = Subpart.objects.filter(part_revision=self)
-        used_in_assemblies = Assembly.objects.filter(subparts)
-        used_in_parts = [subpart.assembly_part for subpart in used_in_subparts]
-        return used_in_parts
+        used_in_assembly_ids = []
+        for sp in used_in_subparts:
+            used_in_assembly_ids.extend(sp.assemblies.values_list('id', flat=True))
+
+        used_in_pch = PartChangeHistory.objects.filter(assembly__in=used_in_assembly_ids)
+        return used_in_pch
 
     def where_used_full(self):
         def where_used_given_part(used_in_parts, part):
