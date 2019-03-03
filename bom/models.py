@@ -90,7 +90,7 @@ class Part(models.Model):
         unique_together = ['number_class', 'number_item', 'number_variation', 'organization', ]
 
     def full_part_number(self):
-         return "{0}-{1}-{2}".format(self.number_class.code,
+        return "{0}-{1}-{2}".format(self.number_class.code,
                                     self.number_item, self.number_variation)
 
     def seller_parts(self):
