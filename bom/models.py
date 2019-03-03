@@ -120,36 +120,7 @@ class Part(models.Model):
         return list(used_in_parts)
 
     def indented(self):
-        def indented_given_bom(bom, part, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
-            bom.append({
-                'part': part,
-                'quantity': qty,
-                'indent_level': indent_level,
-                'parent_id': parent.id if parent is not None else None,
-                'subpart': subpart,
-                'reference': reference,
-            })
-
-            indent_level = indent_level + 1
-            if len(part.subparts.all()) == 0:
-                return
-            else:
-                for sp in part.subparts.all():
-                    subparts = Subpart.objects.filter(
-                        assembly_part=part, assembly_subpart=sp)
-                    # since assembly_part and assembly_subpart are not unique together in a Subpart
-                    # there is a possibility that there are two (or more) separate Subparts of the
-                    # same Part, thus we filter and iterate again
-                    for subpart in subparts:
-                        qty = subpart.count
-                        reference = subpart.reference
-                        indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart,
-                                           reference=reference)
-
-        bom = []
-        cost = 0
-        indented_given_bom(bom, self)
-        return bom
+        return self.latest().indented()
 
     def optimal_seller(self, quantity=None):
         if quantity is None:
@@ -220,8 +191,35 @@ class PartChangeHistory(models.Model):
     revision = models.CharField(max_length=2, db_index=True)
     attribute = models.CharField(max_length=255, default=None, null=True)
     value = models.CharField(max_length=255, default=None, null=True)
-    assembly = models.ForeignKey('Assembly', default=None, null=True,
-                                 on_delete=models.PROTECT)  # Needs to point to a bunch of other PartChangeHistories
+    assembly = models.ForeignKey('Assembly', on_delete=models.PROTECT)
+
+    def indented(self):
+        def indented_given_bom(bom, partchangehistory, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
+            bom.append({
+                'part': partchangehistory.part,
+                'partchangehistory': partchangehistory,
+                'quantity': qty,
+                'indent_level': indent_level,
+                'parent_id': parent.id if parent is not None else None,
+                'subpart': subpart,
+                'reference': reference,
+            })
+
+            indent_level = indent_level + 1
+            if partchangehistory.assembly.subparts.count() == 0:
+                return
+            else:
+                for sp in partchangehistory.assembly.subparts.all():
+                    qty = sp.count
+                    reference = sp.reference
+                    indented_given_bom(bom, sp.part_revision, parent=partchangehistory, qty=qty,
+                                       indent_level=indent_level, subpart=sp,
+                                       reference=reference)
+
+        bom = []
+        cost = 0
+        indented_given_bom(bom, self)
+        return bom
 
     def __str__(self):
         return u'{}, Rev {}'.format(self.part.full_part_number(), self.revision)
@@ -229,7 +227,7 @@ class PartChangeHistory(models.Model):
 
 class Subpart(models.Model):
     part_revision = models.ForeignKey(PartChangeHistory, related_name='assembly_subpart', null=True,
-                                         on_delete=models.CASCADE)
+                                      on_delete=models.CASCADE)
     count = models.IntegerField(default=1)
     reference = models.TextField(default='', blank=True, null=True)
 
