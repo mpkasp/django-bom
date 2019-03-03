@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='assembly',
             name='subparts',
-            field=models.ManyToManyField(to='bom.Subpart'),
+            field=models.ManyToManyField(to='bom.Subpart', related_name='assemblies'),
         ),
         migrations.RemoveField(
             model_name='partfile',

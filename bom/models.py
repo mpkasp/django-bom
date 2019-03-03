@@ -103,9 +103,7 @@ class Part(models.Model):
         return manufacturer_parts
 
     def where_used(self):
-        used_in_subparts = Subpart.objects.filter(assembly_subpart=self)
-        used_in_parts = [subpart.assembly_part for subpart in used_in_subparts]
-        return used_in_parts
+        return self.latest().where_used()
 
     def where_used_full(self):
         def where_used_given_part(used_in_parts, part):
@@ -221,6 +219,28 @@ class PartChangeHistory(models.Model):
         indented_given_bom(bom, self)
         return bom
 
+    def where_used(self):
+        # Where is a partchangehistory used???
+        # it gets used by being a subpart to an assembly of a partchangehistory
+        # so we can look up subparts, then their assemblys, then their partchangehistories
+        used_in_subparts = Subpart.objects.filter(part_revision=self)
+        used_in_assemblies = Assembly.objects.filter(subparts)
+        used_in_parts = [subpart.assembly_part for subpart in used_in_subparts]
+        return used_in_parts
+
+    def where_used_full(self):
+        def where_used_given_part(used_in_parts, part):
+            where_used = part.where_used()
+            used_in_parts.update(where_used)
+            for p in where_used:
+                where_used_given_part(used_in_parts, p)
+            return used_in_parts
+
+        used_in_parts = set()
+        where_used_given_part(used_in_parts, self)
+        return list(used_in_parts)
+
+
     def __str__(self):
         return u'{}, Rev {}'.format(self.part.full_part_number(), self.revision)
 
@@ -236,7 +256,7 @@ class Subpart(models.Model):
 
 
 class Assembly(models.Model):
-    subparts = models.ManyToManyField(Subpart)
+    subparts = models.ManyToManyField(Subpart, related_name='assemblies')
 
     # def clean(self):
     #     unusable_parts = self.assembly_part.where_used()
