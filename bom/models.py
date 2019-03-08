@@ -8,6 +8,7 @@ from django.contrib.auth.models import User, Group
 from .validators import alphanumeric, numeric
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext as _
+from collections import deque
 
 from social_django.models import UserSocialAuth
 
@@ -124,8 +125,8 @@ class Part(models.Model):
         partfiles = PartFile.objects.filter(part=self)
         return partfiles
 
-    def indented(self):
-        def indented_given_bom(bom, part, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
+    def indented(self, old_subparts=None):
+        def indented_given_bom(bom, part, parent=None, qty=1, indent_level=0, subpart=None, reference='', old_subparts=None):
             bom.append({
                 'part': part,
                 'quantity': qty,
@@ -139,21 +140,43 @@ class Part(models.Model):
             if (len(part.subparts.all()) == 0):
                 return
             else:
-                for sp in part.subparts.all():
-                    subparts = Subpart.objects.filter(
-                        assembly_part=part, assembly_subpart=sp)
+                for sp in old_subparts or part.subparts.all():
+                    try:
+                        subparts = Subpart.objects.filter(
+                            assembly_part=part, assembly_subpart=sp)
+
+# For getting old sub-parts since there is no history for subpart count and reference, defaults have been declared below
+                        if indent_level == 1 and len(subparts) == 0 :
+                            subpart = {
+                                       'count' : 1,
+                                       'reference' : "N/A",
+                                       }
+                            d = deque(subparts)
+                            d.append(subpart)
+                            subparts = d
+
+                    except:
+                        pass
+
                     # since assembly_part and assembly_subpart are not unique together in a Subpart
                     # there is a possibility that there are two (or more) separate Subparts of the
                     # same Part, thus we filter and iterate again
+
                     for subpart in subparts:
-                        qty = subpart.count
-                        reference = subpart.reference
-                        indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart,
-                                           reference=reference)
+                        try : # added to enable recursion when old sub-parts are provided. since there is no history for subpart count and reference, defaults have been added below
+                            qty = subparts[0]['count']
+                            reference = subparts[0]['reference']
+                            indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart,
+                                               reference=reference)
+                        except :
+                            qty = subpart.count
+                            reference = subpart.reference
+                            indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart,
+                                               reference=reference)
 
         bom = []
         cost = 0
-        indented_given_bom(bom, self)
+        indented_given_bom(bom, self, old_subparts=old_subparts)
         return bom
 
     def optimal_seller(self, quantity=None):
@@ -219,16 +242,48 @@ class Part(models.Model):
 
 class PartChangeHistory(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE)
-    old_number_item = models.CharField(max_length=4, default=None, blank=True, validators=[numeric])
-    old_number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
-    old_description = models.CharField(max_length=255, default=None)
-    old_revision = models.CharField(max_length=2)
-    old_time_stamp = models.DateTimeField(auto_now=True)
+    number_item = models.CharField(max_length=4, default=None, blank=True, validators=[numeric])
+    number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
+    description = models.CharField(max_length=255, default=None)
+    revision = models.CharField(max_length=2)
+    time_stamp = models.DateTimeField(auto_now=True)
     attribute = models.CharField(max_length=255, default=None)
     original_value = models.CharField(max_length=255, default=None)
     new_value = models.CharField(max_length=255, default=None)
     attribute_time_stamp = models.DateTimeField(auto_now=True)
 
+    def apply_history_reverse(self, part):
+        """ Modify parts given the change history in self
+        """
+        # self means the record from database
+
+        if self.attribute == 'number_item':
+            part.number_item = self.original_value
+
+        if self.attribute == 'revision':
+            part.revision = self.original_value
+
+        if self.attribute == 'description':
+            part.description = self.original_value
+
+    def get_old_subparts(self, existing_subparts_lst, existing_parts_list = None):
+
+
+        if self.attribute == 'BOM Update: New subpart added':
+            for ex_sp in existing_subparts_lst:
+                if self.new_value == ex_sp.full_part_number():
+                    existing_subparts_lst.remove(ex_sp)
+                    break
+
+        if self.attribute == 'BOM Update: Existing subpart removed':
+
+            old_part = self.original_value
+
+
+            for part_instance in existing_parts_list:
+                if old_part == part_instance.full_part_number():
+                    existing_subparts_lst.append(part_instance)
+                    break
 
 class Subpart(models.Model):
     assembly_part = models.ForeignKey(
@@ -237,6 +292,7 @@ class Subpart(models.Model):
         Part, related_name='assembly_subpart', null=True, on_delete=models.CASCADE)
     count = models.IntegerField(default=1)
     reference = models.TextField(default='', blank=True, null=True)
+
 
     def clean(self):
         unusable_parts = self.assembly_part.where_used()
