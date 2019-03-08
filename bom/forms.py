@@ -130,19 +130,16 @@ class PartForm(forms.ModelForm):
             'description': 'E.g. CAPACITOR, CERAMIC, 100pF, 0402 50V, +/-5%',
         }
 
-    def update_attribute(attribute_str, new_number_item, new_number_variation, new_description, new_revision, part_id):
-        history_ordered = PartChangeHistory.objects.filter(part_id=part_id).order_by('-old_time_stamp')
-        id_list = list(history_ordered.values_list('id', flat=True))
-        try:
-            old_entry = getattr(history_ordered.get(pk=id_list[0]), attribute_str)
 
-            if attribute_str == 'old_description':
+    def update_attribute(attribute_str, old_entry, new_number_item, new_number_variation, new_description, new_revision,part_id) :
+        try :
+            if attribute_str == 'description':
                 new_entry = new_description
-            elif attribute_str == 'old_number_item':
+            elif attribute_str == 'number_item':
                 new_entry = new_number_item
-            elif attribute_str == 'old_number_variation':
+            elif attribute_str == 'number_variation':
                 new_entry = new_number_variation
-            elif attribute_str == 'old_revision':
+            elif attribute_str == 'revision':
                 new_entry = new_revision
 
             d = difflib.SequenceMatcher(None, old_entry, new_entry).ratio()

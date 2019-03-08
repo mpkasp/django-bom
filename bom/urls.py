@@ -17,6 +17,7 @@ bom_patterns = [
     path('create-part/', views.create_part, name='create-part'),
     path('upload-parts/', views.upload_parts, name='upload-parts'),
     path('part/<int:part_id>/', views.part_info, name='part-info'),
+    path('part/<int:part_id>/<int:part_rev>/', views.part_info, name='part-info'),
     path('part/<int:part_id>/export/', views.part_export_bom, name='part-export-bom'),
     path('part/<int:part_id>/upload/', views.part_upload_bom, name='part-upload-bom'),
     path('part/<int:part_id>/octopart-match/', views.part_octopart_match, name='part-octopart-match'),

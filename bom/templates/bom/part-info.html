@@ -10,6 +10,7 @@
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
 {% endblock %}
 
+
 {% block menu %}
 {% if profile.role == 'A' %}
 <li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>
@@ -19,6 +20,8 @@
 {% endblock%}
 
 {% block content %}
+
+
 <div class="part-info">
     <div class="row">
         <div class="col s8">
@@ -54,7 +57,7 @@
                     <div class="col s4 text-right">
                         Description:
                     </div>
-                    <div class="col s8">
+                    <div class="col s8" id="part_desc">
                         {{ part.description }}
                     </div>
                 </div>
@@ -62,7 +65,7 @@
                     <div class="col s4 text-right">
                         Part Number:
                     </div>
-                    <div class="col s8">
+                    <div class="col s8" id="part_full">
                         {{ part.full_part_number }}
                     </div>
                 </div>
@@ -70,9 +73,33 @@
                     <div class="col s4 text-right">
                         Revision:
                     </div>
+
+<!-- dropdown new code by Jas -->
                     <div class="col s8">
-                        {{ part.revision }}
+                    <!-- Dropdown Trigger -->
+                    <a class='dropdown-trigger' data-target='revision_selection' id='revision_list'> {{ part.revision }} &nbsp; &nbsp; ▼ </a>
+                    <!-- Dropdown Structure -->
+                    <ul id='revision_selection' class='dropdown-content' >
+                        {% csrf_token %}
+                        {% for a in part_revision_history %}
+                        <li class="dropdown_item" rev="{{ a }}"><a href="{% url 'bom:part-info' part_id %}{{ a }}" class="green-text text-lighten-1">{{ a }}</a></li>
+                        {% endfor %}
+                    </ul>
                     </div>
+
+
+<!--                   <ul id='part_revision' class='dropdown-content' method= "GET">
+                        {% csrf_token %}
+                        {% for a in part_revision_history %}
+                        <li><a class="green-text text-lighten-1" id="revision_selection"><i class="material-icons green-text text-lighten-1"></i>{{ a }}</a></li>
+                        {% endfor %}
+                    </ul>
+                    </div>
+
+                      -->
+
+<!-- dropdown new code by Jas -->
+
                 </div>
                 <div class="row">
                     <div class="col s4 text-right">
@@ -350,7 +377,9 @@
     </div>
 </div>
 {% endblock %}
+
 {% block script %}
+
 {% if order_by == 'indented' %}
 <!-- Tree Table -->
 <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
@@ -394,6 +423,8 @@
       );
 
     });
+
+
 </script>
 
 <!-- Floating Horizontal Scrollbar -->
@@ -403,4 +434,5 @@ $(function() {
   $('.responsive-table-wrapper').floatingScrollbar();
 });
 </script>
+
 {% endblock script %}
