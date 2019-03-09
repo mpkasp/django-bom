@@ -882,16 +882,15 @@ def part_edit(request, part_id):
 
         for attribute_str in old_attribute_list:
             old_entry = getattr(history_ordered.get(pk=id_list[0]), attribute_str)
-
             check_delta = PartForm.update_attribute(attribute_str, old_entry, new_number_item, new_number_variation,
                                                     new_description, new_revision,part_id)
             if check_delta != None:
                 if form.is_valid():
                     form.save()
-                    history = PartChangeHistory(number_item=new_number_item,
-                                                number_variation=new_number_variation, description=new_description,
-                                                revision=new_revision, part=part, attribute =check_delta[0],
-                                                original_value=check_delta[2], new_value=check_delta[1])
+                    history = PartChangeHistory(number_item=new_number_item,number_variation=new_number_variation,
+                                                description=new_description, revision=new_revision, part=part,
+                                                attribute =check_delta[0], original_value=check_delta[2],
+                                                new_value=check_delta[1])
                     history.save()
             else:
                 if form.is_valid():
@@ -1056,7 +1055,6 @@ def edit_subpart(request, part_id, subpart_id):
             h = PartChangeHistory(number_item=existing_number_item, number_variation=existing_number_variation,
                                   description=existing_description, revision=existing_revision, part=part,
                                   attribute =attribute, original_value=original_value, new_value=new_value)
-
             h.save()
 
             form.save()
@@ -1185,6 +1183,7 @@ def add_manufacturer_part(request, part_id):
             h = PartChangeHistory(number_item=existing_number_item, number_variation=existing_number_variation,
                                   description=existing_description, revision=existing_revision, part=part,
                                   attribute =attribute, original_value=original_value, new_value=new_value)
+
             h.save()
 
             return HttpResponseRedirect(

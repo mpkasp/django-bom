@@ -130,7 +130,6 @@ class PartForm(forms.ModelForm):
             'description': 'E.g. CAPACITOR, CERAMIC, 100pF, 0402 50V, +/-5%',
         }
 
-
     def update_attribute(attribute_str, old_entry, new_number_item, new_number_variation, new_description, new_revision,part_id) :
         try :
             if attribute_str == 'description':
