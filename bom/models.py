@@ -136,20 +136,28 @@ class Part(models.Model):
                 'reference': reference,
             })
 
+
+
             indent_level = indent_level + 1
             if (len(part.subparts.all()) == 0):
                 return
             else:
+                d1 = None
                 for sp in old_subparts or part.subparts.all():
                     try:
                         subparts = Subpart.objects.filter(
                             assembly_part=part, assembly_subpart=sp)
+
+#To handle the case when same subpart is added to BOM more than once
+                        if indent_level == 1 and len(subparts) > 1 :
+                            d1 = deque(subparts, maxlen=1)
 
 # For getting old sub-parts since there is no history for subpart count and reference, defaults have been declared below
                         if indent_level == 1 and len(subparts) == 0 :
                             subpart = {
                                        'count' : 1,
                                        'reference' : "N/A",
+                                       'info' : "default",
                                        }
                             d = deque(subparts)
                             d.append(subpart)
@@ -162,12 +170,13 @@ class Part(models.Model):
                     # there is a possibility that there are two (or more) separate Subparts of the
                     # same Part, thus we filter and iterate again
 
-                    for subpart in subparts:
+                    for subpart in d1 or subparts:
                         try : # added to enable recursion when old sub-parts are provided. since there is no history for subpart count and reference, defaults have been added below
-                            qty = subparts[0]['count']
-                            reference = subparts[0]['reference']
-                            indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart,
-                                               reference=reference)
+                            if subparts[0]['info'] == "default":
+                                qty = subparts[0]['count']
+                                reference = subparts[0]['reference']
+                                indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart,
+                                                   reference=reference)
                         except :
                             qty = subpart.count
                             reference = subpart.reference

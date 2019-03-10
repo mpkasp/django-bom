@@ -962,7 +962,7 @@ def add_subpart(request, part_id):
         existing_revision = Part.objects.get(id=part_id).revision
 
     except ObjectDoesNotExist:
-        messages.error(request, "No part found with given part_id.")
+        messages.error(request, "No part found with given part_id")
         return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
