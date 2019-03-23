@@ -12,8 +12,9 @@ def update_parts_to_part_history(apps, schema_editor):
 
     for p in Part.objects.all():
         subparts = Subpart.objects.filter(assembly_part=p)
-        assembly = Assembly.objects.create()
+        assembly = None
         if subparts.count() > 0:
+            assembly = Assembly.objects.create()
             assembly.subparts.set(subparts)
 
         (pch, created) = PartChangeHistory.objects.get_or_create(part=p, description=p.description,
@@ -89,7 +90,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='partchangehistory',
             name='assembly',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,
+            field=models.ForeignKey(default=None, null=True, on_delete=django.db.models.deletion.PROTECT,
                                     to='bom.Assembly'),
         ),
         migrations.RemoveField(

@@ -112,46 +112,37 @@ class PartForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(PartForm, self).__init__(*args, **kwargs)
-        queryset = ManufacturerPart.objects.none()
-        if 'instance' in kwargs and type(kwargs['instance']) is Part:
-            queryset = ManufacturerPart.objects.filter(part=kwargs['instance'])
-        self.fields['primary_manufacturer_part'].queryset = queryset
         for _, value in self.fields.items():
             value.widget.attrs['placeholder'] = value.help_text
             value.help_text = ''
 
     class Meta:
         model = Part
-        exclude = ['organization', 'subparts', ]
+        exclude = ['organization', 'primary_manufacturer_part', 'google_drive_parent', ]
         help_texts = {
             'number_class': _('Select a number class.'),
             'number_item': _('Auto generated if blank.'),
             'number_variation': 'Auto generated if blank.',
         }
 
-    def update_attribute(attribute_str, new_number_item, new_number_variation, new_description, new_revision, part_id):
-        history_ordered = PartChangeHistory.objects.filter(part_id=part_id).order_by('-old_time_stamp')
-        id_list = list(history_ordered.values_list('id', flat=True))
-        try:
-            old_entry = getattr(history_ordered.get(pk=id_list[0]), attribute_str)
 
-            if attribute_str == 'old_description':
-                new_entry = new_description
-            elif attribute_str == 'old_number_item':
-                new_entry = new_number_item
-            elif attribute_str == 'old_number_variation':
-                new_entry = new_number_variation
-            elif attribute_str == 'old_revision':
-                new_entry = new_revision
+class PartChangeHistoryForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(PartChangeHistoryForm, self).__init__(*args, **kwargs)
+        self.fields['attribute'].required = False
+        self.fields['value'].required = False
+        for _, value in self.fields.items():
+            value.widget.attrs['placeholder'] = value.help_text
+            value.help_text = ''
 
-            d = difflib.SequenceMatcher(None, old_entry, new_entry).ratio()
-            if d == 1.0:  # 1.0 means no diff between old and new attributes
-                pass
-            else:
-                attribute_record = [attribute_str, new_entry, old_entry]
-                return attribute_record
-        except:
-            pass
+    class Meta:
+        model = PartChangeHistory
+        exclude = ['timestamp', 'assembly', 'part', ]
+        help_texts = {
+            'description': _('e.g. CAPACITOR, CERAMIC, 100pF, 0402, 10V, +/- 5%'),
+            'attribute': _('e.g. Resistance, Capacitance'),
+            'value': _('e.g. 100k, 10uF'),
+        }
 
 
 class SubpartForm(forms.ModelForm):

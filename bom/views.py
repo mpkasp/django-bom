@@ -24,7 +24,7 @@ from .convert import full_part_number_to_broken_part
 from .models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, \
     UserMeta, PartChangeHistory
 from .forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
-    ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm
+    ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm, PartChangeHistoryForm
 from .octopart import match_part, get_latest_datasheets
 
 logger = logging.getLogger(__name__)
@@ -131,7 +131,8 @@ def bom_settings(request, tab_anchor=None):
     pagename = 'settings'
     action = reverse('bom:settings')
 
-    users_in_organization = User.objects.filter(id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).order_by(
+    users_in_organization = User.objects.filter(
+        id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).order_by(
         'first_name', 'last_name', 'email')
     google_authentication = UserSocialAuth.objects.filter(user=user).first()
 
@@ -172,6 +173,7 @@ def part_info(request, part_id):
         messages.error(request, "Part object does not exist.")
         return HttpResponseRedirect(reverse('bom:error'))
 
+    change = part.latest()
     attribute_history = PartChangeHistory.objects.filter(part=part_id).order_by('-timestamp')
 
     if part.organization != organization:
@@ -758,62 +760,56 @@ def create_part(request):
 
     if request.method == 'POST':
         part_form = PartForm(request.POST)
+        part_change_history_form = PartChangeHistoryForm(request.POST)
         manufacturer_form = ManufacturerForm(request.POST)
         manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
-        if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
+        if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid()\
+                and part_change_history_form.is_valid():
             mpn = manufacturer_part_form.cleaned_data['manufacturer_part_number']
             old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
             new_manufacturer_name = manufacturer_form.cleaned_data['name']
 
             manufacturer = None
             if mpn:
-                if old_manufacturer and not new_manufacturer_name:
+                if old_manufacturer and new_manufacturer_name == '':
                     manufacturer = old_manufacturer
-                elif new_manufacturer_name and not old_manufacturer:
+                elif new_manufacturer_name != '' and not old_manufacturer:
                     manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name,
                                                                                organization=organization)
                 else:
                     messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
                     return TemplateResponse(request, 'bom/create-part.html', locals())
-            elif old_manufacturer or new_manufacturer_name:
+            elif old_manufacturer or new_manufacturer_name != '':
                 messages.warning(request,
                                  "No manufacturer was selected or created, no manufacturer part number was assigned.")
 
-            new_part, created = Part.objects.get_or_create(
-                number_class=part_form.cleaned_data['number_class'],
-                number_item=part_form.cleaned_data['number_item'],
-                number_variation=part_form.cleaned_data['number_variation'],
-                organization=organization,
-                defaults={'description': part_form.cleaned_data['description'],
-                          'revision': part_form.cleaned_data['revision'], })
+            new_part = part_form.save(commit=False)
+            new_part.organization = organization
+            new_part.save()
+
+            pch = part_change_history_form.save(commit=False)
+            pch.part = new_part
+            pch.save()
 
             manufacturer_part = None
             if manufacturer is None:
                 manufacturer, created = Manufacturer.objects.get_or_create(organization=organization,
                                                                            name=organization.name)
 
+            print(new_part.full_part_number() if mpn == '' else mpn)
             manufacturer_part, created = ManufacturerPart.objects.get_or_create(
                 part=new_part,
-                manufacturer_part_number=new_part.full_part_number() if mpn is None else mpn,
+                manufacturer_part_number=new_part.full_part_number() if mpn == '' else mpn,
                 manufacturer=manufacturer)
 
-            if new_part.primary_manufacturer_part is None and manufacturer_part is not None:
-                new_part.primary_manufacturer_part = manufacturer_part
-                new_part.save()
-
-            new_number_item = request.POST.get('number_item')
-            new_number_variation = request.POST.get('number_variation')
-            new_description = request.POST.get('description')
-            new_revision = request.POST.get('revision')
-            history = PartChangeHistory(old_number_item=new_number_item, old_number_variation=new_number_variation,
-                                        old_description=new_description, old_revision=new_revision, part=new_part,
-                                        attribute="Part was Created", original_value="N/A", new_value="N/A")
-            history.save()
+            new_part.primary_manufacturer_part = manufacturer_part
+            new_part.save()
 
             return HttpResponseRedirect(
                 reverse('bom:part-info', kwargs={'part_id': str(new_part.id)}))
     else:
-        part_form = PartForm(initial={'revision': 1, 'organization': organization})
+        part_form = PartForm(initial={'organization': organization})
+        part_change_history_form = PartChangeHistoryForm(initial={'revision': 1, 'organization': organization})
         manufacturer_form = ManufacturerForm(initial={'organization': organization})
         manufacturer_part_form = ManufacturerPartForm(organization=organization)
 

@@ -71,7 +71,7 @@
                         Revision:
                     </div>
                     <div class="col s8">
-                        {{ part.revision }}
+                        {{ change.revision }}
                     </div>
                 </div>
                 <div class="row">
@@ -184,7 +184,7 @@
                             <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
                             <td class="text-normal">{{ subpart.quantity }}</td>
                             <td class="text-normal">{{ subpart.part.description }}</td>
-                            <td class="text-normal">{{ subpart.part.revision }}</td>
+                            <td class="text-normal">{{ subpart.partchangehistory.revision }}</td>
                             <td class="text-normal">
                                 {% for manufacturer_part in subpart.part.manufacturer_parts %}
                                     {{ manufacturer_part.manufacturer.name }}<br>

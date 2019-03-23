@@ -117,8 +117,11 @@ class Part(models.Model):
         where_used_given_part(used_in_parts, self)
         return list(used_in_parts)
 
-    def indented(self):
-        return self.latest().indented()
+    def indented(self, partchangehistory=None):
+        if partchangehistory is None:
+            return self.latest().indented()
+        else:
+            return partchangehistory.indented()
 
     def optimal_seller(self, quantity=None):
         if quantity is None:
@@ -189,7 +192,7 @@ class PartChangeHistory(models.Model):
     revision = models.CharField(max_length=2, db_index=True)
     attribute = models.CharField(max_length=255, default=None, null=True)
     value = models.CharField(max_length=255, default=None, null=True)
-    assembly = models.ForeignKey('Assembly', on_delete=models.PROTECT)
+    assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT)
 
     def indented(self):
         def indented_given_bom(bom, partchangehistory, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
@@ -204,7 +207,7 @@ class PartChangeHistory(models.Model):
             })
 
             indent_level = indent_level + 1
-            if partchangehistory.assembly.subparts.count() == 0:
+            if partchangehistory.assembly is None or partchangehistory.assembly.subparts.count() == 0:
                 return
             else:
                 for sp in partchangehistory.assembly.subparts.all():
@@ -260,14 +263,6 @@ class Subpart(models.Model):
 
 class Assembly(models.Model):
     subparts = models.ManyToManyField(Subpart, related_name='assemblies')
-
-    # def clean(self):
-    #     unusable_parts = self.assembly_part.where_used()
-    #     if self.assembly_subpart in unusable_parts:
-    #         raise ValidationError(_('Recursive relationship: cannot add a subpart to a part that uses itsself.'),
-    #                               code='invalid')
-    #     if self.assembly_subpart == self.assembly_part:
-    #         raise ValidationError(_('Recursive relationship: cannot add a subpart to itsself.'), code='invalid')
 
 
 class ManufacturerPart(models.Model):
