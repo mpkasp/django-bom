@@ -189,13 +189,13 @@ class AddSubpartForm(forms.Form):
         self.fields['assembly_subpart'].queryset = Part.objects.filter(
             organization=self.organization).exclude(id__in=unusable_part_ids).order_by(
             'number_class__code', 'number_item', 'number_variation')
-        # reorder how part information is displayed
-        # added MFR and MFR#
-        # removed description + ' ' + obj.description
+        # TODO: Clean this up, consider forcing a primary mfg part on each part
         self.fields['assembly_subpart'].label_from_instance = \
-            lambda obj: "%s" % obj.full_part_number(
-            ) + ' [MFR:]  ' + str(obj.primary_manufacturer_part.manufacturer) + ' [MFR#:] '  \
-            + str(obj.primary_manufacturer_part) + ' [DESC:] ' + obj.description
+            lambda obj: "%s" % obj.full_part_number() + ' [MFR:] ' \
+                        + str(obj.primary_manufacturer_part.manufacturer if obj.primary_manufacturer_part is not None
+                              else '-') + ' [MFR#:] '  + \
+                        str(obj.primary_manufacturer_part if obj.primary_manufacturer_part is not None else '-') \
+                        + ' [DESC:] ' + str(obj.latest().description)
 
 
 class AddSellerPartForm(forms.Form):
