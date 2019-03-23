@@ -88,7 +88,7 @@ class Part(models.Model):
         return self.latest().description
 
     def latest(self):
-        return self.revisions().order_by('-revision').first()
+        return self.revisions().order_by('-timestamp').first()
 
     def revisions(self):
         return PartChangeHistory.objects.filter(part=self)

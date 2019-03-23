@@ -824,46 +824,39 @@ def part_edit(request, part_id):
 
     try:
         part = Part.objects.get(id=part_id)
-
-        existing_number_item = part.number_item
-        existing_number_variation = part.number_variation
-        existing_description = part.description
-        existing_revision = part.revision
-
-
+        assembly = part.latest().assembly
+        assembly_subparts = assembly.subparts.all()
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
         return HttpResponseRedirect(reverse('bom:error'))
 
     if request.method == 'POST':
-        form = PartForm(request.POST, instance=part)
-        new_number_item = request.POST.get('number_item')
-        new_number_variation = request.POST.get('number_variation')
-        new_description = request.POST.get('description')
-        new_revision = request.POST.get('revision')
+        part_form = PartForm(request.POST, instance=part)
+        part_change_history_form = PartChangeHistoryForm(request.POST)
 
-        old_attribute_list = ['old_description', 'old_number_item', 'old_number_variation', 'old_revision']
+        if part_form.is_valid() and part_change_history_form.is_valid():
+            part_form.save()
 
-        for attribute_str in old_attribute_list:
-            check_delta = PartForm.update_attribute(attribute_str, new_number_item, new_number_variation,
-                                                    new_description, new_revision, part_id)
-            if check_delta != None:
-                if form.is_valid():
-                    form.save()
-                    history = PartChangeHistory(old_number_item=new_number_item,
-                                                old_number_variation=new_number_variation,
-                                                old_description=new_description, old_revision=new_revision, part=part,
-                                                attribute=check_delta[0], original_value=check_delta[2],
-                                                new_value=check_delta[1])
-                    history.save()
-            else:
-                if form.is_valid():
-                    form.save()
-                pass
+            form_pch = part_change_history_form.save(commit=False)
+
+            if assembly is not None:
+                new_assembly = assembly
+                new_assembly.pk = None # to create a new instance copy
+                new_assembly.save()
+                new_assembly.subparts.set(assembly_subparts)
+
+            pch = PartChangeHistory.objects.create(
+                part=part,
+                description=form_pch.description,
+                revision=form_pch.revision,
+                attribute=form_pch.attribute,
+                value=form_pch.value,
+                assembly=new_assembly)
 
         return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
-        form = PartForm(instance=part)
+        part_form = PartForm(instance=part)
+        part_change_history_form = PartChangeHistoryForm(instance=part.latest())
 
     return TemplateResponse(request, 'bom/edit-part.html', locals())
 
