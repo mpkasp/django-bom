@@ -229,11 +229,11 @@
                     <tbody>
                         {% for used_part in where_used %}
                         <tr>
-                            <td><a href="{% url 'bom:part-info' part_id=used_part.id %}">{{ used_part.full_part_number }}</a></td>
+                            <td><a href="{% url 'bom:part-info' part_id=used_part.id %}">{{ used_part.part.full_part_number }}</a></td>
                             <td>{{ used_part.description }}</td>
                             <td>{{ used_part.revision }}</td>
-                            <td>{{ used_part.primary_manufacturer_part.manufacturer.name }}</td>
-                            <td>{{ used_part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                            <td>{{ used_part.part.primary_manufacturer_part.manufacturer.name }}</td>
+                            <td>{{ used_part.part.primary_manufacturer_part.manufacturer_part_number }}</td>
                         </tr>
                         {% empty %}
                         <tr>

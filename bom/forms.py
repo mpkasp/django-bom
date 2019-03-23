@@ -127,7 +127,6 @@ class PartForm(forms.ModelForm):
             'number_class': _('Select a number class.'),
             'number_item': _('Auto generated if blank.'),
             'number_variation': 'Auto generated if blank.',
-            'description': 'E.g. CAPACITOR, CERAMIC, 100pF, 0402 50V, +/-5%',
         }
 
     def update_attribute(attribute_str, new_number_item, new_number_variation, new_description, new_revision, part_id):
