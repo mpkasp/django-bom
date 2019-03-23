@@ -131,7 +131,7 @@ def bom_settings(request, tab_anchor=None):
     pagename = 'settings'
     action = reverse('bom:settings')
 
-    users_in_organization = User.objects.filter(id__in=UserMeta.objects.filter(organization=organization)).order_by(
+    users_in_organization = User.objects.filter(id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).order_by(
         'first_name', 'last_name', 'email')
     google_authentication = UserSocialAuth.objects.filter(user=user).first()
 
