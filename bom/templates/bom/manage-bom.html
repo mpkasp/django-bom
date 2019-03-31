@@ -23,11 +23,59 @@ Manage BOM
     <p>Item #{{ part.full_part_number}}</p>
     <!-- <h5>{{ part.description }}</h5> -->
     <div id="bom" class="col s12">
+        <br><h5>Modify Subparts</h5>
+        <a href="#" onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand all</a>
+        <div class="responsive-table-wrapper">
+            <table id="indented-bom" class="highlight part-list tight single-line">
+                <thead>
+                    <tr>
+                        <th>Level</th>
+                        <th>Part No.</th>
+                        <th>Qty</th>
+                        <th>Description</th>
+                        <th>Rev</th>
+                        <th>Manufacturer</th>
+                        <th>MPN</th>
+                        <th>Reference</th>
+                        <!-- <th>Seller</th> -->
+                        <!-- <th>Price</th> -->
+                        {% if profile.role == 'A' %}
+                        <!-- <th>Octopart Match</th> -->
+                        <th>Edit</th>
+                        <th>Remove</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subpart in parts %}
+                    <tr data-tt-id="{{ subpart.part.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
+                        <td class="text-normal">{{ subpart.indent_level }}</td>
+                        <td>{{ subpart.part.full_part_number }}</td>
+                        <td>{{ subpart.quantity }}</td>
+                        <td>{{ subpart.part.description }}</td>
+                        <td>{{ subpart.part.revision }}</td>
+                        <td>{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
+                        <td>{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                        <td>{{ subpart.reference }}</td>
+                        <!-- <td>{{ subpart.seller_part.seller.name | default:"-" }}</td> -->
+                        <!-- <td>{{ subpart.seller_price | default:"-"}}</td> -->
+                        <!-- <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td> -->
+                        {% if subpart.indent_level == 1 and subpart.subpart is not None %}
+                        <td><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_change_history_id=part_change_history_id subpart_id=subpart.subpart.id %}">edit</a></td>
+                        <td><a href="{% url 'bom:part-remove-subpart' part_id=part.id part_change_history_id=part_change_history_id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
+                        {% else %}
+                        <td></td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         <br><h5>Add Subpart</h5>
         <div class="row">
-            <form action="{% url 'bom:part-add-subpart' part_id=part.id %}" method="post" class="col s12">
+            <form action="{% url 'bom:part-add-subpart' part_id=part.id part_change_history_id=part_change_history_id %}" method="post" class="col s12">
                 {% csrf_token %}
-                {{ add_subpart_form.assembly_subpart }}
+                {{ add_subpart_form.subpart_part }}
                 {{ add_subpart_form.count|materializecss:'m6 s12' }}
                 {{ add_subpart_form.reference|materializecss:'m6 s12' }}
                 <div class="fieldWrapper">
@@ -56,54 +104,6 @@ Manage BOM
                 </div>
             </div>
         </form>
-        <br><h5>Modify Subparts</h5>
-        <a href="#" onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand all</a>
-        <div class="responsive-table-wrapper">
-        <table id="indented-bom" class="highlight part-list tight single-line">
-            <thead>
-                <tr>
-                    <th>Level</th>
-                    <th>Part No.</th>
-                    <th>Qty</th>
-                    <th>Description</th> 
-                    <th>Rev</th>
-                    <th>Manufacturer</th>
-                    <th>MPN</th>
-                    <th>Reference</th>
-                    <!-- <th>Seller</th> -->
-                    <!-- <th>Price</th> -->
-                    {% if profile.role == 'A' %}
-                    <!-- <th>Octopart Match</th> -->
-                    <th>Edit</th>
-                    <th>Remove</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for subpart in parts %}
-                <tr data-tt-id="{{ subpart.part.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
-                    <td class="text-normal">{{ subpart.indent_level }}</td>
-                    <td>{{ subpart.part.full_part_number }}</td>
-                    <td>{{ subpart.quantity }}</td> 
-                    <td>{{ subpart.part.description }}</td> 
-                    <td>{{ subpart.part.revision }}</td>
-                    <td>{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
-                    <td>{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                    <td>{{ subpart.reference }}</td>
-                    <!-- <td>{{ subpart.seller_part.seller.name | default:"-" }}</td> -->
-                    <!-- <td>{{ subpart.seller_price | default:"-"}}</td> -->
-                    <!-- <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td> -->
-                    {% if subpart.indent_level == 1 and subpart.subpart is not None %}
-                    <td><a href="{% url 'bom:part-edit-subpart' part_id=part.id subpart_id=subpart.subpart.id %}">edit</a></td>
-                    <td><a href="{% url 'bom:part-remove-subpart' part_id=part.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
-                    {% else %}
-                    <td></td>
-                    {% endif %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        </div>
         <br><br>
         <div class="center">
             <a class="waves-effect waves-light red lighten-2 btn" href="{% url 'bom:part-remove-all-subparts' part_id=part.id %}" onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts</a>

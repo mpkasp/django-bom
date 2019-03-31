@@ -863,7 +863,7 @@ def part_edit(request, part_id):
 
 
 @login_required
-def manage_bom(request, part_id):
+def manage_bom(request, part_id, part_change_history_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
@@ -906,102 +906,52 @@ def part_delete(request, part_id):
 
 
 @login_required
-def add_subpart(request, part_id):
+def add_subpart(request, part_id, part_change_history_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
 
-    try:
-        part_change_history = PartChangeHistory.objects.get(id=part_id)
-    #     TODO: Change to PartChangeHistory...
-    except ObjectDoesNotExist:
-        messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
+    part_change_history = get_object_or_404(PartChangeHistory, pk=part_change_history_id)
 
     if request.method == 'POST':
         form = AddSubpartForm(request.POST, organization=organization, part_id=part_id)
         if form.is_valid():
             new_part = Subpart.objects.create(
-                assembly_subpart=form.cleaned_data['assembly_subpart'],
+                part_revision=form.cleaned_data['subpart_part'].latest(),
                 count=form.cleaned_data['count'],
-                reference=form.cleaned_data['reference'],
-            )
+                reference=form.cleaned_data['reference'])
+            part_change_history.assembly.subparts.add(new_part)
 
 
-    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
+    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
 
 
 @login_required
-def remove_subpart(request, part_id, subpart_id):
-    try:
-        part = Part.objects.get(id=part_id)
-        subpart = Subpart.objects.get(id=subpart_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "No subpart found with given part_id.")
-        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '#bom')
-
-    attribute = "BOM Update: Existing subpart removed"
-    original_value = subpart.assembly_subpart
-    new_value = "N/A"
-
-    existing_number_item = Part.objects.get(id=part_id).number_item
-    existing_number_variation = Part.objects.get(id=part_id).number_variation
-    existing_description = Part.objects.get(id=part_id).description
-    existing_revision = Part.objects.get(id=part_id).revision
-
-    h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation,
-                          old_description=existing_description, old_revision=existing_revision, part=part,
-                          attribute=attribute, original_value=original_value, new_value=new_value)
-    h.save()
+def remove_subpart(request, part_id, part_change_history_id, subpart_id):
+    subpart = get_object_or_404(Subpart, pk=subpart_id)
     subpart.delete()
+    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
 
-    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
-
-def edit_subpart(request, part_id, subpart_id):
+def edit_subpart(request, part_id, part_change_history_id, subpart_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    action = reverse('bom:part-edit-subpart', kwargs={'part_id': part_id, 'subpart_id': subpart_id})
+    action = reverse('bom:part-edit-subpart', kwargs={'part_id': part_id, 'subpart_id': subpart_id, 'part_change_history_id': part_change_history_id})
 
-    try:
-        part = Part.objects.get(id=part_id)
-        subpart = Subpart.objects.get(id=subpart_id)
-
-        existing_assembly_subpart = subpart.assembly_subpart
-        existing_count = subpart.count
-        existing_reference = subpart.reference
-
-    except ObjectDoesNotExist:
-        messages.error(request, "No subpart found with given subpart_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
+    part = get_object_or_404(Part, pk=part_id)
+    subpart = get_object_or_404(Subpart, pk=subpart_id)
 
     title = "Edit Subpart"
-    h1 = "{} {}".format(subpart.assembly_part.full_part_number(), subpart.assembly_part.description)
+    h1 = "{} {}".format(subpart.part_revision.part.full_part_number(), subpart.part_revision.description)
 
     if request.method == 'POST':
-        form = SubpartForm(request.POST, instance=subpart, organization=organization)
+        form = SubpartForm(request.POST, instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
         if form.is_valid():
-            attribute = "BOM Update: Existing subpart was edited"
-            original_value = str(existing_assembly_subpart) + ", " + str(existing_count) + ", " + str(
-                existing_reference)
-            new_value = str(form.cleaned_data['assembly_subpart']) + ", " + str(
-                form.cleaned_data['count']) + ", " + str(form.cleaned_data['reference'])
-
-            existing_number_item = Part.objects.get(id=part_id).number_item
-            existing_number_variation = Part.objects.get(id=part_id).number_variation
-            existing_description = Part.objects.get(id=part_id).description
-            existing_revision = Part.objects.get(id=part_id).revision
-
-            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation,
-                                  old_description=existing_description, old_revision=existing_revision, part=part,
-                                  attribute=attribute, original_value=original_value, new_value=new_value)
-            h.save()
-
             form.save()
-            return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
+            return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
     else:
-        form = SubpartForm(instance=subpart, organization=organization)
+        form = SubpartForm(instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
 
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 

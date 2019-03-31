@@ -148,30 +148,26 @@ class PartChangeHistoryForm(forms.ModelForm):
 class SubpartForm(forms.ModelForm):
     class Meta:
         model = Subpart
-        exclude = ['assembly_part', ]
+        fields = ['part_revision', 'reference', 'count']
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         self.part_id = kwargs.pop('part_id', None)
         super(SubpartForm, self).__init__(*args, **kwargs)
+        if self.part_id is None:
+            self.Meta.exclude = ['part_revision']
+        else:
+            self.fields['part_revision'].queryset = PartChangeHistory.objects.filter(
+                part__id=self.part_id).order_by('-timestamp')
 
-        part = None
-        unusable_part_ids = []
         if self.part_id:
             part = Part.objects.get(id=self.part_id)
             unusable_part_ids = [p.id for p in part.where_used_full()]
             unusable_part_ids.append(part.id)
-        self.fields['assembly_subpart'].queryset = Part.objects.filter(
-            organization=self.organization).exclude(id__in=unusable_part_ids).order_by(
-            'number_class__code', 'number_item', 'number_variation')
-        self.fields['assembly_subpart'].label_from_instance = \
-            lambda obj: "%s" % obj.full_part_number(
-            ) + ' ' + obj.description + ' ' + obj.primary_manufacturer_part
 
 
 class AddSubpartForm(forms.Form):
-    assembly_subpart = forms.ModelChoiceField(
-        queryset=None, required=True, label="Subpart")
+    subpart_part = forms.ModelChoiceField(queryset=None, required=True, label="Subpart")
     count = forms.IntegerField(required=True, label='Quantity')
     reference = forms.CharField(required=False, label="Reference")
 
@@ -186,11 +182,11 @@ class AddSubpartForm(forms.Form):
             part = Part.objects.get(id=self.part_id)
             unusable_part_ids = [p.id for p in part.where_used_full()]
             unusable_part_ids.append(part.id)
-        self.fields['assembly_subpart'].queryset = Part.objects.filter(
+        self.fields['subpart_part'].queryset = Part.objects.filter(
             organization=self.organization).exclude(id__in=unusable_part_ids).order_by(
             'number_class__code', 'number_item', 'number_variation')
         # TODO: Clean this up, consider forcing a primary mfg part on each part
-        self.fields['assembly_subpart'].label_from_instance = \
+        self.fields['subpart_part'].label_from_instance = \
             lambda obj: "%s" % obj.full_part_number() + ' [MFR:] ' \
                         + str(obj.primary_manufacturer_part.manufacturer if obj.primary_manufacturer_part is not None
                               else '-') + ' [MFR#:] '  + \
