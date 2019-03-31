@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.encoding import smart_str
 
@@ -159,7 +160,7 @@ def bom_settings(request, tab_anchor=None):
 
 
 @login_required
-def part_info(request, part_id):
+def part_info(request, part_id, part_change_history_id=None):
     order_by = request.GET.get('order_by', 'indented')
     tab_anchor = request.GET.get('tab_anchor', None)
 
@@ -167,13 +168,13 @@ def part_info(request, part_id):
     profile = user.bom_profile()
     organization = profile.organization
 
-    try:
-        part = Part.objects.get(id=part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "Part object does not exist.")
-        return HttpResponseRedirect(reverse('bom:error'))
+    part = get_object_or_404(Part, pk=part_id)
 
-    change = part.latest()
+    if part_change_history_id is None:
+        change = part.latest()
+    else:
+        change = get_object_or_404(PartChangeHistory, pk=part_change_history_id)
+
     attribute_history = PartChangeHistory.objects.filter(part=part_id).order_by('-timestamp')
 
     if part.organization != organization:
@@ -911,7 +912,8 @@ def add_subpart(request, part_id):
     organization = profile.organization
 
     try:
-        part = Part.objects.get(id=part_id)
+        part_change_history = PartChangeHistory.objects.get(id=part_id)
+    #     TODO: Change to PartChangeHistory...
     except ObjectDoesNotExist:
         messages.error(request, "No part found with given part_id.")
         return HttpResponseRedirect(reverse('bom:error'))
@@ -920,25 +922,11 @@ def add_subpart(request, part_id):
         form = AddSubpartForm(request.POST, organization=organization, part_id=part_id)
         if form.is_valid():
             new_part = Subpart.objects.create(
-                assembly_part=part,
                 assembly_subpart=form.cleaned_data['assembly_subpart'],
                 count=form.cleaned_data['count'],
                 reference=form.cleaned_data['reference'],
             )
 
-            attribute = "BOM Update: New subpart added"
-            original_value = "N/A"
-            new_value = form.cleaned_data['assembly_subpart']
-
-            existing_number_item = Part.objects.get(id=part_id).number_item
-            existing_number_variation = Part.objects.get(id=part_id).number_variation
-            existing_description = Part.objects.get(id=part_id).description
-            existing_revision = Part.objects.get(id=part_id).revision
-
-            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation,
-                                  old_description=existing_description, old_revision=existing_revision, part=part,
-                                  attribute=attribute, original_value=original_value, new_value=new_value)
-            h.save()
 
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 

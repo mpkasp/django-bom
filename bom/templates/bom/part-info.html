@@ -13,16 +13,15 @@
 {% block menu %}
 {% if profile.role == 'A' %}
 <li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>
-<li><a href="{% url 'bom:part-manage-bom' part_id=part.id %}">Manage BOM</a></li>
 {% endif %}
-<li><a href="{% url 'bom:part-export-bom' part_id=part.id %}">Export</a></li>
 {% endblock%}
 
 {% block content %}
 <div class="part-info">
     <div class="row">
         <div class="col s8">
-            <h5 class="light">Part Number: {{ part.full_part_number}}</h5>
+            <h3 class="light">Part Number: {{ part.full_part_number}}</h3>
+            <h5 class="light">{% if change != part.latest %}Viewing Historic Part: {{ change.revision }}, {{ change.timestamp }}{% endif %}</h5>
         </div>
         <div class="col s4 right-align">
             <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
@@ -55,7 +54,7 @@
                         Description:
                     </div>
                     <div class="col s8">
-                        {{ part.description }}
+                        {{ change.description }}
                     </div>
                 </div>
                 <div class="row">
@@ -103,7 +102,7 @@
                         Est. Cost:
                     </div>
                     <div class="col s8">
-                        ${{ unit_cost|floatformat:4 }}{% if not extended_cost_complete %}&nbsp;(!){% endif %}
+                        ${{ unit_cost|floatformat:4 }}
                     </div>
                 </div>
                 <div class="row">
@@ -157,7 +156,25 @@
         </div>
 
         <div id="bom" class="col s12">
-            {% if order_by == 'indented' %}<a href="#" onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand all</a>{% endif %}
+            <div class="row" style="padding-top: 16px;">
+                <div class="col s6">
+                    {% if order_by == 'indented' %}<button href="#" class="waves-effect waves-green grey lighten-4 btn-flat" onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand all</button>{% endif %}
+                    {% if order_by == 'indented' %}<button href="#" class="waves-effect waves-green grey lighten-4 btn-flat" onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse all</button>{% endif %}
+                </div>
+                <div class="col s6 right-align">
+
+                    <!-- Dropdown Trigger -->
+                    <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat{% if change != part.latest %} disabled{% endif %}" href='#' data-target='dropdown{{ part.id }}'>Manage</button>
+                    <!-- Dropdown Structure -->
+                    <ul id='dropdown{{ part.id }}' class='dropdown-content'>
+                        {% if profile.role == 'A' %}
+                        <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit Current</a></li>
+                        <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit and New Change Entry</a></li>
+                        {% endif %}
+                        <li><a class="green-text text-lighten-1" href="{% url 'bom:part-export-bom' part_id=part.id %}"><i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a></li>
+                    </ul>
+                </div>
+            </div>
             <div class="responsive-table-wrapper">
                 <table id="indented-bom" class="highlight part-list tight single-line">
                     <thead>
@@ -171,10 +188,10 @@
                             <th class="text-normal">MPN</th>
                             <!-- <th class="text-normal"><i>Ext. Qty</i></th> -->
                             <!-- <th class="text-normal"><i>Order Qty</i></th> -->
-                            <th class="text-normal"><i>Seller</i></th>
-                            <th class="text-normal"><a href="?order_by=seller_price"><i>Price</i></a></th>
+                            <th class="text-normal">Seller</th>
+                            <th class="text-normal"><a href="?order_by=seller_price">Price</a></th>
                             <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
-                            <th class="text-normal"><a href="?order_by=seller_nre"><i>NRE</i></a></th>
+                            <th class="text-normal"><a href="?order_by=seller_nre">NRE</a></th>
                             <th class="text-normal">Reference</th>
                         </tr>
                     </thead>
@@ -205,7 +222,7 @@
                         </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="99" style="text-align: center;"><i>This part does not contain any other parts.</i></td>
+                        <td colspan="99" style="text-align: center; height: 20vh;"><i>This part does not contain any other parts.</i></td>
                     </tr>
                     {% endfor %}
                 </table>
@@ -237,7 +254,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="99" style="text-align: center;"><i>This part is not currently used in any of your other parts. To add a part to a subassembly or assembly, go to the parent part, and click "Manage Part".</i></td>
+                            <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently used in any of your other parts. To add a part to a subassembly or assembly, go to the parent part, and click "Manage Part".</i></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -311,7 +328,7 @@
                         {% endfor %}
                         {% empty %}
                         <tr>
-                            <td colspan="99" style="text-align: center;"><i>This part has no manufacturer parts.</i></td>
+                            <td colspan="99" style="text-align: center; height: 20vh;"><i>This part has no manufacturer parts.</i></td>
                         </tr>
                     {% endfor %}
                     </tbody>
@@ -333,19 +350,25 @@
                             <th>BOM Components</th>
                             <th>Attribute</th>
                             <th>Value</th>
-                            <th>Time Stamp</th>
+                            <th>Time Stamp (UTC)</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for a in attribute_history.all %}
-                        <tr data-tt-id="{{ a.id }}">
-                            <td>{{ a.revision }}</td>
-                            <td>{{ a.description }}</td>
-                            <td>{{ a.assembly.subparts.count }}</td>
-                            <td>{{ a.attribute }}</td>
-                            <td>{{ a.value }}</td>
-                            <td>{{ a.timestamp }}</td>
-                        </tr>
+                            <tr data-tt-id="{{ a.id }}">
+                                <td>{{ a.revision }}</td>
+                                <td>{{ a.description }}</td>
+                                <td>{{ a.assembly.subparts.count }}</td>
+                                <td>{{ a.attribute|default:'-' }}</td>
+                                <td>{{ a.value|default:'-' }}</td>
+                                <td>{{ a.timestamp }}</td>
+                                <td><a href="{% if a == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_change_history_id=a.id %}{% endif %}">view</a></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="99" style="text-align: center; height: 20vh;"><i>This part has no tracked changes yet.</i></td>
+                            </tr>
                        {% endfor %}
                     </tbody>
                 </table>

@@ -157,3 +157,14 @@ table.treetable tr.expanded span.indenter a {
     }
 }
 
+.primary-color {
+    color: #66bb6a;
+}
+
+.dark-color {
+    color: #338a3e;
+}
+
+.light-color {
+    color: #98ee99;
+}

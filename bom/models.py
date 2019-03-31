@@ -192,7 +192,7 @@ class PartChangeHistory(models.Model):
     revision = models.CharField(max_length=2, db_index=True)
     attribute = models.CharField(max_length=255, default=None, null=True)
     value = models.CharField(max_length=255, default=None, null=True)
-    assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT)
+    assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
 
     def indented(self):
         def indented_given_bom(bom, partchangehistory, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
