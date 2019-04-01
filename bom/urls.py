@@ -29,6 +29,7 @@ bom_patterns = [
     path('part/<int:part_id>/part-change/<int:part_change_history_id>/edit-subpart/<int:subpart_id>', views.edit_subpart, name='part-edit-subpart'),
     path('part/<int:part_id>/part-change/<int:part_change_history_id>/remove-subpart/<int:subpart_id>/', views.remove_subpart, name='part-remove-subpart'),
     path('part/<int:part_id>/part-change/<int:part_change_history_id>/manage-bom/', views.manage_bom, name='part-manage-bom'),
+    path('part/<int:part_id>/part-change/<int:part_change_history_id>/manage-bom-change/', views.manage_bom_change, name='part-manage-bom-change'),
     path('part/<int:part_id>/part-change/<int:part_change_history_id>/add-subpart/', views.add_subpart, name='part-add-subpart'),
     path('sellerpart/<int:sellerpart_id>/edit/', views.sellerpart_edit, name='sellerpart-edit'),
     path('sellerpart/<int:sellerpart_id>/delete/', views.sellerpart_delete, name='sellerpart-delete'),

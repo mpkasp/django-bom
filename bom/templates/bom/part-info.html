@@ -169,7 +169,7 @@
                     <ul id='dropdown{{ part.id }}' class='dropdown-content'>
                         {% if profile.role == 'A' %}
                         <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_change_history_id=change.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit Current</a></li>
-                        <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_change_history_id=change.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit and New Change Entry</a></li>
+                        <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom-change' part_id=part.id part_change_history_id=change.id %}"><i class="material-icons green-text text-lighten-1">plus</i>Edit and Track Change</a></li>
                         {% endif %}
                         <li><a class="green-text text-lighten-1" href="{% url 'bom:part-export-bom' part_id=part.id %}"><i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a></li>
                     </ul>

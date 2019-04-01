@@ -818,13 +818,9 @@ def part_edit(request, part_id):
     profile = user.bom_profile()
     organization = profile.organization
 
-    try:
-        part = Part.objects.get(id=part_id)
-        assembly = part.latest().assembly
-        assembly_subparts = assembly.subparts.all()
-    except ObjectDoesNotExist:
-        messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
+    part = get_object_or_404(Part, pk=part_id)
+    assembly = part.latest().assembly
+    assembly_subparts = assembly.subparts.all()
 
     if request.method == 'POST':
         part_form = PartForm(request.POST, instance=part)
@@ -863,18 +859,13 @@ def manage_bom(request, part_id, part_change_history_id):
     profile = user.bom_profile()
     organization = profile.organization
 
-    try:
-        part = Part.objects.get(id=part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "Part object does not exist.")
-        return HttpResponseRedirect(reverse('bom:error'))
+    part = get_object_or_404(Part, pk=part_id)
 
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
         return HttpResponseRedirect(reverse('bom:error'))
 
-    add_subpart_form = AddSubpartForm(
-        initial={'count': 1, }, organization=organization, part_id=part_id)
+    add_subpart_form = AddSubpartForm(initial={'count': 1, }, organization=organization, part_id=part_id)
     upload_subparts_csv_form = FileForm()
 
     parts = part.indented()
@@ -885,6 +876,25 @@ def manage_bom(request, part_id, part_change_history_id):
         item['seller_part'] = seller
 
     return TemplateResponse(request, 'bom/manage-bom.html', locals())
+
+
+@login_required
+def manage_bom_change(request, part_id, part_change_history_id):
+    part = get_object_or_404(Part, pk=part_id)
+    response = manage_bom(request, part_id, part_change_history_id)
+
+    old_pch = part.latest()
+    new_assembly = old_pch.assembly
+    new_assembly.pk = None
+    new_assembly.save()
+
+    PartChangeHistory.objects.create(part=part, description=old_pch.description,
+                                     revision=old_pch.revision, assembly=new_assembly)
+
+    messages.info(request, "Previous assembly saved, and copied into new assembly. "
+                           "Now editing new assembly for part {}.".format(part.full_part_number()))
+
+    return response
 
 
 @login_required
@@ -916,8 +926,6 @@ def add_subpart(request, part_id, part_change_history_id):
                 count=form.cleaned_data['count'],
                 reference=form.cleaned_data['reference'])
             part_change_history.assembly.subparts.add(new_part)
-
-
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
 
 
@@ -928,6 +936,7 @@ def remove_subpart(request, part_id, part_change_history_id, subpart_id):
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
 
 
+@login_required
 def edit_subpart(request, part_id, part_change_history_id, subpart_id):
     user = request.user
     profile = user.bom_profile()
@@ -967,12 +976,7 @@ def add_sellerpart(request, manufacturer_part_id):
     profile = user.bom_profile()
     organization = profile.organization
 
-    try:
-        manufacturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "No manufacturer_part found with given manufacturer_part_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
-
+    manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     title = "Add Seller Part to {}".format(manufacturer_part)
 
     if request.method == 'POST':
@@ -993,11 +997,7 @@ def add_manufacturer_part(request, part_id):
     profile = user.bom_profile()
     organization = profile.organization
 
-    try:
-        part = Part.objects.get(id=part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
+    part = get_object_or_404(Part, pk=part_id)
 
     if request.method == 'POST':
         manufacturer_form = ManufacturerForm(request.POST)
@@ -1025,20 +1025,6 @@ def add_manufacturer_part(request, part_id):
                 part.primary_manufacturer_part = manufacturer_part
                 part.save()
 
-            attribute = "New Manufacturer Part"
-            original_value = "N/A"
-            new_value = manufacturer_part_number + ", " + str(manufacturer)
-
-            existing_number_item = Part.objects.get(manufacturerpart=manufacturer_part).number_item
-            existing_number_variation = Part.objects.get(manufacturerpart=manufacturer_part).number_variation
-            existing_description = Part.objects.get(manufacturerpart=manufacturer_part).description
-            existing_revision = Part.objects.get(manufacturerpart=manufacturer_part).revision
-
-            h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation,
-                                  old_description=existing_description, old_revision=existing_revision, part=part,
-                                  attribute=attribute, original_value=original_value, new_value=new_value)
-            h.save()
-
             return HttpResponseRedirect(
                 reverse('bom:part-info', kwargs={'part_id': str(part.id)}) + '?tab_anchor=sourcing')
         else:
@@ -1057,12 +1043,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
     profile = user.bom_profile()
     organization = profile.organization
 
-    try:
-        manufacturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "No manufacturer part found with given manufacturer_part_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
-
+    manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     part = manufacturer_part.part
 
     if request.method == 'POST':
@@ -1112,14 +1093,8 @@ def manufacturer_part_edit(request, manufacturer_part_id):
 @login_required
 def manufacturer_part_delete(request, manufacturer_part_id):
     # TODO: Add test
-    try:
-        manufacturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "No Manufacturer Part found with given manufacturer_part_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
-
+    manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     part = manufacturer_part.part
-
     manufacturer_part.delete()
 
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
