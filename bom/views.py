@@ -90,18 +90,18 @@ def home(request):
         if number_class and number_item and number_variation:
             parts = parts.filter(
                 Q(number_class__code=number_class, number_item=number_item, number_variation=number_variation) |
-                Q(description__icontains=query) |
+                # Q(description__icontains=query) |
                 Q(primary_manufacturer_part__manufacturer_part_number__icontains=query) |
                 Q(primary_manufacturer_part__manufacturer__name__icontains=query))
         elif number_class and number_item:
             parts = parts.filter(
                 Q(number_class__code=number_class, number_item=number_item) |
-                Q(description__icontains=query) |
+                # Q(description__icontains=query) |
                 Q(primary_manufacturer_part__manufacturer_part_number__icontains=query) |
                 Q(primary_manufacturer_part__manufacturer__name__icontains=query))
         else:
             parts = parts.filter(
-                Q(description__icontains=query) |
+                # Q(description__icontains=query) |
                 Q(primary_manufacturer_part__manufacturer_part_number__icontains=query) |
                 Q(primary_manufacturer_part__manufacturer__name__icontains=query) |
                 Q(number_class__code=query))
@@ -352,8 +352,8 @@ def part_export_bom(request, part_id):
             'part_number': item['part'].full_part_number(),
             'quantity': item['quantity'],
             'reference': item['reference'],
-            'part_description': item['part'].description,
-            'part_revision': item['part'].revision,
+            'part_description': item['part'].latest().description,
+            'part_revision': item['part'].latest().revision,
             'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item[
                                                                                                  'part'].primary_manufacturer_part is not None and
                                                                                              item[
@@ -561,11 +561,12 @@ def upload_parts(request):
                                 partData['part_class']))
                         return HttpResponseRedirect(reverse('bom:error'))
                     part, created = Part.objects.get_or_create(number_class=part_class,
-                                                               organization=organization,
-                                                               defaults={
-                                                                   'description': partData['description'],
-                                                                   'revision': partData['revision'],
-                                                               })
+                                                               organization=organization)
+
+                    if created:
+                        pch = PartChangeHistory.objects.create(part=part,
+                                                               description=partData['description'],
+                                                               revision=partData['revision'])
 
                     manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part,
                                                                                         manufacturer_part_number=mpn,
@@ -576,17 +577,12 @@ def upload_parts(request):
                         part.save()
 
                     if created:
-                        messages.info(
-                            request, "{}: {} created.".format(
-                                part.full_part_number(), part.description))
+                        messages.info(request, "{}: {} created.".format(part.full_part_number(), part.description))
                     else:
-                        messages.warning(
-                            request, "{}: {} already exists!".format(
-                                part.full_part_number(), part.description))
+                        messages.warning(request, "{}: {} already exists!".format(part.full_part_number(),
+                                                                                  part.description))
                 else:
-                    messages.error(
-                        request,
-                        "File must contain at least the 3 columns (with headers): 'part_class', 'description', and 'revision'.")
+                    messages.error(request, "File must contain at least the 3 columns (with headers): 'part_class', 'description', and 'revision'.")
                     return TemplateResponse(request, 'bom/upload-parts.html', locals())
         else:
             messages.error(request, "Invalid form input.")
@@ -626,8 +622,8 @@ def export_part_list(request):
     for item in parts:
         row = {
             'part_number': item.full_part_number(),
-            'part_description': item.description,
-            'part_revision': item.revision,
+            'part_description': item.latest().description,
+            'part_revision': item.latest().revision,
             'part_manufacturer': item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
             'part_manufacturer_part_number': item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
         }
@@ -722,7 +718,7 @@ def part_octopart_match_bom(request, part_id):
         messages.error(request, "No part found with given part_id.")
         return HttpResponseRedirect(reverse('bom:error'))
 
-    subparts = part.subparts.all()
+    subparts = part.latest().assembly.subparts.all()
     seller_parts = []
 
     for part in subparts:
@@ -797,7 +793,6 @@ def create_part(request):
                 manufacturer, created = Manufacturer.objects.get_or_create(organization=organization,
                                                                            name=organization.name)
 
-            print(new_part.full_part_number() if mpn == '' else mpn)
             manufacturer_part, created = ManufacturerPart.objects.get_or_create(
                 part=new_part,
                 manufacturer_part_number=new_part.full_part_number() if mpn == '' else mpn,
@@ -957,13 +952,13 @@ def edit_subpart(request, part_id, part_change_history_id, subpart_id):
 
 
 @login_required
-def remove_all_subparts(request, part_id):
-    subparts = Subpart.objects.filter(assembly_part=part_id)
+def remove_all_subparts(request, part_id, part_change_history_id):
+    subparts = Subpart.objects.filter(part_revision=part_change_history_id)
 
     for subpart in subparts:
         subpart.delete()
 
-    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
+    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
 
 
 @login_required
@@ -1124,20 +1119,6 @@ def manufacturer_part_delete(request, manufacturer_part_id):
         return HttpResponseRedirect(reverse('bom:error'))
 
     part = manufacturer_part.part
-
-    attribute = "Delete Manufacturer Part"
-    original_value = manufacturer_part.manufacturer_part_number + ", " + str(manufacturer_part.manufacturer)
-    new_value = "N/A"
-
-    existing_number_item = Part.objects.get(manufacturerpart=manufacturer_part).number_item
-    existing_number_variation = Part.objects.get(manufacturerpart=manufacturer_part).number_variation
-    existing_description = Part.objects.get(manufacturerpart=manufacturer_part).description
-    existing_revision = Part.objects.get(manufacturerpart=manufacturer_part).revision
-
-    h = PartChangeHistory(old_number_item=existing_number_item, old_number_variation=existing_number_variation,
-                          old_description=existing_description, old_revision=existing_revision, part=part,
-                          attribute=attribute, original_value=original_value, new_value=new_value)
-    h.save()
 
     manufacturer_part.delete()
 

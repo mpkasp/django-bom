@@ -1,6 +1,6 @@
 from bom.octopart import match_part
 from bom.models import Part, PartClass, Seller, SellerPart, Subpart, \
-    Manufacturer, Organization, PartFile, ManufacturerPart
+    Manufacturer, Organization, ManufacturerPart, PartChangeHistory, Assembly
 
 
 def create_a_fake_organization(user, free=False):
@@ -26,14 +26,33 @@ def create_some_fake_part_classes():
     return pc1, pc2, pc3
 
 
-def create_a_fake_subpart(assembly_part, assembly_subpart, count=4):
+def create_a_fake_subpart(part_change_history, reference="U1", count=4):
     sp1 = Subpart(
-        assembly_part=assembly_part,
-        assembly_subpart=assembly_subpart,
+        part_revision=part_change_history,
+        reference=reference,
         count=count)
     sp1.save()
 
     return sp1
+
+
+def create_a_fake_assembly():
+    assy = Assembly()
+    assy.save()
+    return assy
+
+
+def create_a_fake_assembly_with_subpart(part_change_history, reference="D4", count=4):
+    assy = create_a_fake_assembly()
+    subpart = create_a_fake_subpart(part_change_history, reference, count)
+    assy.subparts.add(subpart)
+    return assy
+
+
+def create_a_fake_part_change_history(part, assembly, description="Brown dog", revision="1"):
+    pch = PartChangeHistory(part=part, description=description, revision=revision, attribute="Voltage", value="3.3", assembly=assembly)
+    pch.save()
+    return pch
 
 
 def create_some_fake_sellers(organization):
@@ -90,35 +109,37 @@ def create_some_fake_parts(organization):
     pt1 = Part(
         number_class=pc2,
         number_item='3333',
-        description='Brown dog',
-        revision='1',
         organization=organization)
     pt1.save()
     mp1 = ManufacturerPart(part=pt1, manufacturer=m1, manufacturer_part_number='STM32F401CEU6')
     mp1.save()
     pt1.primary_manufacturer_part = mp1
     pt1.save()
+    assy = create_a_fake_assembly()
+    pch1 = create_a_fake_part_change_history(part=pt1, assembly=assy)
 
     pt2 = Part(
         number_class=pc1,
-        description='',
         organization=organization)
     pt2.save()
     mp2 = ManufacturerPart(part=pt2, manufacturer=None, manufacturer_part_number='GRM1555C1H100JA01D')
     mp2.save()
     pt2.primary_manufacturer_part = mp2
     pt2.save()
+    assy2 = create_a_fake_assembly_with_subpart(part_change_history=pch1)
+    pch2 = create_a_fake_part_change_history(part=pt2, assembly=assy2)
 
     pt3 = Part(
         number_class=pc3,
-        description='Friendly ghost',
         organization=organization)
     pt3.save()
     mp3 = ManufacturerPart(part=pt3, manufacturer=m3, manufacturer_part_number='NRF51822')
     mp3.save()
-
-    create_a_fake_subpart(pt1, pt2)
-    create_a_fake_subpart(pt1, pt3, count=10)
+    assy3 = create_a_fake_assembly_with_subpart(part_change_history=pch2)
+    subpart3 = create_a_fake_subpart(pch1, count=10, reference="")
+    assy3.subparts.add(subpart3)
+    pch3 = create_a_fake_part_change_history(part=pt3, assembly=assy3)
+    pch4 = create_a_fake_part_change_history(part=pt3, assembly=assy3)
 
     (s1, s2, s3) = create_some_fake_sellers(organization=organization)
 
