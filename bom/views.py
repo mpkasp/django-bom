@@ -87,21 +87,22 @@ def home(request):
     if query:
         rq = query.strip()
         (number_class, number_item, number_variation) = numbers_from_part_string(rq)
+        part_description_ids = PartChangeHistory.objects.filter(description__icontains=query).values_list("part", flat=True)
         if number_class and number_item and number_variation:
             parts = parts.filter(
                 Q(number_class__code=number_class, number_item=number_item, number_variation=number_variation) |
-                # Q(description__icontains=query) |
+                Q(id__in=part_description_ids) |
                 Q(primary_manufacturer_part__manufacturer_part_number__icontains=query) |
                 Q(primary_manufacturer_part__manufacturer__name__icontains=query))
         elif number_class and number_item:
             parts = parts.filter(
                 Q(number_class__code=number_class, number_item=number_item) |
-                # Q(description__icontains=query) |
+                Q(id__in=part_description_ids) |
                 Q(primary_manufacturer_part__manufacturer_part_number__icontains=query) |
                 Q(primary_manufacturer_part__manufacturer__name__icontains=query))
         else:
             parts = parts.filter(
-                # Q(description__icontains=query) |
+                Q(id__in=part_description_ids) |
                 Q(primary_manufacturer_part__manufacturer_part_number__icontains=query) |
                 Q(primary_manufacturer_part__manufacturer__name__icontains=query) |
                 Q(number_class__code=query))

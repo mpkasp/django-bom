@@ -170,12 +170,12 @@
                         <ul id='dropdown{{ part.id }}' class='dropdown-content'>
                             {% if profile.role == 'A' %}
                             {% if change == part.latest %}
-                                <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_change_history_id=change.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit Current</a></li>
+                                <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_change_history_id=change.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit</a></li>
                             {% endif %}
                             {% if change == part.latest %}
                                 <li>
                                     <input type="hidden" name="change" value="true">
-                                    <a type="submit" class="green-text text-lighten-1" style="-webkit-appearance: none;" href="#" onclick="$(this).closest('form').submit()"><i class="material-icons green-text text-lighten-1">add</i>Edit and Track Change</a>
+                                    <a type="submit" class="green-text text-lighten-1" style="-webkit-appearance: none;" href="#" onclick="$(this).closest('form').submit()"><i class="material-icons green-text text-lighten-1">add</i>Save Copy and Edit</a>
                                 </li>
                             {% endif %}
                             {% endif %}
@@ -255,7 +255,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently used in any of your other parts. To add a part to a subassembly or assembly, go to the parent part, and click "Manage Part".</i></td>
+                            <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently used in any of your other parts. To add a part to a subassembly or assembly, go to the parent part's Bill of Materials, and click "Manage", then "Edit".</i></td>
                         </tr>
                         {% endfor %}
                     </tbody>
