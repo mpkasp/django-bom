@@ -861,6 +861,24 @@ def manage_bom(request, part_id, part_change_history_id):
 
     part = get_object_or_404(Part, pk=part_id)
 
+    change = request.POST.get("change", "false").lower() == 'true'
+    if change:
+        old_pch = part.latest()
+        old_subparts = old_pch.assembly.subparts.all()
+        new_assembly = old_pch.assembly
+        new_assembly.pk = None
+        new_assembly.save()
+
+        part_change_history = PartChangeHistory.objects.create(part=part, description=old_pch.description,
+                                         revision=old_pch.revision, assembly=new_assembly)
+
+        new_assembly.subparts.set(old_subparts)
+
+        messages.info(request, "Previous assembly saved, and copied into new assembly. "
+                               "Now editing new assembly for part {}.".format(part.full_part_number()))
+    else:
+        part_change_history = get_object_or_404(PartChangeHistory, pk=part_change_history_id)
+
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
         return HttpResponseRedirect(reverse('bom:error'))
@@ -868,7 +886,8 @@ def manage_bom(request, part_id, part_change_history_id):
     add_subpart_form = AddSubpartForm(initial={'count': 1, }, organization=organization, part_id=part_id)
     upload_subparts_csv_form = FileForm()
 
-    parts = part.indented()
+    parts = part_change_history.indented()
+
     for item in parts:
         extended_quantity = 1000 * item['quantity']
         seller = item['part'].optimal_seller(quantity=extended_quantity)
@@ -876,25 +895,6 @@ def manage_bom(request, part_id, part_change_history_id):
         item['seller_part'] = seller
 
     return TemplateResponse(request, 'bom/manage-bom.html', locals())
-
-
-@login_required
-def manage_bom_change(request, part_id, part_change_history_id):
-    part = get_object_or_404(Part, pk=part_id)
-    response = manage_bom(request, part_id, part_change_history_id)
-
-    old_pch = part.latest()
-    new_assembly = old_pch.assembly
-    new_assembly.pk = None
-    new_assembly.save()
-
-    PartChangeHistory.objects.create(part=part, description=old_pch.description,
-                                     revision=old_pch.revision, assembly=new_assembly)
-
-    messages.info(request, "Previous assembly saved, and copied into new assembly. "
-                           "Now editing new assembly for part {}.".format(part.full_part_number()))
-
-    return response
 
 
 @login_required
@@ -926,6 +926,9 @@ def add_subpart(request, part_id, part_change_history_id):
                 count=form.cleaned_data['count'],
                 reference=form.cleaned_data['reference'])
             part_change_history.assembly.subparts.add(new_part)
+            part_change_history.assembly.save()
+        else:
+            messages.error(request, form.errors())
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
 
 
