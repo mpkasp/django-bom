@@ -57,7 +57,7 @@ def home(request):
 
     autocomplete_dict = {}
     for part in parts:
-        if part.description:
+        if part is not None and part.latest().description:
             autocomplete_dict.update({part.latest().description.replace('"', ''): None})
         # autocomplete_dict.update({ part.full_part_number(): None }) # TODO: query full part number
 
