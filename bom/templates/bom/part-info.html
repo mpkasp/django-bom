@@ -12,7 +12,7 @@
 
 {% block menu %}
 {% if profile.role == 'A' %}
-<li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>
+{% if change == part.latest %}<li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>{% endif %}
 {% endif %}
 {% endblock%}
 
@@ -21,7 +21,10 @@
     <div class="row">
         <div class="col s8">
             <h3 class="light">Part Number: {{ part.full_part_number}}</h3>
-            <h5 class="light">{% if change != part.latest %}Viewing Historic Part: {{ change.revision }}, {{ change.timestamp }}{% endif %}</h5>
+            {% if change != part.latest %}
+                <h5 class="light">Viewing Historic Part: {{ change.revision }}, {{ change.timestamp }}</h5>
+                <a href="{% url 'bom:part-info' part_id=part.id %}">Back to Current</a>
+            {% endif %}
         </div>
         <div class="col s4 right-align">
             <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
@@ -360,11 +363,11 @@
                             <tr data-tt-id="{{ a.id }}">
                                 <td>{{ a.revision }}</td>
                                 <td>{{ a.description }}</td>
-                                <td>{{ a.assembly.subparts.count }}</td>
+                                <td>{{ a.assembly.subparts.count|default:'0' }}</td>
                                 <td>{{ a.attribute|default:'-' }}</td>
                                 <td>{{ a.value|default:'-' }}</td>
                                 <td>{{ a.timestamp }}</td>
-                                <td><a href="{% if a == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_change_history_id=a.id %}{% endif %}">view</a></td>
+                                <td>{% if change.id != a.id %}<a href="{% if a == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_change_history_id=a.id %}{% endif %}">view</a>{% endif %}</td>
                             </tr>
                             {% empty %}
                             <tr>

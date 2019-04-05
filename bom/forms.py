@@ -112,13 +112,18 @@ class PartForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(PartForm, self).__init__(*args, **kwargs)
+        if self.instance and self.instance.id:
+            self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(
+                part__id=self.instance.id).order_by('manufacturer_part_number')
+        else:
+            del self.fields['primary_manufacturer_part']
         for _, value in self.fields.items():
             value.widget.attrs['placeholder'] = value.help_text
             value.help_text = ''
 
     class Meta:
         model = Part
-        exclude = ['organization', 'primary_manufacturer_part', 'google_drive_parent', ]
+        exclude = ['organization', 'google_drive_parent', ]
         help_texts = {
             'number_class': _('Select a number class.'),
             'number_item': _('Auto generated if blank.'),

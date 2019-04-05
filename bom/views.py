@@ -155,6 +155,7 @@ def bom_settings(request, tab_anchor=None):
                 messages.error(request, organization_form.errors)
     else:
         user_form = UserForm(instance=user)
+        # user_profile_form = UserProfileForm(instance=user.bom_profile())
         organization_form = OrganizationForm(instance=organization)
 
     return TemplateResponse(request, 'bom/settings.html', locals())
@@ -820,8 +821,6 @@ def part_edit(request, part_id):
     organization = profile.organization
 
     part = get_object_or_404(Part, pk=part_id)
-    assembly = part.latest().assembly
-    assembly_subparts = assembly.subparts.all()
 
     if request.method == 'POST':
         part_form = PartForm(request.POST, instance=part)
@@ -830,9 +829,11 @@ def part_edit(request, part_id):
         if part_form.is_valid() and part_change_history_form.is_valid():
             part_form.save()
 
+            new_assembly = None
             form_pch = part_change_history_form.save(commit=False)
-
+            assembly = part.latest().assembly
             if assembly is not None:
+                assembly_subparts = assembly.subparts.all()
                 new_assembly = assembly
                 new_assembly.pk = None # to create a new instance copy
                 new_assembly.save()

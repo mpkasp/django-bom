@@ -17,9 +17,21 @@ Edit Part {{ part.full_part_number }}
 {% block content %}
 <div class="row">
     <form action="{% url 'bom:part-edit' part_id=part.id %}" method="post" class="col s12">
-    	<div class="row">
+        <div class="row">
             {% csrf_token %}
-            {{ part_form|materializecss:'m4 s12' }}
+            {{ part_form.non_field_errors }}
+            <div class="fieldWrapper">
+                {{ part_form.number_class|materializecss:'m4 s12' }}
+            </div>
+            <div class="fieldWrapper">
+                {{ part_form.number_item|materializecss:'m4 s12' }}
+            </div>
+            <div class="fieldWrapper">
+                {{ part_form.number_variation|materializecss:'m4 s12' }}
+            </div>
+            <div class="fieldWrapper">
+                {{ part_form.primary_manufacturer_part|materializecss:'m12 s12' }}
+            </div>
 		</div>
     	<div class="row">
             {% csrf_token %}
