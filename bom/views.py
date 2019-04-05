@@ -930,7 +930,7 @@ def add_subpart(request, part_id, part_change_history_id):
             part_change_history.assembly.subparts.add(new_part)
             part_change_history.assembly.save()
         else:
-            messages.error(request, form.errors())
+            messages.error(request, form.errors)
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
 
 

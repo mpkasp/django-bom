@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: django-bom
-Version: 1.55
+Version: 1.56
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian
@@ -160,6 +160,11 @@ Description: # BOM
         SOCIAL_AUTH_REDIRECT_IS_HTTPS = not DEBUG
         ```
         
+        ## Contributing
+        
+        Contributions welcome! Before contributing your work please read the [contributing readme](https://github.com/mpkasp/django-bom/blob/master/CONTRIBUTING.md).
+        
+        Also reach out to mike@indabom.com to discuss features, and join our slack channel.
 Platform: UNKNOWN
 Classifier: Environment :: Web Environment
 Classifier: Framework :: Django
