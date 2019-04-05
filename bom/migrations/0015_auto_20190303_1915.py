@@ -17,8 +17,11 @@ def update_parts_to_part_history(apps, schema_editor):
             assembly = Assembly.objects.create()
             assembly.subparts.set(subparts)
 
-        (pch, created) = PartChangeHistory.objects.get_or_create(part=p, description=p.description,
-                                                                 revision=p.revision, assembly=assembly)
+        try:
+            PartChangeHistory.objects.get_or_create(part=p, description=p.description,
+                                                    revision=p.revision, assembly=assembly)
+        except PartChangeHistory.MultipleObjectsReturned:
+            continue
 
     for sp in Subpart.objects.all():
         part = sp.assembly_subpart
