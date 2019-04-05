@@ -112,76 +112,67 @@ class PartForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(PartForm, self).__init__(*args, **kwargs)
-        queryset = ManufacturerPart.objects.none()
-        if 'instance' in kwargs and type(kwargs['instance']) is Part:
-            queryset = ManufacturerPart.objects.filter(part=kwargs['instance'])
-        self.fields['primary_manufacturer_part'].queryset = queryset
+        if self.instance and self.instance.id:
+            self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(
+                part__id=self.instance.id).order_by('manufacturer_part_number')
+        else:
+            del self.fields['primary_manufacturer_part']
         for _, value in self.fields.items():
             value.widget.attrs['placeholder'] = value.help_text
             value.help_text = ''
 
     class Meta:
         model = Part
-        exclude = ['organization', 'subparts', ]
+        exclude = ['organization', 'google_drive_parent', ]
         help_texts = {
             'number_class': _('Select a number class.'),
             'number_item': _('Auto generated if blank.'),
             'number_variation': 'Auto generated if blank.',
-            'description': 'E.g. CAPACITOR, CERAMIC, 100pF, 0402 50V, +/-5%',
         }
 
-    def update_attribute(attribute_str, new_number_item, new_number_variation, new_description, new_revision, part_id):
-        history_ordered = PartChangeHistory.objects.filter(part_id=part_id).order_by('-old_time_stamp')
-        id_list = list(history_ordered.values_list('id', flat=True))
-        try:
-            old_entry = getattr(history_ordered.get(pk=id_list[0]), attribute_str)
 
-            if attribute_str == 'old_description':
-                new_entry = new_description
-            elif attribute_str == 'old_number_item':
-                new_entry = new_number_item
-            elif attribute_str == 'old_number_variation':
-                new_entry = new_number_variation
-            elif attribute_str == 'old_revision':
-                new_entry = new_revision
+class PartChangeHistoryForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(PartChangeHistoryForm, self).__init__(*args, **kwargs)
+        self.fields['attribute'].required = False
+        self.fields['value'].required = False
+        for _, value in self.fields.items():
+            value.widget.attrs['placeholder'] = value.help_text
+            value.help_text = ''
 
-            d = difflib.SequenceMatcher(None, old_entry, new_entry).ratio()
-            if d == 1.0:  # 1.0 means no diff between old and new attributes
-                pass
-            else:
-                attribute_record = [attribute_str, new_entry, old_entry]
-                return attribute_record
-        except:
-            pass
+    class Meta:
+        model = PartChangeHistory
+        exclude = ['timestamp', 'assembly', 'part', ]
+        help_texts = {
+            'description': _('e.g. CAPACITOR, CERAMIC, 100pF, 0402, 10V, +/- 5%'),
+            'attribute': _('e.g. Resistance, Capacitance'),
+            'value': _('e.g. 100k, 10uF'),
+        }
 
 
 class SubpartForm(forms.ModelForm):
     class Meta:
         model = Subpart
-        exclude = ['assembly_part', ]
+        fields = ['part_revision', 'reference', 'count']
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         self.part_id = kwargs.pop('part_id', None)
         super(SubpartForm, self).__init__(*args, **kwargs)
+        if self.part_id is None:
+            self.Meta.exclude = ['part_revision']
+        else:
+            self.fields['part_revision'].queryset = PartChangeHistory.objects.filter(
+                part__id=self.part_id).order_by('-timestamp')
 
-        part = None
-        unusable_part_ids = []
         if self.part_id:
             part = Part.objects.get(id=self.part_id)
             unusable_part_ids = [p.id for p in part.where_used_full()]
             unusable_part_ids.append(part.id)
-        self.fields['assembly_subpart'].queryset = Part.objects.filter(
-            organization=self.organization).exclude(id__in=unusable_part_ids).order_by(
-            'number_class__code', 'number_item', 'number_variation')
-        self.fields['assembly_subpart'].label_from_instance = \
-            lambda obj: "%s" % obj.full_part_number(
-            ) + ' ' + obj.description + ' ' + obj.primary_manufacturer_part
 
 
 class AddSubpartForm(forms.Form):
-    assembly_subpart = forms.ModelChoiceField(
-        queryset=None, required=True, label="Subpart")
+    subpart_part = forms.ModelChoiceField(queryset=None, required=True, label="Subpart")
     count = forms.IntegerField(required=True, label='Quantity')
     reference = forms.CharField(required=False, label="Reference")
 
@@ -196,16 +187,16 @@ class AddSubpartForm(forms.Form):
             part = Part.objects.get(id=self.part_id)
             unusable_part_ids = [p.id for p in part.where_used_full()]
             unusable_part_ids.append(part.id)
-        self.fields['assembly_subpart'].queryset = Part.objects.filter(
+        self.fields['subpart_part'].queryset = Part.objects.filter(
             organization=self.organization).exclude(id__in=unusable_part_ids).order_by(
             'number_class__code', 'number_item', 'number_variation')
-        # reorder how part information is displayed
-        # added MFR and MFR#
-        # removed description + ' ' + obj.description
-        self.fields['assembly_subpart'].label_from_instance = \
-            lambda obj: "%s" % obj.full_part_number(
-            ) + ' [MFR:]  ' + str(obj.primary_manufacturer_part.manufacturer) + ' [MFR#:] '  \
-            + str(obj.primary_manufacturer_part) + ' [DESC:] ' + obj.description
+        # TODO: Clean this up, consider forcing a primary mfg part on each part
+        self.fields['subpart_part'].label_from_instance = \
+            lambda obj: "%s" % obj.full_part_number() + ' [MFR:] ' \
+                        + str(obj.primary_manufacturer_part.manufacturer if obj.primary_manufacturer_part is not None
+                              else '-') + ' [MFR#:] '  + \
+                        str(obj.primary_manufacturer_part if obj.primary_manufacturer_part is not None else '-') \
+                        + ' [DESC:] ' + str(obj.latest().description)
 
 
 class AddSellerPartForm(forms.Form):

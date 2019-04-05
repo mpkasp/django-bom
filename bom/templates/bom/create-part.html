@@ -16,47 +16,49 @@ Create New Part
 
 {% block content %}
 <div class="row">
-    <form action="{% url 'bom:create-part' %}" method="post" class="col s12">
-        {% csrf_token %}
-        {{ part_form.non_field_errors }}
-        {{ manufacturer_form.non_field_errors }}
-        {{ manufacturer_part_form.non_field_errors }}
-        {{ part_form.errors }}
-        {{ manufacturer_form.errors }}
-        {{ manufacturer_part_form.errors }}
+    <form name="seller" action="{% url 'bom:create-part' %}" method="post" class="col s12">
+    	<div class="row">
+            {% csrf_token %}
+            {{ part_form|materializecss:'m4 s12' }}
+		</div>
+    	<div class="row">
+            {% csrf_token %}
+            {{ part_change_history_form.non_field_errors }}
+            <div class="fieldWrapper">
+                {{ part_change_history_form.revision|materializecss:'m2 s12' }}
+            </div>
+            <div class="fieldWrapper">
+                {{ part_change_history_form.description|materializecss:'m10 s12' }}
+            </div>
+            <div class="fieldWrapper">
+                {{ part_change_history_form.attribute|materializecss:'m6 s12' }}
+            </div>
+            <div class="fieldWrapper">
+                {{ part_change_history_form.value|materializecss:'m6 s12' }}
+            </div>
+		</div>
+        <h2>Add a Manufacturer Part (optional)</h2>
         <div class="row">
-            <!-- For some reason using django's default form, number_class form validation errors don't show up, seems to be working with the materializecss filter -->
-            {{ part_form.number_class|materializecss:'m6 s12' }}
-            {{ part_form.number_item|materializecss:'m3 s12' }}
-            {{ part_form.number_variation|materializecss:'m3 s12' }}
-        </div>
-        <div class="row">
-                {{ part_form.revision|materializecss:'m2 s12' }}
-                {{ part_form.description|materializecss:'m10 s12' }}
-        </div>
-        <div class="row">
-            <div class="col">
-                <p>Manufacturer <i>(skip if custom part)</i></p>
+            <div class="col s12">
+                <span>Skip this form if your part is a custom part. Leave the manufacturer field unselected if creating a new manufacturer.</span>
             </div>
         </div>
-        <div class="row">
-            <div class="fieldWrapper col m6 s12">
-                <label for="{{ manufacturer_part_form.manufacturer.id_for_label }}">Select existing Manufacturer</label>
-                {{ manufacturer_part_form.manufacturer.errors }}
-                {{ manufacturer_part_form.manufacturer }}
-            </div>
-            <div class="fieldWrapper col m6 s12">
-                <label for="{{ manufacturer_form.name.id_for_label }}">-or- Create New Manufacturer</label>
+    	<div class="row">
+            {% csrf_token %}
+            {{ manufacturer_part_form|materializecss:'m4 s12' }}
+            {{ manufacturer_form.non_field_errors }}
+            <div class="fieldWrapper">
                 {{ manufacturer_form.name.errors }}
-                {{ manufacturer_form.name }}
+                <label for="{{ manufacturer_form.name.id_for_label }}">OR Create A New Manufacturer:</label>
+                {{ manufacturer_form.name|materializecss:'m4 s12' }}
             </div>
-        </div>
-        <div class="row">
-            {{ manufacturer_part_form.manufacturer_part_number|materializecss:'m6 s12' }}
-        </div>
-
-        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
-        <a href="{% url 'bom:home' %}" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+		</div>
+		<div class="row">
+	        <div class="fieldWrapper">
+	        	<button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+	        	<a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+	    	</div>
+    	</div>
     </form>
 </div>
 {% endblock %}

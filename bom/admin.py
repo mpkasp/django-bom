@@ -19,13 +19,13 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 class SubpartInline(admin.TabularInline):
     model = Subpart
-    fk_name = 'assembly_part'
-    raw_id_fields = ('assembly_subpart', )
-    readonly_fields = ('get_full_part_number', )
-
-    def get_full_part_number(self, obj):
-        return obj.assembly_subpart.full_part_number()
-    get_full_part_number.short_description = 'PartNumber'
+    fk_name = 'part_revision'
+    raw_id_fields = ('part_revision', )
+    # readonly_fields = ('get_full_part_number', )
+    #
+    # def get_full_part_number(self, obj):
+    #     return obj.assembly_subpart.part.full_part_number()
+    # get_full_part_number.short_description = 'PartNumber'
 
 
 class SellerAdmin(admin.ModelAdmin):
@@ -65,22 +65,13 @@ class ManufacturerPartAdminInline(admin.TabularInline):
     raw_id_fields = ('part', 'manufacturer', )
 
 
-class PartFileAdmin(admin.ModelAdmin):
-    list_display = ('file', 'upload_date', 'get_full_part_number')
-    raw_id_fields = ('part',)
-
-    def get_full_part_number(self, obj):
-        return obj.part.full_part_number()
-    get_full_part_number.short_description = 'PartNumber'
-
-
-class PartFileAdminInline(admin.TabularInline):
-    model = PartFile
-    raw_id_fields = ('part', )
-
-
 class PartClassAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'comment', )
+
+
+class PartChangeHistoryAdminInline(admin.TabularInline):
+    model = PartChangeHistory
+    raw_id_fields = ('assembly', )
 
 
 class PartAdmin(admin.ModelAdmin):
@@ -89,14 +80,11 @@ class PartAdmin(admin.ModelAdmin):
     list_display = (
         'organization',
         'get_full_part_number',
-        'revision',
-        'description',
     )
     raw_id_fields = ('number_class', 'primary_manufacturer_part', )
     inlines = [
-        SubpartInline,
+        PartChangeHistoryAdminInline,
         ManufacturerPartAdminInline,
-        PartFileAdminInline,
     ]
 
     def get_full_part_number(self, obj):
@@ -105,8 +93,35 @@ class PartAdmin(admin.ModelAdmin):
     get_full_part_number.admin_order_field = 'number_class__part_number'
 
 
+class PartChangeHistoryAdmin(admin.ModelAdmin):
+    list_display = ('part', 'revision', 'description', 'get_assembly_size', 'timestamp', )
+    raw_id_fields = ('assembly', )
+
+    def get_assembly_size(self, obj):
+        return None if obj.assembly is None else obj.assembly.subparts.count()
+    get_assembly_size.short_description = 'AssemblySize'
+
+
 class ManufacturerAdmin(admin.ModelAdmin):
     list_display = ('name', 'organization', )
+
+
+class SubpartAdmin(admin.ModelAdmin):
+    list_display = ('part_revision', 'count', 'reference', )
+
+
+class SubpartsInline(admin.TabularInline):
+    model = Assembly.subparts.through
+    raw_id_fields = ('subpart', )
+
+
+class AssemblyAdmin(admin.ModelAdmin):
+    list_display = ('id', )
+    exclude = ('subparts', )
+    inlines = [
+        SubpartsInline,
+    ]
+
 
 
 admin.site.unregister(User)
@@ -118,5 +133,7 @@ admin.site.register(SellerPart, SellerPartAdmin)
 admin.site.register(ManufacturerPart, ManufacturerPartAdmin)
 admin.site.register(PartClass, PartClassAdmin)
 admin.site.register(Part, PartAdmin)
+admin.site.register(PartChangeHistory, PartChangeHistoryAdmin)
 admin.site.register(Manufacturer, ManufacturerAdmin)
-admin.site.register(PartFile, PartFileAdmin)
+admin.site.register(Assembly, AssemblyAdmin)
+admin.site.register(Subpart, SubpartAdmin)

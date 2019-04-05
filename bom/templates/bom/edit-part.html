@@ -1,6 +1,7 @@
 {% extends BASE_TEMPLATE %}
 
 {% load staticfiles %}
+{% load materializecss %}
 
 {% block head-title %}Edit Part{% endblock %}
 
@@ -16,49 +17,44 @@ Edit Part {{ part.full_part_number }}
 {% block content %}
 <div class="row">
     <form action="{% url 'bom:part-edit' part_id=part.id %}" method="post" class="col s12">
-        {% csrf_token %}
-
-        {{ form.non_field_errors }}
         <div class="row">
-            <div class="fieldWrapper col m6 s12">
-                {{ form.number_class.errors }}
-                <label for="{{ form.number_class.id_for_label }}"><b>Part Number Class:</b></label>
-                {{ form.number_class }}
+            {% csrf_token %}
+            {{ part_form.non_field_errors }}
+            <div class="fieldWrapper">
+                {{ part_form.number_class|materializecss:'m4 s12' }}
             </div>
-            <div class="fieldWrapper col m3 s12">
-                {{ form.number_item.errors }}
-                <label for="{{ form.number_item.id_for_label }}">Part Number:</label>
-                {{ form.number_item }}
+            <div class="fieldWrapper">
+                {{ part_form.number_item|materializecss:'m4 s12' }}
             </div>
-            <div class="fieldWrapper col m3 s12">
-                {{ form.number_variation.errors }}
-                <label for="{{ form.number_variation.id_for_label }}">Part Variation:</label>
-                {{ form.number_variation }}
+            <div class="fieldWrapper">
+                {{ part_form.number_variation|materializecss:'m4 s12' }}
             </div>
-        </div>
-        <div class="row">
-            <div class="fieldWrapper col m2 s12">
-                {{ form.revision.errors }}
-                <label for="{{ form.revision.id_for_label }}"><b>Revision</b><br></label>
-                {{ form.revision }}
+            <div class="fieldWrapper">
+                {{ part_form.primary_manufacturer_part|materializecss:'m12 s12' }}
             </div>
-            <div class="fieldWrapper col m10 s12">
-                {{ form.description.errors }}
-                <label for="{{ form.description.id_for_label }}"><b>Description</b> <i>(Max 255 characters.)</i></label>
-                {{ form.description }}
+		</div>
+    	<div class="row">
+            {% csrf_token %}
+            {{ part_change_history_form.non_field_errors }}
+            <div class="fieldWrapper">
+                {{ part_change_history_form.revision|materializecss:'m2 s12' }}
             </div>
-        </div>
-        <div class="row">
-            <div class="fieldWrapper col m12 s12">
-                {{ form.primary_manufacturer_part.errors }}
-                <label for="{{ form.primary_manufacturer_part.id_for_label }}"><b>Primary Manufacturer Part</b></label>
-                {{ form.primary_manufacturer_part }}
+            <div class="fieldWrapper">
+                {{ part_change_history_form.description|materializecss:'m10 s12' }}
             </div>
-        </div>
-
-        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
-        <a href="{% url 'bom:part-info' part_id=part.id %}" class="waves-effect waves-light btn green lighten-1">Cancel</a>
-        <a href="{% url 'bom:part-delete' part_id=part.id %}" onclick="return confirm('Are you sure? This part will be deleted forever!')" class="waves-effect waves-light btn red lighten-1">Delete Part</a>
+            <div class="fieldWrapper">
+                {{ part_change_history_form.attribute|materializecss:'m6 s12' }}
+            </div>
+            <div class="fieldWrapper">
+                {{ part_change_history_form.value|materializecss:'m6 s12' }}
+            </div>
+		</div>
+		<div class="row">
+	        <div class="fieldWrapper">
+	        	<button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+	        	<a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+	    	</div>
+    	</div>
     </form>
 </div>
 {% endblock %}

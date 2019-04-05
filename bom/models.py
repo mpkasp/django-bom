@@ -66,47 +66,44 @@ class Manufacturer(models.Model):
 
 # Numbering scheme is hard coded for now, may want to change this to a
 # setting depending on a part numbering scheme
+# Part contains the root information for a component. Parts have attributes that can be changed over time
+# (see PartChangeHistory). Part numbers can be changed over time, but these cannot be tracked, as it is not a practice
+# that should be done often.
 class Part(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    number_class = models.ForeignKey(
-        PartClass, default=None, related_name='number_class', on_delete=models.PROTECT)
+    number_class = models.ForeignKey(PartClass, default=None, related_name='number_class', on_delete=models.PROTECT)
     number_item = models.CharField(max_length=4, default=None, blank=True, validators=[numeric])
     number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
-    description = models.CharField(max_length=255, default=None)
-    revision = models.CharField(max_length=2)
     primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True,
                                                   on_delete=models.SET_NULL, related_name='primary_manufacturer_part')
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
-    subparts = models.ManyToManyField(
-        'self',
-        blank=True,
-        symmetrical=False,
-        through='Subpart',
-        through_fields=(
-            'assembly_part',
-            'assembly_subpart'))
 
     class Meta():
         unique_together = ['number_class', 'number_item', 'number_variation', 'organization', ]
 
     def full_part_number(self):
-        return "{0}-{1}-{2}".format(self.number_class.code,
-                                    self.number_item, self.number_variation)
+        return "{0}-{1}-{2}".format(self.number_class.code, self.number_item, self.number_variation)
+
+    def description(self):
+        return self.latest().description
+
+    def latest(self):
+        return self.revisions().order_by('-timestamp').first()
+
+    def revisions(self):
+        return PartChangeHistory.objects.filter(part=self)
 
     def seller_parts(self):
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
-        return SellerPart.objects.filter(
-            manufacturer_part__in=manufacturer_parts).order_by(
-            'seller', 'minimum_order_quantity')
+        return SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts) \
+            .order_by('seller', 'minimum_order_quantity')
 
     def manufacturer_parts(self):
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
         return manufacturer_parts
 
     def where_used(self):
-        used_in_subparts = Subpart.objects.filter(assembly_subpart=self)
-        used_in_parts = [subpart.assembly_part for subpart in used_in_subparts]
-        return used_in_parts
+        return self.latest().where_used()
 
     def where_used_full(self):
         def where_used_given_part(used_in_parts, part):
@@ -120,41 +117,11 @@ class Part(models.Model):
         where_used_given_part(used_in_parts, self)
         return list(used_in_parts)
 
-    def files(self):
-        partfiles = PartFile.objects.filter(part=self)
-        return partfiles
-
-    def indented(self):
-        def indented_given_bom(bom, part, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
-            bom.append({
-                'part': part,
-                'quantity': qty,
-                'indent_level': indent_level,
-                'parent_id': parent.id if parent is not None else None,
-                'subpart': subpart,
-                'reference': reference,
-            })
-
-            indent_level = indent_level + 1
-            if (len(part.subparts.all()) == 0):
-                return
-            else:
-                for sp in part.subparts.all():
-                    subparts = Subpart.objects.filter(
-                        assembly_part=part, assembly_subpart=sp)
-                    # since assembly_part and assembly_subpart are not unique together in a Subpart
-                    # there is a possibility that there are two (or more) separate Subparts of the
-                    # same Part, thus we filter and iterate again
-                    for subpart in subparts:
-                        qty = subpart.count
-                        reference = subpart.reference
-                        indented_given_bom(bom, sp, parent=part, qty=qty, indent_level=indent_level, subpart=subpart,
-                                           reference=reference)
-
-        bom = []
-        cost = 0
-        indented_given_bom(bom, self)
-        return bom
+    def indented(self, partchangehistory=None):
+        if partchangehistory is None:
+            return self.latest().indented()
+        else:
+            return partchangehistory.indented()
 
     def optimal_seller(self, quantity=None):
         if quantity is None:
@@ -217,34 +184,85 @@ class Part(models.Model):
         return u'%s' % (self.full_part_number())
 
 
+# Below are attributes of a part that can be changed, but it's important to trace the change over time
 class PartChangeHistory(models.Model):
-    part = models.ForeignKey(Part, on_delete=models.CASCADE)
-    old_number_item = models.CharField(max_length=4, default=None, blank=True, validators=[numeric])
-    old_number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
-    old_description = models.CharField(max_length=255, default=None)
-    old_revision = models.CharField(max_length=2)
-    old_time_stamp = models.DateTimeField(auto_now=True)
-    attribute = models.CharField(max_length=255, default=None)
-    original_value = models.CharField(max_length=255, default=None)
-    new_value = models.CharField(max_length=255, default=None)
-    attribute_time_stamp = models.DateTimeField(auto_now=True)
+    part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
+    timestamp = models.DateTimeField(auto_now=True)
+    description = models.CharField(max_length=255, default="")
+    revision = models.CharField(max_length=2, db_index=True)
+    attribute = models.CharField(max_length=255, default=None, null=True)
+    value = models.CharField(max_length=255, default=None, null=True)
+    assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
+
+    def indented(self):
+        def indented_given_bom(bom, partchangehistory, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
+            bom.append({
+                'part': partchangehistory.part,
+                'partchangehistory': partchangehistory,
+                'quantity': qty,
+                'indent_level': indent_level,
+                'parent_id': parent.id if parent is not None else None,
+                'subpart': subpart,
+                'reference': reference,
+            })
+
+            indent_level = indent_level + 1
+            if partchangehistory.assembly is None or partchangehistory.assembly.subparts.count() == 0:
+                return
+            else:
+                for sp in partchangehistory.assembly.subparts.all():
+                    qty = sp.count
+                    reference = sp.reference
+                    indented_given_bom(bom, sp.part_revision, parent=partchangehistory, qty=qty,
+                                       indent_level=indent_level, subpart=sp,
+                                       reference=reference)
+
+        bom = []
+        cost = 0
+        indented_given_bom(bom, self)
+        return bom
+
+    def where_used(self):
+        # Where is a partchangehistory used???
+        # it gets used by being a subpart to an assembly of a partchangehistory
+        # so we can look up subparts, then their assemblys, then their partchangehistories
+        used_in_subparts = Subpart.objects.filter(part_revision=self)
+        used_in_assembly_ids = []
+        for sp in used_in_subparts:
+            used_in_assembly_ids.extend(sp.assemblies.values_list('id', flat=True))
+
+        used_in_pch = PartChangeHistory.objects.filter(assembly__in=used_in_assembly_ids)
+        return used_in_pch
+
+    def where_used_full(self):
+        def where_used_given_part(used_in_parts, part):
+            where_used = part.where_used()
+            used_in_parts.update(where_used)
+            for p in where_used:
+                where_used_given_part(used_in_parts, p)
+            return used_in_parts
+
+        used_in_parts = set()
+        where_used_given_part(used_in_parts, self)
+        return list(used_in_parts)
+
+
+    def __str__(self):
+        return u'{}, Rev {}'.format(self.part.full_part_number(), self.revision)
 
 
 class Subpart(models.Model):
-    assembly_part = models.ForeignKey(
-        Part, related_name='assembly_part', null=True, on_delete=models.CASCADE)
-    assembly_subpart = models.ForeignKey(
-        Part, related_name='assembly_subpart', null=True, on_delete=models.CASCADE)
+    part_revision = models.ForeignKey(PartChangeHistory, related_name='assembly_subpart', null=True,
+                                      on_delete=models.CASCADE)
     count = models.IntegerField(default=1)
     reference = models.TextField(default='', blank=True, null=True)
 
-    def clean(self):
-        unusable_parts = self.assembly_part.where_used()
-        if self.assembly_subpart in unusable_parts:
-            raise ValidationError(_('Recursive relationship: cannot add a subpart to a part that uses itsself.'),
-                                  code='invalid')
-        if self.assembly_subpart == self.assembly_part:
-            raise ValidationError(_('Recursive relationship: cannot add a subpart to itsself.'), code='invalid')
+    def __str__(self):
+        return u'{} {}'.format(self.part_revision, self.count)
+
+
+class Assembly(models.Model):
+    subparts = models.ManyToManyField(Subpart, related_name='assemblies')
 
 
 class ManufacturerPart(models.Model):
@@ -322,14 +340,3 @@ class SellerPart(models.Model):
 
     def __str__(self):
         return u'%s' % (self.manufacturer_part.part.full_part_number() + ' ' + self.seller.name)
-
-
-class PartFile(models.Model):
-    file = models.FileField(upload_to='partfiles/')
-    upload_date = models.DateField(auto_now=True)
-    part = models.ForeignKey(Part, on_delete=models.CASCADE)
-
-
-@receiver(post_delete, sender=PartFile)
-def partfile_post_delete_handler(sender, instance, **kwargs):
-    instance.file.delete(False)

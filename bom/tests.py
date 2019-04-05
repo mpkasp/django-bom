@@ -4,9 +4,8 @@ from django.contrib.auth.models import User
 from unittest import skip
 
 from .helpers import create_some_fake_parts, create_a_fake_organization, \
-    create_a_fake_subpart, create_a_fake_partfile, \
-    create_some_fake_part_classes, create_some_fake_manufacturers
-from .models import PartFile, Part, SellerPart, ManufacturerPart, Seller
+    create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers
+from .models import Part, SellerPart, ManufacturerPart, Seller
 from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
 from .octopart import match_part
 
@@ -248,21 +247,25 @@ class TestBOM(TransactionTestCase):
             reverse(
                 'bom:part-add-subpart',
                 kwargs={
-                    'part_id': p1.id}))
+                    'part_id': p1.id,
+                    'part_change_history_id': p1.latest().id,
+                }))
         self.assertEqual(response.status_code, 302)
 
     def test_remove_subpart(self):
         self.client.login(username='kasper', password='ghostpassword')
 
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        s1 = create_a_fake_subpart(p1, p3, count=10)
+        s1 = create_a_fake_subpart(p1.latest(), count=10)
 
         response = self.client.post(
             reverse(
                 'bom:part-remove-subpart',
                 kwargs={
                     'part_id': p1.id,
-                    'subpart_id': s1.id}))
+                    'subpart_id': s1.id,
+                    'part_change_history_id': p1.latest().id,
+                }))
         self.assertEqual(response.status_code, 302)
 
     def test_remove_all_subparts(self):
@@ -274,42 +277,9 @@ class TestBOM(TransactionTestCase):
             reverse(
                 'bom:part-remove-all-subparts',
                 kwargs={
-                    'part_id': p1.id}))
+                    'part_id': p3.id, 'part_change_history_id': p3.latest().id}))
         self.assertEqual(response.status_code, 302)
 
-    def test_upload_file_to_part_and_delete(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        with open('bom/test_files/test_parts.csv') as test_csv:
-            response = self.client.post(
-                reverse('bom:part-upload-partfile', kwargs={'part_id': p1.id}),
-                {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
-
-        partfiles = PartFile.objects.filter(part=p1)
-        for pf in partfiles:
-            response = self.client.post(
-                reverse(
-                    'bom:part-delete-partfile',
-                    kwargs={
-                        'part_id': p1.id,
-                        'partfile_id': pf.id}))
-            self.assertEqual(response.status_code, 302)
-
-    def test_delete_file_from_part(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
-        with open('bom/test_files/test_parts.csv') as test_csv:
-            pf1 = create_a_fake_partfile(test_csv, p1)
-            response = self.client.post(
-                reverse(
-                    'bom:part-delete-partfile',
-                    kwargs={
-                        'part_id': p1.id,
-                        'partfile_id': pf1.id}))
-        self.assertEqual(response.status_code, 302)
 
     def test_upload_parts(self):
         self.client.login(username='kasper', password='ghostpassword')
@@ -463,10 +433,7 @@ class TestForms(TestCase):
             number_class=form.cleaned_data['number_class'],
             number_item=form.cleaned_data['number_item'],
             number_variation=form.cleaned_data['number_variation'],
-            organization=self.organization,
-            defaults={'description': form.cleaned_data['description'],
-                      'revision': form.cleaned_data['revision'],
-                      })
+            organization=self.organization)
 
         self.assertTrue(created)
         self.assertEqual(new_part.number_class.id, pc2.id)
@@ -476,22 +443,20 @@ class TestForms(TestCase):
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors, {
             'number_class': [u'This field is required.'],
-            'description': [u'This field is required.'],
-            'revision': [u'This field is required.']
         })
 
     def test_add_subpart_form(self):
         (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
 
-        form_data = {'assembly_subpart': p2.id, 'count': 10}
-        form = AddSubpartForm(organization=self.organization, data=form_data, part_id=p1.id)
+        form_data = {'subpart_part': p1.id, 'count': 10, 'reference': ''}
+        form = AddSubpartForm(organization=self.organization, data=form_data, part_id=p2.id)
         self.assertTrue(form.is_valid())
 
     def test_add_subpart_form_blank(self):
         form = AddSubpartForm({}, organization=self.organization)
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors, {
-            'assembly_subpart': [u'This field is required.'],
+            'subpart_part': [u'This field is required.'],
             'count': [u'This field is required.'],
         })
 
