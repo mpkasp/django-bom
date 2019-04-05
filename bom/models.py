@@ -85,7 +85,7 @@ class Part(models.Model):
         return "{0}-{1}-{2}".format(self.number_class.code, self.number_item, self.number_variation)
 
     def description(self):
-        return self.latest().description
+        return self.latest().description if self.latest() is not None else ''
 
     def latest(self):
         return self.revisions().order_by('-timestamp').first()
@@ -103,7 +103,7 @@ class Part(models.Model):
         return manufacturer_parts
 
     def where_used(self):
-        return self.latest().where_used()
+        return self.latest().where_used() if self.latest() is not None else None
 
     def where_used_full(self):
         def where_used_given_part(used_in_parts, part):
@@ -119,7 +119,7 @@ class Part(models.Model):
 
     def indented(self, partchangehistory=None):
         if partchangehistory is None:
-            return self.latest().indented()
+            return self.latest().indented() if self.latest() is not None else None
         else:
             return partchangehistory.indented()
 

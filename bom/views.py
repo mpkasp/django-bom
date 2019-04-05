@@ -622,14 +622,17 @@ def export_part_list(request):
     writer = csv.DictWriter(response, fieldnames=fieldnames)
     writer.writeheader()
     for item in parts:
-        row = {
-            'part_number': item.full_part_number(),
-            'part_description': item.latest().description,
-            'part_revision': item.latest().revision,
-            'part_manufacturer': item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
-            'part_manufacturer_part_number': item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
-        }
-        writer.writerow({k: smart_str(v) for k, v in row.items()})
+        try:
+            row = {
+                'part_number': item.full_part_number(),
+                'part_description': item.latest().description,
+                'part_revision': item.latest().revision,
+                'part_manufacturer': item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
+                'part_manufacturer_part_number': item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
+            }
+            writer.writerow({k: smart_str(v) for k, v in row.items()})
+        except AttributeError as e:
+            messages.warning(request, "No change history for part: {}. Can't export.".format(item.full_part_number()))
 
     return response
 

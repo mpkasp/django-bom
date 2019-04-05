@@ -141,6 +141,14 @@ def create_some_fake_parts(organization):
     pch3 = create_a_fake_part_change_history(part=pt3, assembly=assy3)
     pch4 = create_a_fake_part_change_history(part=pt3, assembly=assy3)
 
+    # Create a part with no PartChangeHistory
+    pt4 = Part(
+        number_class=pc1,
+        number_item='4444',
+        organization=organization)
+    pt4.save()
+
+
     (s1, s2, s3) = create_some_fake_sellers(organization=organization)
 
     create_a_fake_seller_part(
