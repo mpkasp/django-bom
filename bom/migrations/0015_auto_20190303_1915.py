@@ -4,32 +4,6 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
-def update_parts_to_part_history(apps, schema_editor):
-    Part = apps.get_model('bom', 'Part')
-    PartChangeHistory = apps.get_model('bom', 'PartChangeHistory')
-    Assembly = apps.get_model('bom', 'Assembly')
-    Subpart = apps.get_model('bom', 'Subpart')
-
-    for p in Part.objects.all():
-        subparts = Subpart.objects.filter(assembly_part=p)
-        assembly = None
-        if subparts.count() > 0:
-            assembly = Assembly.objects.create()
-            assembly.subparts.set(subparts)
-
-        try:
-            PartChangeHistory.objects.get_or_create(part=p, description=p.description,
-                                                    revision=p.revision, assembly=assembly)
-        except PartChangeHistory.MultipleObjectsReturned:
-            continue
-
-    for sp in Subpart.objects.all():
-        part = sp.assembly_subpart
-        pch = PartChangeHistory.objects.filter(part=part).order_by('-revision').first()
-        sp.part_revision = pch
-        sp.save()
-
-
 def update_partchangehistory(apps, schema_editor):
     PartChangeHistory = apps.get_model('bom', 'PartChangeHistory')
 
@@ -130,26 +104,5 @@ class Migration(migrations.Migration):
             name='part_revision',
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE,
                                     related_name='assembly_subpart', to='bom.PartChangeHistory'),
-        ),
-        migrations.RunPython(update_parts_to_part_history),
-        migrations.RemoveField(
-            model_name='part',
-            name='description',
-        ),
-        migrations.RemoveField(
-            model_name='part',
-            name='revision',
-        ),
-        migrations.RemoveField(
-            model_name='part',
-            name='subparts',
-        ),
-        migrations.RemoveField(
-            model_name='subpart',
-            name='assembly_part',
-        ),
-        migrations.RemoveField(
-            model_name='subpart',
-            name='assembly_subpart',
-        ),
+        )
     ]
