@@ -47,18 +47,19 @@ def home(request):
         profile.role = 'A'
         profile.save()
 
-    parts = Part.objects.filter(
-        organization=organization).order_by(
-        'number_class__code',
-        'number_item',
-        'number_variation')
+    parts = Part.objects.filter(organization=organization).order_by('number_class__code',
+                                                                    'number_item', 'number_variation')
+
+    # This is way faster than looking each part rev up via the .latest() call on the above `parts`
+    part_rev_ids = PartChangeHistory.objects.filter(part__in=parts).select_related('part').order_by('-timestamp')\
+        .values('part').distinct().values_list('id')
+    part_revs = PartChangeHistory.objects.filter(id__in=part_rev_ids)
 
     manufacturer_part = ManufacturerPart.objects.filter(part__in=parts)
 
     autocomplete_dict = {}
-    for part in parts:
-        if part is not None and part.latest() is not None:
-            autocomplete_dict.update({part.latest().description.replace('"', ''): None})
+    for part in part_revs:
+        autocomplete_dict.update({part.description.replace('"', ''): None})
         # autocomplete_dict.update({ part.full_part_number(): None }) # TODO: query full part number
 
     for mpn in manufacturer_part:

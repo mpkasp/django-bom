@@ -83,7 +83,6 @@ class PartAdmin(admin.ModelAdmin):
     )
     raw_id_fields = ('number_class', 'primary_manufacturer_part', )
     inlines = [
-        PartChangeHistoryAdminInline,
         ManufacturerPartAdminInline,
     ]
 
@@ -94,7 +93,7 @@ class PartAdmin(admin.ModelAdmin):
 
 
 class PartChangeHistoryAdmin(admin.ModelAdmin):
-    list_display = ('part', 'revision', 'description', 'get_assembly_size', 'timestamp', )
+    list_display = ('revision', 'description', 'get_assembly_size', 'timestamp', )
     raw_id_fields = ('assembly', )
 
     def get_assembly_size(self, obj):
