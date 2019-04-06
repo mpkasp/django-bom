@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from unittest import skip
 
-from .helpers import create_some_fake_parts, create_a_fake_organization, \
+from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_change_history, \
     create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers
 from .models import Part, SellerPart, ManufacturerPart, Seller
 from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
@@ -21,7 +21,7 @@ class TestBOM(TransactionTestCase):
     def test_home(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:home'))
         self.assertEqual(response.status_code, 200)
@@ -36,7 +36,7 @@ class TestBOM(TransactionTestCase):
     def test_part_info(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
             reverse(
@@ -55,7 +55,7 @@ class TestBOM(TransactionTestCase):
     def test_part_manage_bom(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
             reverse(
@@ -75,10 +75,51 @@ class TestBOM(TransactionTestCase):
                 }))
         self.assertEqual(response.status_code, 200)
 
+        response = self.client.post(
+            reverse(
+                'bom:part-manage-bom',
+                kwargs={
+                    'part_id': p3.id,
+                    'part_change_history_id': p3.latest().id,
+                }))
+        self.assertEqual(response.status_code, 200)
+
+        # change is true
+        change_form_data = {
+            'change': True,
+        }
+
+        response = self.client.post(
+            reverse(
+                'bom:part-manage-bom',
+                kwargs={
+                    'part_id': p1.id,
+                    'part_change_history_id': p1.latest().id,
+                }), change_form_data)
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            reverse(
+                'bom:part-manage-bom',
+                kwargs={
+                    'part_id': p2.id,
+                    'part_change_history_id': p1.latest().id,
+                }), change_form_data)
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            reverse(
+                'bom:part-manage-bom',
+                kwargs={
+                    'part_id': p3.id,
+                    'part_change_history_id': p3.latest().id,
+                }), change_form_data)
+        self.assertEqual(response.status_code, 200)
+
     def test_part_export_bom(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
             reverse(
@@ -88,7 +129,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_part_upload_bom(self):
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         with open('bom/test_files/test_parts.csv') as test_csv:
             response = self.client.post(
                 reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}),
@@ -98,7 +139,7 @@ class TestBOM(TransactionTestCase):
     def test_export_part_list(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:export-part-list'))
         self.assertEqual(response.status_code, 200)
@@ -107,7 +148,7 @@ class TestBOM(TransactionTestCase):
     def test_match_part(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         a = match_part(p1.primary_manufacturer_part, self.organization)
 
         partExists = len(a) > 0
@@ -118,7 +159,7 @@ class TestBOM(TransactionTestCase):
     def test_octopart_match_part_indented(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
             reverse(
@@ -131,7 +172,7 @@ class TestBOM(TransactionTestCase):
     def test_part_octopart_match(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
             reverse(
@@ -144,7 +185,7 @@ class TestBOM(TransactionTestCase):
     def test_manufacturer_part_octopart_match(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
             reverse(
@@ -156,7 +197,7 @@ class TestBOM(TransactionTestCase):
     def test_create_part(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         new_part_mpn = 'STM32F401-NEW-PART'
         new_part_form_data = {
@@ -240,7 +281,7 @@ class TestBOM(TransactionTestCase):
     def test_part_edit(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
             reverse(
@@ -252,7 +293,7 @@ class TestBOM(TransactionTestCase):
     def test_part_delete(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
             reverse(
@@ -264,7 +305,7 @@ class TestBOM(TransactionTestCase):
     def test_add_subpart(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
             reverse(
@@ -275,10 +316,19 @@ class TestBOM(TransactionTestCase):
                 }))
         self.assertEqual(response.status_code, 302)
 
+        response = self.client.post(
+            reverse(
+                'bom:part-add-subpart',
+                kwargs={
+                    'part_id': p3.id,
+                    'part_change_history_id': p3.latest().id,
+                }))
+        self.assertEqual(response.status_code, 302)
+
     def test_remove_subpart(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         s1 = create_a_fake_subpart(p1.latest(), count=10)
 
         response = self.client.post(
@@ -294,7 +344,7 @@ class TestBOM(TransactionTestCase):
     def test_remove_all_subparts(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
             reverse(
@@ -321,7 +371,7 @@ class TestBOM(TransactionTestCase):
     def test_add_sellerpart(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.get(reverse('bom:manufacturer-part-add-sellerpart',
                                            kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
@@ -350,7 +400,7 @@ class TestBOM(TransactionTestCase):
     def test_sellerpart_delete(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(reverse('bom:sellerpart-delete', kwargs={'sellerpart_id': p1.optimal_seller().id}))
 
         self.assertEqual(response.status_code, 302)
@@ -358,7 +408,7 @@ class TestBOM(TransactionTestCase):
     def test_manufacturer_part_edit(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(
             reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
         self.assertEqual(response.status_code, 200)
@@ -402,7 +452,7 @@ class TestBOM(TransactionTestCase):
     def test_manufacturer_part_delete(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(
             reverse('bom:manufacturer-part-delete', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
 
@@ -469,7 +519,7 @@ class TestForms(TestCase):
         })
 
     def test_add_subpart_form(self):
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         form_data = {'subpart_part': p1.id, 'count': 10, 'reference': ''}
         form = AddSubpartForm(organization=self.organization, data=form_data, part_id=p2.id)
@@ -484,7 +534,7 @@ class TestForms(TestCase):
         })
 
     def test_add_sellerpart_form(self):
-        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         form = AddSellerPartForm()
         self.assertFalse(form.is_valid())
 

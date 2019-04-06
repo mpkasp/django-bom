@@ -178,6 +178,8 @@ class Part(models.Model):
                 except ValueError as e:
                     self.number_variation = "{}".format(increment_str(last_number_variation.number_variation))
         super(Part, self).save()
+        if self.latest() is None:
+            PartChangeHistory.objects.create(part=self, revision='1')
 
     def __str__(self):
         return u'%s' % (self.full_part_number())
@@ -192,6 +194,12 @@ class PartChangeHistory(models.Model):
     attribute = models.CharField(max_length=255, default=None, null=True)
     value = models.CharField(max_length=255, default=None, null=True)
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
+
+    def save(self, **kwargs):
+        if self.assembly is None:
+            assy = Assembly.objects.create()
+            self.assembly = assy
+        super(PartChangeHistory, self).save()
 
     def indented(self):
         def indented_given_bom(bom, partchangehistory, parent=None, qty=1, indent_level=0, subpart=None, reference=''):

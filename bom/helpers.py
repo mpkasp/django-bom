@@ -189,4 +189,4 @@ def create_some_fake_parts(organization):
         lead_time_days=47,
         nre_cost=1)
 
-    return pt1, pt2, pt3
+    return pt1, pt2, pt3, pt4

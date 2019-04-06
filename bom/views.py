@@ -23,7 +23,7 @@ from math import ceil
 
 from .convert import full_part_number_to_broken_part
 from .models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, \
-    UserMeta, PartChangeHistory
+    UserMeta, PartChangeHistory, Assembly
 from .forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
     ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm, PartChangeHistoryForm
 from .octopart import match_part, get_latest_datasheets
@@ -870,13 +870,13 @@ def manage_bom(request, part_id, part_change_history_id):
     change = request.POST.get("change", "false").lower() == 'true'
     if change:
         old_pch = part.latest()
-        old_subparts = old_pch.assembly.subparts.all()
-        new_assembly = old_pch.assembly
+        old_subparts = old_pch.assembly.subparts.all() if old_pch.assembly is not None else None
+        new_assembly = old_pch.assembly if old_pch.assembly is not None else Assembly()
         new_assembly.pk = None
         new_assembly.save()
 
         part_change_history = PartChangeHistory.objects.create(part=part, description=old_pch.description,
-                                         revision=old_pch.revision, assembly=new_assembly)
+                                                               revision=old_pch.revision, assembly=new_assembly)
 
         new_assembly.subparts.set(old_subparts)
 
@@ -934,6 +934,12 @@ def add_subpart(request, part_id, part_change_history_id):
                 part_revision=form.cleaned_data['subpart_part'].latest(),
                 count=form.cleaned_data['count'],
                 reference=form.cleaned_data['reference'])
+
+            if part_change_history.assembly is None:
+                assy = Assembly.objects.create()
+                part_change_history.assembly = assy
+                part_change_history.save()
+
             part_change_history.assembly.subparts.add(new_part)
             part_change_history.assembly.save()
         else:
