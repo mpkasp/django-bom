@@ -196,7 +196,7 @@ class AddSubpartForm(forms.Form):
                         + str(obj.primary_manufacturer_part.manufacturer if obj.primary_manufacturer_part is not None
                               else '-') + ' [MFR#:] '  + \
                         str(obj.primary_manufacturer_part if obj.primary_manufacturer_part is not None else '-') \
-                        + ' [DESC:] ' + str(obj.latest().description)
+                        + ' [DESC:] ' + str(obj.latest().description if obj.latest() else '')
 
 
 class AddSellerPartForm(forms.Form):

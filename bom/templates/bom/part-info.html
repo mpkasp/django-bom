@@ -208,7 +208,7 @@
                         </tr>
                     </thead>
                     {% for subpart in parts %}
-                        <tr data-tt-id="{{ subpart.part.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
+                        <tr data-tt-id="{{ subpart.partchangehistory.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
                             <td class="text-normal">{{ subpart.indent_level }}</td>
                             <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
                             <td class="text-normal">{{ subpart.quantity }}</td>
@@ -390,7 +390,7 @@
         indent: 2,
         initialState: 'collapsed',
         onInitialized: function () {
-                $("#indented-bom").treetable("reveal", {{ part.id }});
+                $("#indented-bom").treetable("reveal", {{ change.id }});
             }
     });
     $("#manufacturer-parts").treetable({

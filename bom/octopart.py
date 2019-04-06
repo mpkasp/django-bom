@@ -33,7 +33,10 @@ def match_part(manufacturer_part, organization):
 
     suburl = 'parts/match?queries=%s' \
              % urllib.parse.quote(json.dumps(query))
-    response = request(suburl)
+    try:
+        response = request(suburl)
+    except urllib.error.URLError:
+        return []
 
     # need for each part: digi-key, mouser prices, moqs, lead times
     DIGI_KEY_SELLER_ID = '459'

@@ -926,6 +926,9 @@ def add_subpart(request, part_id, part_change_history_id):
     if request.method == 'POST':
         form = AddSubpartForm(request.POST, organization=organization, part_id=part_id)
         if form.is_valid():
+            if form.cleaned_data['subpart_part'].latest() is None:
+                PartChangeHistory.objects.create(part=form.cleaned_data['subpart_part'], description="", revision="1")
+
             new_part = Subpart.objects.create(
                 part_revision=form.cleaned_data['subpart_part'].latest(),
                 count=form.cleaned_data['count'],

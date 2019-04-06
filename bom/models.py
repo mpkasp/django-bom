@@ -1,16 +1,15 @@
 from __future__ import unicode_literals
 
+import logging
+
 from django.core.cache import cache
 from django.db import models
-from django.db.models.signals import post_delete
-from django.dispatch.dispatcher import receiver
 from django.contrib.auth.models import User, Group
 from .validators import alphanumeric, numeric
-from django.core.exceptions import ValidationError
-from django.utils.translation import ugettext as _
 
 from social_django.models import UserSocialAuth
 
+logger = logging.getLogger(__name__)
 
 class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
@@ -196,6 +195,11 @@ class PartChangeHistory(models.Model):
 
     def indented(self):
         def indented_given_bom(bom, partchangehistory, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
+            if partchangehistory is None: # hopefully this never happens
+                logger.warning("Indented bom partchangehistory is None, this shouldn't happen, parent "
+                               "partchangehistory id: {}".format(parent.id))
+                return
+
             bom.append({
                 'part': partchangehistory.part,
                 'partchangehistory': partchangehistory,
@@ -207,7 +211,7 @@ class PartChangeHistory(models.Model):
             })
 
             indent_level = indent_level + 1
-            if partchangehistory.assembly is None or partchangehistory.assembly.subparts.count() == 0:
+            if partchangehistory is None or partchangehistory.assembly is None or partchangehistory.assembly.subparts.count() == 0:
                 return
             else:
                 for sp in partchangehistory.assembly.subparts.all():

@@ -52,6 +52,30 @@ class TestBOM(TransactionTestCase):
                     'part_id': p2.id}))
         self.assertEqual(response.status_code, 200)
 
+
+    def test_part_manage_bom(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.post(
+            reverse(
+                'bom:part-manage-bom',
+                kwargs={
+                    'part_id': p1.id,
+                    'part_change_history_id': p1.latest().id,
+                }))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            reverse(
+                'bom:part-manage-bom',
+                kwargs={
+                    'part_id': p2.id,
+                    'part_change_history_id': p1.latest().id,
+                }))
+        self.assertEqual(response.status_code, 200)
+
     def test_part_export_bom(self):
         self.client.login(username='kasper', password='ghostpassword')
 
@@ -80,7 +104,7 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:export-part-list'))
         self.assertEqual(response.status_code, 200)
 
-    # @skip("only test when we want to hit octopart's api")
+    @skip("only test when we want to hit octopart's api")
     def test_match_part(self):
         self.client.login(username='kasper', password='ghostpassword')
 
@@ -91,7 +115,7 @@ class TestBOM(TransactionTestCase):
 
         self.assertEqual(partExists, True)
 
-    # @skip("only test when we want to hit octopart's api")
+    @skip("only test when we want to hit octopart's api")
     def test_octopart_match_part_indented(self):
         self.client.login(username='kasper', password='ghostpassword')
 
