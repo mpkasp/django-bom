@@ -53,7 +53,8 @@ def home(request):
     # This is way faster than looking each part rev up via the .latest() call on the above `parts`
     part_rev_ids = PartChangeHistory.objects.filter(part__in=parts).select_related('part').order_by('-timestamp')\
         .values('part').distinct().values_list('id')
-    part_revs = PartChangeHistory.objects.filter(id__in=part_rev_ids)
+    part_revs = PartChangeHistory.objects.filter(id__in=part_rev_ids).select_related('part')\
+        .order_by('part__number_class', 'part__number_item', 'part__number_variation')
 
     manufacturer_part = ManufacturerPart.objects.filter(part__in=parts)
 
