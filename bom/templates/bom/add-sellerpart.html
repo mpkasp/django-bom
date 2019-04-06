@@ -71,9 +71,14 @@ Add Seller Part
                 {{ form.ncnr|materializecss }}
             </div>
         </div>
-
-        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
-        <a href="javascript:history.back()" class="waves-effect waves-light btn green lighten-1">Cancel</a>
+		<div class="row">
+	        <div class="col s6">
+                <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
+            </div>
+            <div class="col s6 right-align">
+	        	<button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+	    	</div>
+    	</div>
     </form>
 </div>
 {% endblock %}

@@ -32,9 +32,11 @@
 		    	{{ user_form|materializecss:'s12 m6' }}
 		    	<br>
 			</div>
-			<div class="fieldWrapper">
-		        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-user">Save</button>
-			</div>
+            <div class="row">
+                <div class="col s12 right-align">
+                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+                </div>
+    	    </div>
 		</form>
     </div>
     <div id="file" class="col s12">
@@ -66,9 +68,11 @@
 				{{ organization_form|materializecss:'s12 m6' }}
 				<i>Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact info@indabom.com if you are interested.</i>
 			</div>
-			<div class="fieldWrapper">
-		        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-organization">Save</button>
-			</div>
+            <div class="row">
+                <div class="col s12 right-align">
+                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+                </div>
+            </div>
             <h3>Users In {{ organization.name }}</h3>
             {% for user in users_in_organization %}
             <ul>{{ user.first_name }} {{ user.last_name}} (<a href="mailto:{{ user.email }}">{{ user.email }}</a>)</ul>

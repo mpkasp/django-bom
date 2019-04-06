@@ -161,8 +161,8 @@
         <div id="bom" class="col s12">
             <div class="row" style="padding-top: 16px;">
                 <div class="col s6">
-                    {% if order_by == 'indented' %}<button href="#" class="waves-effect waves-green grey lighten-4 btn-flat" onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand all</button>{% endif %}
-                    {% if order_by == 'indented' %}<button href="#" class="waves-effect waves-green grey lighten-4 btn-flat" onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse all</button>{% endif %}
+                    {% if order_by == 'indented' %}<button href="#" class="waves-effect waves-green grey lighten-4 btn-flat" onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand</button>{% endif %}
+                    {% if order_by == 'indented' %}<button href="#" class="waves-effect waves-green grey lighten-4 btn-flat" onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse</button>{% endif %}
                 </div>
                 <div class="col s6 right-align">
                     <form action="{% url 'bom:part-manage-bom' part_id=part.id part_change_history_id=change.id %}" method="post">
