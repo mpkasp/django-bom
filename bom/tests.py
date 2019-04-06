@@ -52,7 +52,6 @@ class TestBOM(TransactionTestCase):
                     'part_id': p2.id}))
         self.assertEqual(response.status_code, 200)
 
-
     def test_part_manage_bom(self):
         self.client.login(username='kasper', password='ghostpassword')
 

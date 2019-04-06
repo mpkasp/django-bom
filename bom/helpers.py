@@ -1,4 +1,3 @@
-from bom.octopart import match_part
 from bom.models import Part, PartClass, Seller, SellerPart, Subpart, \
     Manufacturer, Organization, ManufacturerPart, PartChangeHistory, Assembly
 
@@ -138,8 +137,8 @@ def create_some_fake_parts(organization):
     assy3 = create_a_fake_assembly_with_subpart(part_change_history=pch2)
     subpart3 = create_a_fake_subpart(pch1, count=10, reference="")
     assy3.subparts.add(subpart3)
-    pch3 = create_a_fake_part_change_history(part=pt3, assembly=assy3)
-    pch4 = create_a_fake_part_change_history(part=pt3, assembly=assy3)
+    create_a_fake_part_change_history(part=pt3, assembly=assy3)
+    create_a_fake_part_change_history(part=pt3, assembly=assy3)
 
     # Create a part with no PartChangeHistory
     pt4 = Part(
@@ -147,6 +146,14 @@ def create_some_fake_parts(organization):
         number_item='4444',
         organization=organization)
     pt4.save()
+
+    # Create a part with a PartChangeHistory with no assembly
+    pt5 = Part(
+        number_class=pc1,
+        number_item='5555',
+        organization=organization)
+    pt5.save()
+    create_a_fake_part_change_history(pt5, None)
 
 
     (s1, s2, s3) = create_some_fake_sellers(organization=organization)
