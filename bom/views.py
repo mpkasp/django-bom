@@ -50,7 +50,6 @@ def home(request):
     parts = Part.objects.filter(organization=organization).order_by('number_class__code',
                                                                     'number_item', 'number_variation')
 
-    # This is way faster than looking each part rev up via the .latest() call on the above `parts`
     part_rev_ids = PartChangeHistory.objects.filter(part__in=parts).select_related('part').order_by('-timestamp')\
         .values('part').distinct().values_list('id')
     part_revs = PartChangeHistory.objects.filter(id__in=part_rev_ids).select_related('part')\
@@ -108,6 +107,11 @@ def home(request):
                 Q(primary_manufacturer_part__manufacturer_part_number__icontains=query) |
                 Q(primary_manufacturer_part__manufacturer__name__icontains=query) |
                 Q(number_class__code=query))
+
+        part_rev_ids = PartChangeHistory.objects.filter(part__in=parts).select_related('part').order_by('-timestamp') \
+            .values('part').distinct().values_list('id')
+        part_revs = PartChangeHistory.objects.filter(id__in=part_rev_ids).select_related('part') \
+            .order_by('part__number_class', 'part__number_item', 'part__number_variation')
 
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
