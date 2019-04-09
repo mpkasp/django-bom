@@ -732,7 +732,12 @@ def part_octopart_match_bom(request, part_id):
     subparts = part.latest().assembly.subparts.all()
     seller_parts = []
 
-    for part in subparts:
+    for subpart in subparts:
+        pch = subpart.part_revision
+        part = pch.part if pch is not None else None
+        if part is None:
+            messages.error(request, "No part found for subpart `{}` of part `{}`.".format(pch.id, pch.part))
+            continue
         for manufacturer_part in part.manufacturer_parts():
             try:
                 seller_parts = match_part(manufacturer_part, request.user.bom_profile().organization)
