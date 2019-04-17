@@ -41,7 +41,7 @@ def create_part_folder(user, part):
     service = get_service(user)
     organization = user.bom_profile().organization
     file_metadata = {
-        'name': part.full_part_number() + ' ' + part.description,
+        'name': part.full_part_number() + ' ' + part.latest().description,
         'mimeType': 'application/vnd.google-apps.folder',
         'parents': [organization.google_drive_parent],
     }
@@ -152,7 +152,7 @@ def update_folder_name(request, part_id):
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
     if part.google_drive_parent:
-        new_filename = part.full_part_number() + ' ' + part.description
+        new_filename = part.full_part_number() + ' ' + part.latest().description
         service.files().update(fileId=part.google_drive_parent, body={'name': new_filename}).execute()
     # TODO: Finish this... should update filename on
     return

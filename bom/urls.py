@@ -39,13 +39,13 @@ bom_patterns = [
 ]
 
 google_drive_patterns = [
-    path('add-folder/<int:part_id>/', google_drive.get_or_create_and_open_folder, name='add-folder'),
+    path('folder/<int:part_id>/', google_drive.get_or_create_and_open_folder, name='add-folder'),
 ]
 
 urlpatterns = [
     path('', include((bom_patterns, 'bom'))),
     path('', include('social_django.urls', namespace='social')),
-    path('', include((google_drive_patterns, 'google-drive'))),
+    path('google-drive/', include((google_drive_patterns, 'google-drive'))),
 
     # you will likely have your own implementation of these in your app
     path('admin/', admin.site.urls),
