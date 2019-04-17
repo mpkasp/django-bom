@@ -62,8 +62,6 @@ def home(request):
     q = part_rev_query.format(','.join(map(str, part_ids)))
     part_revs = PartChangeHistory.objects.raw(q)
 
-    print(part_revs)
-
     manufacturer_part = ManufacturerPart.objects.filter(part__in=parts)
 
     autocomplete_dict = {}
