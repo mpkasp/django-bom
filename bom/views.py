@@ -6,7 +6,7 @@ import sys
 
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.template.response import TemplateResponse
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -50,10 +50,19 @@ def home(request):
     parts = Part.objects.filter(organization=organization).order_by('number_class__code',
                                                                     'number_item', 'number_variation')
 
-    part_rev_ids = PartChangeHistory.objects.filter(part__in=parts).select_related('part').order_by('-timestamp')\
-        .values('part').distinct().values_list('id')
-    part_revs = PartChangeHistory.objects.filter(id__in=part_rev_ids).select_related('part')\
-        .order_by('part__number_class', 'part__number_item', 'part__number_variation')
+    part_ids = list(parts.values_list('id', flat=True))
+
+    part_rev_query = """
+    select max(pch.id) as id from bom_partchangehistory as pch
+    left join bom_part as p on pch.part_id = p.id
+    left join bom_partclass as pc on pc.id = p.number_class_id
+    where p.id in ({})
+    group by pch.part_id
+    order by pc.code, p.number_item, p.number_variation;"""
+    q = part_rev_query.format(','.join(map(str, part_ids)))
+    part_revs = PartChangeHistory.objects.raw(q)
+
+    print(part_revs)
 
     manufacturer_part = ManufacturerPart.objects.filter(part__in=parts)
 
@@ -88,7 +97,8 @@ def home(request):
     if query:
         rq = query.strip()
         (number_class, number_item, number_variation) = numbers_from_part_string(rq)
-        part_description_ids = PartChangeHistory.objects.filter(description__icontains=query).values_list("part", flat=True)
+        part_description_ids = PartChangeHistory.objects.filter(description__icontains=query).values_list("part",
+                                                                                                          flat=True)
         if number_class and number_item and number_variation:
             parts = parts.filter(
                 Q(number_class__code=number_class, number_item=number_item, number_variation=number_variation) |
@@ -108,10 +118,9 @@ def home(request):
                 Q(primary_manufacturer_part__manufacturer__name__icontains=query) |
                 Q(number_class__code=query))
 
-        part_rev_ids = PartChangeHistory.objects.filter(part__in=parts).select_related('part').order_by('-timestamp') \
-            .values('part').distinct().values_list('id')
-        part_revs = PartChangeHistory.objects.filter(id__in=part_rev_ids).select_related('part') \
-            .order_by('part__number_class', 'part__number_item', 'part__number_variation')
+        part_ids = list(parts.values_list('id', flat=True))
+        q = part_rev_query.format(','.join(map(str, part_ids)))
+        part_revs = PartChangeHistory.objects.raw(q)
 
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
@@ -590,7 +599,8 @@ def upload_parts(request):
                         messages.warning(request, "{}: {} already exists!".format(part.full_part_number(),
                                                                                   part.description))
                 else:
-                    messages.error(request, "File must contain at least the 3 columns (with headers): 'part_class', 'description', and 'revision'.")
+                    messages.error(request,
+                                   "File must contain at least the 3 columns (with headers): 'part_class', 'description', and 'revision'.")
                     return TemplateResponse(request, 'bom/upload-parts.html', locals())
         else:
             messages.error(request, "Invalid form input.")
@@ -776,7 +786,7 @@ def create_part(request):
         part_change_history_form = PartChangeHistoryForm(request.POST)
         manufacturer_form = ManufacturerForm(request.POST)
         manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
-        if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid()\
+        if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid() \
                 and part_change_history_form.is_valid():
             mpn = manufacturer_part_form.cleaned_data['manufacturer_part_number']
             old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
@@ -849,7 +859,7 @@ def part_edit(request, part_id):
             if assembly is not None:
                 assembly_subparts = assembly.subparts.all()
                 new_assembly = assembly
-                new_assembly.pk = None # to create a new instance copy
+                new_assembly.pk = None  # to create a new instance copy
                 new_assembly.save()
                 new_assembly.subparts.set(assembly_subparts)
 
@@ -954,14 +964,16 @@ def add_subpart(request, part_id, part_change_history_id):
             part_change_history.assembly.save()
         else:
             messages.error(request, form.errors)
-    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
+    return HttpResponseRedirect(
+        reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
 
 
 @login_required
 def remove_subpart(request, part_id, part_change_history_id, subpart_id):
     subpart = get_object_or_404(Subpart, pk=subpart_id)
     subpart.delete()
-    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
+    return HttpResponseRedirect(
+        reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
 
 
 @login_required
@@ -969,7 +981,8 @@ def edit_subpart(request, part_id, part_change_history_id, subpart_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    action = reverse('bom:part-edit-subpart', kwargs={'part_id': part_id, 'subpart_id': subpart_id, 'part_change_history_id': part_change_history_id})
+    action = reverse('bom:part-edit-subpart', kwargs={'part_id': part_id, 'subpart_id': subpart_id,
+                                                      'part_change_history_id': part_change_history_id})
 
     part = get_object_or_404(Part, pk=part_id)
     subpart = get_object_or_404(Subpart, pk=subpart_id)
@@ -978,10 +991,12 @@ def edit_subpart(request, part_id, part_change_history_id, subpart_id):
     h1 = "{} {}".format(subpart.part_revision.part.full_part_number(), subpart.part_revision.description)
 
     if request.method == 'POST':
-        form = SubpartForm(request.POST, instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
+        form = SubpartForm(request.POST, instance=subpart, organization=organization,
+                           part_id=subpart.part_revision.part.id)
         if form.is_valid():
             form.save()
-            return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
+            return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id,
+                                                                               'part_change_history_id': part_change_history_id}))
     else:
         form = SubpartForm(instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
 
@@ -995,7 +1010,8 @@ def remove_all_subparts(request, part_id, part_change_history_id):
     for subpart in subparts:
         subpart.delete()
 
-    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
+    return HttpResponseRedirect(
+        reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history_id}))
 
 
 @login_required

@@ -3,6 +3,8 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from unittest import skip
 
+from re import finditer
+
 from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_change_history, \
     create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers
 from .models import Part, SellerPart, ManufacturerPart, Seller
@@ -25,6 +27,10 @@ class TestBOM(TransactionTestCase):
 
         response = self.client.post(reverse('bom:home'))
         self.assertEqual(response.status_code, 200)
+
+        # Make sure only one part shows up
+        occurances = [m.start() for m in finditer(p1.full_part_number(), response.content.decode('utf-8'))]
+        self.assertEqual(len(occurances), 1)
 
         response = self.client.get(reverse('bom:home'), {'q': p1.primary_manufacturer_part.manufacturer_part_number})
         self.assertEqual(response.status_code, 200)
@@ -282,6 +288,13 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
         self.assertEqual(response.status_code, 302)
         self.assertTrue('/part/' in response.url)
+
+        # Make sure only one part shows up
+        response = self.client.post(reverse('bom:home'))
+        self.assertEqual(response.status_code, 200)
+
+        occurances = [m.start() for m in finditer(p1.full_part_number(), response.content.decode('utf-8'))]
+        self.assertEqual(len(occurances), 1)
 
     def test_part_edit(self):
         self.client.login(username='kasper', password='ghostpassword')
