@@ -265,7 +265,7 @@ def part_info(request, part_id, part_change_history_id=None):
     extended_cost = unit_cost * int(qty)
     total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
 
-    where_used = part.where_used()
+    where_used = change.where_used()
     seller_parts = part.seller_parts()
 
     if order_by != 'defaultOrderField' and order_by != 'indented':
