@@ -75,7 +75,7 @@ celerybeat-schedule
 venv/
 ENV/
 
-local_setting.py
+*local_setting.py
 .DS_Store
 *.sqlite3
 .idea

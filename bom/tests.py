@@ -13,6 +13,7 @@ from .octopart import match_part
 
 
 class TestBOM(TransactionTestCase):
+
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(
@@ -138,8 +139,16 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_part_upload_bom(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         with open('bom/test_files/test_parts.csv') as test_csv:
+            response = self.client.post(
+                reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}),
+                {'file': test_csv})
+        self.assertEqual(response.status_code, 302)
+
+        with open('bom/test_files/test_parts_2.csv') as test_csv:
             response = self.client.post(
                 reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}),
                 {'file': test_csv})

@@ -416,7 +416,6 @@ def part_upload_bom(request, part_id):
                     If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to fix your issue!")
                 return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
             # Subpart.objects.filter(assembly_part=part).delete()
-
             header_error = False
             if 'part_number' not in headers and 'manufacturer_part_number' not in headers:
                 header_error = True
@@ -466,6 +465,12 @@ def part_upload_bom(request, part_id):
                     # TODO: handle more than one subpart
                     subpart = subparts[0]
                     count = partData['quantity']
+                    revision = None
+
+                    if 'rev' in partData:
+                        revision = partData['rev']
+                    elif 'revision' in partData:
+                        revision = partData['rev']
 
                     reference = ''
                     if 'reference' in partData:
@@ -478,23 +483,29 @@ def part_upload_bom(request, part_id):
                             request, "Recursive part association: a part cant be a subpart of itsself")
                         return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id}))
 
-                    sp = Subpart(
-                        assembly_part=part,
-                        assembly_subpart=subpart,
+                    pch = part.latest()
+                    if revision is not None:
+                        pches = PartChangeHistory.objects.filter(part=part, revision=revision)
+                        if len(pches) > 0:
+                            pch = pches[0]
+
+                    Subpart.objects.create(
+                        part_revision=pch,
                         count=count,
-                        reference=reference)
-                    sp.save()
+                        reference=reference,
+                    )
                 elif 'manufacturer_part_number' in partData and 'quantity' in partData:
                     mpn = partData['manufacturer_part_number']
-                    subparts = Part.objects.filter(manufacturer_part_number=mpn)
+                    manufacturer_parts = ManufacturerPart.objects.filter(manufacturer_part_number=mpn,
+                                                                         part__organization=organization)
 
-                    if len(subparts) == 0:
+                    if len(manufacturer_parts) == 0:
                         messages.info(
-                            request, "Subpart: `{}` doesn't exist".format(
-                                partData['manufacturer_part_number']))
+                            request, "Part with manufacturer part number: `{}` doesn't exist, you must create the part "
+                                     "before we can add it to an assembly".format(partData['manufacturer_part_number']))
                         continue
 
-                    subpart = subparts[0]
+                    subpart = manufacturer_parts[0].part
                     count = partData['quantity']
                     if part == subpart:
                         messages.error(
@@ -507,12 +518,12 @@ def part_upload_bom(request, part_id):
                     elif 'designator' in partData:
                         reference = partData['designator']
 
-                    sp = Subpart(
-                        assembly_part=part,
-                        assembly_subpart=subpart,
+                    pch = part.latest()
+                    Subpart.objects.create(
+                        part_revision=pch,
                         count=count,
-                        reference=reference)
-                    sp.save()
+                        reference=reference,
+                    )
         else:
             messages.error(
                 request,

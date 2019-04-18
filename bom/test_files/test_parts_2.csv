@@ -1,0 +1,6 @@
+quantity,manufacturer_part_number,dnp,reference,junk
+2,abc123,,U3,
+2,abc123,,IC2,
+2,abc123,dnp,,
+1,testing,,,
+99,hi,,,
