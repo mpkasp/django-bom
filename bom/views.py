@@ -539,6 +539,60 @@ def upload_parts(request):
                 csvfile.open()
                 reader = csv.reader(codecs.iterdecode(csvfile, 'utf-8'), dialect)
                 headers = [h.lower() for h in next(reader)]
+
+                for row in reader:
+                    partData = {}
+                    for idx, item in enumerate(row):
+                        partData[headers[idx]] = item
+                    if 'part_class' in partData and 'description' in partData and 'revision' in partData:
+                        mpn = ''
+                        mfg = None
+                        if 'manufacturer_part_number' in partData:
+                            mpn = partData['manufacturer_part_number']
+                        elif 'mpn' in partData:
+                            mpn = partData['mpn']
+                        if 'manufacturer' in partData:
+                            mfg_name = partData['manufacturer'] if partData['manufacturer'] is not None else ''
+                            mfg, created = Manufacturer.objects.get_or_create(
+                                name=mfg_name, organization=organization)
+                        elif 'mfg' in partData:
+                            mfg_name = partData['mfg'] if partData['mfg'] is not None else ''
+                            mfg, created = Manufacturer.objects.get_or_create(
+                                name=mfg_name, organization=organization)
+
+                        try:
+                            part_class = PartClass.objects.get(
+                                code=partData['part_class'])
+                        except PartClass.DoesNotExist:
+                            messages.error(
+                                request, "Partclass {} doesn't exist.".format(
+                                    partData['part_class']))
+                            return HttpResponseRedirect(reverse('bom:error'))
+                        part, created = Part.objects.get_or_create(number_class=part_class,
+                                                                   organization=organization)
+
+                        if created:
+                            pch = PartChangeHistory.objects.create(part=part,
+                                                                   description=partData['description'],
+                                                                   revision=partData['revision'])
+
+                        manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part,
+                                                                                            manufacturer_part_number=mpn,
+                                                                                            manufacturer=mfg)
+
+                        if part.primary_manufacturer_part is None and manufacturer_part is not None:
+                            part.primary_manufacturer_part = manufacturer_part
+                            part.save()
+
+                        if created:
+                            messages.info(request, "{}: {} created.".format(part.full_part_number(), part.description))
+                        else:
+                            messages.warning(request, "{}: {} already exists!".format(part.full_part_number(),
+                                                                                      part.description))
+                    else:
+                        messages.error(request,
+                                       "File must contain at least the 3 columns (with headers): 'part_class', 'description', and 'revision'.")
+                        return TemplateResponse(request, 'bom/upload-parts.html', locals())
             except UnicodeDecodeError as e:
                 messages.error(request, "CSV File Encoding error, try encoding your file as utf-8, and upload again. \
                     If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to \
@@ -546,60 +600,6 @@ def upload_parts(request):
                 messages.error(request, "Specific Error: {}".format(e))
                 logger.warning("UnicodeDecodeError: {}".format(e))
                 return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
-
-            for row in reader:
-                partData = {}
-                for idx, item in enumerate(row):
-                    partData[headers[idx]] = item
-                if 'part_class' in partData and 'description' in partData and 'revision' in partData:
-                    mpn = ''
-                    mfg = None
-                    if 'manufacturer_part_number' in partData:
-                        mpn = partData['manufacturer_part_number']
-                    elif 'mpn' in partData:
-                        mpn = partData['mpn']
-                    if 'manufacturer' in partData:
-                        mfg_name = partData['manufacturer'] if partData['manufacturer'] is not None else ''
-                        mfg, created = Manufacturer.objects.get_or_create(
-                            name=mfg_name, organization=organization)
-                    elif 'mfg' in partData:
-                        mfg_name = partData['mfg'] if partData['mfg'] is not None else ''
-                        mfg, created = Manufacturer.objects.get_or_create(
-                            name=mfg_name, organization=organization)
-
-                    try:
-                        part_class = PartClass.objects.get(
-                            code=partData['part_class'])
-                    except PartClass.DoesNotExist:
-                        messages.error(
-                            request, "Partclass {} doesn't exist.".format(
-                                partData['part_class']))
-                        return HttpResponseRedirect(reverse('bom:error'))
-                    part, created = Part.objects.get_or_create(number_class=part_class,
-                                                               organization=organization)
-
-                    if created:
-                        pch = PartChangeHistory.objects.create(part=part,
-                                                               description=partData['description'],
-                                                               revision=partData['revision'])
-
-                    manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part,
-                                                                                        manufacturer_part_number=mpn,
-                                                                                        manufacturer=mfg)
-
-                    if part.primary_manufacturer_part is None and manufacturer_part is not None:
-                        part.primary_manufacturer_part = manufacturer_part
-                        part.save()
-
-                    if created:
-                        messages.info(request, "{}: {} created.".format(part.full_part_number(), part.description))
-                    else:
-                        messages.warning(request, "{}: {} already exists!".format(part.full_part_number(),
-                                                                                  part.description))
-                else:
-                    messages.error(request,
-                                   "File must contain at least the 3 columns (with headers): 'part_class', 'description', and 'revision'.")
-                    return TemplateResponse(request, 'bom/upload-parts.html', locals())
         else:
             messages.error(request, "Invalid form input.")
             return TemplateResponse(request, 'bom/upload-parts.html', locals())
