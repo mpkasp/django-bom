@@ -52,13 +52,13 @@ def home(request):
 
     part_ids = list(parts.values_list('id', flat=True))
 
-    part_rev_query = """
-    select max(pch.id) as id from bom_partchangehistory as pch
-    left join bom_part as p on pch.part_id = p.id
-    left join bom_partclass as pc on pc.id = p.number_class_id
-    where p.id in ({})
-    group by pch.part_id
-    order by pc.code, p.number_item, p.number_variation;"""
+    part_rev_query = "select max(pch.id) as id from bom_partchangehistory as pch " \
+                     "left join bom_part as p on pch.part_id = p.id " \
+                     "left join bom_partclass as pc on pc.id = p.number_class_id " \
+                     "where p.id in ({}) " \
+                     "group by pch.part_id " \
+                     "order by pc.code, p.number_item, p.number_variation;"
+
     q = part_rev_query.format(','.join(map(str, part_ids)))
     part_revs = PartChangeHistory.objects.raw(q)
 
@@ -900,6 +900,7 @@ def manage_bom(request, part_id, part_change_history_id):
 
         messages.info(request, "Previous assembly saved, and copied into new assembly. "
                                "Now editing new assembly for part {}.".format(part.full_part_number()))
+        return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_change_history_id': part_change_history.id}))
     else:
         part_change_history = get_object_or_404(PartChangeHistory, pk=part_change_history_id)
 
@@ -952,11 +953,6 @@ def add_subpart(request, part_id, part_change_history_id):
                 part_revision=form.cleaned_data['subpart_part'].latest(),
                 count=form.cleaned_data['count'],
                 reference=form.cleaned_data['reference'])
-
-            if part_change_history.assembly is None:
-                assy = Assembly.objects.create()
-                part_change_history.assembly = assy
-                part_change_history.save()
 
             part_change_history.assembly.subparts.add(new_part)
             part_change_history.assembly.save()

@@ -23,6 +23,9 @@ class TestBOM(TransactionTestCase):
     def test_home(self):
         self.client.login(username='kasper', password='ghostpassword')
 
+        response = self.client.post(reverse('bom:home'))
+        self.assertEqual(response.status_code, 200)
+
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:home'))
@@ -102,7 +105,7 @@ class TestBOM(TransactionTestCase):
                     'part_id': p1.id,
                     'part_change_history_id': p1.latest().id,
                 }), change_form_data)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
         response = self.client.post(
             reverse(
@@ -111,7 +114,7 @@ class TestBOM(TransactionTestCase):
                     'part_id': p2.id,
                     'part_change_history_id': p1.latest().id,
                 }), change_form_data)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
         response = self.client.post(
             reverse(
@@ -120,7 +123,7 @@ class TestBOM(TransactionTestCase):
                     'part_id': p3.id,
                     'part_change_history_id': p3.latest().id,
                 }), change_form_data)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     def test_part_export_bom(self):
         self.client.login(username='kasper', password='ghostpassword')

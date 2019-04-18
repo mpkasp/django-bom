@@ -62,7 +62,7 @@ Manage BOM
                         <!-- <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td> -->
                         {% if subpart.indent_level == 1 and subpart.subpart is not None %}
                         <td><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_change_history_id=part_change_history_id subpart_id=subpart.subpart.id %}">edit</a></td>
-                        <td><a href="{% url 'bom:part-remove-subpart' part_id=part.id part_change_history_id=part_change_history_id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
+                        <td><a href="{% url 'bom:part-remove-subpart' part_id=part.id part_change_history_id=part_change_history.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
                         {% else %}
                         <td colspan="2"></td>
                         {% endif %}
@@ -73,7 +73,7 @@ Manage BOM
         </div>
         <br><h5>Add Subpart</h5>
         <div class="row">
-            <form action="{% url 'bom:part-add-subpart' part_id=part.id part_change_history_id=part_change_history_id %}" method="post" class="col s12">
+            <form action="{% url 'bom:part-add-subpart' part_id=part.id part_change_history_id=part_change_history.id %}" method="post" class="col s12">
                 {% csrf_token %}
                 {{ add_subpart_form.subpart_part }}
                 {{ add_subpart_form.count|materializecss:'m6 s12' }}
