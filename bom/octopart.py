@@ -29,6 +29,10 @@ def request(suburl):
 
 
 def match_part(manufacturer_part, organization):
+    raise Exception("Octopart recently revoked our key, and is therefore now currently disabled until we determine a"
+                    " free API to pull from. Stay tuned... Or reach out to mike at indabom.com for suggestions.")
+    return
+
     query = [{'mpn': manufacturer_part.manufacturer_part_number}]
 
     suburl = 'parts/match?queries=%s' \
@@ -76,6 +80,9 @@ def match_part(manufacturer_part, organization):
 
 
 def get_latest_datasheets(manufacturer_part_number):
+    raise Exception("Octopart recently revoked our key, and is therefore now currently disabled until we determine a"
+                    " free API to pull from. Stay tuned... Or reach out to mike at indabom.com for suggestions.")
+    return
     query = [{'mpn': manufacturer_part_number}]
 
     suburl = 'parts/match?queries=%s' \

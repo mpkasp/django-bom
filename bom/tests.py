@@ -162,7 +162,7 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:export-part-list'))
         self.assertEqual(response.status_code, 200)
 
-    # @skip("only test when we want to hit octopart's api")
+    @skip("only test when we want to hit octopart's api")
     def test_match_part(self):
         self.client.login(username='kasper', password='ghostpassword')
 
@@ -173,7 +173,7 @@ class TestBOM(TransactionTestCase):
 
         self.assertEqual(partExists, True)
 
-    # @skip("only test when we want to hit octopart's api")
+    @skip("only test when we want to hit octopart's api")
     def test_octopart_match_part_indented(self):
         self.client.login(username='kasper', password='ghostpassword')
 
@@ -388,15 +388,21 @@ class TestBOM(TransactionTestCase):
         self.client.login(username='kasper', password='ghostpassword')
 
         create_some_fake_part_classes()
+
+        # Should pass
         with open('bom/test_files/test_new_parts.csv') as test_csv:
-            response = self.client.post(
-                reverse('bom:upload-parts'), {'file': test_csv})
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
         self.assertEqual(response.status_code, 302)
 
+        # Should fail because revision is 3 characters
         with open('bom/test_files/test_new_parts_2.csv') as test_csv:
-            response = self.client.post(
-                reverse('bom:upload-parts'), {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertEqual(response.status_code, 200)
+
+        # Should fail because part class doesnt exist
+        with open('bom/test_files/test_new_parts_3.csv') as test_csv:
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertEqual(response.status_code, 200)
 
     def test_add_sellerpart(self):
         self.client.login(username='kasper', password='ghostpassword')

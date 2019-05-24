@@ -57,9 +57,10 @@ def home(request):
                      "left join bom_partclass as pc on pc.id = p.number_class_id " \
                      "where p.id in ({}) " \
                      "group by pch.part_id " \
-                     "order by pc.code, p.number_item, p.number_variation;"
+                     "order by pc.code, p.number_item, p.number_variation"
 
-    q = part_rev_query.format(','.join(map(str, part_ids)))
+    part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
+    q = part_rev_query.format(part_list)
     part_revs = PartChangeHistory.objects.raw(q)
 
     manufacturer_part = ManufacturerPart.objects.filter(part__in=parts)
@@ -117,7 +118,8 @@ def home(request):
                 Q(number_class__code=query))
 
         part_ids = list(parts.values_list('id', flat=True))
-        q = part_rev_query.format(','.join(map(str, part_ids)))
+        part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
+        q = part_rev_query.format(part_list)
         part_revs = PartChangeHistory.objects.raw(q)
 
     return TemplateResponse(request, 'bom/dashboard.html', locals())
@@ -150,6 +152,8 @@ def bom_settings(request, tab_anchor=None):
         id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).order_by(
         'first_name', 'last_name', 'email')
     google_authentication = UserSocialAuth.objects.filter(user=user).first()
+    user_form = UserForm(instance=user)
+    organization_form = OrganizationForm(instance=organization)
 
     if request.method == 'POST':
         if 'submit-user' in request.POST:
@@ -166,10 +170,6 @@ def bom_settings(request, tab_anchor=None):
                 organization_form.save()
             else:
                 messages.error(request, organization_form.errors)
-    else:
-        user_form = UserForm(instance=user)
-        # user_profile_form = UserProfileForm(instance=user.bom_profile())
-        organization_form = OrganizationForm(instance=organization)
 
     return TemplateResponse(request, 'bom/settings.html', locals())
 
@@ -552,40 +552,39 @@ def upload_parts(request):
                 headers = [h.lower() for h in next(reader)]
 
                 for row in reader:
-                    partData = {}
+                    part_data = {}
                     for idx, item in enumerate(row):
-                        partData[headers[idx]] = item
-                    if 'part_class' in partData and 'description' in partData and 'revision' in partData:
+                        part_data[headers[idx]] = item
+                    if 'part_class' in part_data and 'description' in part_data and 'revision' in part_data:
                         mpn = ''
                         mfg = None
-                        if 'manufacturer_part_number' in partData:
-                            mpn = partData['manufacturer_part_number']
-                        elif 'mpn' in partData:
-                            mpn = partData['mpn']
-                        if 'manufacturer' in partData:
-                            mfg_name = partData['manufacturer'] if partData['manufacturer'] is not None else ''
-                            mfg, created = Manufacturer.objects.get_or_create(
-                                name=mfg_name, organization=organization)
-                        elif 'mfg' in partData:
-                            mfg_name = partData['mfg'] if partData['mfg'] is not None else ''
-                            mfg, created = Manufacturer.objects.get_or_create(
-                                name=mfg_name, organization=organization)
+                        if 'manufacturer_part_number' in part_data:
+                            mpn = part_data['manufacturer_part_number']
+                        elif 'mpn' in part_data:
+                            mpn = part_data['mpn']
+                        if 'manufacturer' in part_data:
+                            mfg_name = part_data['manufacturer'] if part_data['manufacturer'] is not None else ''
+                            mfg, created = Manufacturer.objects.get_or_create(name=mfg_name, organization=organization)
+                        elif 'mfg' in part_data:
+                            mfg_name = part_data['mfg'] if part_data['mfg'] is not None else ''
+                            mfg, created = Manufacturer.objects.get_or_create(name=mfg_name, organization=organization)
 
                         try:
-                            part_class = PartClass.objects.get(
-                                code=partData['part_class'])
+                            part_class = PartClass.objects.get(code=part_data['part_class'])
                         except PartClass.DoesNotExist:
-                            messages.error(
-                                request, "Partclass {} doesn't exist.".format(
-                                    partData['part_class']))
-                            return HttpResponseRedirect(reverse('bom:error'))
-                        part, created = Part.objects.get_or_create(number_class=part_class,
-                                                                   organization=organization)
+                            messages.error(request, "Part Class {} doesn't exist.".format(part_data['part_class']))
+                            return TemplateResponse(request, 'bom/upload-parts.html', locals())
+
+                        if len(part_data['revision']) > 2:
+                            messages.error(request, "Revision {} is more than the maximum 2 characters.".format(part_data['revision']))
+                            return TemplateResponse(request, 'bom/upload-parts.html', locals())
+
+                        part, created = Part.objects.get_or_create(number_class=part_class, organization=organization)
 
                         if created:
                             pch = PartChangeHistory.objects.create(part=part,
-                                                                   description=partData['description'],
-                                                                   revision=partData['revision'])
+                                                                   description=part_data['description'],
+                                                                   revision=part_data['revision'])
 
                         manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part,
                                                                                             manufacturer_part_number=mpn,
@@ -601,8 +600,8 @@ def upload_parts(request):
                             messages.warning(request, "{}: {} already exists!".format(part.full_part_number(),
                                                                                       part.description))
                     else:
-                        messages.error(request,
-                                       "File must contain at least the 3 columns (with headers): 'part_class', 'description', and 'revision'.")
+                        messages.error(request, "File must contain at least the 3 columns (with headers): 'part_class',"
+                                                " 'description', and 'revision'.")
                         return TemplateResponse(request, 'bom/upload-parts.html', locals())
             except UnicodeDecodeError as e:
                 messages.error(request, "CSV File Encoding error, try encoding your file as utf-8, and upload again. \
