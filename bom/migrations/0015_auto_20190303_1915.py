@@ -103,6 +103,6 @@ class Migration(migrations.Migration):
             model_name='subpart',
             name='part_revision',
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE,
-                                    related_name='assembly_subpart', to='bom.PartChangeHistory'),
+                                    related_name='assembly_subpart', to='bom.PartRevision'),
         )
     ]
