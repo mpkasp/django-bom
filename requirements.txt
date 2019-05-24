@@ -1,9 +1,11 @@
+bleach==3.1.0
 cachetools==3.0.0
 certifi==2018.8.24
 chardet==3.0.4
 defusedxml==0.5.0
 Django==2.2
 django-materializecss-form==1.1.14
+docutils==0.14
 entrypoints==0.2.3
 google-api-python-client==1.7.5
 google-auth==1.6.1
@@ -18,9 +20,11 @@ pip-autoremove==0.9.1
 pkginfo==1.4.2
 pyasn1==0.4.4
 pyasn1-modules==0.2.2
+Pygments==2.4.0
 PyJWT==1.6.4
 python3-openid==3.1.0
 pytz==2018.5
+readme-renderer==24.0
 requests==2.21.0
 requests-oauthlib==1.0.0
 requests-toolbelt==0.8.0
@@ -30,6 +34,7 @@ social-auth-app-django==3.1.0
 social-auth-core==3.0.0
 sqlparse==0.3.0
 tqdm==4.25.0
-twine==1.11.0
+twine==1.13.0
 uritemplate==3.0.0
 urllib3==1.23
+webencodings==0.5.1

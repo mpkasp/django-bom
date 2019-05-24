@@ -15,6 +15,7 @@ setup(
     license='MIT License',
     description='A simple Django app to manage a bill of materials.',
     long_description=README,
+    long_description_content_type='text/markdown',
     url='https://www.indabom.com/',
     author='Mike Kasparian',
     author_email='mpkasp@gmail.com',
