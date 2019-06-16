@@ -1,5 +1,5 @@
 from bom.models import Part, PartClass, Seller, SellerPart, Subpart, \
-    Manufacturer, Organization, ManufacturerPart, PartChangeHistory, Assembly
+    Manufacturer, Organization, ManufacturerPart, PartRevision, Assembly
 
 
 def create_a_fake_organization(user, free=False):
@@ -49,7 +49,7 @@ def create_a_fake_assembly_with_subpart(part_change_history, reference="D4", cou
 
 
 def create_a_fake_part_change_history(part, assembly, description="Brown dog", revision="1"):
-    pch = PartChangeHistory(part=part, description=description, revision=revision, attribute="Voltage", value="3.3", assembly=assembly)
+    pch = PartRevision(part=part, description=description, revision=revision, attribute="Voltage", value="3.3", assembly=assembly)
     pch.save()
     return pch
 

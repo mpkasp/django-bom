@@ -69,8 +69,8 @@ class PartClassAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'comment', )
 
 
-class PartChangeHistoryAdminInline(admin.TabularInline):
-    model = PartChangeHistory
+class PartRevisionAdminInline(admin.TabularInline):
+    model = PartRevision
     raw_id_fields = ('assembly', )
 
 
@@ -92,7 +92,7 @@ class PartAdmin(admin.ModelAdmin):
     get_full_part_number.admin_order_field = 'number_class__part_number'
 
 
-class PartChangeHistoryAdmin(admin.ModelAdmin):
+class PartRevisionAdmin(admin.ModelAdmin):
     list_display = ('revision', 'description', 'get_assembly_size', 'timestamp', )
     raw_id_fields = ('assembly', )
 
@@ -132,7 +132,7 @@ admin.site.register(SellerPart, SellerPartAdmin)
 admin.site.register(ManufacturerPart, ManufacturerPartAdmin)
 admin.site.register(PartClass, PartClassAdmin)
 admin.site.register(Part, PartAdmin)
-admin.site.register(PartChangeHistory, PartChangeHistoryAdmin)
+admin.site.register(PartRevision, PartRevisionAdmin)
 admin.site.register(Manufacturer, ManufacturerAdmin)
 admin.site.register(Assembly, AssemblyAdmin)
 admin.site.register(Subpart, SubpartAdmin)

@@ -13,6 +13,8 @@ ALLOWED_HOSTS = ['*']
 
 BOM_CONFIG = {
     'octopart_api_key': 'secret_octopart_key',
+    # docs: https://api.mouser.com/api/docs/ui/index
+    'mouser_api_key': 'secret_mouser_key', # via https://www.mouser.com/MyMouser/MouserSearchApplication.aspx
 }
 
 # google GoogleOAuth

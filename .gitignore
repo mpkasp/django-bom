@@ -79,3 +79,4 @@ ENV/
 .DS_Store
 *.sqlite3
 .idea
+*.bak

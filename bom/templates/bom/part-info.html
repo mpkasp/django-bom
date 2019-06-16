@@ -12,7 +12,7 @@
 
 {% block menu %}
 {% if profile.role == 'A' %}
-{% if change == part.latest %}<li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>{% endif %}
+{% if revision == part.latest %}<li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>{% endif %}
 {% endif %}
 {% endblock%}
 
@@ -21,8 +21,8 @@
     <div class="row">
         <div class="col s8">
             <h3 class="light">Part Number: {{ part.full_part_number}}</h3>
-            {% if change != part.latest %}
-                <h5 class="light">Viewing Historic Part: {{ change.revision }}, {{ change.timestamp }}</h5>
+            {% if revision != part.latest %}
+                <h5 class="light">Viewing Historic Part: {{ revision.revision }}, {{ revision.timestamp }}</h5>
                 <a href="{% url 'bom:part-info' part_id=part.id %}">Back to Current</a>
             {% endif %}
         </div>
@@ -45,7 +45,7 @@
                 <li class="tab"><a href="#bom">Bill of Materials</a></li>
                 <li class="tab"><a href="#used">Where Used</a></li>
                 <li class="tab"><a href="#sourcing">Sourcing</a></li>
-                <li class="tab"><a href="#history">Change History</a></li>
+                <li class="tab"><a href="#history">Revisions</a></li>
             </ul>
         </div>
 
@@ -57,7 +57,7 @@
                         Description:
                     </div>
                     <div class="col s8">
-                        {{ change.description }}
+                        {{ revision.description }}
                     </div>
                 </div>
                 <div class="row">
@@ -73,7 +73,7 @@
                         Revision:
                     </div>
                     <div class="col s8">
-                        {{ change.revision }}
+                        {{ revision.revision }}
                     </div>
                 </div>
                 <div class="row">
@@ -165,19 +165,19 @@
                     {% if order_by == 'indented' %}<button href="#" class="waves-effect waves-green grey lighten-4 btn-flat" onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse</button>{% endif %}
                 </div>
                 <div class="col s6 right-align">
-                    <form action="{% url 'bom:part-manage-bom' part_id=part.id part_change_history_id=change.id %}" method="post">
+                    <form action="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=revision.id %}" method="post">
                         {% csrf_token %}
                         <!-- Dropdown Trigger -->
                         <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#' data-target='dropdown{{ part.id }}'>Manage</button>
                         <!-- Dropdown Structure -->
                         <ul id='dropdown{{ part.id }}' class='dropdown-content'>
                             {% if profile.role == 'A' %}
-                            {% if change == part.latest %}
-                                <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_change_history_id=change.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit</a></li>
+                            {% if revision == part.latest %}
+                                <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=revision.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit</a></li>
                             {% endif %}
-                            {% if change == part.latest %}
+                            {% if revision == part.latest %}
                                 <li>
-                                    <input type="hidden" name="change" value="true">
+                                    <input type="hidden" name="revision" value="true">
                                     <a type="submit" class="green-text text-lighten-1" style="-webkit-appearance: none;" href="#" onclick="$(this).closest('form').submit()"><i class="material-icons green-text text-lighten-1">add</i>Save Copy and Edit</a>
                                 </li>
                             {% endif %}
@@ -208,12 +208,12 @@
                         </tr>
                     </thead>
                     {% for subpart in parts %}
-                        <tr data-tt-id="{{ subpart.partchangehistory.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
+                        <tr data-tt-id="{{ subpart.part_revision.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
                             <td class="text-normal">{{ subpart.indent_level }}</td>
                             <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
                             <td class="text-normal">{{ subpart.quantity }}</td>
                             <td class="text-normal">{{ subpart.part.description }}</td>
-                            <td class="text-normal">{{ subpart.partchangehistory.revision }}</td>
+                            <td class="text-normal">{{ subpart.part_revision.revision }}</td>
                             <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}{% if subpart.part.manufacturer_parts.count > 1 %} <i>({{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
                             <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
                                 <!-- <td class="text-normal">{{ subpart.extended_quantity }}</td> -->
@@ -346,7 +346,7 @@
 
         <div id="history" class="col s12">
             <div class="responsive-table-wrapper">
-                <table id="change-history" class="highlight tight treetable">
+                <table id="revision-history" class="highlight tight treetable">
                     <thead>
                         <tr>
                             <th>Revision</th>
@@ -367,11 +367,11 @@
                                 <td>{{ a.attribute|default:'-' }}</td>
                                 <td>{{ a.value|default:'-' }}</td>
                                 <td>{{ a.timestamp }}</td>
-                                <td>{% if change.id != a.id %}<a href="{% if a == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_change_history_id=a.id %}{% endif %}">view</a>{% endif %}</td>
+                                <td>{% if revision.id != a.id %}<a href="{% if a == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=a.id %}{% endif %}">view</a>{% endif %}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="99" style="text-align: center; height: 20vh;"><i>This part has no tracked changes yet.</i></td>
+                                <td colspan="99" style="text-align: center; height: 20vh;"><i>This part has no tracked revisions yet.</i></td>
                             </tr>
                        {% endfor %}
                     </tbody>
@@ -390,7 +390,7 @@
         indent: 2,
         initialState: 'collapsed',
         onInitialized: function () {
-                $("#indented-bom").treetable("reveal", {{ change.id }});
+                $("#indented-bom").treetable("reveal", {{ revision.id }});
             }
     });
     $("#manufacturer-parts").treetable({

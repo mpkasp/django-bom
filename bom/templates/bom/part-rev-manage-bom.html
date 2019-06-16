@@ -48,7 +48,7 @@ Manage BOM
                 </thead>
                 <tbody>
                     {% for subpart in parts %}
-                    <tr data-tt-id="{{ subpart.partchangehistory.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
+                    <tr data-tt-id="{{ subpart.part_revision.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
                         <td class="text-normal">{{ subpart.indent_level }}</td>
                         <td>{{ subpart.part.full_part_number }}</td>
                         <td>{{ subpart.quantity }}</td>
@@ -61,8 +61,8 @@ Manage BOM
                         <!-- <td>{{ subpart.seller_price | default:"-"}}</td> -->
                         <!-- <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td> -->
                         {% if subpart.indent_level == 1 and subpart.subpart is not None %}
-                        <td><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_change_history_id=part_change_history_id subpart_id=subpart.subpart.id %}">edit</a></td>
-                        <td><a href="{% url 'bom:part-remove-subpart' part_id=part.id part_change_history_id=part_change_history.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
+                        <td><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}">edit</a></td>
+                        <td><a href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
                         {% else %}
                         <td colspan="2"></td>
                         {% endif %}
@@ -73,7 +73,7 @@ Manage BOM
         </div>
         <br><h5>Add Subpart</h5>
         <div class="row">
-            <form action="{% url 'bom:part-add-subpart' part_id=part.id part_change_history_id=part_change_history.id %}" method="post" class="col s12">
+            <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}" method="post" class="col s12">
                 {% csrf_token %}
                 {{ add_subpart_form.subpart_part }}
                 {{ add_subpart_form.count|materializecss:'m6 s12' }}
@@ -106,7 +106,7 @@ Manage BOM
         </form>
         <br><br>
         <div class="center">
-            <a class="waves-effect waves-light red lighten-2 btn" href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_change_history_id=part_change_history_id %}" onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts</a>
+            <a class="waves-effect waves-light red lighten-2 btn" href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}" onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts</a>
         </div>
         <br>
     </div>
@@ -122,7 +122,7 @@ Manage BOM
         indent: 2,
         initialState: 'collapsed',
         onInitialized: function () {
-                $("#indented-bom").treetable("reveal", {{ part_change_history.id }});
+                $("#indented-bom").treetable("reveal", {{ part_revision.id }});
             }
         });
 </script>

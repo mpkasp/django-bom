@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 # from django.core.validators import DecimalValidator
 
 from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
-    Organization, PartChangeHistory
+    Organization, PartRevision
 from .validators import decimal, alphanumeric, numeric
 from json import dumps
 
@@ -131,9 +131,9 @@ class PartForm(forms.ModelForm):
         }
 
 
-class PartChangeHistoryForm(forms.ModelForm):
+class PartRevisionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
-        super(PartChangeHistoryForm, self).__init__(*args, **kwargs)
+        super(PartRevisionForm, self).__init__(*args, **kwargs)
         self.fields['attribute'].required = False
         self.fields['value'].required = False
         for _, value in self.fields.items():
@@ -141,7 +141,7 @@ class PartChangeHistoryForm(forms.ModelForm):
             value.help_text = ''
 
     class Meta:
-        model = PartChangeHistory
+        model = PartRevision
         exclude = ['timestamp', 'assembly', 'part', ]
         help_texts = {
             'description': _('e.g. CAPACITOR, CERAMIC, 100pF, 0402, 10V, +/- 5%'),
@@ -162,7 +162,7 @@ class SubpartForm(forms.ModelForm):
         if self.part_id is None:
             self.Meta.exclude = ['part_revision']
         else:
-            self.fields['part_revision'].queryset = PartChangeHistory.objects.filter(
+            self.fields['part_revision'].queryset = PartRevision.objects.filter(
                 part__id=self.part_id).order_by('-timestamp')
 
         if self.part_id:

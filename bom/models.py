@@ -90,7 +90,7 @@ class Part(models.Model):
         return self.revisions().order_by('-timestamp').first()
 
     def revisions(self):
-        return PartChangeHistory.objects.filter(part=self)
+        return PartRevision.objects.filter(part=self)
 
     def seller_parts(self):
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
@@ -179,14 +179,14 @@ class Part(models.Model):
                     self.number_variation = "{}".format(increment_str(last_number_variation.number_variation))
         super(Part, self).save()
         if self.latest() is None:
-            PartChangeHistory.objects.create(part=self, revision='1')
+            PartRevision.objects.create(part=self, revision='1')
 
     def __str__(self):
         return u'%s' % (self.full_part_number())
 
 
 # Below are attributes of a part that can be changed, but it's important to trace the change over time
-class PartChangeHistory(models.Model):
+class PartRevision(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
     timestamp = models.DateTimeField(auto_now=True)
     description = models.CharField(max_length=255, default="")
@@ -199,18 +199,18 @@ class PartChangeHistory(models.Model):
         if self.assembly is None:
             assy = Assembly.objects.create()
             self.assembly = assy
-        super(PartChangeHistory, self).save()
+        super(PartRevision, self).save()
 
     def indented(self):
-        def indented_given_bom(bom, partchangehistory, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
-            if partchangehistory is None: # hopefully this never happens
-                logger.warning("Indented bom partchangehistory is None, this shouldn't happen, parent "
-                               "partchangehistory id: {}".format(parent.id))
+        def indented_given_bom(bom, part_revision, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
+            if part_revision is None: # hopefully this never happens
+                logger.warning("Indented bom part_revision is None, this shouldn't happen, parent "
+                               "part_revision id: {}".format(parent.id))
                 return
 
             bom.append({
-                'part': partchangehistory.part,
-                'partchangehistory': partchangehistory,
+                'part': part_revision.part,
+                'part_revision': part_revision,
                 'quantity': qty,
                 'indent_level': indent_level,
                 'parent_id': parent.id if parent is not None else None,
@@ -219,13 +219,13 @@ class PartChangeHistory(models.Model):
             })
 
             indent_level = indent_level + 1
-            if partchangehistory is None or partchangehistory.assembly is None or partchangehistory.assembly.subparts.count() == 0:
+            if part_revision is None or part_revision.assembly is None or part_revision.assembly.subparts.count() == 0:
                 return
             else:
-                for sp in partchangehistory.assembly.subparts.all():
+                for sp in part_revision.assembly.subparts.all():
                     qty = sp.count
                     reference = sp.reference
-                    indented_given_bom(bom, sp.part_revision, parent=partchangehistory, qty=qty,
+                    indented_given_bom(bom, sp.part_revision, parent=part_revision, qty=qty,
                                        indent_level=indent_level, subpart=sp,
                                        reference=reference)
 
@@ -235,16 +235,13 @@ class PartChangeHistory(models.Model):
         return bom
 
     def where_used(self):
-        # Where is a partchangehistory used???
-        # it gets used by being a subpart to an assembly of a partchangehistory
+        # Where is a part_revision used???
+        # it gets used by being a subpart to an assembly of a part_revision
         # so we can look up subparts, then their assemblys, then their partchangehistories
         used_in_subparts = Subpart.objects.filter(part_revision=self)
-        used_in_assembly_ids = []
-        for sp in used_in_subparts:
-            used_in_assembly_ids.extend(sp.assemblies.values_list('id', flat=True))
-
-        used_in_pch = PartChangeHistory.objects.filter(assembly__in=used_in_assembly_ids)
-        return used_in_pch
+        used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly', flat=True)
+        used_in_pr = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)
+        return used_in_pr
 
     def where_used_full(self):
         def where_used_given_part(used_in_parts, part):
@@ -258,13 +255,20 @@ class PartChangeHistory(models.Model):
         where_used_given_part(used_in_parts, self)
         return list(used_in_parts)
 
-
     def __str__(self):
         return u'{}, Rev {}'.format(self.part.full_part_number(), self.revision)
 
 
+class AssemblySubparts(models.Model):
+    subpart = models.ForeignKey('Subpart', on_delete=models.CASCADE)
+    assembly = models.ForeignKey('Assembly', on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'bom_assembly_subparts'
+
+
 class Subpart(models.Model):
-    part_revision = models.ForeignKey(PartChangeHistory, related_name='assembly_subpart', null=True,
+    part_revision = models.ForeignKey('PartRevision', related_name='assembly_subpart', null=True,
                                       on_delete=models.CASCADE)
     count = models.IntegerField(default=1)
     reference = models.TextField(default='', blank=True, null=True)
@@ -274,7 +278,7 @@ class Subpart(models.Model):
 
 
 class Assembly(models.Model):
-    subparts = models.ManyToManyField(Subpart, related_name='assemblies')
+    subparts = models.ManyToManyField(Subpart, related_name='assemblies', through='AssemblySubparts')
 
 
 class ManufacturerPart(models.Model):
@@ -303,8 +307,7 @@ class ManufacturerPart(models.Model):
         for sellerpart in sellerparts:
             # TODO: Make this smarter and more readable.
             if (sellerpart.unit_cost is not None and
-                    (
-                            sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
+                    (sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
                     (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
                 seller = sellerpart
             elif seller is None:

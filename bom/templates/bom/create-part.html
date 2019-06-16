@@ -23,18 +23,18 @@ Create New Part
 		</div>
     	<div class="row">
             {% csrf_token %}
-            {{ part_change_history_form.non_field_errors }}
+            {{ part_revision_form.non_field_errors }}
             <div class="fieldWrapper">
-                {{ part_change_history_form.revision|materializecss:'m2 s12' }}
+                {{ part_revision_form.revision|materializecss:'m2 s12' }}
             </div>
             <div class="fieldWrapper">
-                {{ part_change_history_form.description|materializecss:'m10 s12' }}
+                {{ part_revision_form.description|materializecss:'m10 s12' }}
             </div>
             <div class="fieldWrapper">
-                {{ part_change_history_form.attribute|materializecss:'m6 s12' }}
+                {{ part_revision_form.attribute|materializecss:'m6 s12' }}
             </div>
             <div class="fieldWrapper">
-                {{ part_change_history_form.value|materializecss:'m6 s12' }}
+                {{ part_revision_form.value|materializecss:'m6 s12' }}
             </div>
 		</div>
         <h2>Add a Manufacturer Part (optional)</h2>
