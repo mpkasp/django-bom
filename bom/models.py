@@ -260,11 +260,13 @@ class PartRevision(models.Model):
 
 
 class AssemblySubparts(models.Model):
-    subpart = models.ForeignKey('Subpart', on_delete=models.CASCADE)
-    assembly = models.ForeignKey('Assembly', on_delete=models.CASCADE)
+    assembly = models.ForeignKey('Assembly', models.DO_NOTHING)
+    subpart = models.ForeignKey('Subpart', models.DO_NOTHING)
 
     class Meta:
         db_table = 'bom_assembly_subparts'
+        unique_together = (('assembly', 'subpart'),)
+
 
 
 class Subpart(models.Model):

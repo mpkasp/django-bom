@@ -173,12 +173,12 @@
                         <ul id='dropdown{{ part.id }}' class='dropdown-content'>
                             {% if profile.role == 'A' %}
                             {% if revision == part.latest %}
-                                <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=revision.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit</a></li>
+                                <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=revision.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit Current</a></li>
                             {% endif %}
                             {% if revision == part.latest %}
                                 <li>
                                     <input type="hidden" name="revision" value="true">
-                                    <a type="submit" class="green-text text-lighten-1" style="-webkit-appearance: none;" href="#" onclick="$(this).closest('form').submit()"><i class="material-icons green-text text-lighten-1">add</i>Save Copy and Edit</a>
+                                    <a type="submit" class="green-text text-lighten-1" style="-webkit-appearance: none;" href="#" onclick="$(this).closest('form').submit()"><i class="material-icons green-text text-lighten-1">add</i>New Revision</a>
                                 </li>
                             {% endif %}
                             {% endif %}

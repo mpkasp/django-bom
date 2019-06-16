@@ -41,8 +41,7 @@ Manage BOM
                         <!-- <th>Price</th> -->
                         {% if profile.role == 'A' %}
                         <!-- <th>Octopart Match</th> -->
-                        <th>Edit</th>
-                        <th>Remove</th>
+                        <th>Options</th>
                         {% endif %}
                     </tr>
                 </thead>
@@ -53,7 +52,7 @@ Manage BOM
                         <td>{{ subpart.part.full_part_number }}</td>
                         <td>{{ subpart.quantity }}</td>
                         <td>{{ subpart.part.description }}</td>
-                        <td>{{ subpart.part.revision }}</td>
+                        <td>{{ subpart.part_revision.revision }}</td>
                         <td>{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
                         <td>{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
                         <td>{{ subpart.reference }}</td>
@@ -61,10 +60,17 @@ Manage BOM
                         <!-- <td>{{ subpart.seller_price | default:"-"}}</td> -->
                         <!-- <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td> -->
                         {% if subpart.indent_level == 1 and subpart.subpart is not None %}
-                        <td><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}">edit</a></td>
-                        <td><a href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')">Remove</a></td>
+                            <td>
+                                <a class='dropdown-trigger' href='#' data-target='dropdown{{ subpart.part_revision.id }}'><i class="material-icons green-text text-lighten-1">more_horiz</i></a>
+                                <!-- Dropdown Structure -->
+                                <ul id='dropdown{{ subpart.part_revision.id }}' class='dropdown-content'>
+                                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
+                                    <li class="divider" tabindex="-1"></li>
+                                    <li><a class="red-text text-lighten-1"href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')"><i class="material-icons red-text text-lighten-1">delete_forever</i>Remove</a></li>
+                                </ul>
+                            </td>
                         {% else %}
-                        <td colspan="2"></td>
+                        <td></td>
                         {% endif %}
                     </tr>
                     {% endfor %}
@@ -133,5 +139,24 @@ Manage BOM
 $(function() {
   $('.responsive-table-wrapper').floatingScrollbar();
 });
+</script>
+
+<!-- Handle if there's an anchor, select tab -->
+<script type='text/javascript'>
+    // For dropdown menu
+    $(document).ready(function() {
+        $('.dropdown-trigger').dropdown({
+          inDuration: 300,
+          outDuration: 225,
+          constrainWidth: false, // Does not change width of dropdown to that of the activator
+          hover: false, // Activate on hover
+          gutter: 0, // Spacing from edge
+          belowOrigin: false, // Displays dropdown below the button
+          alignment: 'left', // Displays dropdown with edge aligned to the left of button
+          stopPropagation: false // Stops event propagation
+        }
+      );
+
+    });
 </script>
 {% endblock %}

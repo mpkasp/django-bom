@@ -27,11 +27,39 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
             ],
         ),
+        migrations.CreateModel(
+            name='AssemblySubparts',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+            ],
+            options={
+                'db_table': 'bom_assembly_subparts',
+            },
+        ),
         migrations.AddField(
             model_name='assembly',
             name='subparts',
-            field=models.ManyToManyField(to='bom.Subpart', related_name='assemblies'),
+            field=models.ManyToManyField(related_name='assemblies', through='bom.AssemblySubparts', to='bom.Subpart'),
         ),
+        migrations.AddField(
+            model_name='assemblysubparts',
+            name='assembly',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='bom.Assembly'),
+        ),
+        migrations.AddField(
+            model_name='assemblysubparts',
+            name='subpart',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='bom.Subpart'),
+        ),
+        migrations.AlterUniqueTogether(
+            name='assemblysubparts',
+            unique_together={('assembly', 'subpart')},
+        ),
+        # migrations.AddField(
+        #     model_name='assembly',
+        #     name='subparts',
+        #     field=models.ManyToManyField(to='bom.Subpart', related_name='assemblies'),
+        # ),
         migrations.RemoveField(
             model_name='partfile',
             name='part',
