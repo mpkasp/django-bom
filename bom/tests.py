@@ -5,7 +5,7 @@ from unittest import skip
 
 from re import finditer
 
-from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_change_history, \
+from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_revision, \
     create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers
 from .models import Part, SellerPart, ManufacturerPart, Seller
 from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
@@ -68,62 +68,33 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
-            reverse(
-                'bom:part-manage-bom',
-                kwargs={
-                    'part_id': p1.id,
-                    'part_change_history_id': p1.latest().id,
-                }))
+            reverse('bom:part-manage-bom', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id, }))
         self.assertEqual(response.status_code, 200)
 
         response = self.client.post(
-            reverse(
-                'bom:part-manage-bom',
-                kwargs={
-                    'part_id': p2.id,
-                    'part_change_history_id': p1.latest().id,
-                }))
+            reverse('bom:part-manage-bom', kwargs={'part_id': p2.id, 'part_revision_id': p1.latest().id, }))
         self.assertEqual(response.status_code, 200)
 
         response = self.client.post(
-            reverse(
-                'bom:part-manage-bom',
-                kwargs={
-                    'part_id': p3.id,
-                    'part_change_history_id': p3.latest().id,
-                }))
+            reverse('bom:part-manage-bom', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id, }))
         self.assertEqual(response.status_code, 200)
 
         # change is true
-        change_form_data = {
-            'change': True,
-        }
+        change_form_data = {'revision': True}
 
         response = self.client.post(
-            reverse(
-                'bom:part-manage-bom',
-                kwargs={
-                    'part_id': p1.id,
-                    'part_change_history_id': p1.latest().id,
-                }), change_form_data)
+            reverse('bom:part-manage-bom', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id, }),
+            change_form_data)
         self.assertEqual(response.status_code, 302)
 
         response = self.client.post(
-            reverse(
-                'bom:part-manage-bom',
-                kwargs={
-                    'part_id': p2.id,
-                    'part_change_history_id': p1.latest().id,
-                }), change_form_data)
+            reverse('bom:part-manage-bom', kwargs={'part_id': p2.id, 'part_revision_id': p1.latest().id, }),
+            change_form_data)
         self.assertEqual(response.status_code, 302)
 
         response = self.client.post(
-            reverse(
-                'bom:part-manage-bom',
-                kwargs={
-                    'part_id': p3.id,
-                    'part_change_history_id': p3.latest().id,
-                }), change_form_data)
+            reverse('bom:part-manage-bom', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id, }),
+            change_form_data)
         self.assertEqual(response.status_code, 302)
 
     def test_part_export_bom(self):
@@ -313,11 +284,7 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(
-            reverse(
-                'bom:part-edit',
-                kwargs={
-                    'part_id': p1.id}))
+        response = self.client.post(reverse('bom:part-edit', kwargs={'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
 
     def test_part_delete(self):
@@ -325,11 +292,7 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(
-            reverse(
-                'bom:part-delete',
-                kwargs={
-                    'part_id': p1.id}))
+        response = self.client.post(reverse('bom:part-delete', kwargs={'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
 
     def test_add_subpart(self):
@@ -338,21 +301,11 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
-            reverse(
-                'bom:part-add-subpart',
-                kwargs={
-                    'part_id': p1.id,
-                    'part_change_history_id': p1.latest().id,
-                }))
+            reverse('bom:part-add-subpart', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id, }))
         self.assertEqual(response.status_code, 302)
 
         response = self.client.post(
-            reverse(
-                'bom:part-add-subpart',
-                kwargs={
-                    'part_id': p3.id,
-                    'part_change_history_id': p3.latest().id,
-                }))
+            reverse('bom:part-add-subpart', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id, }))
         self.assertEqual(response.status_code, 302)
 
     def test_remove_subpart(self):
@@ -362,13 +315,8 @@ class TestBOM(TransactionTestCase):
         s1 = create_a_fake_subpart(p1.latest(), count=10)
 
         response = self.client.post(
-            reverse(
-                'bom:part-remove-subpart',
-                kwargs={
-                    'part_id': p1.id,
-                    'subpart_id': s1.id,
-                    'part_change_history_id': p1.latest().id,
-                }))
+            reverse('bom:part-remove-subpart',
+                    kwargs={'part_id': p1.id, 'subpart_id': s1.id, 'part_revision_id': p1.latest().id, }))
         self.assertEqual(response.status_code, 302)
 
     def test_remove_all_subparts(self):
@@ -377,12 +325,8 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
-            reverse(
-                'bom:part-remove-all-subparts',
-                kwargs={
-                    'part_id': p3.id, 'part_change_history_id': p3.latest().id}))
+            reverse('bom:part-remove-all-subparts', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id}))
         self.assertEqual(response.status_code, 302)
-
 
     def test_upload_parts(self):
         self.client.login(username='kasper', password='ghostpassword')

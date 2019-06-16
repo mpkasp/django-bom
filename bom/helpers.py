@@ -25,9 +25,9 @@ def create_some_fake_part_classes():
     return pc1, pc2, pc3
 
 
-def create_a_fake_subpart(part_change_history, reference="U1", count=4):
+def create_a_fake_subpart(part_revision, reference="U1", count=4):
     sp1 = Subpart(
-        part_revision=part_change_history,
+        part_revision=part_revision,
         reference=reference,
         count=count)
     sp1.save()
@@ -41,14 +41,14 @@ def create_a_fake_assembly():
     return assy
 
 
-def create_a_fake_assembly_with_subpart(part_change_history, reference="D4", count=4):
+def create_a_fake_assembly_with_subpart(part_revision, reference="D4", count=4):
     assy = create_a_fake_assembly()
-    subpart = create_a_fake_subpart(part_change_history, reference, count)
+    subpart = create_a_fake_subpart(part_revision, reference, count)
     assy.subparts.add(subpart)
     return assy
 
 
-def create_a_fake_part_change_history(part, assembly, description="Brown dog", revision="1"):
+def create_a_fake_part_revision(part, assembly, description="Brown dog", revision="1"):
     pch = PartRevision(part=part, description=description, revision=revision, attribute="Voltage", value="3.3", assembly=assembly)
     pch.save()
     return pch
@@ -115,7 +115,7 @@ def create_some_fake_parts(organization):
     pt1.primary_manufacturer_part = mp1
     pt1.save()
     assy = create_a_fake_assembly()
-    pch1 = create_a_fake_part_change_history(part=pt1, assembly=assy)
+    pch1 = create_a_fake_part_revision(part=pt1, assembly=assy)
 
     pt2 = Part(
         number_class=pc1,
@@ -125,36 +125,27 @@ def create_some_fake_parts(organization):
     mp2.save()
     pt2.primary_manufacturer_part = mp2
     pt2.save()
-    assy2 = create_a_fake_assembly_with_subpart(part_change_history=pch1)
-    pch2 = create_a_fake_part_change_history(part=pt2, assembly=assy2)
+    assy2 = create_a_fake_assembly_with_subpart(part_revision=pch1)
+    pch2 = create_a_fake_part_revision(part=pt2, assembly=assy2)
 
-    pt3 = Part(
-        number_class=pc3,
-        organization=organization)
+    pt3 = Part(number_class=pc3, organization=organization)
     pt3.save()
     mp3 = ManufacturerPart(part=pt3, manufacturer=m3, manufacturer_part_number='NRF51822')
     mp3.save()
-    assy3 = create_a_fake_assembly_with_subpart(part_change_history=pch2)
+    assy3 = create_a_fake_assembly_with_subpart(part_revision=pch2)
     subpart3 = create_a_fake_subpart(pch1, count=10, reference="")
     assy3.subparts.add(subpart3)
-    create_a_fake_part_change_history(part=pt3, assembly=assy3)
-    create_a_fake_part_change_history(part=pt3, assembly=assy3)
+    create_a_fake_part_revision(part=pt3, assembly=assy3)
+    create_a_fake_part_revision(part=pt3, assembly=assy3)
 
     # Create a part with no PartChangeHistory
-    pt4 = Part(
-        number_class=pc1,
-        number_item='4444',
-        organization=organization)
+    pt4 = Part(number_class=pc1, number_item='4444', organization=organization)
     pt4.save()
 
     # Create a part with a PartChangeHistory with no assembly
-    pt5 = Part(
-        number_class=pc1,
-        number_item='5555',
-        organization=organization)
+    pt5 = Part(number_class=pc1, number_item='5555', organization=organization)
     pt5.save()
-    create_a_fake_part_change_history(pt5, None)
-
+    create_a_fake_part_revision(pt5, None)
 
     (s1, s2, s3) = create_some_fake_sellers(organization=organization)
 

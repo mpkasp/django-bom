@@ -11,6 +11,7 @@ from social_django.models import UserSocialAuth
 
 logger = logging.getLogger(__name__)
 
+
 class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
     subscription = models.CharField(max_length=1, choices=(('F', 'Free'), ('P', 'Pro'),))
@@ -260,13 +261,12 @@ class PartRevision(models.Model):
 
 
 class AssemblySubparts(models.Model):
-    assembly = models.ForeignKey('Assembly', models.DO_NOTHING)
-    subpart = models.ForeignKey('Subpart', models.DO_NOTHING)
+    assembly = models.ForeignKey('Assembly', models.CASCADE)
+    subpart = models.ForeignKey('Subpart', models.CASCADE)
 
     class Meta:
         db_table = 'bom_assembly_subparts'
         unique_together = (('assembly', 'subpart'),)
-
 
 
 class Subpart(models.Model):
