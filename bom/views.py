@@ -52,7 +52,7 @@ def home(request):
 
     part_ids = list(parts.values_list('id', flat=True))
 
-    part_rev_query = "select max(pr.id) as id from bom_PartRevision as pr " \
+    part_rev_query = "select max(pr.id) as id from bom_Partrevision as pr " \
                      "left join bom_part as p on pr.part_id = p.id " \
                      "left join bom_partclass as pc on pc.id = p.number_class_id " \
                      "where p.id in ({}) " \
