@@ -30,6 +30,7 @@ bom_patterns = [
     path('part/<int:part_id>/rev/<int:part_revision_id>/remove-subpart/<int:subpart_id>/', views.remove_subpart, name='part-remove-subpart'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/manage-bom/', views.manage_bom, name='part-manage-bom'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/add-subpart/', views.add_subpart, name='part-add-subpart'),
+    path('part/<int:part_id>/rev/<int:part_revision_id>/release/', views.part_revision_release, name='part-revision-release'),
     path('sellerpart/<int:sellerpart_id>/edit/', views.sellerpart_edit, name='sellerpart-edit'),
     path('sellerpart/<int:sellerpart_id>/delete/', views.sellerpart_delete, name='sellerpart-delete'),
     path('manufacturer-part/<int:manufacturer_part_id>/add-sellerpart/', views.add_sellerpart, name='manufacturer-part-add-sellerpart'),

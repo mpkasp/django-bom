@@ -193,7 +193,7 @@ def part_info(request, part_id, part_revision_id=None):
     else:
         revision = get_object_or_404(PartRevision, pk=part_revision_id)
 
-    revisions = PartRevision.objects.filter(part=part_id).order_by('-timestamp')
+    revisions = PartRevision.objects.filter(part=part_id).order_by('-id')
 
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
@@ -1196,3 +1196,14 @@ def sellerpart_delete(request, sellerpart_id):
     sellerpart.delete()
 
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
+
+@login_required
+def part_revision_release(request, part_id, part_revision_id):
+    part = get_object_or_404(Part, pk=part_id)
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    title = 'Release Rev {} for Part {}'.format(part_revision.revision, part.full_part_number())
+    # TODO: Do you want to roll this revision into parent assemblies?
+
+    used_part_revisions = part_revision.where_used()
+
+    return TemplateResponse(request, 'bom/part-revision-release.html', locals())

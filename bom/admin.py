@@ -95,6 +95,7 @@ class PartAdmin(admin.ModelAdmin):
 class PartRevisionAdmin(admin.ModelAdmin):
     list_display = ('revision', 'description', 'get_assembly_size', 'timestamp', )
     raw_id_fields = ('assembly', )
+    readonly_fields = ('timestamp', )
 
     def get_assembly_size(self, obj):
         return None if obj.assembly is None else obj.assembly.subparts.count()

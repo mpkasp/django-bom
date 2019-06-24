@@ -2,7 +2,7 @@
 
 {% load staticfiles %}
 
-{% block head-title %}{{ title }}{% endblock %}
+{% block head-title %}{{ part.full_part_number }} {{part.description }}{% endblock %}
 
 {% block main %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}" />
@@ -36,20 +36,26 @@
         </div>
     </div>
     <div class="row">
-        <div class="col s6">
+        <div class="col m3 s8">
             <select>
+                <option onselect="goRelease()">+ Release Rev {{ part.latest.revision }} (working)</option>
                 {% for r in revisions.all %}
-                <option {% if revision.id == r.id %}selected{% else %}onselect="goRevision({% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}{% endif %})"{% endif %}>Rev {{ r.revision }}, {{ r.timestamp }}</option>
+                <option {% if revision.id == r.id %}selected
+                        {% else %}onselect="goRevision(
+                                {% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}
+                                {% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}
+                                {% endif %})"
+                        {% endif %}>Rev {{ r.revision }}{% if r == part.latest %} (working){% endif %}</option>
                 {% endfor %}
             </select>
         </div>
-        <div class="col s6 right-align">
+        <div class="col m4 push-m4 s12 right-align">
             <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
             {% csrf_token %}
-                <div class="input-field inline hide-on-med-and-up" style="min-width: 185px; margin: 0px;">
+                <div class="input-field inline hide-on-med-and-up" style="width: 100%;">
                     {{ part_info_form }}
                 </div>
-                <div class="input-field inline hide-on-small-and-down" style="min-width: 200px; margin: 0px;">
+                <div class="input-field inline hide-on-small-and-down" style="width: 100%; margin: 0px;">
                     {{ part_info_form }}
                 </div>
             </form>
@@ -387,7 +393,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for r in revisions.all %}
+                        {% for r in revisions %}
                             <tr data-tt-id="{{ r.id }}">
                                 <td>{{ r.revision }}</td>
                                 <td>{{ r.description }}</td>
@@ -464,8 +470,7 @@ $(function() {
 <!-- Custom for this page -->
 <script>
 function goRevision(url) {
-    var latest = {{ part.latest.id }};
-    console.log('go revision: ', rev)
+    console.log('go revision: ', url)
 }
 </script>
 {% endblock script %}

@@ -1,0 +1,35 @@
+{% extends BASE_TEMPLATE %}
+
+{% load materializecss %}
+{% load staticfiles %}
+
+{% block head-title %}{{title}}{% endblock %}
+
+{% block main %}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{% endblock %}
+
+{% block menu %}
+<li><a href="javascript:history.back()">Cancel</a></li>
+{% endblock%}
+
+{% block content %}
+    <p>Select any parent assemblies you want to roll this revision into:</p>
+    <form name="seller" action="{{ action }}" method="post" class="col s12">
+    	<div class="row">
+        {% csrf_token %}
+            {% for upr in used_part_revisions %}
+                <li>{{ upr.part.full_part_number }} Rev {{ upr.revision }} {{ upr.description }}</li>
+            {% endfor %}
+{#		{{ form|materializecss:'m6 s12' }}#}
+		</div>
+        <div class="row">
+	        <div class="col s6">
+                <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
+            </div>
+            <div class="col s6 right-align">
+	        	<button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+	    	</div>
+    	</div>
+    </form>
+{% endblock %}

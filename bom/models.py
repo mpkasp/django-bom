@@ -88,7 +88,7 @@ class Part(models.Model):
         return self.latest().description if self.latest() is not None else ''
 
     def latest(self):
-        return self.revisions().order_by('-timestamp').first()
+        return self.revisions().order_by('-id').first()
 
     def revisions(self):
         return PartRevision.objects.filter(part=self)
@@ -191,10 +191,13 @@ class PartRevision(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
     timestamp = models.DateTimeField(auto_now=True)
     description = models.CharField(max_length=255, default="")
-    revision = models.CharField(max_length=2, db_index=True)
+    revision = models.CharField(max_length=4, db_index=True)
     attribute = models.CharField(max_length=255, default=None, null=True)
     value = models.CharField(max_length=255, default=None, null=True)
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
+
+    class Meta:
+        unique_together = (('part', 'revision'), )
 
     def save(self, **kwargs):
         if self.assembly is None:
