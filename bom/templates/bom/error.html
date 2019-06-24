@@ -2,13 +2,13 @@
 
 {% load staticfiles %}
 
-{% block head-title %}Error!{% endblock %}
+{% block head-title %}{{ title }}{% endblock %}
 
-{% block title %}
+{% block main %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
-
-<div class="text-center">Error</div>
-
+<div class="container">
+    <h1 class="col s12 light header center">Error</h1>
+</div>
 {% endblock %}
 
 {% block menu %}

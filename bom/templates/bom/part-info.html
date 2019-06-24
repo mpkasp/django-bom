@@ -2,12 +2,12 @@
 
 {% load staticfiles %}
 
-{% block head-title %}Part Info{% endblock %}
+{% block head-title %}{{ title }}{% endblock %}
 
-{% block title %}{{ part.description }}
-<link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}" />
-<link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}" />
-<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{% block main %}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
 {% endblock %}
 
 {% block menu %}
@@ -17,23 +17,41 @@
 {% endblock%}
 
 {% block content %}
+
 <div class="part-info">
+
     <div class="row">
-        <div class="col s8">
-            <h3 class="light">Part Number: {{ part.full_part_number}}</h3>
-            {% if revision != part.latest %}
-                <h5 class="light">Viewing Historic Part: {{ revision.revision }}, {{ revision.timestamp }}</h5>
-                <a href="{% url 'bom:part-info' part_id=part.id %}">Back to Current</a>
-            {% endif %}
+        <div class="col m8 hide-on-small-and-down">
+            <h3 class="light">{{ part.description }}</h3>
         </div>
-        <div class="col s4 right-align">
+        <div class="col m4 right-align hide-on-small-and-down">
+            <h3 class="light">Item # {{ part.full_part_number}}</h3>
+        </div>
+
+        <div class="col m8 center-align hide-on-med-and-up" style="width: 100%;">
+            <h4 class="light">{{ part.description }}</h4>
+        </div>
+        <div class="col m4 center-align hide-on-med-and-up" style="width: 100%;">
+            <h5 class="light">{{ part.full_part_number}}</h5>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col s6">
+            <select>
+                {% for r in revisions.all %}
+                <option {% if revision.id == r.id %}selected{% else %}onselect="goRevision({% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}{% endif %})"{% endif %}>Rev {{ r.revision }}, {{ r.timestamp }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col s6 right-align">
             <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
             {% csrf_token %}
-                Cost estimates at:
-                <div class="input-field inline">
+                <div class="input-field inline hide-on-med-and-up" style="min-width: 185px; margin: 0px;">
                     {{ part_info_form }}
                 </div>
-                 units.
+                <div class="input-field inline hide-on-small-and-down" style="min-width: 200px; margin: 0px;">
+                    {{ part_info_form }}
+                </div>
             </form>
         </div>
     </div>
@@ -52,6 +70,14 @@
         <div id="specs" class="col s12">
             <br>
             <div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        Summary:
+                    </div>
+                    <div class="col s8">
+                        {{ part.full_part_number }}, Rev {{ revision.revision }}, {{ revision.description }}
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col s4 text-right">
                         Description:
@@ -142,18 +168,18 @@
                     </div>
                 </div>
 
-                <div class="row">
-                    <div class="col s4 text-right">
-                        <img title="Via Octopart.com" style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img>&nbsp;Datasheets:
-                    </div>
-                    <div class="col s8">
-                        {% for source, datasheet in datasheets.items %}
-                        <a href="{{ datasheet.url }}" target="blank">{{ source }}</a>&nbsp;{% if datasheet.last_updated %}<i>(Updated {{ datasheet.last_updated|date:"M d, Y" }})</i>{% endif %}<br>
-                        {% empty %}
-                        None found.
-                        {% endfor %}
-                    </div>
-                </div>
+{#                <div class="row">#}
+{#                    <div class="col s4 text-right">#}
+{#                        <img title="Via Octopart.com" style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}"></img>&nbsp;Datasheets:#}
+{#                    </div>#}
+{#                    <div class="col s8">#}
+{#                        {% for source, datasheet in datasheets.items %}#}
+{#                        <a href="{{ datasheet.url }}" target="blank">{{ source }}</a>&nbsp;{% if datasheet.last_updated %}<i>(Updated {{ datasheet.last_updated|date:"M d, Y" }})</i>{% endif %}<br>#}
+{#                        {% empty %}#}
+{#                        None found.#}
+{#                        {% endfor %}#}
+{#                    </div>#}
+{#                </div>#}
 
             </div>
         </div>
@@ -267,6 +293,12 @@
         </div>
 
         <div id="sourcing" class="col s12">
+            <div class="row" style="padding-top: 16px;">
+                <div class="col s6 push-s6 right-align">
+                    <a class="waves-effect waves-green grey lighten-4 btn-flat" href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}" style="margin: 10px;">Add Manufacturer Part</a>
+                </div>
+            </div>
+
             <div class="responsive-table-wrapper">
                 <table id="manufacturer-parts" class="highlight tight treetable">
                     <thead>
@@ -338,10 +370,6 @@
                     </tbody>
                 </table>
             </div>
-            <div style="text-align: center; width: 100%;">
-                <a class="btn green lighten-1 waves-button-input" href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}" style="margin: 10px;">Add Manufacturer Part</a>
-                <a class="btn green lighten-1 waves-button-input" href="{% url 'bom:part-octopart-match' part_id=part.id %}" style="margin: 10px;">Find Sellers From Octopart</a>
-            </div>
         </div>
 
         <div id="history" class="col s12">
@@ -359,15 +387,15 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for a in attribute_history.all %}
-                            <tr data-tt-id="{{ a.id }}">
-                                <td>{{ a.revision }}</td>
-                                <td>{{ a.description }}</td>
-                                <td>{{ a.assembly.subparts.count|default:'0' }}</td>
-                                <td>{{ a.attribute|default:'-' }}</td>
-                                <td>{{ a.value|default:'-' }}</td>
-                                <td>{{ a.timestamp }}</td>
-                                <td>{% if revision.id != a.id %}<a href="{% if a == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=a.id %}{% endif %}">view</a>{% endif %}</td>
+                        {% for r in revisions.all %}
+                            <tr data-tt-id="{{ r.id }}">
+                                <td>{{ r.revision }}</td>
+                                <td>{{ r.description }}</td>
+                                <td>{{ r.assembly.subparts.count|default:'0' }}</td>
+                                <td>{{ r.attribute|default:'-' }}</td>
+                                <td>{{ r.value|default:'-' }}</td>
+                                <td>{{ r.timestamp }}</td>
+                                <td>{% if revision.id != r.id %}<a href="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}{% endif %}">view</a>{% endif %}</td>
                             </tr>
                             {% empty %}
                             <tr>
@@ -432,5 +460,12 @@
 $(function() {
   $('.responsive-table-wrapper').floatingScrollbar();
 });
+</script>
+<!-- Custom for this page -->
+<script>
+function goRevision(url) {
+    var latest = {{ part.latest.id }};
+    console.log('go revision: ', rev)
+}
 </script>
 {% endblock script %}

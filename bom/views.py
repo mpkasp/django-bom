@@ -47,6 +47,8 @@ def home(request):
         profile.role = 'A'
         profile.save()
 
+    title = '{}Parts List'.format(organization.name + ' ')
+
     parts = Part.objects.filter(organization=organization).order_by('number_class__code',
                                                                     'number_item', 'number_variation')
 
@@ -134,6 +136,7 @@ def error(request):
 def bom_signup(request):
     user = request.user
     organization = user.bom_profile().organization
+    title = 'Set Up Your BOM Organization'
 
     if organization is not None:
         return HttpResponseRedirect(reverse('bom:home'))
@@ -145,7 +148,7 @@ def bom_signup(request):
 def bom_settings(request, tab_anchor=None):
     user = request.user
     organization = user.bom_profile().organization
-    pagename = 'settings'
+    title = 'Settings'
     action = reverse('bom:settings')
 
     users_in_organization = User.objects.filter(
@@ -190,7 +193,7 @@ def part_info(request, part_id, part_revision_id=None):
     else:
         revision = get_object_or_404(PartRevision, pk=part_revision_id)
 
-    attribute_history = PartRevision.objects.filter(part=part_id).order_by('-timestamp')
+    revisions = PartRevision.objects.filter(part=part_id).order_by('-timestamp')
 
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
@@ -208,12 +211,12 @@ def part_info(request, part_id, part_revision_id=None):
 
     cache.set(qty_cache_key, qty, 3600)
 
-    if part.primary_manufacturer_part is not None:
-        try:
-            datasheets = get_latest_datasheets(part.primary_manufacturer_part.manufacturer_part_number)
-        except Exception as e:
-            messages.warning(request, "Octopart error: {}".format(e))
-            datasheets = []
+    # if part.primary_manufacturer_part is not None:
+    #     try:
+    #         datasheets = get_latest_datasheets(part.primary_manufacturer_part.manufacturer_part_number)
+    #     except Exception as e:
+    #         messages.warning(request, "Octopart error: {}".format(e))
+    #         datasheets = []
 
     try:
         parts = part.indented()
@@ -788,6 +791,7 @@ def create_part(request):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
+    title = 'Create New Part'
 
     if request.method == 'POST':
         part_form = PartForm(request.POST)
@@ -853,6 +857,7 @@ def part_edit(request, part_id):
     organization = profile.organization
 
     part = get_object_or_404(Part, pk=part_id)
+    title = 'Edit Part {}'.format(part.full_part_number())
 
     if request.method == 'POST':
         part_form = PartForm(request.POST, instance=part)
@@ -892,6 +897,7 @@ def manage_bom(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
+    title = 'Manage BOM'
 
     part = get_object_or_404(Part, pk=part_id)
 
@@ -1023,6 +1029,7 @@ def add_sellerpart(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
+    title = 'Add Seller Part'
 
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     title = "Add Seller Part to {}".format(manufacturer_part)
@@ -1044,6 +1051,7 @@ def add_manufacturer_part(request, part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
+    title = 'Add Manufacturer Part'
 
     part = get_object_or_404(Part, pk=part_id)
 
@@ -1090,6 +1098,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
+    title = 'Edit Manufacturer Part'
 
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     part = manufacturer_part.part

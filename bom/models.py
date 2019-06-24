@@ -67,7 +67,7 @@ class Manufacturer(models.Model):
 # Numbering scheme is hard coded for now, may want to change this to a
 # setting depending on a part numbering scheme
 # Part contains the root information for a component. Parts have attributes that can be changed over time
-# (see PartChangeHistory). Part numbers can be changed over time, but these cannot be tracked, as it is not a practice
+# (see PartRevision). Part numbers can be changed over time, but these cannot be tracked, as it is not a practice
 # that should be done often.
 class Part(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
@@ -117,11 +117,11 @@ class Part(models.Model):
         where_used_given_part(used_in_parts, self)
         return list(used_in_parts)
 
-    def indented(self, partchangehistory=None):
-        if partchangehistory is None:
+    def indented(self, part_revision=None):
+        if part_revision is None:
             return self.latest().indented() if self.latest() is not None else None
         else:
-            return partchangehistory.indented()
+            return part_revision.indented()
 
     def optimal_seller(self, quantity=None):
         if quantity is None:
@@ -238,7 +238,7 @@ class PartRevision(models.Model):
     def where_used(self):
         # Where is a part_revision used???
         # it gets used by being a subpart to an assembly of a part_revision
-        # so we can look up subparts, then their assemblys, then their partchangehistories
+        # so we can look up subparts, then their assemblys, then their partrevisions
         used_in_subparts = Subpart.objects.filter(part_revision=self)
         used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly', flat=True)
         used_in_pr = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)

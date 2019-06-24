@@ -3,11 +3,10 @@
 {% load staticfiles %}
 {% load materializecss %}
 
-{% block head-title %}Edit Part{% endblock %}
+{% block head-title %}{{ title }}{% endblock %}
 
-{% block title %}
+{% block main %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
-Edit Part {{ part.full_part_number }}
 {% endblock %}
 
 {% block menu %}

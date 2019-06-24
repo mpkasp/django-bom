@@ -2,13 +2,10 @@
 
 {% load staticfiles %}
 
-{% block head-title %}Signup{% endblock %}
+{% block head-title %}{{ title }}{% endblock %}
 
-{% block title %}
+{% block main %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
-
-Set Up Your BOM Organization
-
 {% endblock %}
 
 {% block menu %}

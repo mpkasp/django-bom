@@ -2,11 +2,10 @@
 
 {% load staticfiles %}
 
-{% block head-title %}Home{% endblock %}
+{% block head-title %}{{ title }}{% endblock %}
 
-{% block title %}
+{% block main %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
-{% if organization.name %}{{ organization.name }}'s {% elif user.first_name %}{{ user.first_name }}'s {% endif %}Parts List
 {% endblock %}
 
 {% block menu %}

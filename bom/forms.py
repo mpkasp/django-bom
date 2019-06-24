@@ -7,8 +7,6 @@ from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Se
 from .validators import decimal, alphanumeric, numeric
 from json import dumps
 
-import difflib
-
 
 class UserModelChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, user):
@@ -40,7 +38,7 @@ class OrganizationForm(forms.ModelForm):
 
 
 class PartInfoForm(forms.Form):
-    quantity = forms.IntegerField(label='Quantity', min_value=1)
+    quantity = forms.IntegerField(label='Cost Estimate Unit Quantity', min_value=1)
 
 
 class ManufacturerForm(forms.ModelForm):

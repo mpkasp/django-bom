@@ -65,9 +65,13 @@
     </ul>
     
     <main>
+        {% block main %}
+        {% endblock main %}
+        {% if title %}
         <div class="container">
-            <h1 class="col s12 light header center">{% block title %}{% endblock %}</h1>
+            <h1 class="col s12 light header center">{{ title }}</h1>
         </div>
+        {% endif %}
         <div id="content" class="container">
             {% if messages %}
             <ul class="messages">

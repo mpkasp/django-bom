@@ -3,10 +3,9 @@
 {% load staticfiles %}
 {% load materializecss %}
 
-{% block head-title %}Manage BOM{% endblock %}
+{% block head-title %}{{ title }}{% endblock %}
 
-{% block title %}
-Manage BOM
+{% block main %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
 <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}" />
 <link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}" />
