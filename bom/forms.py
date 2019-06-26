@@ -38,7 +38,7 @@ class OrganizationForm(forms.ModelForm):
 
 
 class PartInfoForm(forms.Form):
-    quantity = forms.IntegerField(label='Cost Estimate Unit Quantity', min_value=1)
+    quantity = forms.IntegerField(label='Quantity for Cost Estimate', min_value=1)
 
 
 class ManufacturerForm(forms.ModelForm):

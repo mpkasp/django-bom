@@ -219,7 +219,7 @@ def part_info(request, part_id, part_revision_id=None):
     #         datasheets = []
 
     try:
-        parts = part.indented()
+        parts = revision.indented()
     except RuntimeError:
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         parts = []
