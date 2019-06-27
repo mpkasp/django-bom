@@ -4,6 +4,19 @@ from django.db import migrations, models
 import django.utils.timezone
 
 
+def update_part_revision_configuration(apps, schema_editor):
+    Part = apps.get_model('bom', 'Part')
+    PartRevision = apps.get_model('bom', 'PartRevision')
+
+    for p in Part.objects.all():
+        revs = PartRevision.objects.filter(part=p)
+        latest = revs.order_by('-id').first()
+        for rev in revs:
+            if rev != latest:
+                rev.configuration = 'R'
+                rev.save()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -14,16 +27,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='partrevision',
             name='configuration',
-            field=models.CharField(choices=[('R', 'Released'), ('W', 'Working')], default='R', max_length=1),
+            field=models.CharField(choices=[('R', 'Released'), ('W', 'Working')], default='W', max_length=1),
         ),
+        migrations.RunPython(update_part_revision_configuration),
         migrations.AlterField(
             model_name='partrevision',
             name='timestamp',
             field=models.DateTimeField(default=django.utils.timezone.now),
-        ),
-        migrations.AlterField(
-            model_name='partrevision',
-            name='configuration',
-            field=models.CharField(choices=[('R', 'Released'), ('W', 'Working')], default='W', max_length=1),
         ),
     ]

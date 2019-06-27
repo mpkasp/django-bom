@@ -13,12 +13,16 @@
 {% block menu %}
     {% if profile.role == 'A' %}
         {% if revision == part.latest %}
-            <li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>{% endif %}
+            <li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>
+        {% endif %}
+        {% if revision.configuration == 'W' %}
+            <li><a href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part.latest.id %}">Release</a></li>
+            {# TODO: Revert? #}
+        {% endif %}
     {% endif %}
 {% endblock %}
 
 {% block content %}
-
     <div class="part-info">
     <div class="row" style="margin-bottom: 5px;">
         <div class="col m8 hide-on-small-and-down">
@@ -27,7 +31,6 @@
         <div class="col m4 right-align hide-on-small-and-down">
             <h3 class="light">Item # {{ part.full_part_number }}</h3>
         </div>
-
         <div class="col m8 center-align hide-on-med-and-up" style="width: 100%;">
             <h4 class="light">{{ part.description }}</h4>
         </div>
@@ -39,20 +42,18 @@
         <div class="col m3 s6">
             <div class="input-field">
                 <select id="select-revision">
-                    <option value="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part.latest.id %}">
-                        + Release Rev {{ part.latest.revision }} (working)
-                    </option>
+                    <option value="">Create New Revision</option>
                     {% for r in revisions.all %}
                         <option {% if revision.id == r.id %}selected{% endif %}
                                 value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}
                                {% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}
-                               {% endif %}">Rev {{ r.revision }}{% if r == part.latest %} (working){% endif %}</option>
+                               {% endif %}">Rev {{ r.revision }}{% if r.configuration == 'W' %} (working){% endif %}</option>
                     {% endfor %}
                 </select>
                 <label>Revision</label>
             </div>
         </div>
-        <div class="col m3 push-m6 s6 right-align">
+        <div class="col m2 push-m7 s6 right-align">
             <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
                 {% csrf_token %}
                 <div class="hide-on-med-and-up" style="width: 100%;">
@@ -72,7 +73,6 @@
                 <li class="tab"><a href="#bom">Bill of Materials</a></li>
                 <li class="tab"><a href="#used">Where Used</a></li>
                 <li class="tab"><a href="#sourcing">Sourcing</a></li>
-                <li class="tab"><a href="#history">Revisions</a></li>
             </ul>
         </div>
 
@@ -89,14 +89,6 @@
                 </div>
                 <div class="row">
                     <div class="col s4 text-right">
-                        Description:
-                    </div>
-                    <div class="col s8">
-                        {{ revision.description }}
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
                         Part Number:
                     </div>
                     <div class="col s8">
@@ -109,6 +101,22 @@
                     </div>
                     <div class="col s8">
                         {{ revision.revision }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        Description:
+                    </div>
+                    <div class="col s8">
+                        {{ revision.description }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s4 text-right">
+                        Configuration:
+                    </div>
+                    <div class="col s8">
+                        {{ revision.get_configuration_display }}, <span id="specs-revision-timestamp"></span>
                     </div>
                 </div>
                 <div class="row">
@@ -208,7 +216,7 @@
                                             class="material-icons green-text text-lighten-1">edit</i>Edit Current</a>
                                     </li>
                                 {% endif %}
-                                {% if revision == part.latest %}
+                                {% if revision.configuration == 'W' %}
                                     <li>
                                         <input type="hidden" name="revision" value="true">
                                         <a type="submit" class="green-text text-lighten-1"
@@ -418,47 +426,6 @@
                 </table>
             </div>
         </div>
-
-        <div id="history" class="col s12">
-            <div class="responsive-table-wrapper">
-                <table id="revision-history" class="highlight tight treetable">
-                    <thead>
-                    <tr>
-                        <th>Revision</th>
-                        <th>Description</th>
-                        <th>BOM Components</th>
-                        <th>Attribute</th>
-                        <th>Value</th>
-                        <th>Time Stamp (UTC)</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for r in revisions %}
-                        <tr data-tt-id="{{ r.id }}">
-                            <td>{{ r.revision }}</td>
-                            <td>{{ r.description }}</td>
-                            <td>{{ r.assembly.subparts.count|default:'0' }}</td>
-                            <td>{{ r.attribute|default:'-' }}</td>
-                            <td>{{ r.value|default:'-' }}</td>
-                            <td>{{ r.timestamp }}</td>
-                            <td>{% if revision.id != r.id %}<a href="
-
-
-
-                                    {% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}{% endif %}">view</a>{% endif %}
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="99" style="text-align: center; height: 20vh;"><i>This part has no tracked
-                                revisions yet.</i></td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 {% endblock %}
 {% block script %}
@@ -533,5 +500,11 @@
             }
             window.location.href = url;
         });
+    </script>
+    <script>
+    $(document).ready(function() {
+        var revision_configuration_date = new Date("{{ revision.timestamp.isoformat }}")
+        $("#specs-revision-timestamp").text(revision_configuration_date.toLocaleString());
+    })
     </script>
 {% endblock script %}

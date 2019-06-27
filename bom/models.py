@@ -191,11 +191,11 @@ class Part(models.Model):
 class PartRevision(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
     timestamp = models.DateTimeField(default=timezone.now)
-    configuration = models.CharField(max_length=1, choices=(('R', 'Released'), ('W', 'Working'),), default='R')
+    configuration = models.CharField(max_length=1, choices=(('R', 'Released'), ('W', 'Working'),), default='W')
     description = models.CharField(max_length=255, default="")
     revision = models.CharField(max_length=4, db_index=True)
-    attribute = models.CharField(max_length=255, default=None, null=True)
-    value = models.CharField(max_length=255, default=None, null=True)
+    attribute = models.CharField(max_length=255, default=None, null=True, blank=True)
+    value = models.CharField(max_length=255, default=None, null=True, blank=True)
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
 
     class Meta:
@@ -205,11 +205,10 @@ class PartRevision(models.Model):
         if self.assembly is None:
             assy = Assembly.objects.create()
             self.assembly = assy
-        if self.pk:
-            previous_configuration = PartRevision.objects.get(self.pk).configuration
+        if self.id:
+            previous_configuration = PartRevision.objects.get(id=self.id).configuration
             if self.configuration != previous_configuration:
                 self.timestamp = timezone.now()
-                print('updated timestamp')
         super(PartRevision, self).save()
 
     def indented(self):
