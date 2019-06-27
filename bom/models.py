@@ -5,6 +5,7 @@ import logging
 from django.core.cache import cache
 from django.db import models
 from django.contrib.auth.models import User, Group
+from django.utils import timezone
 from .validators import alphanumeric, numeric
 
 from social_django.models import UserSocialAuth
@@ -189,7 +190,8 @@ class Part(models.Model):
 # Below are attributes of a part that can be changed, but it's important to trace the change over time
 class PartRevision(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
-    timestamp = models.DateTimeField(auto_now=True)
+    timestamp = models.DateTimeField(default=timezone.now)
+    configuration = models.CharField(max_length=1, choices=(('R', 'Released'), ('W', 'Working'),), default='R')
     description = models.CharField(max_length=255, default="")
     revision = models.CharField(max_length=4, db_index=True)
     attribute = models.CharField(max_length=255, default=None, null=True)
@@ -203,6 +205,11 @@ class PartRevision(models.Model):
         if self.assembly is None:
             assy = Assembly.objects.create()
             self.assembly = assy
+        if self.pk:
+            previous_configuration = PartRevision.objects.get(self.pk).configuration
+            if self.configuration != previous_configuration:
+                self.timestamp = timezone.now()
+                print('updated timestamp')
         super(PartRevision, self).save()
 
     def indented(self):

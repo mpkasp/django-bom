@@ -14,13 +14,15 @@
 {% endblock%}
 
 {% block content %}
-    <p>Select any parent assemblies you want to roll this revision into:</p>
+    <p>This part is used by n parent assemblies. Select any parent assemblies you want to roll this revision into:</p>
     <form name="seller" action="{{ action }}" method="post" class="col s12">
     	<div class="row">
         {% csrf_token %}
+            <ul>
             {% for upr in used_part_revisions %}
                 <li>{{ upr.part.full_part_number }} Rev {{ upr.revision }} {{ upr.description }}</li>
             {% endfor %}
+            </ul>
 {#		{{ form|materializecss:'m6 s12' }}#}
 		</div>
         <div class="row">

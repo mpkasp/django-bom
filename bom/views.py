@@ -1197,6 +1197,7 @@ def sellerpart_delete(request, sellerpart_id):
 
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
 
+
 @login_required
 def part_revision_release(request, part_id, part_revision_id):
     part = get_object_or_404(Part, pk=part_id)
