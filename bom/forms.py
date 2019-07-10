@@ -140,12 +140,25 @@ class PartRevisionForm(forms.ModelForm):
 
     class Meta:
         model = PartRevision
-        exclude = ['timestamp', 'assembly', 'part', ]
+        exclude = ['timestamp', 'assembly', 'part', 'configuration', ]
         help_texts = {
             'description': _('e.g. CAPACITOR, CERAMIC, 100pF, 0402, 10V, +/- 5%'),
             'attribute': _('e.g. Resistance, Capacitance'),
             'value': _('e.g. 100k, 10uF'),
         }
+
+
+class PartRevisionEditForm(PartRevisionForm):
+    def __init__(self, *args, **kwargs):
+        super(PartRevisionForm, self).__init__(*args, **kwargs)
+        self.fields['attribute'].required = False
+        self.fields['value'].required = False
+        for _, value in self.fields.items():
+            value.widget.attrs['placeholder'] = value.help_text
+            value.help_text = ''
+
+    class Meta(PartRevisionForm.Meta):
+        exclude = ['timestamp', 'assembly', 'part', 'configuration', 'revision', ]
 
 
 class SubpartForm(forms.ModelForm):

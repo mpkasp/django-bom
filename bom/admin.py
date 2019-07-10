@@ -93,7 +93,7 @@ class PartAdmin(admin.ModelAdmin):
 
 
 class PartRevisionAdmin(admin.ModelAdmin):
-    list_display = ('revision', 'description', 'get_assembly_size', 'timestamp', )
+    list_display = ('part', 'revision', 'description', 'get_assembly_size', 'timestamp', )
     raw_id_fields = ('assembly', )
     readonly_fields = ('timestamp', )
 

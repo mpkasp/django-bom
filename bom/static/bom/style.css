@@ -121,12 +121,22 @@ td, tr {
 }
 
 .alert {
-    padding: 10px;
+    padding: 5px;
+    background-color: #dcedc8; /* light green lighten-4 */
+    margin: 5px;
+    border: solid #aed581 1px; /* light green lighten-2 */
     border-radius: 10px;
 }
 
-.alert-info {
-    background-color: #ffecb3;
+.alert-error {
+    color: white;
+    background-color: #f44336; /* red */
+    border: solid #e57373 1px; /* red lighten-2 */
+}
+
+.alert-warning {
+    background-color: #f0f4c3; /* lime lighten-4 */
+    border: solid #dce775 1px; /* lime lighten-2 */
 }
 
 /* Override treetable icon */

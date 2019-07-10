@@ -6,6 +6,7 @@ from django.core.cache import cache
 from django.db import models
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
+from .utils import increment_str
 from .validators import alphanumeric, numeric
 
 from social_django.models import UserSocialAuth
@@ -159,19 +160,6 @@ class Part(models.Model):
                 number_class=self.number_class,
                 number_item=self.number_item).order_by('number_variation').last()
 
-            def increment_char(c):
-                """
-                Increment an uppercase character, returning 'A' if 'Z' is given
-                """
-                return chr(ord(c) + 1) if c != 'Z' else 'A'
-
-            def increment_str(s):
-                lpart = s.rstrip('Z')
-                num_replacements = len(s) - len(lpart)
-                new_s = lpart[:-1] + increment_char(lpart[-1]) if lpart else 'A'
-                new_s += 'A' * num_replacements
-                return new_s
-
             if not last_number_variation:
                 self.number_variation = '01'
             else:
@@ -264,6 +252,12 @@ class PartRevision(models.Model):
         used_in_parts = set()
         where_used_given_part(used_in_parts, self)
         return list(used_in_parts)
+
+    def next_revision(self):
+        try:
+            return int(self.revision) + 1
+        except ValueError:
+            return increment_str(self.revision)
 
     def __str__(self):
         return u'{}, Rev {}'.format(self.part.full_part_number(), self.revision)

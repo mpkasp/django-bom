@@ -12,13 +12,7 @@
 
 {% block menu %}
     {% if profile.role == 'A' %}
-        {% if revision == part.latest %}
-            <li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>
-        {% endif %}
-        {% if revision.configuration == 'W' %}
-            <li><a href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part.latest.id %}">Release</a></li>
-            {# TODO: Revert? #}
-        {% endif %}
+        <li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>
     {% endif %}
 {% endblock %}
 
@@ -39,10 +33,10 @@
         </div>
     </div>
     <div class="row">
-        <div class="col m3 s6">
+        <div class="col m2 s5">
             <div class="input-field">
                 <select id="select-revision">
-                    <option value="">Create New Revision</option>
+{#                    <option value="">Create New Revision</option>#}
                     {% for r in revisions.all %}
                         <option {% if revision.id == r.id %}selected{% endif %}
                                 value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}
@@ -53,7 +47,40 @@
                 <label>Revision</label>
             </div>
         </div>
-        <div class="col m2 push-m7 s6 right-align">
+        <div class="col m2 s1">
+            <div class="input-field">
+                <!-- Dropdown Trigger -->
+                <a class='dropdown-trigger' href='#' data-target='dropdown-revision'><i
+                        class="material-icons green-text text-lighten-1">more_vert</i></a>
+                <!-- Dropdown Structure -->
+                <ul id='dropdown-revision' class='dropdown-content'>
+                    {% if revision.configuration == 'W' %}
+                    <li>
+                        <a class="green-text text-lighten-1"
+                           href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part.latest.id %}">
+                            <i class="material-icons green-text text-lighten-1">check</i>Release</a>
+                    </li>
+                    <li>
+                        <a class="green-text text-lighten-1"
+                        href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part.latest.id %}">
+                            <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
+                    </li>
+                    <li class="divider" tabindex="-1"></li>
+                    {% endif %}
+                    <li><a class="red-text text-lighten-1"
+                           href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                        <i class="material-icons red-text text-lighten-1">add</i>New revision</a>
+                    </li>
+                    {% if revision.configuration == 'R' %}
+                    <li class="divider" tabindex="-1"></li>
+                    <li>
+                        <a class="black-text text-lighten-1 disabled" href="#"><i class="material-icons black-text text-lighten-1">undo</i>Revert to working</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+        <div class="col m2 push-m6 s6 right-align">
             <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
                 {% csrf_token %}
                 <div class="hide-on-med-and-up" style="width: 100%;">
@@ -116,7 +143,7 @@
                         Configuration:
                     </div>
                     <div class="col s8">
-                        {{ revision.get_configuration_display }}, <span id="specs-revision-timestamp"></span>
+                        {{ revision.get_configuration_display }}<span id="specs-revision-timestamp"></span>
                     </div>
                 </div>
                 <div class="row">
@@ -266,7 +293,7 @@
                             <td class="text-normal">{{ subpart.part_revision.revision }}</td>
                             <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}
                                 {% if subpart.part.manufacturer_parts.count > 1 %}
-                                    <i>({{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
+                                    <i>(+{{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
                             <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
                             <!-- <td class="text-normal">{{ subpart.extended_quantity }}</td> -->
                             <!-- <td class="text-normal">{{ subpart.order_quantity }}</td> -->
@@ -331,7 +358,7 @@
                 <div class="col s6 push-s6 right-align">
                     <a class="waves-effect waves-green grey lighten-4 btn-flat"
                        href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}" style="margin: 10px;">Add
-                        Manufacturer Part</a>
+                        Source</a>
                 </div>
             </div>
 
@@ -504,7 +531,7 @@
     <script>
     $(document).ready(function() {
         var revision_configuration_date = new Date("{{ revision.timestamp.isoformat }}")
-        $("#specs-revision-timestamp").text(revision_configuration_date.toLocaleString());
+        $("#specs-revision-timestamp").text(', ' + revision_configuration_date.toLocaleString());
     })
     </script>
 {% endblock script %}
