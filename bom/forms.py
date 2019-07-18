@@ -134,13 +134,14 @@ class PartRevisionForm(forms.ModelForm):
         super(PartRevisionForm, self).__init__(*args, **kwargs)
         self.fields['attribute'].required = False
         self.fields['value'].required = False
+        self.fields['part'].widget = forms.HiddenInput()
         for _, value in self.fields.items():
             value.widget.attrs['placeholder'] = value.help_text
             value.help_text = ''
 
     class Meta:
         model = PartRevision
-        exclude = ['timestamp', 'assembly', 'part', 'configuration', ]
+        exclude = ['timestamp', 'assembly', 'configuration', ]
         help_texts = {
             'description': _('e.g. CAPACITOR, CERAMIC, 100pF, 0402, 10V, +/- 5%'),
             'attribute': _('e.g. Resistance, Capacitance'),
@@ -148,17 +149,17 @@ class PartRevisionForm(forms.ModelForm):
         }
 
 
-class PartRevisionEditForm(PartRevisionForm):
+class PartRevisionNewForm(PartRevisionForm):
+    copy_assembly = forms.BooleanField(label='Copy assembly from latest revision', initial=True, required=False)
+
     def __init__(self, *args, **kwargs):
         super(PartRevisionForm, self).__init__(*args, **kwargs)
         self.fields['attribute'].required = False
         self.fields['value'].required = False
+        self.fields['part'].widget = forms.HiddenInput()
         for _, value in self.fields.items():
             value.widget.attrs['placeholder'] = value.help_text
             value.help_text = ''
-
-    class Meta(PartRevisionForm.Meta):
-        exclude = ['timestamp', 'assembly', 'part', 'configuration', 'revision', ]
 
 
 class SubpartForm(forms.ModelForm):

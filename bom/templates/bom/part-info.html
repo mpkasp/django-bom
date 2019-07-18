@@ -11,9 +11,7 @@
 {% endblock %}
 
 {% block menu %}
-    {% if profile.role == 'A' %}
-        <li><a href="{% url 'bom:part-edit' part_id=part.id %}">Edit Part</a></li>
-    {% endif %}
+
 {% endblock %}
 
 {% block content %}
@@ -33,7 +31,7 @@
         </div>
     </div>
     <div class="row">
-        <div class="col m2 s5">
+        <div class="col l2 m3 s5">
             <div class="input-field">
                 <select id="select-revision">
 {#                    <option value="">Create New Revision</option>#}
@@ -48,39 +46,46 @@
             </div>
         </div>
         <div class="col m2 s1">
-            <div class="input-field">
+            {% if profile.role == 'A' %}
+            <div style="margin-top: 1.5rem;">
                 <!-- Dropdown Trigger -->
-                <a class='dropdown-trigger' href='#' data-target='dropdown-revision'><i
+                <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light grey lighten-4 btn-flat'
+                        href='#' data-target='dropdown-revision'><i class="material-icons right">menu</i>Manage</button>
+                <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
                         class="material-icons green-text text-lighten-1">more_vert</i></a>
                 <!-- Dropdown Structure -->
                 <ul id='dropdown-revision' class='dropdown-content'>
                     {% if revision.configuration == 'W' %}
                     <li>
                         <a class="green-text text-lighten-1"
-                           href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part.latest.id %}">
-                            <i class="material-icons green-text text-lighten-1">check</i>Release</a>
-                    </li>
-                    <li>
-                        <a class="green-text text-lighten-1"
                         href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part.latest.id %}">
                             <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
                     </li>
-                    <li class="divider" tabindex="-1"></li>
-                    {% endif %}
-                    <li><a class="red-text text-lighten-1"
-                           href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                        <i class="material-icons red-text text-lighten-1">add</i>New revision</a>
+                    <li>
+                        <a class="green-text text-lighten-1"
+                           href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part.latest.id %}">
+                            <i class="material-icons green-text text-lighten-1">check</i>Release</a>
                     </li>
-                    {% if revision.configuration == 'R' %}
+                    {% elif revision.configuration == 'R' %}
+                    <li>
+                        <a class="green-text text-lighten-1 disabled" href="#">
+                            <i class="material-icons green-text text-lighten-1">undo</i>Revert to working</a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a class="red-text text-lighten-1"onclick="deletePartRevision()">
+                            <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
+                    </li>
                     <li class="divider" tabindex="-1"></li>
                     <li>
-                        <a class="black-text text-lighten-1 disabled" href="#"><i class="material-icons black-text text-lighten-1">undo</i>Revert to working</a>
+                        <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                            <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
                     </li>
-                    {% endif %}
                 </ul>
             </div>
+            {% endif %}
         </div>
-        <div class="col m2 push-m6 s6 right-align">
+        <div class="col m2 push-l6 push-m5 s6 right-align part-info-form">
             <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
                 {% csrf_token %}
                 <div class="hide-on-med-and-up" style="width: 100%;">
@@ -105,114 +110,73 @@
 
         <div id="specs" class="col s12">
             <br>
-            <div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Summary:
+            <ul class="collection with-header">
+                <li class="collection-header"><h5>Item Details</h5></li>
+                <li class="collection-item">
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Item Class:</div>
+                        <div class="col s8 l10">{{ part.number_class }}</div>
                     </div>
-                    <div class="col s8">
-                        {{ part.full_part_number }}, Rev {{ revision.revision }}, {{ revision.description }}
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Number:</div>
+                        <div class="col s8 l10">{{ part.full_part_number }}
+                            {% if profile.role == 'A' %}
+                                <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[edit]</a>
+                            {% endif %}
+                        </div>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Part Number:
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Revision:</div>
+                        <div class="col s8 l10">{{ revision.revision }}</div>
                     </div>
-                    <div class="col s8">
-                        {{ part.full_part_number }}
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Description:</div>
+                        <div class="col s8 l10">{{ revision.description }}</div>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Revision:
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Configuration:</div>
+                        <div class="col s8 l10">{{ revision.get_configuration_display }}&nbsp;<i>(as of <span id="specs-revision-timestamp"></span>)</i></div>
                     </div>
-                    <div class="col s8">
-                        {{ revision.revision }}
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;"><img title="Via Google Drive" style="width: 16px;"
+                             src="{% static 'bom/img/google_drive_logo.svg' %}"></img> Files:</div>
+                        <div class="col s8 l10"><a href="{% url 'google-drive:add-folder' part_id=part.id %}" target="_blank">Open Folder</a></div>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Description:
+                </li>
+                <li class="collection-header"><h5><h5 class="title">Manufacturer & Sourcing</h5></h5></li>
+                <li class="collection-item">
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Primary Manufacturer Part:</div>
+                        <div class="col s8 l10">{{ part.primary_manufacturer_part.manufacturer.name }} - {{ part.primary_manufacturer_part.manufacturer_part_number }}
+                            {% if profile.role == 'A' %}
+                                <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[change]</a>
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="col s8">
-                        {{ revision.description }}
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
+                        <div class="col s8 l10">${{ unit_cost|floatformat:4 }}<span id="specs-revision-timestamp"></span></div>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Configuration:
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
+                        <div class="col s8 l10">${{ unit_nre|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
                     </div>
-                    <div class="col s8">
-                        {{ revision.get_configuration_display }}<span id="specs-revision-timestamp"></span>
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Unit Out Of Pocket:</div>
+                        <div class="col s8 l10">${{ unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Part Class:
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total Out Of Pocket:</div>
+                        <div class="col s8 l10">${{ total_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
                     </div>
-                    <div class="col s8">
-                        {{ part.number_class }}
+                    <div class="row">
+                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Unit Out Of Pocket:</div>
+                        <div class="col s8 l10">${{ unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Primary Manufacturer:
-                    </div>
-                    <div class="col s8">
-                        {{ part.primary_manufacturer_part.manufacturer.name }}
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Primary Manufacturer Part Number:
-                    </div>
-                    <div class="col s8">
-                        {{ part.primary_manufacturer_part.manufacturer_part_number }}
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Est. Cost:
-                    </div>
-                    <div class="col s8">
-                        ${{ unit_cost|floatformat:4 }}
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Est. Total NRE:
-                    </div>
-                    <div class="col s8">
-                        ${{ unit_nre|floatformat:2 }}
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        Est. Unit Out Of Pocket:
-                    </div>
-                    <div class="col s8">
-                        ${{ unit_out_of_pocket_cost|floatformat:2 }}
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        <b>Est. Total Out Of Pocket:</b>
-                    </div>
-                    <div class="col s8">
-                        <b>${{ total_out_of_pocket_cost|floatformat:2 }}</b>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col s4 text-right">
-                        <img title="Via Google Drive" style="width: 16px; vertical-align: middle;"
-                             src="{% static 'bom/img/google_drive_logo.svg' %}"></img>&nbsp;Files:
-                    </div>
-                    <div class="col s8">
-                        <a href="{% url 'google-drive:add-folder' part_id=part.id %}" target="_blank">Open Folder</a>
-                    </div>
-                </div>
-            </div>
+                </li>
+              </ul>
         </div>
+
 
         <div id="bom" class="col s12">
             <div class="row" style="padding-top: 16px;">
@@ -227,37 +191,21 @@
                         </button>{% endif %}
                 </div>
                 <div class="col s6 right-align">
-                    <form action="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=revision.id %}"
-                          method="post">
-                        {% csrf_token %}
-                        <!-- Dropdown Trigger -->
-                        <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#'
-                                data-target='dropdown{{ part.id }}'>Manage
-                        </button>
-                        <!-- Dropdown Structure -->
-                        <ul id='dropdown{{ part.id }}' class='dropdown-content'>
-                            {% if profile.role == 'A' %}
-                                {% if revision == part.latest %}
-                                    <li><a class="green-text text-lighten-1"
-                                           href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=revision.id %}"><i
-                                            class="material-icons green-text text-lighten-1">edit</i>Edit Current</a>
-                                    </li>
-                                {% endif %}
-                                {% if revision.configuration == 'W' %}
-                                    <li>
-                                        <input type="hidden" name="revision" value="true">
-                                        <a type="submit" class="green-text text-lighten-1"
-                                           style="-webkit-appearance: none;" href="#"
-                                           onclick="$(this).closest('form').submit()"><i
-                                                class="material-icons green-text text-lighten-1">add</i>New Revision</a>
-                                    </li>
-                                {% endif %}
-                            {% endif %}
-                            <li><a class="green-text text-lighten-1"
-                                   href="{% url 'bom:part-export-bom' part_id=part.id %}"><i
-                                    class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a>
-                            </li>
-                    </form>
+                    <!-- Dropdown Trigger -->
+                    <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#'
+                            data-target='dropdown{{ part.id }}'>Manage</button>
+                    <!-- Dropdown Structure -->
+                    <ul id='dropdown{{ part.id }}' class='dropdown-content'>
+                        {% if profile.role == 'A' and revision.configuration == 'W' %}
+                        <li><a class="green-text text-lighten-1"
+                               href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=revision.id %}"><i
+                                class="material-icons green-text text-lighten-1">edit</i>Edit Current</a>
+                        </li>
+                        {% endif %}
+                        <li><a class="green-text text-lighten-1"
+                               href="{% url 'bom:part-export-bom' part_id=part.id %}"><i
+                                class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -513,14 +461,12 @@
         var selectRevisionSelectedIndex = 1;
         $(document).ready(function () {
             selectRevisionSelectedIndex = $("#select-revision")[0].selectedIndex;
-            console.log('selected index: ', selectRevisionSelectedIndex);
         });
 
         $("#select-revision").on('change', function () {
             var url = $(this)[0].value;
             var selectedIndex = $(this)[0].selectedIndex;
             if (selectedIndex === 0) {
-                console.log(selectRevisionSelectedIndex);
                 var value = "{% if revision == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=revision.id %}{% endif %}";
                 $("#select-revision")[0].selectedIndex = selectRevisionSelectedIndex;
                 $("#select-revision").formSelect();
@@ -528,10 +474,20 @@
             window.location.href = url;
         });
     </script>
+    <!-- Revision timestamp to local time -->
     <script>
     $(document).ready(function() {
-        var revision_configuration_date = new Date("{{ revision.timestamp.isoformat }}")
-        $("#specs-revision-timestamp").text(', ' + revision_configuration_date.toLocaleString());
+        let revision_configuration_date = new Date("{{ revision.timestamp.isoformat }}")
+        $("#specs-revision-timestamp").text(revision_configuration_date.toLocaleString());
     })
+    </script>
+    <!-- Are you sure you want to delete the part?  -->
+    <script>
+    function deletePartRevision() {
+        let delete_url = "{% url 'bom:part-revision-delete' part_id=part.id part_revision_id=revision.id %}";
+        if (confirm("Are you sure you want to delete this revision?\n\nIt will be deleted permanently.")) {
+            window.location.href = delete_url;
+        }
+    }
     </script>
 {% endblock script %}

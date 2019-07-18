@@ -178,3 +178,9 @@ table.treetable tr.expanded span.indenter a {
 .light-color {
     color: #98ee99;
 }
+
+
+/* Specific Styling */
+.part-info-form input {
+    text-align: right;
+}

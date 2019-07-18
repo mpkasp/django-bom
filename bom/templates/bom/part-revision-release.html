@@ -3,33 +3,51 @@
 {% load materializecss %}
 {% load staticfiles %}
 
-{% block head-title %}{{title}}{% endblock %}
+{% block head-title %}{{title|safe}}{% endblock %}
 
 {% block main %}
 <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
 {% endblock %}
 
 {% block menu %}
-<li><a href="javascript:history.back()">Cancel</a></li>
 {% endblock%}
 
 {% block content %}
     <form name="seller" action="{{ action }}" method="post" class="col s12">
     {% csrf_token %}
     	<div class="row">
-        <p>This part is used by {{ used_part_revisions.count }} working parent assemblies. Select any parent assemblies you want to roll this revision into:</p>
-            <ul>
-            {% for upr in used_part_revisions %}
-                <li>{{ upr.part.full_part_number }} Rev {{ upr.revision }} {{ upr.description }}</li>
-            {% endfor %}
-            </ul>
-		</div>
-        <div class="row">
-	        <div class="col s6">
-                <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
+        {% if subparts.count > 0 %}
+            <div class="col s12 m8 push-m2">
+                <h5>This part has {{ subparts.count }} unreleased subparts. It is strongly recommended to release the below subparts before proceeding:</h5>
+                <div class="collection">
+                    {% for s in subparts %}
+                    <a href="{% url 'bom:part-info-history' part_id=s.part_revision.part.id part_revision_id=s.part_revision.id %}" class="collection-item hoverable">{{ s.part_revision.part.full_part_number }} Rev {{ s.part_revision.revision }} {{ s.part_revision.description }}</a>
+                    {% endfor %}
+                </div>
             </div>
-            <div class="col s6 right-align">
-	        	<button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+        {% endif %}
+        {%  if used_part_revisions.count  > 0 %}
+            <div class="col s12 m8 push-m2">
+                <h5>This part is used by {{ used_part_revisions.count }} working parent assemblies. Select any parent assemblies you want to roll this revision into:</h5>
+                <div class="collection">
+                {% for upr in used_part_revisions %}
+                    <div class="collection-item">
+                    <label>
+                        <input type="checkbox" />
+                        <span>{{ upr.part.full_part_number }} Rev {{ upr.revision }} {{ upr.description }}</span>
+                    </label>
+                    </div>
+                {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+        </div>
+        <div class="row">
+	        <div class="col s6 m4 push-m2">
+                <a href="javascript:history.back()" class="waves-effect waves-light btn{% if not release_warning %}-flat{% endif %} {% if release_warning %}green{% else %}grey grey-text{% endif %} lighten-1">Cancel</a>
+            </div>
+            <div class="col s6 m4 push-m2 right-align">
+	        	<button class="waves-effect waves-light btn{% if release_warning %}-flat{% endif %} {% if not release_warning %}green{% else %}grey-text{% endif %} lighten-1" type="submit" name="action">Release{% if release_warning %} Anyway{% endif %}</button>
 	    	</div>
     	</div>
     </form>

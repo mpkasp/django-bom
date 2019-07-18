@@ -26,7 +26,7 @@ from .models import Part, PartClass, Subpart, SellerPart, Organization, Manufact
     UserMeta, PartRevision, Assembly
 from .forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
     ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm, PartRevisionForm, \
-    PartRevisionEditForm
+    PartRevisionNewForm
 from .octopart import match_part, get_latest_datasheets
 
 logger = logging.getLogger(__name__)
@@ -882,24 +882,7 @@ def manage_bom(request, part_id, part_revision_id):
 
     part = get_object_or_404(Part, pk=part_id)
 
-    revision = request.POST.get("revision", "false").lower() == 'true'
-    if revision:
-        old_pr = part.latest()
-        old_subparts = old_pr.assembly.subparts.all() if old_pr.assembly is not None else None
-        new_assembly = old_pr.assembly if old_pr.assembly is not None else Assembly()
-        new_assembly.pk = None
-        new_assembly.save()
-
-        part_revision = PartRevision.objects.create(part=part, description=old_pr.description,
-                                                          revision=old_pr.revision, assembly=new_assembly)
-
-        new_assembly.subparts.set(old_subparts)
-
-        messages.info(request, "Previous assembly saved, and copied into new assembly. "
-                               "Now editing new assembly for part {}.".format(part.full_part_number()))
-        return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision.id}))
-    else:
-        part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
 
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
@@ -1173,18 +1156,15 @@ def part_revision_release(request, part_id, part_revision_id):
     # TODO: Test
     part = get_object_or_404(Part, pk=part_id)
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-    title = 'Release Rev {} for Part {}'.format(part_revision.revision, part.full_part_number())
-    # TODO: Do you want to roll this revision into parent assemblies?
+    title = 'Promote {} Rev {} {} from <b>Working</b> to <b>Released</b>?'.format(part.full_part_number(),
+                                                                                  part_revision.revision,
+                                                                                  part_revision.description)
 
     subparts = part_revision.assembly.subparts.filter(part_revision__configuration="W")
-    if subparts.count() > 0:
-        warning_msg = "Warning! This revision has {} unreleased subpart(s) in it's assembly: ".format(subparts.count())
-        for sp in subparts:
-            # TODO: Add links to subparts
-            warning_msg += "{} ".format(sp)
-        messages.warning(request, warning_msg)
-
     used_part_revisions = part_revision.where_used().filter(configuration='W')
+    used_part_revisions = subparts
+
+    release_warning = subparts.count() > 0 or used_part_revisions.count() > 0
 
     return TemplateResponse(request, 'bom/part-revision-release.html', locals())
 
@@ -1200,36 +1180,34 @@ def part_revision_new(request, part_id):
     action = reverse('bom:part-revision-new', kwargs={'part_id': part_id})
 
     latest_revision = part.latest()
-    # try:
-    next_revision_number = latest_revision.next_revision()
-    messages.info(request, 'We automatically populated your next revision to be `{}` from your last revision `{}`.'
-                  .format(latest_revision.revision, next_revision_number))
-    # except:
-    #     next_revision = part.latest().revision + '.1'
-    next_revision = PartRevision(part=part,
-                                 description=latest_revision.description,
-                                 attribute=latest_revision.attribute,
-                                 value=latest_revision.value,
-                                 revision=next_revision_number)
 
-    # TODO: maybe add checkbox to copy the previous assembly?
     if request.method == 'POST':
-        form = PartRevisionForm(request.POST)
+        form = PartRevisionNewForm(request.POST)
         if form.is_valid():
-            old_subparts = latest_revision.assembly.subparts.all() if latest_revision.assembly is not None else None
-            new_assembly = latest_revision.assembly if latest_revision.assembly is not None else Assembly()
-            new_assembly.pk = None
-            new_assembly.save()
+            new_part_revision = form.save()
+            if form.cleaned_data['copy_assembly']:
+                old_subparts = latest_revision.assembly.subparts.all() if latest_revision.assembly is not None else None
+                new_assembly = latest_revision.assembly if latest_revision.assembly is not None else Assembly()
+                new_assembly.pk = None
+                new_assembly.save()
 
-            form.cleaned_data['assembly'] = new_assembly
-            form.save()
+                form.cleaned_data['assembly'] = new_assembly
 
-            new_assembly.subparts.set(old_subparts)
+                new_part_revision.assembly = new_assembly
+                new_part_revision.save()
 
-            messages.info(request, "Automatically copied assembly from latest revision.")
+                new_assembly.subparts.set(old_subparts)
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
-        form = PartRevisionForm(instance=next_revision)
+        next_revision_number = latest_revision.next_revision()
+        messages.info(request, 'New revision automatically incremented to `{}` from your last revision `{}`.'
+                      .format(next_revision_number, latest_revision.revision))
+        next_revision = PartRevision(part=part,
+                                     description=latest_revision.description,
+                                     attribute=latest_revision.attribute,
+                                     value=latest_revision.value,
+                                     revision=next_revision_number)
+        form = PartRevisionNewForm(instance=next_revision)
 
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
@@ -1255,3 +1233,21 @@ def part_revision_edit(request, part_id, part_revision_id):
         form = PartRevisionForm(instance=part_revision)
 
     return TemplateResponse(request, 'bom/bom-form.html', locals())
+
+
+@login_required
+def part_revision_delete(request, part_id, part_revision_id):
+    user = request.user
+    profile = user.bom_profile()
+
+    part = get_object_or_404(Part, pk=part_id)
+
+    if profile.role != 'A':
+        messages.error(request, 'Only an admin can perform this action.')
+        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}))
+
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    part_revision.delete()
+    messages.info(request, 'Deleted {} Rev {}'.format(part.full_part_number(), part_revision.revision))
+
+    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}))
