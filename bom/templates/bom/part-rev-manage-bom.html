@@ -6,27 +6,53 @@
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
-<link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}" />
-<link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}" />
-{{ add_subpart_form.media }}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}"/>
+    {{ add_subpart_form.media }}
 {% endblock %}
 
 {% block menu %}
-<li><a href="{% url 'bom:part-octopart-match-bom' part_id=part.id %}">Octopart Match All Subparts</a></li>
-<li><a href="{% url 'bom:part-info' part_id=part.id %}">Cancel</a></li>
-{% endblock%}
+{% endblock %}
 
 {% block content %}
-<div class="part-info">
-    <p>Item #{{ part.full_part_number}}</p>
-    <!-- <h5>{{ part.description }}</h5> -->
-    <div id="bom" class="col s12">
-        <br><h5>Modify Subparts</h5>
-        <a href="#" onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand all</a>
-        <div class="responsive-table-wrapper">
-            <table id="indented-bom" class="highlight part-list tight single-line">
-                <thead>
+    <div class="part-info">
+        <a href="{% url 'bom:part-info' part_id=part.id %}">Return to {{ part.full_part_number }}</a>
+        <!-- <h5>{{ part.description }}</h5> -->
+        <div id="bom" class="col s12">
+            <br><h5>Modify Subparts</h5>
+            <div class="row" style="padding-top: 16px;">
+                <div class="col s6">
+                    <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
+                            onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand
+                    </button>
+                    <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
+                            onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse
+                    </button>
+                </div>
+                <div class="col s6 right-align">
+                    <!-- Dropdown Trigger -->
+                    <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#'
+                            data-target='dropdown{{ part.id }}'>Options
+                    </button>
+                    <!-- Dropdown Structure -->
+                    <ul id='dropdown{{ part.id }}' class='dropdown-content'>
+                        {% if profile.role == 'A' %}
+                            <li><a class="waves-effect red-text text-lighten-2"
+                                   href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
+                                   onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove
+                                All Subparts</a>
+                            </li>
+
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+
+            <div class="responsive-table-wrapper">
+                <table id="indented-bom" class="highlight part-list tight single-line">
+                    <thead>
                     <tr>
                         <th>Level</th>
                         <th>Part No.</th>
@@ -39,123 +65,140 @@
                         <!-- <th>Seller</th> -->
                         <!-- <th>Price</th> -->
                         {% if profile.role == 'A' %}
-                        <!-- <th>Octopart Match</th> -->
-                        <th>Options</th>
+                            <!-- <th>Octopart Match</th> -->
+                            <th>Options</th>
                         {% endif %}
                     </tr>
-                </thead>
-                <tbody>
+                    </thead>
+                    <tbody>
                     {% for subpart in parts %}
-                    <tr data-tt-id="{{ subpart.part_revision.id }}" {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
-                        <td class="text-normal">{{ subpart.indent_level }}</td>
-                        <td>{{ subpart.part.full_part_number }}</td>
-                        <td>{{ subpart.quantity }}</td>
-                        <td>{{ subpart.part.description }}</td>
-                        <td>{{ subpart.part_revision.revision }}</td>
-                        <td>{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
-                        <td>{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                        <td>{{ subpart.reference }}</td>
-                        <!-- <td>{{ subpart.seller_part.seller.name | default:"-" }}</td> -->
-                        <!-- <td>{{ subpart.seller_price | default:"-"}}</td> -->
-                        <!-- <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td> -->
-                        {% if subpart.indent_level == 1 and subpart.subpart is not None %}
-                            <td>
-                                <a class='dropdown-trigger' href='#' data-target='dropdown{{ subpart.part_revision.id }}'><i class="material-icons green-text text-lighten-1">more_horiz</i></a>
-                                <!-- Dropdown Structure -->
-                                <ul id='dropdown{{ subpart.part_revision.id }}' class='dropdown-content'>
-                                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}"><i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
-                                    <li class="divider" tabindex="-1"></li>
-                                    <li><a class="red-text text-lighten-1"href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.subpart.id %}" onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')"><i class="material-icons red-text text-lighten-1">delete_forever</i>Remove</a></li>
-                                </ul>
-                            </td>
-                        {% else %}
-                        <td></td>
-                        {% endif %}
-                    </tr>
+                        <tr data-tt-id="{{ subpart.part_revision.id }}"
+                            {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
+                            <td class="text-normal">{{ subpart.indent_level }}</td>
+                            <td>{{ subpart.part.full_part_number }}</td>
+                            <td>{{ subpart.quantity }}</td>
+                            <td>{{ subpart.part.description }}</td>
+                            <td>{{ subpart.part_revision.revision }}</td>
+                            <td>{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
+                            <td>{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                            <td>{{ subpart.reference }}</td>
+                            <!-- <td>{{ subpart.seller_part.seller.name | default:"-" }}</td> -->
+                            <!-- <td>{{ subpart.seller_price | default:"-"}}</td> -->
+                            <!-- <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td> -->
+                            {% if subpart.indent_level == 1 and subpart.subpart is not None %}
+                                <td>
+                                    <a class='dropdown-trigger' href='#'
+                                       data-target='dropdown{{ subpart.part_revision.id }}'><i
+                                            class="material-icons green-text text-lighten-1">more_horiz</i></a>
+                                    <!-- Dropdown Structure -->
+                                    <ul id='dropdown{{ subpart.part_revision.id }}' class='dropdown-content'>
+                                        <li><a class="green-text text-lighten-1"
+                                               href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}"><i
+                                                class="material-icons green-text text-lighten-1">edit</i>Edit or Change
+                                            Rev</a>
+                                        <li class="divider" tabindex="-1"></li>
+                                        <li><a class="red-text text-lighten-1"
+                                               href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.subpart.id %}"
+                                               onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')"><i
+                                                class="material-icons red-text text-lighten-1">delete_forever</i>Remove</a>
+                                        </li>
+                                    </ul>
+                                </td>
+                            {% else %}
+                                <td></td>
+                            {% endif %}
+                        </tr>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <br><h5>Add Subpart</h5>
-        <div class="row">
-            <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}" method="post" class="col s12">
+                    </tbody>
+                </table>
+            </div>
+            <br><h5>Add Subpart</h5>
+            <div class="row">
+                <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}"
+                      method="post" class="col s12">
+                    {% csrf_token %}
+                    {{ add_subpart_form.subpart_part }}
+                    {{ add_subpart_form.count|materializecss:'m6 s12' }}
+                    {{ add_subpart_form.reference|materializecss:'m6 s12' }}
+                    <div class="fieldWrapper">
+                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">add
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <br><h5>Batch Add Subparts</h5>
+            <p>To add batch subparts, upload a csv that contains at least two columns with the headers:
+                <b>part_number</b> <i>or</i> <b>manufacturer_part_number</b> and <b>quantity</b>; the 'part_number' or
+                'manufacturer_part_number' column must contain part numbers that have already been created in this
+                system.</p>
+            <p>Additional fields include 'reference' or 'designator' to add a reference field to the subpart; 'dnp' if
+                you don't want to upload the part to IndaBOM.</p>
+            <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
-                {{ add_subpart_form.subpart_part }}
-                {{ add_subpart_form.count|materializecss:'m6 s12' }}
-                {{ add_subpart_form.reference|materializecss:'m6 s12' }}
-                <div class="fieldWrapper">
-                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">add</button>
+                <div class="row">
+                    <div class="col s9 file-field input-field">
+                        <div class="green lighten-1 btn">
+                            <span>File</span>
+                            {{ upload_subparts_csv_form.file }}
+                        </div>
+                        <div class="file-path-wrapper">
+                            <input class="file-path validate" type="text" placeholder="Upload a file.">
+                            {{ upload_subparts_csv_form.file.errors }}
+                        </div>
+                    </div>
+                    <div class="col s1 input-field">
+                        <input class="green lighten-1 btn" type="submit" value="Upload"/>
+                    </div>
                 </div>
             </form>
-        </div>
-        <br><h5>Batch Add Subparts</h5>
-        <p>To add batch subparts, upload a csv that contains at least two columns with the headers: <b>part_number</b> <i>or</i> <b>manufacturer_part_number</b> and <b>quantity</b>; the 'part_number' or 'manufacturer_part_number' column must contain part numbers that have already been created in this system.</p>
-        <p>Additional fields include 'reference' or 'designator' to add a reference field to the subpart; 'dnp' if you don't want to upload the part to IndaBOM.</p>
-        <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
-            {% csrf_token %}
             <div class="row">
-                <div class="col s9 file-field input-field">
-                    <div class="green lighten-1 btn">
-                        <span>File</span>
-                        {{ upload_subparts_csv_form.file }}
-                    </div>
-                    <div class="file-path-wrapper">
-                        <input class="file-path validate" type="text" placeholder="Upload a file.">
-                        {{ upload_subparts_csv_form.file.errors }}
-                    </div>
-                </div>
-                <div class="col s1 input-field">
-                    <input class="green lighten-1 btn" type="submit" value="Upload"/>
+                <div class="col s6">
+                    <a href="{% url 'bom:part-info' part_id=part.id %}" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
                 </div>
             </div>
-        </form>
-        <br><br>
-        <div class="center">
-            <a class="waves-effect waves-light red lighten-2 btn" href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}" onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts</a>
+            <br>
         </div>
-        <br>
     </div>
-</div>
 {% endblock %}
 
-{% block script%}
-<!-- Tree Table -->
-<script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
-<script>
-    $("#indented-bom").treetable({ 
-        expandable: true, 
-        indent: 2,
-        initialState: 'collapsed',
-        onInitialized: function () {
+{% block script %}
+    <!-- Tree Table -->
+    <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
+    <script>
+        $("#indented-bom").treetable({
+            expandable: true,
+            indent: 2,
+            initialState: 'collapsed',
+            onInitialized: function () {
                 $("#indented-bom").treetable("reveal", {{ part_revision.id }});
             }
         });
-</script>
+    </script>
 
-<!-- Floating Horizontal Scrollbar -->
-<script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
-<script>
-$(function() {
-  $('.responsive-table-wrapper').floatingScrollbar();
-});
-</script>
+    <!-- Floating Horizontal Scrollbar -->
+    <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
+    <script>
+        $(function () {
+            $('.responsive-table-wrapper').floatingScrollbar();
+        });
+    </script>
 
-<!-- Handle if there's an anchor, select tab -->
-<script type='text/javascript'>
-    // For dropdown menu
-    $(document).ready(function() {
-        $('.dropdown-trigger').dropdown({
-          inDuration: 300,
-          outDuration: 225,
-          constrainWidth: false, // Does not change width of dropdown to that of the activator
-          hover: false, // Activate on hover
-          gutter: 0, // Spacing from edge
-          belowOrigin: false, // Displays dropdown below the button
-          alignment: 'left', // Displays dropdown with edge aligned to the left of button
-          stopPropagation: false // Stops event propagation
-        }
-      );
+    <!-- Handle if there's an anchor, select tab -->
+    <script type='text/javascript'>
+        // For dropdown menu
+        $(document).ready(function () {
+            $('.dropdown-trigger').dropdown({
+                    inDuration: 300,
+                    outDuration: 225,
+                    constrainWidth: false, // Does not change width of dropdown to that of the activator
+                    hover: false, // Activate on hover
+                    gutter: 0, // Spacing from edge
+                    belowOrigin: false, // Displays dropdown below the button
+                    alignment: 'left', // Displays dropdown with edge aligned to the left of button
+                    stopPropagation: false // Stops event propagation
+                }
+            );
 
-    });
-</script>
+        });
+    </script>
 {% endblock %}

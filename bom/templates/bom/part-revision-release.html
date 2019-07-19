@@ -18,26 +18,11 @@
     	<div class="row">
         {% if subparts.count > 0 %}
             <div class="col s12 m8 push-m2">
-                <h5>This part has {{ subparts.count }} unreleased subparts. It is strongly recommended to release the below subparts before proceeding:</h5>
+                <h5><b>Warning!</b> This part has {{ subparts.count }} unreleased subparts. It is strongly recommended to release the below subparts before proceeding:</h5>
                 <div class="collection">
                     {% for s in subparts %}
                     <a href="{% url 'bom:part-info-history' part_id=s.part_revision.part.id part_revision_id=s.part_revision.id %}" class="collection-item hoverable">{{ s.part_revision.part.full_part_number }} Rev {{ s.part_revision.revision }} {{ s.part_revision.description }}</a>
                     {% endfor %}
-                </div>
-            </div>
-        {% endif %}
-        {%  if used_part_revisions.count  > 0 %}
-            <div class="col s12 m8 push-m2">
-                <h5>This part is used by {{ used_part_revisions.count }} working parent assemblies. Select any parent assemblies you want to roll this revision into:</h5>
-                <div class="collection">
-                {% for upr in used_part_revisions %}
-                    <div class="collection-item">
-                    <label>
-                        <input type="checkbox" />
-                        <span>{{ upr.part.full_part_number }} Rev {{ upr.revision }} {{ upr.description }}</span>
-                    </label>
-                    </div>
-                {% endfor %}
                 </div>
             </div>
         {% endif %}

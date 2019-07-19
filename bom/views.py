@@ -23,7 +23,7 @@ from math import ceil
 
 from .convert import full_part_number_to_broken_part
 from .models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, \
-    UserMeta, PartRevision, Assembly
+    UserMeta, PartRevision, Assembly, AssemblySubparts
 from .forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
     ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm, PartRevisionForm, \
     PartRevisionNewForm
@@ -1161,10 +1161,11 @@ def part_revision_release(request, part_id, part_revision_id):
                                                                                   part_revision.description)
 
     subparts = part_revision.assembly.subparts.filter(part_revision__configuration="W")
-    used_part_revisions = part_revision.where_used().filter(configuration='W')
-    used_part_revisions = subparts
+    release_warning = subparts.count() > 0
 
-    release_warning = subparts.count() > 0 or used_part_revisions.count() > 0
+    if request.method == 'POST':
+        # TODO: handle submission of release
+        pass
 
     return TemplateResponse(request, 'bom/part-revision-release.html', locals())
 
@@ -1180,6 +1181,14 @@ def part_revision_new(request, part_id):
     action = reverse('bom:part-revision-new', kwargs={'part_id': part_id})
 
     latest_revision = part.latest()
+
+    all_part_revisions = part.revisions()
+    all_used_part_revisions = PartRevision.objects.filter(part=part)
+    used_in_subparts = Subpart.objects.filter(part_revision__in=all_used_part_revisions)
+    used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly',
+                                                                                                     flat=True)
+    all_used_in_prs = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)
+    used_part_revisions = all_used_in_prs.filter(configuration='W')
 
     if request.method == 'POST':
         form = PartRevisionNewForm(request.POST)
@@ -1209,7 +1218,7 @@ def part_revision_new(request, part_id):
                                      revision=next_revision_number)
         form = PartRevisionNewForm(instance=next_revision)
 
-    return TemplateResponse(request, 'bom/bom-form.html', locals())
+    return TemplateResponse(request, 'bom/part-revision-new.html', locals())
 
 
 @login_required
