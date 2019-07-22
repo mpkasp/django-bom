@@ -28,7 +28,7 @@
                 {% for upr in used_part_revisions %}
                     <div class="collection-item">
                     <label>
-                        <input type="checkbox" />
+                        <input type="checkbox" name="roll" value="{{ upr.id }}" />
                         <span>{{ upr.part.full_part_number }} Rev {{ upr.revision }} {{ upr.description }} <a href="{% url 'bom:part-info-history' part_id=upr.part.id part_revision_id=upr.id %}" target="_blank">[view]</a></span>
                     </label>
                     </div>

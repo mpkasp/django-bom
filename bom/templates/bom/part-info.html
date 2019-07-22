@@ -36,7 +36,7 @@
                 <select id="select-revision">
 {#                    <option value="">Create New Revision</option>#}
                     {% for r in revisions.all %}
-                        <option {% if revision.id == r.id %}selected{% endif %}
+                        <option {% if part_revision.id == r.id %}selected{% endif %}
                                 value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}
                                {% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}
                                {% endif %}">Rev {{ r.revision }}{% if r.configuration == 'W' %} (working){% endif %}</option>
@@ -55,20 +55,21 @@
                         class="material-icons green-text text-lighten-1">more_vert</i></a>
                 <!-- Dropdown Structure -->
                 <ul id='dropdown-revision' class='dropdown-content'>
-                    {% if revision.configuration == 'W' %}
+                    {% if part_revision.configuration == 'W' %}
                     <li>
                         <a class="green-text text-lighten-1"
-                        href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part.latest.id %}">
+                        href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">
                             <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
                     </li>
                     <li>
                         <a class="green-text text-lighten-1"
-                           href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part.latest.id %}">
+                           href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">
                             <i class="material-icons green-text text-lighten-1">check</i>Release</a>
                     </li>
-                    {% elif revision.configuration == 'R' %}
+                    {% elif part_revision.configuration == 'R' %}
                     <li>
-                        <a class="green-text text-lighten-1 disabled" href="#">
+                        <a class="green-text text-lighten-1 disabled"
+                           onclick="revertPartRevision()">
                             <i class="material-icons green-text text-lighten-1">undo</i>Revert to working</a>
                     </li>
                     {% endif %}
@@ -127,15 +128,15 @@
                     </div>
                     <div class="row">
                         <div class="col s4 l2 text-right" style="padding-left: 0px;">Revision:</div>
-                        <div class="col s8 l10">{{ revision.revision }}</div>
+                        <div class="col s8 l10">{{ part_revision.revision }}</div>
                     </div>
                     <div class="row">
                         <div class="col s4 l2 text-right" style="padding-left: 0px;">Description:</div>
-                        <div class="col s8 l10">{{ revision.description }}</div>
+                        <div class="col s8 l10">{{ part_revision.description }}</div>
                     </div>
                     <div class="row">
                         <div class="col s4 l2 text-right" style="padding-left: 0px;">Configuration:</div>
-                        <div class="col s8 l10">{{ revision.get_configuration_display }}&nbsp;<i>(as of <span id="specs-revision-timestamp"></span>)</i></div>
+                        <div class="col s8 l10">{{ part_revision.get_configuration_display }}&nbsp;<i>(as of <span id="specs-revision-timestamp"></span>)</i></div>
                     </div>
                     <div class="row">
                         <div class="col s4 l2 text-right" style="padding-left: 0px;"><img title="Via Google Drive" style="width: 16px;"
@@ -196,9 +197,9 @@
                             data-target='dropdown{{ part.id }}'>Manage</button>
                     <!-- Dropdown Structure -->
                     <ul id='dropdown{{ part.id }}' class='dropdown-content'>
-                        {% if profile.role == 'A' and revision.configuration == 'W' %}
+                        {% if profile.role == 'A' and part_revision.configuration == 'W' %}
                         <li><a class="green-text text-lighten-1"
-                               href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=revision.id %}"><i
+                               href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}"><i
                                 class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
                         </li>
                         {% endif %}
@@ -413,7 +414,7 @@
                 indent: 2,
                 initialState: 'collapsed',
                 onInitialized: function () {
-                    $("#indented-bom").treetable("reveal", {{ revision.id }});
+                    $("#indented-bom").treetable("reveal", {{ part_revision.id }});
                 }
             });
             $("#manufacturer-parts").treetable({
@@ -467,7 +468,7 @@
             var url = $(this)[0].value;
             var selectedIndex = $(this)[0].selectedIndex;
             if (selectedIndex === 0) {
-                var value = "{% if revision == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=revision.id %}{% endif %}";
+                var value = "{% if revision == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=part_revision.id %}{% endif %}";
                 $("#select-revision")[0].selectedIndex = selectRevisionSelectedIndex;
                 $("#select-revision").formSelect();
             }
@@ -477,16 +478,22 @@
     <!-- Revision timestamp to local time -->
     <script>
     $(document).ready(function() {
-        let revision_configuration_date = new Date("{{ revision.timestamp.isoformat }}")
+        let revision_configuration_date = new Date("{{ part_revision.timestamp.isoformat }}")
         $("#specs-revision-timestamp").text(revision_configuration_date.toLocaleString());
     })
     </script>
-    <!-- Are you sure you want to delete the part?  -->
+    <!-- Confirmation popups?  -->
     <script>
     function deletePartRevision() {
-        let delete_url = "{% url 'bom:part-revision-delete' part_id=part.id part_revision_id=revision.id %}";
+        let url = "{% url 'bom:part-revision-delete' part_id=part.id part_revision_id=part_revision.id %}";
         if (confirm("Are you sure you want to delete this revision?\n\nIt will be deleted permanently.")) {
-            window.location.href = delete_url;
+            window.location.href = url;
+        }
+    }
+    function revertPartRevision() {
+        let url = "{% url 'bom:part-revision-revert' part_id=part.id part_revision_id=part_revision.id %}";
+        if (confirm("Are you sure you want to revert this revision?\n\n")) {
+            window.location.href = url;
         }
     }
     </script>

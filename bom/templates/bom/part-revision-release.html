@@ -21,7 +21,7 @@
                 <h5><b>Warning!</b> This part has {{ subparts.count }} unreleased subparts. It is strongly recommended to release the below subparts before proceeding:</h5>
                 <div class="collection">
                     {% for s in subparts %}
-                    <a href="{% url 'bom:part-info-history' part_id=s.part_revision.part.id part_revision_id=s.part_revision.id %}" class="collection-item hoverable">{{ s.part_revision.part.full_part_number }} Rev {{ s.part_revision.revision }} {{ s.part_revision.description }}</a>
+                    <a href="{% url 'bom:part-info-history' part_id=s.part_revision.part.id part_revision_id=s.part_revision.id %}" target="_blank" class="collection-item hoverable">{{ s.part_revision.part.full_part_number }} Rev {{ s.part_revision.revision }} {{ s.part_revision.description }}</a>
                     {% endfor %}
                 </div>
             </div>

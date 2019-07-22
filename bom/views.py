@@ -189,10 +189,11 @@ def part_info(request, part_id, part_revision_id=None):
 
     part = get_object_or_404(Part, pk=part_id)
 
+    part_revision = None
     if part_revision_id is None:
-        revision = part.latest()
+        part_revision = part.latest()
     else:
-        revision = get_object_or_404(PartRevision, pk=part_revision_id)
+        part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
 
     revisions = PartRevision.objects.filter(part=part_id).order_by('-id')
 
@@ -220,7 +221,7 @@ def part_info(request, part_id, part_revision_id=None):
     #         datasheets = []
 
     try:
-        parts = revision.indented()
+        parts = part_revision.indented()
     except RuntimeError:
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         parts = []
@@ -269,7 +270,7 @@ def part_info(request, part_id, part_revision_id=None):
     extended_cost = unit_cost * int(qty)
     total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
 
-    where_used = revision.where_used()
+    where_used = part_revision.where_used()
     seller_parts = part.seller_parts()
 
     if order_by != 'defaultOrderField' and order_by != 'indented':
@@ -1156,6 +1157,7 @@ def part_revision_release(request, part_id, part_revision_id):
     # TODO: Test
     part = get_object_or_404(Part, pk=part_id)
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    action = reverse('bom:part-revision-release', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id})
     title = 'Promote {} Rev {} {} from <b>Working</b> to <b>Released</b>?'.format(part.full_part_number(),
                                                                                   part_revision.revision,
                                                                                   part_revision.description)
@@ -1164,10 +1166,22 @@ def part_revision_release(request, part_id, part_revision_id):
     release_warning = subparts.count() > 0
 
     if request.method == 'POST':
-        # TODO: handle submission of release
-        pass
+        part_revision.configuration = 'R'
+        part_revision.save()
+        return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part.id,
+                                                                             'part_revision_id': part_revision.id}))
 
     return TemplateResponse(request, 'bom/part-revision-release.html', locals())
+
+
+@login_required
+def part_revision_revert(request, part_id, part_revision_id):
+    # TODO: Test
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    part_revision.configuration = 'W'
+    part_revision.save()
+    return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part_id,
+                                                                         'part_revision_id': part_revision_id}))
 
 
 @login_required
@@ -1194,6 +1208,15 @@ def part_revision_new(request, part_id):
         form = PartRevisionNewForm(request.POST)
         if form.is_valid():
             new_part_revision = form.save()
+            # TODO: Roll parent assemblies in
+            revisions_to_roll = request.POST.getlist('roll')
+            for r_id in revisions_to_roll:
+                # get all of the subparts of assemblies of all of the revisions to roll where the part_revision is this
+                subparts = PartRevision.objects.get(id=r_id).assembly.subparts\
+                    .filter(part_revision__in=all_part_revisions)
+                print(subparts)
+                continue
+
             if form.cleaned_data['copy_assembly']:
                 old_subparts = latest_revision.assembly.subparts.all() if latest_revision.assembly is not None else None
                 new_assembly = latest_revision.assembly if latest_revision.assembly is not None else Assembly()
