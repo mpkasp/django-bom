@@ -1208,14 +1208,12 @@ def part_revision_new(request, part_id):
         form = PartRevisionNewForm(request.POST)
         if form.is_valid():
             new_part_revision = form.save()
-            # TODO: Roll parent assemblies in
             revisions_to_roll = request.POST.getlist('roll')
+            # TODO: could optimize this, but probably shouldn't get too crazy so may be fine...
             for r_id in revisions_to_roll:
-                # get all of the subparts of assemblies of all of the revisions to roll where the part_revision is this
                 subparts = PartRevision.objects.get(id=r_id).assembly.subparts\
                     .filter(part_revision__in=all_part_revisions)
-                print(subparts)
-                continue
+                subparts.update(part_revision=new_part_revision)
 
             if form.cleaned_data['copy_assembly']:
                 old_subparts = latest_revision.assembly.subparts.all() if latest_revision.assembly is not None else None
