@@ -267,38 +267,82 @@
         </div>
 
         <div id="used" class="col s12">
+            <br>
             <div class="responsive-table-wrapper">
-                <table class="highlight tight">
-                    <thead>
-                    <tr>
-                        <th>Part Number</th>
-                        <th>Description</th>
-                        <th>Rev</th>
-                        <th>Manufacturer</th>
-                        <th>MPN</th>
-                    </tr>
-                    </thead>
+            <ul class="collapsible" data-collapsible="expandable">
+                <li class="active">
+                    <div class="collapsible-header"><i class="material-icons">my_location</i>Where this revision is used</div>
+                    <div class="collapsible-body">
+                        <table class="highlight tight">
+                        <thead>
+                        <tr>
+                            <th>Part Number</th>
+                            <th>Description</th>
+                            <th>Rev</th>
+                            <th>Manufacturer</th>
+                            <th>MPN</th>
+                        </tr>
+                        </thead>
 
-                    <tbody>
-                    {% for used_part in where_used %}
+                        <tbody>
+                        {% for used_part in where_used %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'bom:part-info-history' part_id=used_part.part.id part_revision_id=used_part.id %}">{{ used_part.part.full_part_number }}</a>
+                                </td>
+                                <td>{{ used_part.description }}</td>
+                                <td>{{ used_part.revision }}</td>
+                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer.name }}</td>
+                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently
+                                    used in any of your other parts. To add a part to a subassembly or assembly, go to the
+                                    parent part's Bill of Materials, and click "Manage", then "Edit".</i></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                        </table>
+                  </div>
+            </li>
+            <li>
+                  <div class="collapsible-header"><i class="material-icons">location_searching</i>All part usages</div>
+                  <div class="collapsible-body">
+                        <table class="highlight tight">
+                        <thead>
                         <tr>
-                            <td>
-                                <a href="{% url 'bom:part-info-history' part_id=used_part.part.id part_revision_id=used_part.id %}">{{ used_part.part.full_part_number }}</a>
-                            </td>
-                            <td>{{ used_part.description }}</td>
-                            <td>{{ used_part.revision }}</td>
-                            <td>{{ used_part.part.primary_manufacturer_part.manufacturer.name }}</td>
-                            <td>{{ used_part.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                            <th>Part Number</th>
+                            <th>Description</th>
+                            <th>Rev</th>
+                            <th>Manufacturer</th>
+                            <th>MPN</th>
                         </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently
-                                used in any of your other parts. To add a part to a subassembly or assembly, go to the
-                                parent part's Bill of Materials, and click "Manage", then "Edit".</i></td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+
+                        <tbody>
+                        {% for used_part in where_used_part %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'bom:part-info-history' part_id=used_part.part.id part_revision_id=used_part.id %}">{{ used_part.part.full_part_number }}</a>
+                                </td>
+                                <td>{{ used_part.description }}</td>
+                                <td>{{ used_part.revision }}</td>
+                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer.name }}</td>
+                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently
+                                    used in any of your other parts. To add a part to a subassembly or assembly, go to the
+                                    parent part's Bill of Materials, and click "Manage", then "Edit".</i></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                        </table>
+                  </div>
+            </li>
+            </ul>
             </div>
         </div>
 
@@ -405,6 +449,18 @@
     </div>
 {% endblock %}
 {% block script %}
+    <!-- Materialize initializer -->
+    <script>
+    $(document).ready(function(){
+        $('.collapsible').collapsible({
+                accordion: false
+        });
+    });
+    var elem = document.querySelector('.collapsible.expandable');
+    var instance = M.Collapsible.init(elem, {
+      accordion: false
+    });
+    </script>
     {% if order_by == 'indented' %}
         <!-- Tree Table -->
         <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
@@ -457,6 +513,7 @@
             $('.responsive-table-wrapper').floatingScrollbar();
         });
     </script>
+
     <!-- For revision selector logic -->
     <script>
         var selectRevisionSelectedIndex = 1;
@@ -475,6 +532,7 @@
             window.location.href = url;
         });
     </script>
+
     <!-- Revision timestamp to local time -->
     <script>
     $(document).ready(function() {
@@ -482,6 +540,7 @@
         $("#specs-revision-timestamp").text(revision_configuration_date.toLocaleString());
     })
     </script>
+
     <!-- Confirmation popups?  -->
     <script>
     function deletePartRevision() {

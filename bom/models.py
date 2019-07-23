@@ -105,7 +105,12 @@ class Part(models.Model):
         return manufacturer_parts
 
     def where_used(self):
-        return self.latest().where_used() if self.latest() is not None else None
+        revisions = PartRevision.objects.filter(part=self)
+        used_in_subparts = Subpart.objects.filter(part_revision__in=revisions)
+        used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly',
+                                                                                                         flat=True)
+        used_in_prs = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)
+        return used_in_prs
 
     def where_used_full(self):
         def where_used_given_part(used_in_parts, part):

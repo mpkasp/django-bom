@@ -271,6 +271,7 @@ def part_info(request, part_id, part_revision_id=None):
     total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
 
     where_used = part_revision.where_used()
+    where_used_part = part.where_used()
     seller_parts = part.seller_parts()
 
     if order_by != 'defaultOrderField' and order_by != 'indented':
