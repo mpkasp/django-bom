@@ -1262,7 +1262,7 @@ def part_revision_edit(request, part_id, part_revision_id):
     else:
         form = PartRevisionForm(instance=part_revision)
 
-    return TemplateResponse(request, 'bom/bom-form.html', locals())
+    return TemplateResponse(request, 'bom/part-revision-edit.html', locals())
 
 
 @login_required
