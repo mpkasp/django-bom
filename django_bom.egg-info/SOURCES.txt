@@ -17,6 +17,7 @@ bom/octopart.py
 bom/settings.py
 bom/tests.py
 bom/urls.py
+bom/utils.py
 bom/validators.py
 bom/views.py
 bom/wsgi.py
@@ -38,6 +39,9 @@ bom/migrations/0015_auto_20190303_1915.py
 bom/migrations/0016_auto_20190405_2308.py
 bom/migrations/0017_auto_20190616_1912.py
 bom/migrations/0018_auto_20190616_2143.py
+bom/migrations/0019_auto_20190624_1246.py
+bom/migrations/0020_auto_20190627_0207.py
+bom/migrations/0021_auto_20190627_0428.py
 bom/migrations/__init__.py
 bom/static/.DS_Store
 bom/static/bom/.DS_Store
@@ -89,6 +93,7 @@ bom/static/bom/img/google/web/vector/btn_google_light_pressed_ios.svg
 bom/static/bom/js/jquery.ba-floatingscrollbar.min.js
 bom/static/bom/js/jquery.treetable.js
 bom/static/bom/js/materialize.min.js
+bom/static/bom/js/mouser.js
 bom/templates/bom/add-manufacturer-part.html
 bom/templates/bom/add-sellerpart.html
 bom/templates/bom/base.html
@@ -102,6 +107,9 @@ bom/templates/bom/edit-part.html
 bom/templates/bom/error.html
 bom/templates/bom/part-info.html
 bom/templates/bom/part-rev-manage-bom.html
+bom/templates/bom/part-revision-edit.html
+bom/templates/bom/part-revision-new.html
+bom/templates/bom/part-revision-release.html
 bom/templates/bom/settings.html
 bom/templates/bom/upload-parts.html
 bom/templates/registration/login.html

@@ -49,8 +49,13 @@ def create_a_fake_assembly_with_subpart(part_revision, reference="D4", count=4):
 
 
 def create_a_fake_part_revision(part, assembly, description="Brown dog", revision="1"):
-    pch = PartRevision(part=part, description=description, revision=revision, attribute="Voltage", value="3.3", assembly=assembly)
-    pch.save()
+    pch, created = PartRevision.objects.get_or_create(part=part, revision=revision, defaults={
+        'description': description,
+        'revision': revision,
+        'attribute': "Voltage",
+        'value': "3.3",
+        'assembly': assembly,
+    })
     return pch
 
 

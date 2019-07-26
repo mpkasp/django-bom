@@ -6,7 +6,7 @@ from unittest import skip
 from re import finditer
 
 from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_revision, \
-    create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers
+    create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers, create_some_fake_sellers
 from .models import Part, SellerPart, ManufacturerPart, Seller
 from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
 from .octopart import match_part
@@ -78,24 +78,6 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(
             reverse('bom:part-manage-bom', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id, }))
         self.assertEqual(response.status_code, 200)
-
-        # change is true
-        change_form_data = {'revision': True}
-
-        response = self.client.post(
-            reverse('bom:part-manage-bom', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id, }),
-            change_form_data)
-        self.assertEqual(response.status_code, 302)
-
-        response = self.client.post(
-            reverse('bom:part-manage-bom', kwargs={'part_id': p2.id, 'part_revision_id': p1.latest().id, }),
-            change_form_data)
-        self.assertEqual(response.status_code, 302)
-
-        response = self.client.post(
-            reverse('bom:part-manage-bom', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id, }),
-            change_form_data)
-        self.assertEqual(response.status_code, 302)
 
     def test_part_export_bom(self):
         self.client.login(username='kasper', password='ghostpassword')
@@ -202,6 +184,8 @@ class TestBOM(TransactionTestCase):
             'number_variation': '',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'attribute': '',
+            'value': ''
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -284,7 +268,16 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(reverse('bom:part-edit', kwargs={'part_id': p1.id}))
+        response = self.client.get(reverse('bom:part-edit', kwargs={'part_id': p1.id}))
+        self.assertEqual(response.status_code, 200)
+
+        edit_part_form_data = {
+            'number_class': p1.number_class.id,
+            'number_item': '',
+            'number_variation': '',
+        }
+
+        response = self.client.post(reverse('bom:part-edit', kwargs={'part_id': p1.id}), edit_part_form_data)
         self.assertEqual(response.status_code, 302)
 
     def test_part_delete(self):
@@ -362,7 +355,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
         new_sellerpart_form_data = {
-            'seller': p1.optimal_seller().id,
+            'seller': p1.optimal_seller().seller.id,
             'minimum_order_quantity': 1000,
             'minimum_pack_quantity': 500,
             'unit_cost': '1.23',
@@ -376,6 +369,26 @@ class TestBOM(TransactionTestCase):
                                     new_sellerpart_form_data)
         self.assertEqual(response.status_code, 302)
         self.assertTrue('/part/' in response.url)
+
+    def test_sellerpart_edit(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        edit_sellerpart_form_data = {
+            'new_seller': 'indabom',
+            'minimum_order_quantity': 100,
+            'minimum_pack_quantity': 200,
+            'unit_cost': '1.2',
+            'lead_time_days': 5,
+            'nre_cost': 1000,
+            'ncnr': True,
+        }
+
+        response = self.client.post(reverse('bom:sellerpart-edit', kwargs={'sellerpart_id': p1.optimal_seller().id}),
+                                    edit_sellerpart_form_data)
+
+        self.assertEqual(response.status_code, 302)
 
     def test_sellerpart_delete(self):
         self.client.login(username='kasper', password='ghostpassword')
@@ -435,6 +448,83 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(
             reverse('bom:manufacturer-part-delete', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_part_revision_release(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.get(
+            reverse('bom:part-revision-release', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            reverse('bom:part-revision-release', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_part_revision_revert(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.get(
+            reverse('bom:part-revision-revert', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_part_revision_new(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.get(
+            reverse('bom:part-revision-new', kwargs={'part_id': p1.id}))
+
+        self.assertEqual(response.status_code, 200)
+
+        new_part_revision_form_data = {
+            'description': 'new rev',
+            'revision': '4',
+            'attribute': 'resistance',
+            'value': '10k',
+            'part': p1.id
+        }
+
+        response = self.client.post(
+            reverse('bom:part-revision-new', kwargs={'part_id': p1.id}), new_part_revision_form_data)
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_part_revision_edit(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.get(
+            reverse('bom:part-revision-edit', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
+
+        self.assertEqual(response.status_code, 200)
+
+        edit_part_revision_form_data = {
+            'description': 'new rev',
+            'revision': '4',
+            'attribute': 'resistance',
+            'value': '10k',
+            'part': p1.id
+        }
+
+        response = self.client.post(
+            reverse('bom:part-revision-edit', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}),
+            edit_part_revision_form_data)
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_part_revision_delete(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(
+            reverse('bom:part-revision-delete', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
 
         self.assertEqual(response.status_code, 302)
 

@@ -798,11 +798,9 @@ def create_part(request):
 
     if request.method == 'POST':
         part_form = PartForm(request.POST)
-        part_revision_form = PartRevisionForm(request.POST)
         manufacturer_form = ManufacturerForm(request.POST)
         manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
-        if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid() \
-                and part_revision_form.is_valid():
+        if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
             mpn = manufacturer_part_form.cleaned_data['manufacturer_part_number']
             old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
             new_manufacturer_name = manufacturer_form.cleaned_data['name']
@@ -825,9 +823,13 @@ def create_part(request):
             new_part.organization = organization
             new_part.save()
 
-            pr = part_revision_form.save(commit=False)
-            pr.part = new_part
-            pr.save()
+            updated_data = request.POST.copy()
+            updated_data.update({'part': new_part})
+            part_revision_form = PartRevisionForm(updated_data)
+            if part_revision_form.is_valid():
+                pr = part_revision_form.save(commit=False)
+                pr.part = new_part
+                pr.save()
 
             manufacturer_part = None
             if manufacturer is None:
@@ -1115,7 +1117,6 @@ def manufacturer_part_edit(request, manufacturer_part_id):
 
 @login_required
 def manufacturer_part_delete(request, manufacturer_part_id):
-    # TODO: Add test
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     part = manufacturer_part.part
     manufacturer_part.delete()
@@ -1146,7 +1147,6 @@ def sellerpart_edit(request, sellerpart_id):
 
 @login_required
 def sellerpart_delete(request, sellerpart_id):
-    # TODO: Add test
     sellerpart = get_object_or_404(SellerPart, pk=sellerpart_id)
     part = sellerpart.manufacturer_part.part
     sellerpart.delete()
@@ -1155,7 +1155,6 @@ def sellerpart_delete(request, sellerpart_id):
 
 @login_required
 def part_revision_release(request, part_id, part_revision_id):
-    # TODO: Test
     part = get_object_or_404(Part, pk=part_id)
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     action = reverse('bom:part-revision-release', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id})
@@ -1177,7 +1176,6 @@ def part_revision_release(request, part_id, part_revision_id):
 
 @login_required
 def part_revision_revert(request, part_id, part_revision_id):
-    # TODO: Test
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     part_revision.configuration = 'W'
     part_revision.save()
@@ -1187,7 +1185,6 @@ def part_revision_revert(request, part_id, part_revision_id):
 
 @login_required
 def part_revision_new(request, part_id):
-    # TODO: Test
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
