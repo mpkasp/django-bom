@@ -3,25 +3,17 @@ from bom.models import Part, PartClass, Seller, SellerPart, Subpart, \
 
 
 def create_a_fake_organization(user, free=False):
-    org = Organization(
+    org, created = Organization.objects.get_or_create(
         name="Atlas",
         subscription='F' if free else 'P',
         owner=user)
-    org.save()
-
     return org
 
 
 def create_some_fake_part_classes():
-    pc1 = PartClass(code=500, name='Wendy', comment='Mechanical Switches')
-    pc1.save()
-
-    pc2 = PartClass(code=200, name='Archibald', comment='')
-    pc2.save()
-
-    pc3 = PartClass(code=503, name='Ghost', comment='Like Kasper')
-    pc3.save()
-
+    pc1, c = PartClass.objects.get_or_create(code=500, name='Wendy', comment='Mechanical Switches')
+    pc2, c = PartClass.objects.get_or_create(code=200, name='Archibald', comment='')
+    pc3, c = PartClass.objects.get_or_create(code=503, name='Ghost', comment='Like Kasper')
     return pc1, pc2, pc3
 
 
@@ -36,8 +28,7 @@ def create_a_fake_subpart(part_revision, reference="U1", count=4):
 
 
 def create_a_fake_assembly():
-    assy = Assembly()
-    assy.save()
+    assy = Assembly.objects.create()
     return assy
 
 
@@ -60,28 +51,16 @@ def create_a_fake_part_revision(part, assembly, description="Brown dog", revisio
 
 
 def create_some_fake_sellers(organization):
-    s1 = Seller(name='Mouser', organization=organization)
-    s1.save()
-
-    s2 = Seller(name='Digi-Key', organization=organization)
-    s2.save()
-
-    s3 = Seller(name='Archibald', organization=organization)
-    s3.save()
-
+    s1, c = Seller.objects.get_or_create(name='Mouser', organization=organization)
+    s2, c = Seller.objects.get_or_create(name='Digi-Key', organization=organization)
+    s3, c = Seller.objects.get_or_create(name='Archibald', organization=organization)
     return s1, s2, s3
 
 
 def create_some_fake_manufacturers(organization):
-    m1 = Manufacturer(name='STMicroelectronics', organization=organization)
-    m1.save()
-
-    m2 = Manufacturer(name='Nordic Semiconductor', organization=organization)
-    m2.save()
-
-    m3 = Manufacturer(name='Murata', organization=organization)
-    m3.save()
-
+    m1, c = Manufacturer.objects.get_or_create(name='STMicroelectronics', organization=organization)
+    m2, c = Manufacturer.objects.get_or_create(name='Nordic Semiconductor', organization=organization)
+    m3, c = Manufacturer.objects.get_or_create(name='Murata', organization=organization)
     return m1, m2, m3
 
 
@@ -186,3 +165,8 @@ def create_some_fake_parts(organization):
         nre_cost=1)
 
     return pt1, pt2, pt3, pt4
+
+
+def create_some_fake_data(user):
+    o = create_a_fake_organization(user)
+    return create_some_fake_parts(o)

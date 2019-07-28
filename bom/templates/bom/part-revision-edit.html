@@ -15,7 +15,7 @@
 
 {% block content %}
 <div class="row">
-    <form action="{% url 'bom:part-edit' part_id=part.id %}" method="post" class="col s12">
+    <form action="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}" method="post" class="col s12">
     	<div class="row">
         {% csrf_token %}
 		{{ form|materializecss:'m6 s12' }}
