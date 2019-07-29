@@ -4,9 +4,9 @@
 
 {% block head-title %}{{ part.full_part_number }} {{ part.description }}{% endblock %}
 
-{% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}"/>
+{% block head %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}"/>
     <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
 {% endblock %}
 
@@ -194,15 +194,16 @@
                 <div class="col s6 right-align">
                     <!-- Dropdown Trigger -->
                     <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#'
-                            data-target='dropdown{{ part.id }}'>Manage</button>
+                            data-target='manage-bom-{{ part.id }}'>Manage</button>
                     <!-- Dropdown Structure -->
-                    <ul id='dropdown{{ part.id }}' class='dropdown-content'>
+                    <ul id='manage-bom-{{ part.id }}' class='dropdown-content'>
                         {% if profile.role == 'A' and part_revision.configuration == 'W' %}
                         <li><a class="green-text text-lighten-1"
                                href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}"><i
                                 class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
                         </li>
                         {% endif %}
+
                         <li><a class="green-text text-lighten-1"
                                href="{% url 'bom:part-export-bom' part_id=part.id %}"><i
                                 class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a>
