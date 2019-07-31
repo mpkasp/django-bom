@@ -231,7 +231,7 @@ def part_info(request, part_id, part_revision_id=None):
     unit_nre = 0
     unit_out_of_pocket_cost = 0
     for item in parts:
-        extended_quantity = int(qty) * item['quantity']
+        extended_quantity = int(qty) * item['total_quantity']
         item['extended_quantity'] = extended_quantity
 
         subpart = item['part']
@@ -333,7 +333,7 @@ def part_export_bom(request, part_id):
     writer = csv.DictWriter(response, fieldnames=fieldnames)
     writer.writeheader()
     for item in bom:
-        extended_quantity = int(qty) * item['quantity']
+        extended_quantity = int(qty) * item['total_quantity']
         item['extended_quantity'] = extended_quantity
 
         subpart = item['part']
@@ -545,6 +545,7 @@ def upload_parts(request):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
+    title = 'Upload Parts'
     partclasses = PartClass.objects.all()
     if request.method == 'POST' and request.FILES['file'] is not None:
         form = FileForm(request.POST, request.FILES)
@@ -568,12 +569,20 @@ def upload_parts(request):
                             mpn = part_data['manufacturer_part_number']
                         elif 'mpn' in part_data:
                             mpn = part_data['mpn']
+
                         if 'manufacturer' in part_data:
                             mfg_name = part_data['manufacturer'] if part_data['manufacturer'] is not None else ''
                             mfg, created = Manufacturer.objects.get_or_create(name=mfg_name, organization=organization)
                         elif 'mfg' in part_data:
                             mfg_name = part_data['mfg'] if part_data['mfg'] is not None else ''
                             mfg, created = Manufacturer.objects.get_or_create(name=mfg_name, organization=organization)
+
+                        manufacturer_part = ManufacturerPart.objects.filter(manufacturer_part_number=mpn,
+                                                                            manufacturer=mfg)
+                        if mpn != '' and manufacturer_part.count() > 0:
+                            messages.warning(request, "Part already exists for manufacturer part: {}, skipping creating"
+                                                      " this part.".format(mpn))
+                            continue
 
                         try:
                             part_class = PartClass.objects.get(code=part_data['part_class'])
@@ -582,15 +591,15 @@ def upload_parts(request):
                             return TemplateResponse(request, 'bom/upload-parts.html', locals())
 
                         if len(part_data['revision']) > 2:
-                            messages.error(request, "Revision {} is more than the maximum 2 characters.".format(part_data['revision']))
+                            messages.error(request, "Revision {} is more than the maximum 2 characters.".format(
+                                part_data['revision']))
                             return TemplateResponse(request, 'bom/upload-parts.html', locals())
 
-                        part, created = Part.objects.get_or_create(number_class=part_class, organization=organization)
+                        part = Part.objects.create(number_class=part_class, organization=organization)
 
-                        if created:
-                            pr = PartRevision.objects.create(part=part,
-                                                              description=part_data['description'],
-                                                              revision=part_data['revision'])
+                        pr = PartRevision.objects.create(part=part,
+                                                         description=part_data['description'],
+                                                         revision=part_data['revision'])
 
                         manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part,
                                                                                             manufacturer_part_number=mpn,
@@ -600,11 +609,7 @@ def upload_parts(request):
                             part.primary_manufacturer_part = manufacturer_part
                             part.save()
 
-                        if created:
-                            messages.info(request, "{}: {} created.".format(part.full_part_number(), part.description))
-                        else:
-                            messages.warning(request, "{}: {} already exists!".format(part.full_part_number(),
-                                                                                      part.description))
+                        messages.info(request, "{} - {} created.".format(part.full_part_number(), pr.description))
                     else:
                         messages.error(request, "File must contain at least the 3 columns (with headers): 'part_class',"
                                                 " 'description', and 'revision'.")
@@ -897,8 +902,11 @@ def manage_bom(request, part_id, part_revision_id):
 
     parts = part_revision.indented()
 
+    qty_cache_key = str(part_id) + '_qty'
+    qty = cache.get(qty_cache_key, 100)
+
     for item in parts:
-        extended_quantity = 1000 * item['quantity']
+        extended_quantity = qty * item['total_quantity']
         seller = item['part'].optimal_seller(quantity=extended_quantity)
         item['seller_price'] = seller.unit_cost if seller is not None else None
         item['seller_part'] = seller
@@ -1209,7 +1217,7 @@ def part_revision_new(request, part_id):
             revisions_to_roll = request.POST.getlist('roll')
             # TODO: could optimize this, but probably shouldn't get too crazy so may be fine...
             for r_id in revisions_to_roll:
-                subparts = PartRevision.objects.get(id=r_id).assembly.subparts\
+                subparts = PartRevision.objects.get(id=r_id).assembly.subparts \
                     .filter(part_revision__in=all_part_revisions)
                 subparts.update(part_revision=new_part_revision)
 

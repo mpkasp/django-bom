@@ -205,7 +205,7 @@ class PartRevision(models.Model):
         super(PartRevision, self).save()
 
     def indented(self):
-        def indented_given_bom(bom, part_revision, parent=None, qty=1, indent_level=0, subpart=None, reference=''):
+        def indented_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None, reference=''):
             if part_revision is None: # hopefully this never happens
                 logger.warning("Indented bom part_revision is None, this shouldn't happen, parent "
                                "part_revision id: {}".format(parent.id))
@@ -215,6 +215,8 @@ class PartRevision(models.Model):
                 'part': part_revision.part,
                 'part_revision': part_revision,
                 'quantity': qty,
+                'parent_quantity': parent_qty,
+                'total_quantity': parent_qty * qty,
                 'indent_level': indent_level,
                 'parent_id': parent.id if parent is not None else None,
                 'subpart': subpart,
@@ -225,12 +227,12 @@ class PartRevision(models.Model):
             if part_revision is None or part_revision.assembly is None or part_revision.assembly.subparts.count() == 0:
                 return
             else:
+                parent_qty *= qty
                 for sp in part_revision.assembly.subparts.all():
                     qty = sp.count
                     reference = sp.reference
-                    indented_given_bom(bom, sp.part_revision, parent=part_revision, qty=qty,
-                                       indent_level=indent_level, subpart=sp,
-                                       reference=reference)
+                    indented_given_bom(bom, sp.part_revision, parent=part_revision, qty=qty, parent_qty=parent_qty,
+                                       indent_level=indent_level, subpart=sp, reference=reference)
 
         bom = []
         cost = 0

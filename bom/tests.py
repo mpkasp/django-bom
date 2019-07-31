@@ -326,10 +326,13 @@ class TestBOM(TransactionTestCase):
 
         create_some_fake_part_classes()
 
+        # part_count = Part.objects.all().count()
         # Should pass
         with open('bom/test_files/test_new_parts.csv') as test_csv:
             response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
         self.assertEqual(response.status_code, 302)
+        new_part_count = Part.objects.all().count()
+        self.assertEqual(new_part_count, 4)
 
         # Should fail because revision is 3 characters
         with open('bom/test_files/test_new_parts_2.csv') as test_csv:
