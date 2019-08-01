@@ -949,9 +949,7 @@ def add_subpart(request, part_id, part_revision_id):
             if part_revision.assembly is None:
                 part_revision.assembly = Assembly.objects.create()
 
-            part_revision.assembly.subparts.add(new_part)
-            part_revision.assembly.save()
-
+            AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
         else:
             messages.error(request, form.errors)
     return HttpResponseRedirect(
