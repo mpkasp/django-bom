@@ -206,7 +206,7 @@ class AddSubpartForm(forms.Form):
         self.fields['subpart_part'].label_from_instance = \
             lambda obj: "%s" % obj.full_part_number() + ' [MFR:] ' \
                         + str(obj.primary_manufacturer_part.manufacturer if obj.primary_manufacturer_part is not None
-                              else '-') + ' [MFR#:] '  + \
+                              else '-') + ' [MFR#:] ' + \
                         str(obj.primary_manufacturer_part if obj.primary_manufacturer_part is not None else '-') \
                         + ' [DESC:] ' + str(obj.latest().description if obj.latest() else '')
 

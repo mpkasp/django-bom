@@ -950,6 +950,7 @@ def add_subpart(request, part_id, part_revision_id):
                 part_revision.assembly = Assembly.objects.create()
 
             AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
+            messages.info(request, "Added subpart {} in assembly {}, part revision {}".format(new_part.id, part_revision.assembly, form.cleaned_data['subpart_part'].latest()))
         else:
             messages.error(request, form.errors)
     return HttpResponseRedirect(
