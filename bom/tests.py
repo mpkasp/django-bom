@@ -491,7 +491,8 @@ class TestBOM(TransactionTestCase):
             'revision': '4',
             'attribute': 'resistance',
             'value': '10k',
-            'part': p1.id
+            'part': p1.id,
+            'configuration': 'W'
         }
 
         response = self.client.post(

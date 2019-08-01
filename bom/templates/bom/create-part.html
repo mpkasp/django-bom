@@ -18,6 +18,7 @@
     <form name="seller" action="{% url 'bom:create-part' %}" method="post" class="col s12">
     	<div class="row">
             {% csrf_token %}
+            {{ part_form.non_field_errors }}
             {{ part_form|materializecss:'m4 s12' }}
 		</div>
     	<div class="row">
@@ -27,7 +28,10 @@
                 {{ part_revision_form.revision|materializecss:'m2 s12' }}
             </div>
             <div class="fieldWrapper">
-                {{ part_revision_form.description|materializecss:'m10 s12' }}
+                {{ part_revision_form.configuration|materializecss:'m2 s12' }}
+            </div>
+            <div class="fieldWrapper">
+                {{ part_revision_form.description|materializecss:'m8 s12' }}
             </div>
             <div class="fieldWrapper">
                 {{ part_revision_form.attribute|materializecss:'m6 s12' }}
@@ -46,10 +50,10 @@
             {% csrf_token %}
             {{ manufacturer_part_form|materializecss:'m4 s12' }}
             {{ manufacturer_form.non_field_errors }}
-            <div class="fieldWrapper">
+            <div class="input-field col m4 s12">
                 {{ manufacturer_form.name.errors }}
+                {{ manufacturer_form.name }}
                 <label for="{{ manufacturer_form.name.id_for_label }}">OR Create A New Manufacturer:</label>
-                {{ manufacturer_form.name|materializecss:'m4 s12' }}
             </div>
 		</div>
 		<div class="row">

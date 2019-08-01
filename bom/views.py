@@ -948,9 +948,10 @@ def add_subpart(request, part_id, part_revision_id):
 
             if part_revision.assembly is None:
                 part_revision.assembly = Assembly.objects.create()
+                part_revision.save()
 
             AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
-            messages.info(request, "Added subpart {} in assembly {}, part revision {}".format(new_part.id, part_revision.assembly, form.cleaned_data['subpart_part'].latest()))
+            messages.info(request, "Added subpart {} in assembly {}, part revision {}".format(new_part.id, part_revision.assembly, form.cleaned_data['subpart_part'].latest().id))
         else:
             messages.error(request, form.errors)
     return HttpResponseRedirect(
@@ -1264,12 +1265,12 @@ def part_revision_edit(request, part_id, part_revision_id):
     action = reverse('bom:part-revision-edit', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id})
 
     if request.method == 'POST':
-        form = PartRevisionForm(request.POST, instance=part_revision)
+        form = PartRevisionForm(request.POST, instance=part_revision, exclude_configuration=True)
         if form.is_valid():
             form.save()
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
-        form = PartRevisionForm(instance=part_revision)
+        form = PartRevisionForm(instance=part_revision, exclude_configuration=True)
 
     return TemplateResponse(request, 'bom/part-revision-edit.html', locals())
 

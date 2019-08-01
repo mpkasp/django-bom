@@ -131,17 +131,21 @@ class PartForm(forms.ModelForm):
 
 class PartRevisionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
+        exclude_configuration = kwargs.pop('exclude_configuration', None)
         super(PartRevisionForm, self).__init__(*args, **kwargs)
         self.fields['attribute'].required = False
         self.fields['value'].required = False
         self.fields['part'].widget = forms.HiddenInput()
+        if exclude_configuration:
+            self.fields['configuration'].required = False
+            del self.fields['configuration']
         for _, value in self.fields.items():
             value.widget.attrs['placeholder'] = value.help_text
             value.help_text = ''
 
     class Meta:
         model = PartRevision
-        exclude = ['timestamp', 'assembly', 'configuration', ]
+        exclude = ['timestamp', 'assembly', ]
         help_texts = {
             'description': _('e.g. CAPACITOR, CERAMIC, 100pF, 0402, 10V, +/- 5%'),
             'attribute': _('e.g. Resistance, Capacitance'),
