@@ -29,7 +29,7 @@
 </div>
 <div class="part-list push-footer">
     <div class="responsive-table-wrapper">
-        <table class="highlight part-list tight single-line">
+        <table class="highlight part-list tight single-line" style="margin-bottom: 14px;">
             <thead>
                 <tr>
                     <th class="text-normal td-med">Part Number</th>
@@ -58,6 +58,27 @@
             </tbody>
         </table>
     </div>
+    {% if part_revs.has_other_pages %}
+    <ul class="pagination center" style="padding-top: 24px;">
+        {% if part_revs.has_previous %}
+        <li><a href="?page={{ part_revs.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">&laquo;</a></li>
+        {% else %}
+        <li class="disabled"><span>&laquo;</span></li>
+        {% endif %}
+        {% for i in part_revs.paginator.page_range %}
+        {% if part_revs.number == i %}
+            <li class="active"><span>{{ i }} <span class="sr-only">(current)</span></span></li>
+        {% else %}
+            <li><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
+        {% endif %}
+        {% endfor %}
+        {% if part_revs.has_next %}
+        <li><a href="?page={{ part_revs.next_page_number }}{% if query %}&q={{ query }}{% endif %}">&raquo;</a></li>
+        {% else %}
+        <li class="disabled"><span>&raquo;</span></li>
+        {% endif %}
+    </ul>
+    {% endif %}
 </div>
 
 <!-- Autocomplete -->

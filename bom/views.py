@@ -4,15 +4,16 @@ import logging
 import os
 import sys
 
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
-from django.template.response import TemplateResponse
-from django.db import IntegrityError, connection
-from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db import IntegrityError, connection
+from django.db.models import Q
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.shortcuts import get_object_or_404
+from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.encoding import smart_str
 
@@ -124,6 +125,16 @@ def home(request):
         part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
         q = part_rev_query.format(part_list)
         part_revs = PartRevision.objects.raw(q)
+
+    paginator = Paginator(part_revs, 50)
+
+    page = request.GET.get('page')
+    try:
+        part_revs = paginator.page(page)
+    except PageNotAnInteger:
+        part_revs = paginator.page(1)
+    except EmptyPage:
+        part_revs = paginator.page(paginator.num_pages)
 
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
