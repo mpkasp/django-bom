@@ -122,11 +122,11 @@ def create_some_fake_parts(organization):
     create_a_fake_part_revision(part=pt3, assembly=assy3)
     create_a_fake_part_revision(part=pt3, assembly=assy3)
 
-    # Create a part with no PartChangeHistory
+    # Create a part with no PartRevision
     pt4 = Part(number_class=pc1, number_item='4444', organization=organization)
-    pt4.save()
+    pt4.save(no_part_revision=True)
 
-    # Create a part with a PartChangeHistory with no assembly
+    # Create a part with a PartRevision with no assembly
     pt5 = Part(number_class=pc1, number_item='5555', organization=organization)
     pt5.save()
     create_a_fake_part_revision(pt5, None)

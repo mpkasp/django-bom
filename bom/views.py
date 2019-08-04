@@ -225,6 +225,8 @@ def part_info(request, part_id, part_revision_id=None):
     except RuntimeError:
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         parts = []
+    except AttributeError:
+        parts = []
 
     extended_cost_complete = True
     unit_cost = 0
@@ -270,7 +272,10 @@ def part_info(request, part_id, part_revision_id=None):
     extended_cost = unit_cost * int(qty)
     total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
 
-    where_used = part_revision.where_used()
+    try:
+        where_used = part_revision.where_used()
+    except AttributeError:
+        where_used = []
     where_used_part = part.where_used()
     seller_parts = part.seller_parts()
 
@@ -1239,13 +1244,23 @@ def part_revision_new(request, part_id):
                 new_assembly.subparts.set(old_subparts)
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
-        next_revision_number = latest_revision.next_revision()
-        messages.info(request, 'New revision automatically incremented to `{}` from your last revision `{}`.'
-                      .format(next_revision_number, latest_revision.revision))
+        try:
+            next_revision_number = latest_revision.next_revision()
+            next_description = latest_revision.description
+            next_attribute = latest_revision.attribute
+            next_value = latest_revision.value
+            messages.info(request, 'New revision automatically incremented to `{}` from your last revision `{}`.'
+                          .format(next_revision_number, latest_revision.revision))
+        except AttributeError:
+            next_revision_number = 1
+            next_description = ''
+            next_attribute = None
+            next_value = None
+
         next_revision = PartRevision(part=part,
-                                     description=latest_revision.description,
-                                     attribute=latest_revision.attribute,
-                                     value=latest_revision.value,
+                                     description=next_description,
+                                     attribute=next_attribute,
+                                     value=next_value,
                                      revision=next_revision_number)
         form = PartRevisionNewForm(instance=next_revision)
 

@@ -151,6 +151,7 @@ class Part(models.Model):
         return seller
 
     def save(self, **kwargs):
+        no_part_revision = kwargs.get('no_part_revision', False)
         if self.number_item is None or self.number_item == '':
             last_number_item = Part.objects.filter(
                 number_class=self.number_class,
@@ -173,7 +174,7 @@ class Part(models.Model):
                 except ValueError as e:
                     self.number_variation = "{}".format(increment_str(last_number_variation.number_variation))
         super(Part, self).save()
-        if self.latest() is None:
+        if self.latest() is None and not no_part_revision:
             PartRevision.objects.create(part=self, revision='1')
 
     def __str__(self):

@@ -48,18 +48,14 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(
-            reverse(
-                'bom:part-info',
-                kwargs={
-                    'part_id': p1.id}))
+        response = self.client.post(reverse('bom:part-info', kwargs={'part_id': p1.id}))
         self.assertEqual(response.status_code, 200)
 
-        response = self.client.post(
-            reverse(
-                'bom:part-info',
-                kwargs={
-                    'part_id': p2.id}))
+        response = self.client.post(reverse('bom:part-info', kwargs={'part_id': p2.id}))
+        self.assertEqual(response.status_code, 200)
+
+        # test having no revisions
+        response = self.client.post(reverse('bom:part-info', kwargs={'part_id': p4.id}))
         self.assertEqual(response.status_code, 200)
 
     def test_part_manage_bom(self):
@@ -481,9 +477,12 @@ class TestBOM(TransactionTestCase):
         self.client.login(username='kasper', password='ghostpassword')
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-        response = self.client.get(
-            reverse('bom:part-revision-new', kwargs={'part_id': p1.id}))
 
+        response = self.client.get(reverse('bom:part-revision-new', kwargs={'part_id': p1.id}))
+        self.assertEqual(response.status_code, 200)
+
+        # Create new part revision from part without an existing part revision
+        response = self.client.get(reverse('bom:part-revision-new', kwargs={'part_id': p4.id}))
         self.assertEqual(response.status_code, 200)
 
         new_part_revision_form_data = {
