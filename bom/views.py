@@ -867,6 +867,8 @@ def create_part(request):
 
             return HttpResponseRedirect(
                 reverse('bom:part-info', kwargs={'part_id': str(new_part.id)}))
+        else:
+            part_revision_form = PartRevisionForm(request.POST)
     else:
         part_form = PartForm(initial={'organization': organization})
         part_revision_form = PartRevisionForm(initial={'revision': 1, 'organization': organization})
