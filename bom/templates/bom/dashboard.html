@@ -61,21 +61,21 @@
     {% if part_revs.has_other_pages %}
     <ul class="pagination center" style="padding-top: 24px;">
         {% if part_revs.has_previous %}
-        <li><a href="?page={{ part_revs.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">&laquo;</a></li>
+        <li><a href="?page={{ part_revs.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
         {% else %}
-        <li class="disabled"><span>&laquo;</span></li>
+        <li class="disabled"><i class="material-icons">chevron_left</i></li>
         {% endif %}
         {% for i in part_revs.paginator.page_range %}
         {% if part_revs.number == i %}
-            <li class="active"><span>{{ i }} <span class="sr-only">(current)</span></span></li>
+            <li class="active green lighten-2"><a>{{ i }}</a></li>
         {% else %}
-            <li><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
+            <li class="waves-effect waves-green"><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
         {% endif %}
         {% endfor %}
         {% if part_revs.has_next %}
-        <li><a href="?page={{ part_revs.next_page_number }}{% if query %}&q={{ query }}{% endif %}">&raquo;</a></li>
+        <li><a href="?page={{ part_revs.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
         {% else %}
-        <li class="disabled"><span>&raquo;</span></li>
+        <li class="disabled"><i class="material-icons">chevron_right</i></li>
         {% endif %}
     </ul>
     {% endif %}
