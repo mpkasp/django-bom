@@ -126,7 +126,7 @@ def create_some_fake_parts(organization):
     pt4 = Part(number_class=pc1, number_item='4444', organization=organization)
     pt4.save(no_part_revision=True)
 
-    # Create a part with a PartRevision with no assembly
+    # Create a part with a PartRevision with no assembly - no longer happens due to PartRevision save override
     pt5 = Part(number_class=pc1, number_item='5555', organization=organization)
     pt5.save()
     create_a_fake_part_revision(pt5, None)
