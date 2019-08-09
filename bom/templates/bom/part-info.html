@@ -213,8 +213,12 @@
                         {% endif %}
 
                         <li><a class="green-text text-lighten-1"
-                               href="{% url 'bom:part-export-bom' part_id=part.id %}"><i
-                                class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a>
+                               href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}"><i
+                                class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
+                        </li>
+                        <li><a class="green-text text-lighten-1"
+                               href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_revision.id %}"><i
+                                class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
                         </li>
                     </ul>
                 </div>

@@ -301,15 +301,21 @@ def part_info(request, part_id, part_revision_id=None):
 
 
 @login_required
-def part_export_bom(request, part_id):
+def part_export_bom(request, part_id=None, part_revision_id=None):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
 
-    try:
-        part = Part.objects.get(id=part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "Part object does not exist.")
+    part = None
+    part_revision = None
+    if part_id is not None:
+        part = get_object_or_404(Part, pk=part_id)
+        part_revision = part.latest()
+    elif part_revision_id is not None:
+        part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+        part = part_revision.part
+    else:
+        messages.error(request, "View requires part or part revision.")
         return HttpResponseRedirect(reverse('bom:error'))
 
     if part.organization != organization:
@@ -320,12 +326,9 @@ def part_export_bom(request, part_id):
     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_indented.csv"'.format(
         part.full_part_number())
 
-    bom = part.indented()
+    bom = part_revision.indented()
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 1000)
-    unit_cost = 0
-    unit_out_of_pocket_cost = 0
-    unit_nre = 0
 
     fieldnames = [
         'level',
@@ -372,25 +375,13 @@ def part_export_bom(request, part_id):
                                      float(
                                          seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
 
-        unit_cost = (
-                unit_cost +
-                seller.unit_cost *
-                item['quantity']) if seller is not None and seller.unit_cost is not None else unit_cost
-        unit_out_of_pocket_cost = unit_out_of_pocket_cost + \
-                                  item['out_of_pocket_cost']
-        unit_nre = (
-                unit_nre +
-                item['seller_nre']) if item['seller_nre'] is not None else unit_nre
-        if seller is None:
-            extended_cost_complete = False
-
         row = {
             'level': item['indent_level'],
             'part_number': item['part'].full_part_number(),
             'quantity': item['quantity'],
             'reference': item['reference'],
-            'part_description': item['part'].latest().description,
-            'part_revision': item['part'].latest().revision,
+            'part_description': item['part_revision'].description,
+            'part_revision': item['part_revision'].revision,
             'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item[
                                                                                                  'part'].primary_manufacturer_part is not None and
                                                                                              item[
@@ -398,6 +389,89 @@ def part_export_bom(request, part_id):
             'part_manufacturer_part_number': item['part'].primary_manufacturer_part.manufacturer_part_number if item[
                                                                                                                     'part'].primary_manufacturer_part is not None else '',
             'part_ext_qty': item['extended_quantity'],
+            'part_order_qty': item['order_quantity'],
+            'part_seller': item['seller_part'].seller.name if item['seller_part'] is not None else '',
+            'part_cost': item['seller_price'] if item['seller_price'] is not None else 0,
+            'part_moq': item['seller_moq'] if item['seller_moq'] is not None else 0,
+            'part_ext_cost': item['extended_cost'] if item['extended_cost'] is not None else 0,
+            'part_out_of_pocket_cost': item['out_of_pocket_cost'],
+            'part_nre': item['seller_nre'] if item['seller_nre'] is not None else 0,
+            'part_lead_time_days': item['seller_lead_time_days'],
+        }
+        writer.writerow({k: smart_str(v) for k, v in row.items()})
+    return response
+
+
+@login_required
+def part_export_bom_flat(request, part_revision_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+
+    if part_revision.part.organization != organization:
+        messages.error(request, "Cant export a part that is not yours!")
+        return HttpResponseRedirect(reverse('bom:error'))
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_flat.csv"'.format(
+        part_revision.part.full_part_number())
+
+    bom = part_revision.flat()
+
+    fieldnames = [
+        'part_number',
+        'quantity',
+        'references',
+        'part_description',
+        'part_revision',
+        'part_manufacturer',
+        'part_manufacturer_part_number',
+        'part_ext_qty',
+        'part_order_qty',
+        'part_seller',
+        'part_cost',
+        'part_moq',
+        'part_ext_cost',
+        'part_out_of_pocket_cost',
+        'part_nre',
+        'part_lead_time_days', ]
+
+    qty_cache_key = str(part_revision.part.id) + '_qty'
+    qty = cache.get(qty_cache_key, 1000)
+
+    writer = csv.DictWriter(response, fieldnames=fieldnames)
+    writer.writeheader()
+    for _, item in bom.items():
+        extended_quantity = int(qty) * item['quantity']
+        subpart = item['part']
+        seller = subpart.optimal_seller(quantity=extended_quantity)
+        order_qty = extended_quantity
+        if seller is not None and seller.minimum_order_quantity is not None and extended_quantity > seller.minimum_order_quantity:
+            order_qty = ceil(extended_quantity / float(seller.minimum_order_quantity)) * seller.minimum_order_quantity
+
+        item['seller_price'] = seller.unit_cost if seller is not None else 0
+        item['seller_nre'] = seller.nre_cost if seller is not None else 0
+        item['seller_part'] = seller
+        item['seller_moq'] = seller.minimum_order_quantity if seller is not None else 0
+        item['order_quantity'] = order_qty
+        item['seller_lead_time_days'] = seller.lead_time_days if seller is not None else 0
+
+        # then extend that price
+        item['extended_cost'] = extended_quantity * seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
+        item['out_of_pocket_cost'] = order_qty * float(
+            seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
+
+        row = {
+            'part_number': item['part'].full_part_number(),
+            'quantity': item['quantity'],
+            'references': item['references'],
+            'part_description': item['part_revision'].description,
+            'part_revision': item['part_revision'].revision,
+            'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item['part'].primary_manufacturer_part is not None and
+                                                                                             item['part'].primary_manufacturer_part.manufacturer is not None else '',
+            'part_manufacturer_part_number': item['part'].primary_manufacturer_part.manufacturer_part_number if item['part'].primary_manufacturer_part is not None else '',
             'part_order_qty': item['order_quantity'],
             'part_seller': item['seller_part'].seller.name if item['seller_part'] is not None else '',
             'part_cost': item['seller_price'] if item['seller_price'] is not None else 0,
@@ -969,7 +1043,10 @@ def add_subpart(request, part_id, part_revision_id):
                 part_revision.save()
 
             AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
-            messages.info(request, "Added subpart {} in assembly {}, part revision {}".format(new_part.id, part_revision.assembly, form.cleaned_data['subpart_part'].latest().id))
+            messages.info(request, "Added subpart {} in assembly {}, part revision {}".format(new_part.id,
+                                                                                              part_revision.assembly,
+                                                                                              form.cleaned_data[
+                                                                                                  'subpart_part'].latest().id))
         else:
             messages.error(request, form.errors)
     return HttpResponseRedirect(

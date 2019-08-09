@@ -193,7 +193,7 @@ class PartRevision(models.Model):
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
 
     class Meta:
-        unique_together = (('part', 'revision'), )
+        unique_together = (('part', 'revision'),)
 
     def save(self, **kwargs):
         if self.assembly is None:
@@ -206,8 +206,9 @@ class PartRevision(models.Model):
         super(PartRevision, self).save()
 
     def indented(self):
-        def indented_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None, reference=''):
-            if part_revision is None: # hopefully this never happens
+        def indented_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None,
+                               reference=''):
+            if part_revision is None:  # hopefully this never happens
                 logger.warning("Indented bom part_revision is None, this shouldn't happen, parent "
                                "part_revision id: {}".format(parent.id))
                 return
@@ -236,8 +237,40 @@ class PartRevision(models.Model):
                                        indent_level=indent_level, subpart=sp, reference=reference)
 
         bom = []
-        cost = 0
         indented_given_bom(bom, self)
+        return bom
+
+    def flat(self):
+        def flat_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, subpart=None, reference=''):
+            if part_revision is None:  # hopefully this never happens
+                logger.warning("Indented bom part_revision is None, this shouldn't happen, parent "
+                               "part_revision id: {}".format(parent.id))
+                return
+
+            if part_revision.id in bom:
+                bom[part_revision.id]['quantity'] += parent_qty * qty
+                ref = ', ' + reference if reference != '' else ''
+                bom[part_revision.id]['references'] += ref
+            else:
+                bom[part_revision.id] = {
+                    'part': part_revision.part,
+                    'part_revision': part_revision,
+                    'quantity': qty,
+                    'references': reference,
+                }
+
+            if part_revision is None or part_revision.assembly is None or part_revision.assembly.subparts.count() == 0:
+                return
+            else:
+                parent_qty *= qty
+                for sp in part_revision.assembly.subparts.all():
+                    qty = sp.count
+                    reference = sp.reference
+                    flat_given_bom(bom, sp.part_revision, parent=part_revision, qty=qty, parent_qty=parent_qty,
+                                   subpart=sp, reference=reference)
+
+        bom = {}
+        flat_given_bom(bom, self)
         return bom
 
     def where_used(self):
@@ -245,7 +278,8 @@ class PartRevision(models.Model):
         # it gets used by being a subpart to an assembly of a part_revision
         # so we can look up subparts, then their assemblys, then their partrevisions
         used_in_subparts = Subpart.objects.filter(part_revision=self)
-        used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly', flat=True)
+        used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly',
+                                                                                                         flat=True)
         used_in_pr = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)
         return used_in_pr
 
@@ -320,7 +354,8 @@ class ManufacturerPart(models.Model):
         for sellerpart in sellerparts:
             # TODO: Make this smarter and more readable.
             if (sellerpart.unit_cost is not None and
-                    (sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
+                    (
+                            sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
                     (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
                 seller = sellerpart
             elif seller is None:

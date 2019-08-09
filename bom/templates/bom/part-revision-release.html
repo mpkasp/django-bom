@@ -29,7 +29,7 @@
         </div>
         <div class="row">
 	        <div class="col s6 m4 push-m2">
-                <a href="javascript:history.back()" class="waves-effect waves-light btn{% if not release_warning %}-flat{% endif %} {% if release_warning %}green{% else %}grey grey-text{% endif %} lighten-1">Cancel</a>
+                <a href="javascript:history.back()" class="waves-effect waves-light btn{% if not release_warning %}-flat{% endif %} {% if release_warning %}green{% else %}grey-text{% endif %} lighten-1">Cancel</a>
             </div>
             <div class="col s6 m4 push-m2 right-align">
 	        	<button class="waves-effect waves-light btn{% if release_warning %}-flat{% endif %} {% if not release_warning %}green{% else %}grey-text{% endif %} lighten-1" type="submit" name="action">Release{% if release_warning %} Anyway{% endif %}</button>
