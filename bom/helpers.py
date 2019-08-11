@@ -136,10 +136,11 @@ def create_some_fake_parts(organization):
     create_a_fake_seller_part(
         s1,
         mp1,
-        moq=None,
-        mpq=None,
-        unit_cost=None,
-        lead_time_days=None)
+        moq=1,
+        mpq=1,
+        unit_cost=0,
+        lead_time_days=None,
+        nre_cost=0,)
     create_a_fake_seller_part(
         s1,
         mp1,
@@ -154,7 +155,8 @@ def create_some_fake_parts(organization):
         moq=1000,
         mpq=5000,
         unit_cost=0.1005,
-        lead_time_days=7, )
+        lead_time_days=7,
+        nre_cost=0,)
     create_a_fake_seller_part(
         s2,
         mp2,
