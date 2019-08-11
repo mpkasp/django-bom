@@ -137,19 +137,7 @@ class Part(models.Model):
 
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
         sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)
-        seller = None
-        for sellerpart in sellerparts:
-            if seller is None:
-                seller = sellerpart
-            else:
-                new_quantity = quantity if sellerpart.minimum_order_quantity < quantity else sellerpart.minimum_order_quantity
-                new_total_cost = new_quantity * sellerpart.unit_cost
-                old_quantity = quantity if seller.minimum_order_quantity < quantity else seller.minimum_order_quantity
-                old_total_cost = old_quantity * seller.unit_cost
-                if new_total_cost < old_total_cost:
-                    seller = sellerpart
-
-        return seller
+        return SellerPart.optimal(sellerparts, quantity)
 
     def save(self, **kwargs):
         no_part_revision = kwargs.get('no_part_revision', False)
@@ -350,20 +338,7 @@ class ManufacturerPart(models.Model):
             qty_cache_key = str(self.part.id) + '_qty'
             quantity = int(cache.get(qty_cache_key, 100))
         sellerparts = SellerPart.objects.filter(manufacturer_part=self)
-        seller = None
-        for sellerpart in sellerparts:
-            if seller is None:
-                seller = sellerpart
-            else:
-                new_quantity = quantity if sellerpart.minimum_order_quantity < quantity else sellerpart.minimum_order_quantity
-                new_total_cost = new_quantity * sellerpart.unit_cost
-                old_quantity = quantity if seller.minimum_order_quantity < quantity else seller.minimum_order_quantity
-                old_total_cost = old_quantity * seller.unit_cost
-                if new_total_cost < old_total_cost:
-                    seller = sellerpart
-
-
-        return seller
+        return SellerPart.optimal(sellerparts, quantity)
 
     def __str__(self):
         return u'%s' % (self.manufacturer_part_number)
@@ -394,6 +369,21 @@ class SellerPart(models.Model):
             'manufacturer_part',
             'minimum_order_quantity',
             'unit_cost']
+
+    @staticmethod
+    def optimal(sellerparts, quantity):
+        seller = None
+        for sellerpart in sellerparts:
+            if seller is None:
+                seller = sellerpart
+            else:
+                new_quantity = quantity if sellerpart.minimum_order_quantity < quantity else sellerpart.minimum_order_quantity
+                new_total_cost = new_quantity * sellerpart.unit_cost
+                old_quantity = quantity if seller.minimum_order_quantity < quantity else seller.minimum_order_quantity
+                old_total_cost = old_quantity * seller.unit_cost
+                if new_total_cost < old_total_cost:
+                    seller = sellerpart
+        return seller
 
     def __str__(self):
         return u'%s' % (self.manufacturer_part.part.full_part_number() + ' ' + self.seller.name)
