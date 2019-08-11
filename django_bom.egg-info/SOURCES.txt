@@ -42,6 +42,7 @@ bom/migrations/0018_auto_20190616_2143.py
 bom/migrations/0019_auto_20190624_1246.py
 bom/migrations/0020_auto_20190627_0207.py
 bom/migrations/0021_auto_20190627_0428.py
+bom/migrations/0022_auto_20190811_2140.py
 bom/migrations/__init__.py
 bom/static/.DS_Store
 bom/static/bom/.DS_Store
