@@ -249,6 +249,8 @@ def part_info(request, part_id, part_revision_id=None):
 
         subpart = item['part']
         seller = subpart.optimal_seller(quantity=extended_quantity)
+        if seller is not None:
+            print(extended_quantity, seller.unit_cost, seller.seller.name)
         order_qty = extended_quantity
         if seller is not None and seller.minimum_order_quantity is not None and extended_quantity > seller.minimum_order_quantity:
             order_qty = ceil(extended_quantity / float(seller.minimum_order_quantity)) * seller.minimum_order_quantity

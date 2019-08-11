@@ -139,14 +139,15 @@ class Part(models.Model):
         sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)
         seller = None
         for sellerpart in sellerparts:
-            # TODO: Make this smarter and more readable.
-            if (sellerpart.unit_cost is not None and
-                    (
-                            sellerpart.minimum_order_quantity is not None and sellerpart.minimum_order_quantity <= quantity) and
-                    (seller is None or (seller.unit_cost is not None and sellerpart.unit_cost < seller.unit_cost))):
+            if seller is None:
                 seller = sellerpart
-            elif seller is None:
-                seller = sellerpart
+            else:
+                new_quantity = quantity if sellerpart.minimum_order_quantity < quantity else sellerpart.minimum_order_quantity
+                new_total_cost = new_quantity * sellerpart.unit_cost
+                old_quantity = quantity if seller.minimum_order_quantity < quantity else seller.minimum_order_quantity
+                old_total_cost = old_quantity * seller.unit_cost
+                if new_total_cost < old_total_cost:
+                    seller = sellerpart
 
         return seller
 
@@ -351,18 +352,13 @@ class ManufacturerPart(models.Model):
         sellerparts = SellerPart.objects.filter(manufacturer_part=self)
         seller = None
         for sellerpart in sellerparts:
-            # TODO: Make this smarter and more readable.
-            # Set seller to the first sellerpart no matter what
-            # Then for each sellerpart, if the total cost for the requested price is lower, then use that
             if seller is None:
                 seller = sellerpart
             else:
-                # TODO: Change minimum order quantity default to 0, not null, change unit cost default to 0, not null
                 new_quantity = quantity if sellerpart.minimum_order_quantity < quantity else sellerpart.minimum_order_quantity
                 new_total_cost = new_quantity * sellerpart.unit_cost
                 old_quantity = quantity if seller.minimum_order_quantity < quantity else seller.minimum_order_quantity
                 old_total_cost = old_quantity * seller.unit_cost
-                print(old_total_cost, new_total_cost)
                 if new_total_cost < old_total_cost:
                     seller = sellerpart
 
