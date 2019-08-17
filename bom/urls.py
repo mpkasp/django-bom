@@ -3,7 +3,7 @@ from django.urls import path
 from django.contrib.auth import views as auth_views
 from django.contrib import admin
 
-from . import views
+from bom.views import views
 from bom.third_party_apis import google_drive
 
 bom_patterns = [

@@ -10,6 +10,7 @@ from .helpers import create_some_fake_parts, create_a_fake_organization, create_
 from .models import Part, SellerPart, ManufacturerPart, Seller
 from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
 
+
 class TestBOM(TransactionTestCase):
 
     def setUp(self):
