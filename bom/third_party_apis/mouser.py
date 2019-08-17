@@ -34,9 +34,19 @@ class MouserApi:
         data = self.parse_and_check_for_errors(content)
         return data["MouserManufacturerList"]
 
+    def search_part(self, part_number):
+        content = self.api.request('/search/partnumber', data={
+            "SearchByPartRequest": {
+                "mouserPartNumber": part_number,
+                "partSearchOptions": "",
+            }
+        })
+        data = self.parse_and_check_for_errors(content)
+        return data["SearchResults"]
+
     def search_part_and_manufacturer(self, part_number, manufacturer_id):
-        content = self.api.request('/search/keyword', data={
-            "SearchByKeywordRequest": {
+        content = self.api.request('/search/partnumberandmanufacturer', data={
+            "SearchByPartMfrRequest": {
                 "manufacturerId": manufacturer_id,
                 "mouserPartNumber": part_number,
                 "partSearchOptions": "",
@@ -50,7 +60,11 @@ class Mouser:
     def __init__(self):
         self.api = MouserApi()
 
-    def search_and_match(self):
-        manufacturer_list = self.api.get_manufacturer_list()
-        # TODO: need to get manufacturer id from manufacturer list, do a fuzzy lookup using manufacturer name
-        return None
+    def search_and_match(self, manufacturer_part_number, manufacturer_name):
+        # manufacturer_list = self.api.get_manufacturer_list()
+        # TODO: possibly get manufacturer id from manufacturer list, do a fuzzy lookup using manufacturer name
+        #  to reduce results
+        results = self.api.search_part(part_number=manufacturer_part_number)
+        # TODO: distil into consumable data for view
+        print(results)
+        return results

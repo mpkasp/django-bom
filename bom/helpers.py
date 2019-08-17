@@ -99,7 +99,7 @@ def create_some_fake_parts(organization):
     pt1.primary_manufacturer_part = mp1
     pt1.save()
     assy = create_a_fake_assembly()
-    pch1 = create_a_fake_part_revision(part=pt1, assembly=assy)
+    pr1 = create_a_fake_part_revision(part=pt1, assembly=assy)
 
     pt2 = Part(
         number_class=pc1,
@@ -109,18 +109,19 @@ def create_some_fake_parts(organization):
     mp2.save()
     pt2.primary_manufacturer_part = mp2
     pt2.save()
-    assy2 = create_a_fake_assembly_with_subpart(part_revision=pch1)
-    pch2 = create_a_fake_part_revision(part=pt2, assembly=assy2)
+    assy2 = create_a_fake_assembly_with_subpart(part_revision=pr1)
+    pr2 = create_a_fake_part_revision(part=pt2, assembly=assy2)
 
     pt3 = Part(number_class=pc3, organization=organization)
     pt3.save()
     mp3 = ManufacturerPart(part=pt3, manufacturer=m3, manufacturer_part_number='NRF51822')
     mp3.save()
-    assy3 = create_a_fake_assembly_with_subpart(part_revision=pch2)
-    subpart3 = create_a_fake_subpart(pch1, count=10, reference="")
+    assy3 = create_a_fake_assembly_with_subpart(part_revision=pr2)
+    subpart3 = create_a_fake_subpart(pr1, count=10, reference="")
     assy3.subparts.add(subpart3)
+    assy3.save()
     create_a_fake_part_revision(part=pt3, assembly=assy3)
-    create_a_fake_part_revision(part=pt3, assembly=assy3)
+    create_a_fake_part_revision(part=pt3, assembly=assy3, revision="2")
 
     # Create a part with no PartRevision
     pt4 = Part(number_class=pc1, number_item='4444', organization=organization)
