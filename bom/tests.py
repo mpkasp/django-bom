@@ -9,8 +9,6 @@ from .helpers import create_some_fake_parts, create_a_fake_organization, create_
     create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers, create_some_fake_sellers
 from .models import Part, SellerPart, ManufacturerPart, Seller
 from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
-from .octopart import match_part
-
 
 class TestBOM(TransactionTestCase):
 
@@ -125,60 +123,6 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:export-part-list'))
         self.assertEqual(response.status_code, 200)
 
-    @skip("only test when we want to hit octopart's api")
-    def test_match_part(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
-        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-        a = match_part(p1.primary_manufacturer_part, self.organization)
-
-        partExists = len(a) > 0
-
-        self.assertEqual(partExists, True)
-
-    @skip("only test when we want to hit octopart's api")
-    def test_octopart_match_part_indented(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
-        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-
-        response = self.client.post(reverse('bom:part-octopart-match-bom', kwargs={'part_id': p1.id}))
-        self.assertEqual(response.status_code, 302)
-
-        response = self.client.post(reverse('bom:part-octopart-match-bom', kwargs={'part_id': p2.id}))
-        self.assertEqual(response.status_code, 302)
-
-        response = self.client.post(reverse('bom:part-octopart-match-bom', kwargs={'part_id': p3.id}))
-        self.assertEqual(response.status_code, 302)
-
-        response = self.client.post(reverse('bom:part-octopart-match-bom', kwargs={'part_id': p4.id}))
-        self.assertEqual(response.status_code, 302)
-
-    # @skip("only test when we want to hit octopart's api")s
-    def test_part_octopart_match(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
-        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-
-        response = self.client.post(
-            reverse(
-                'bom:part-octopart-match',
-                kwargs={
-                    'part_id': p1.id}))
-        self.assertEqual(response.status_code, 302)
-
-    # @skip("only test when we want to hit octopart's api")
-    def test_manufacturer_part_octopart_match(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
-        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-
-        response = self.client.post(
-            reverse(
-                'bom:manufacturer-part-octopart-match',
-                kwargs={
-                    'manufacturer_part_id': p1.primary_manufacturer_part.id}))
-        self.assertEqual(response.status_code, 302)
 
     def test_create_part(self):
         self.client.login(username='kasper', password='ghostpassword')

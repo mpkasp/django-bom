@@ -28,7 +28,6 @@ from .models import Part, PartClass, Subpart, SellerPart, Organization, Manufact
 from .forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
     ManufacturerPartForm, SellerPartForm, UserForm, UserProfileForm, OrganizationForm, PartRevisionForm, \
     PartRevisionNewForm
-from .octopart import match_part, get_latest_datasheets
 
 logger = logging.getLogger(__name__)
 
@@ -223,13 +222,6 @@ def part_info(request, part_id, part_revision_id=None):
             qty = request.POST.get('quantity', 100)
 
     cache.set(qty_cache_key, qty, 3600)
-
-    # if part.primary_manufacturer_part is not None:
-    #     try:
-    #         datasheets = get_latest_datasheets(part.primary_manufacturer_part.manufacturer_part_number)
-    #     except Exception as e:
-    #         messages.warning(request, "Octopart error: {}".format(e))
-    #         datasheets = []
 
     try:
         parts = part_revision.indented()
@@ -760,128 +752,6 @@ def export_part_list(request):
             messages.warning(request, "No change history for part: {}. Can't export.".format(item.full_part_number()))
 
     return response
-
-
-@login_required
-def part_octopart_match(request, part_id):
-    try:
-        part = Part.objects.get(id=part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
-
-    manufacturer_parts = ManufacturerPart.objects.filter(part=part)
-    for manufacturer_part in manufacturer_parts:
-        seller_parts = []
-        try:
-            seller_parts = match_part(manufacturer_part, request.user.bom_profile().organization)
-        except IOError as e:
-            messages.error(request, "Error communicating with Octopart. {}".format(e))
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
-        except Exception as e:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            messages.error(request, "Error - {}: {}, ({}, {})".format(exc_type, e, fname, exc_tb.tb_lineno))
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
-
-        if len(seller_parts) > 0:
-            SellerPart.objects.filter(manufacturer_part=manufacturer_part, data_source='octopart').delete()
-            for sp in seller_parts:
-                try:
-                    sp.save()
-                except IntegrityError:
-                    continue
-        else:
-            messages.info(
-                request,
-                "Octopart wasn't able to find any parts with manufacturer part number: {}".format(
-                    manufacturer_part.manufacturer_part_number))
-
-    if request.META.get('HTTP_REFERER', None) is not None and '/part/' in request.META.get('HTTP_REFERER', None):
-        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}) + '?tab_anchor=sourcing')
-
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:part-info', kwargs={
-        'part_id': part_id}) + '?tab_anchor=sourcing'))
-
-
-@login_required
-def manufacturer_part_octopart_match(request, manufacturer_part_id):
-    try:
-        manufacturer_part = ManufacturerPart.objects.get(id=manufacturer_part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "No manufacturer part found with given part_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
-
-    seller_parts = []
-    try:
-        seller_parts = match_part(manufacturer_part, request.user.bom_profile().organization)
-    except IOError as e:
-        messages.error(request, "Error communicating with Octopart. {}".format(e))
-        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
-    except Exception as e:
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        messages.error(request, "Error - {}: {}, ({}, {})".format(exc_type, e, fname, exc_tb.tb_lineno))
-        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
-
-    if len(seller_parts) > 0:
-        SellerPart.objects.filter(manufacturer_part=manufacturer_part, data_source='octopart').delete()
-        for sp in seller_parts:
-            try:
-                sp.save()
-            except IntegrityError:
-                continue
-    else:
-        messages.info(
-            request,
-            "Octopart wasn't able to find any parts with manufacturer part number: {}".format(
-                manufacturer_part.manufacturer_part_number))
-
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
-
-
-@login_required
-def part_octopart_match_bom(request, part_id):
-    try:
-        part = Part.objects.get(id=part_id)
-    except ObjectDoesNotExist:
-        messages.error(request, "No part found with given part_id.")
-        return HttpResponseRedirect(reverse('bom:error'))
-
-    subparts = part.latest().assembly.subparts.all()
-    seller_parts = []
-
-    for subpart in subparts:
-        pr = subpart.part_revision
-        part = pr.part if pr is not None else None
-        if part is None:
-            messages.error(request, "No part found for subpart `{}` of part `{}`.".format(pr.id, pr.part))
-            continue
-        for manufacturer_part in part.manufacturer_parts():
-            try:
-                seller_parts = match_part(manufacturer_part, request.user.bom_profile().organization)
-            except IOError as e:
-                messages.error(request, "Error communicating with Octopart.")
-                continue
-            except Exception as e:
-                messages.error(request, "Unknown Error: {}".format(e))
-                return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')) + '#sourcing')
-
-            if len(seller_parts) > 0:
-                SellerPart.objects.filter(manufacturer_part=manufacturer_part, data_source='octopart').delete()
-                for sp in seller_parts:
-                    try:
-                        sp.save()
-                    except IntegrityError:
-                        continue
-            else:
-                messages.info(
-                    request,
-                    "Octopart wasn't able to find any parts with manufacturer part number: {}".format(
-                        manufacturer_part.manufacturer_part_number))
-                continue
-
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
 
 @login_required
