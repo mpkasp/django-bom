@@ -65,7 +65,6 @@
                         <!-- <th>Seller</th> -->
                         <!-- <th>Price</th> -->
                         {% if profile.role == 'A' %}
-                            <!-- <th>Octopart Match</th> -->
                             <th>Options</th>
                         {% endif %}
                     </tr>
@@ -84,7 +83,6 @@
                             <td>{{ subpart.reference }}</td>
                             <!-- <td>{{ subpart.seller_part.seller.name | default:"-" }}</td> -->
                             <!-- <td>{{ subpart.seller_price | default:"-"}}</td> -->
-                            <!-- <td><a href="{% url 'bom:part-octopart-match' part_id=subpart.part.id %}">Match Part</a></td> -->
                             {% if subpart.indent_level == 1 and subpart.subpart is not None %}
                                 <td>
                                     <a class='dropdown-trigger' href='#'

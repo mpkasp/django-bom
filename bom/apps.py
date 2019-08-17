@@ -5,4 +5,4 @@ from django.apps import AppConfig
 
 class BomConfig(AppConfig):
     name = 'bom'
-    octopart_api_key = None
+    mouser_api_key = None

@@ -4,7 +4,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib import admin
 
 from . import views
-from . import google_drive
+from bom.third_party_apis import google_drive
 
 bom_patterns = [
     # BOM urls
@@ -19,8 +19,6 @@ bom_patterns = [
     path('part/<int:part_id>/', views.part_info, name='part-info'),
     path('part/<int:part_id>/export/', views.part_export_bom, name='part-export-bom'),
     path('part/<int:part_id>/upload/', views.part_upload_bom, name='part-upload-bom'),
-    path('part/<int:part_id>/octopart-match/', views.part_octopart_match, name='part-octopart-match'),
-    path('part/<int:part_id>/octopart-match-indented/', views.part_octopart_match_bom, name='part-octopart-match-bom'),
     path('part/<int:part_id>/edit/', views.part_edit, name='part-edit'),
     path('part/<int:part_id>/delete/', views.part_delete, name='part-delete'),
     path('part/<int:part_id>/add-manufacturer-part/', views.add_manufacturer_part, name='part-add-manufacturer-part'),
@@ -42,7 +40,6 @@ bom_patterns = [
     path('manufacturer-part/<int:manufacturer_part_id>/add-sellerpart/', views.add_sellerpart, name='manufacturer-part-add-sellerpart'),
     path('manufacturer-part/<int:manufacturer_part_id>/edit', views.manufacturer_part_edit, name='manufacturer-part-edit'),
     path('manufacturer-part/<int:manufacturer_part_id>/delete', views.manufacturer_part_delete, name='manufacturer-part-delete'),
-    path('manufacturer-part/<int:manufacturer_part_id>/octopart-match/', views.manufacturer_part_octopart_match, name='manufacturer-part-octopart-match'),
 ]
 
 google_drive_patterns = [

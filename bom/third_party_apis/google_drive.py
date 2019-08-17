@@ -9,8 +9,8 @@ from django.urls import reverse
 from social_django.utils import load_strategy
 from requests import HTTPError
 
-from .models import Part
-from .decorators import google_authenticated
+from bom.models import Part
+from bom.decorators import google_authenticated
 
 
 # Helpers

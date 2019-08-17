@@ -121,15 +121,8 @@ BOM_CONFIG = {
 
 where `base.html` is your base template.
 
-## Octopart Integration
-For part matching, make sure to add your Octopart api key to your settings.py in 
-the BOM_CONFIG dictionary.
-```
-BOM_CONFIG = {
-    'octopart_api_key': 'supersecretkey',
-}
-```
-You can get an Octopart api key [here](https://octopart.com/api/home).
+## Mouser Integration
+For part matching, make sure to add your Mouser api key. You can get your key [here](https://www.mouser.com/MyMouser/MouserSearchApplication.aspx).
 
 ## Google Drive Integration
 Make sure to add the following to your settings.py:
