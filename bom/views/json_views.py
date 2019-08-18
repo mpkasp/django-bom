@@ -21,21 +21,20 @@ class MouserPartMatchBOM(BomJsonResponse):
         mouser = Mouser()
 
         seller_parts = []
-
         for subpart in subparts:
             pr = subpart.part_revision
             part = pr.part if pr is not None else None
 
             for manufacturer_part in part.manufacturer_parts():
                 try:
-                    part_seller_info = mouser.search_and_match(manufacturer_part.manufacturer_part_number,
-                                                               manufacturer_part.manufacturer.name)
+                    part_seller_info = mouser.search_and_match(manufacturer_part.manufacturer_part_number)
                     seller_parts.append(part_seller_info)
                 except IOError as e:
                     self.response['errors'].append("Error communicating: {}".format(e))
                     continue
                 except Exception as e:
-                    self.response['errors'].append("Unknown Error: {}".format(e))
+                    self.response['errors'].append(
+                        "Error matching part {}: {}".format(manufacturer_part.manufacturer_part_number, e))
                     continue
         self.response['content'].update({'seller_parts': seller_parts})
         return JsonResponse(self.response)

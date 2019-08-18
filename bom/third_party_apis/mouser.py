@@ -60,11 +60,44 @@ class Mouser:
     def __init__(self):
         self.api = MouserApi()
 
-    def search_and_match(self, manufacturer_part_number, manufacturer_name):
+    def search_and_match(self, manufacturer_part_number, quantity=1):
         # manufacturer_list = self.api.get_manufacturer_list()
         # TODO: possibly get manufacturer id from manufacturer list, do a fuzzy lookup using manufacturer name
         #  to reduce results
         results = self.api.search_part(part_number=manufacturer_part_number)
-        # TODO: distil into consumable data for view
-        print(results)
-        return results
+        seller_parts = []
+        optimal_part = None
+        for part in results['Parts']:
+            seller_part = {
+                'part_number': part['ManufacturerPartNumber'],
+                'manufacturer': part['Manufacturer'],
+                'description': part['Description'],
+                'data_sheet': part['DataSheetUrl'],
+                'stock': part['Availability'],
+                'lead_time': part['LeadTime'],
+                'prices': [],
+            }
+
+            for pb in part['PriceBreaks']:
+                moq = int(pb['Quantity'])
+                price = float(pb['Price'].strip('$'))
+                currency = pb['Currency']
+                order_quantity = quantity if quantity > moq else moq
+                order_price = order_quantity * price
+                price_break = {
+                    'price': price,
+                    'order_quantity': order_quantity,
+                    'order_price': order_price,
+                    'moq': moq,
+                }
+                if optimal_part is None or (order_price < optimal_part['order_price'] and currency == 'USD'):
+                    optimal_part = seller_part.copy()
+                    optimal_part.update(price_break)
+                seller_part['prices'].append(price_break)
+            seller_parts.append(seller_part)
+
+        match = {
+            'seller_parts': seller_parts,
+            'optimal_seller_part': optimal_part,
+        }
+        return match
