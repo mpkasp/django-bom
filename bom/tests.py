@@ -149,10 +149,11 @@ class TestBOM(TransactionTestCase):
 
         try:
             created_part_id = response.url[6:-1]
+            created_part = Part.objects.get(id=created_part_id)
         except IndexError:
             self.assertFalse(True, "Part maybe not created? Url looks like: {}".format(response.url))
 
-        created_part = Part.objects.get(id=created_part_id)
+
         self.assertEqual(created_part.manufacturer_parts().first().manufacturer_part_number, new_part_mpn)
 
         new_part_form_data = {

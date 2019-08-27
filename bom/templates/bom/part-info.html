@@ -583,6 +583,7 @@
     <!-- -->
     <script>
         $(document).ready(function() {
+            {% if part_revision.id %}
             $.get(
                 "{% url 'json:mouser-part-match-bom' part_revision_id=part_revision.id %}",
                 function(response) {
@@ -591,6 +592,7 @@
                    console.log(content);
                 }
             );
+            {% endif %}
         })
     </script>
 {% endblock script %}
