@@ -579,4 +579,18 @@
         {% endif %}
     }
     </script>
+
+    <!-- -->
+    <script>
+        $(document).ready(function() {
+            $.get(
+                "{% url 'json:mouser-part-match-bom' part_revision_id=part_revision.id %}",
+                function(response) {
+                    var content = response['content'];
+                    var errors = response['errors'];
+                   console.log(content);
+                }
+            );
+        })
+    </script>
 {% endblock script %}

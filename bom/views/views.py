@@ -1197,8 +1197,11 @@ def part_revision_new(request, part_id):
 
                 new_part_revision.assembly = new_assembly
                 new_part_revision.save()
-
-                new_assembly.subparts.set(old_subparts)
+                for sp in old_subparts:
+                    new_sp = sp
+                    new_sp.pk = None
+                    new_sp.save()
+                    AssemblySubparts.objects.create(assembly=new_assembly, subpart=new_sp)
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
         try:
