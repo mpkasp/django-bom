@@ -865,7 +865,7 @@ def manage_bom(request, part_id, part_revision_id):
     qty = cache.get(qty_cache_key, 100)
 
     for item in parts:
-        extended_quantity = qty * item['total_quantity']
+        extended_quantity = int(qty) * int(item['total_quantity'])
         seller = item['part'].optimal_seller(quantity=extended_quantity)
         item['seller_price'] = seller.unit_cost if seller is not None else None
         item['seller_part'] = seller
