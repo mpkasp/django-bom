@@ -14,10 +14,26 @@
 {% block menu %}
 {% endblock%}
 {% block content %}
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button class="waves-effect waves-light btn green lighten-1" type="submit">Login</button>
-</form>
+    <div class="section center">
+        <h5 class="">Login into your BOM account</h5>
+    </div>
+
+    <div class="section center">
+        <div class="container ">
+            <div class="row" style="display: inline-block; ">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col s12">
+                            {{ form }}
+                            <div class="center">
+                                <button class="waves-effect waves-light btn green lighten-1" style="min-width:150px" type="submit">Login</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+         </div>
+    </div>
 {% endblock %}
 

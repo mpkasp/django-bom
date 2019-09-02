@@ -993,9 +993,8 @@ def add_manufacturer_part(request, part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    title = 'Add Manufacturer Part'
-
     part = get_object_or_404(Part, pk=part_id)
+    title = 'Add Manufacturer Part to {}'.format(part.full_part_number())
 
     if request.method == 'POST':
         manufacturer_form = ManufacturerForm(request.POST)
@@ -1029,8 +1028,11 @@ def add_manufacturer_part(request, part_id):
             messages.error(request, "{}".format(manufacturer_form.is_valid()))
             messages.error(request, "{}".format(manufacturer_part_form.is_valid()))
     else:
+        default_mfg = Manufacturer.objects.filter(organization=organization, name=organization.name).first()
         manufacturer_form = ManufacturerForm(initial={'organization': organization})
-        manufacturer_part_form = ManufacturerPartForm(organization=organization)
+        manufacturer_part_form = ManufacturerPartForm(organization=organization,
+                                                      initial={'manufacturer_part_number': part.full_part_number(),
+                                                               'manufacturer': default_mfg})
 
     return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
 
