@@ -783,10 +783,10 @@ def create_part(request):
 
             new_part = part_form.save(commit=False)
             new_part.organization = organization
-            new_part.save()
+            new_part.save(no_part_revision=True)
 
             updated_data = request.POST.copy()
-            updated_data.update({'part': new_part})
+            updated_data.update({'part': new_part.id})
             part_revision_form = PartRevisionForm(updated_data)
             if part_revision_form.is_valid():
                 pr = part_revision_form.save(commit=False)

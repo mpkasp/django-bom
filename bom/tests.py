@@ -137,6 +137,7 @@ class TestBOM(TransactionTestCase):
             'number_class': p1.number_class.id,
             'number_item': '',
             'number_variation': '',
+            'configuration': 'W',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
             'attribute': '',
@@ -153,7 +154,7 @@ class TestBOM(TransactionTestCase):
         except IndexError:
             self.assertFalse(True, "Part maybe not created? Url looks like: {}".format(response.url))
 
-
+        self.assertEqual(created_part.latest().description, 'IC, MCU 32 Bit')
         self.assertEqual(created_part.manufacturer_parts().first().manufacturer_part_number, new_part_mpn)
 
         new_part_form_data = {
