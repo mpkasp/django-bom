@@ -676,9 +676,9 @@ def upload_parts(request):
 
                         part = Part.objects.create(number_class=part_class, organization=organization)
 
-                        pr = PartRevision.objects.create(part=part,
-                                                         description=part_data['description'],
-                                                         revision=part_data['revision'])
+                        pr = PartRevision.objects.get_or_create(part=part, revision=part_data['revision'], defaults={
+                            'description': part_data['description'],
+                        })
 
                         manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part,
                                                                                             manufacturer_part_number=mpn,
