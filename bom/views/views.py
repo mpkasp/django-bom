@@ -35,9 +35,14 @@ def home(request):
     organization = profile.organization
 
     if profile.organization is None:
+        if request.user.first_name == '' and request.user.last_name == '':
+            org_name = request.user.username
+        else:
+            org_name = request.user.first_name + ' ' + request.user.last_name
+
         organization, created = Organization.objects.get_or_create(
             owner=request.user,
-            defaults={'name': request.user.first_name + ' ' + request.user.last_name,
+            defaults={'name': org_name,
                       'subscription': 'F'},
         )
 

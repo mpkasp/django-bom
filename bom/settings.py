@@ -193,7 +193,7 @@ SOCIAL_AUTH_PIPELINE = (
 
 SOCIAL_AUTH_DISCONNECT_PIPELINE = (
     'social_core.pipeline.disconnect.allowed_to_disconnect',
-    'bom.google_drive.uninitialize_parent',
+    'bom.third_party_apis.google_drive.uninitialize_parent',
     'social_core.pipeline.disconnect.get_entries',
     'social_core.pipeline.disconnect.revoke_tokens',
     'social_core.pipeline.disconnect.disconnect',
