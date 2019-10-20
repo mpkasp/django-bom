@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db import IntegrityError
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
@@ -767,6 +768,7 @@ def create_part(request):
         part_form = PartForm(request.POST)
         manufacturer_form = ManufacturerForm(request.POST)
         manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
+        part_revision_form = PartRevisionForm(request.POST)
         if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
             mpn = manufacturer_part_form.cleaned_data['manufacturer_part_number']
             old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
@@ -780,7 +782,6 @@ def create_part(request):
                     manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name,
                                                                                organization=organization)
                 else:
-                    part_revision_form = PartRevisionForm(request.POST)
                     messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
                     return TemplateResponse(request, 'bom/create-part.html', locals())
             elif old_manufacturer or new_manufacturer_name != '':
@@ -789,7 +790,11 @@ def create_part(request):
 
             new_part = part_form.save(commit=False)
             new_part.organization = organization
-            new_part.save(no_part_revision=True)
+            try:
+                new_part.save(no_part_revision=True)
+            except IntegrityError:
+                messages.error(request, "Error! Already created a part with that part number.")
+                return TemplateResponse(request, 'bom/create-part.html', locals())
 
             updated_data = request.POST.copy()
             updated_data.update({'part': new_part.id})
