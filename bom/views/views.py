@@ -681,7 +681,7 @@ def upload_parts(request):
 
                         part = Part.objects.create(number_class=part_class, organization=organization)
 
-                        pr = PartRevision.objects.get_or_create(part=part, revision=part_data['revision'], defaults={
+                        pr, c = PartRevision.objects.get_or_create(part=part, revision=part_data['revision'], defaults={
                             'description': part_data['description'],
                         })
 
@@ -780,6 +780,7 @@ def create_part(request):
                     manufacturer, created = Manufacturer.objects.get_or_create(name=new_manufacturer_name,
                                                                                organization=organization)
                 else:
+                    part_revision_form = PartRevisionForm(request.POST)
                     messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
                     return TemplateResponse(request, 'bom/create-part.html', locals())
             elif old_manufacturer or new_manufacturer_name != '':

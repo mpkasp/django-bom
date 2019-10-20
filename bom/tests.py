@@ -213,6 +213,20 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue('/part/' in response.url)
 
+        # fail nicely
+        new_part_form_data = {
+            'manufacturer_part_number': 'ABC123',
+            'manufacturer': '',
+            'number_class': p1.number_class.id,
+            'number_item': '',
+            'number_variation': '',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 200)
+
         # Make sure only one part shows up
         response = self.client.post(reverse('bom:home'))
         self.assertEqual(response.status_code, 200)

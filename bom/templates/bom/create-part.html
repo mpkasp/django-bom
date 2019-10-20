@@ -15,6 +15,9 @@
 
 {% block content %}
 <div class="row">
+<p style="text-align: center;">Recommended part numbers are in the format CCC-NNNN-VV where CCC is the Part Number Class, NNNN is the part number (number item), and VV is the part variation (Number variation).</p>
+</div>
+<div class="row">
     <form name="seller" action="{% url 'bom:create-part' %}" method="post" class="col s12">
     	<div class="row">
             {% csrf_token %}

@@ -173,3 +173,88 @@ def create_some_fake_parts(organization):
 def create_some_fake_data(user):
     o = create_a_fake_organization(user)
     return create_some_fake_parts(o)
+
+
+def create_all_part_classes():
+    PartClass.objects.get_or_create(code=100, name='Assembly, Top Level SKU\'s, Finished Goods',
+                                    comment='Ready to ship product; Includes packout and literature')
+    PartClass.objects.get_or_create(code=101, name='Assembly, Final, Elec/Mech',
+                                    comment='Fully built product without Literature or packout materials')
+    PartClass.objects.get_or_create(code=102, name='Assembly, Sub-Assy, Elec/Mech', comment='')
+    PartClass.objects.get_or_create(code=103, name='Assembly, Cable', comment='')
+    PartClass.objects.get_or_create(code=104, name='Assembly, Packaging', comment='')
+    PartClass.objects.get_or_create(code=105, name='Kit, Spare/Upgrade',
+                                    comment='Includes Spares, Documentation Kits, Upgrade Kits')
+    PartClass.objects.get_or_create(code=106, name='Assembly, Printed Circuit Board (PBCA)', comment='')
+    PartClass.objects.get_or_create(code=107, name='PCB, Fab', comment='')
+    PartClass.objects.get_or_create(code=108, name='Gerber File/X-Y data/CAD data', comment='')
+    PartClass.objects.get_or_create(code=109, name='Schematic/Test Diagram', comment='')
+    PartClass.objects.get_or_create(code=110, name='Mechanical Reference, PCB', comment='')
+    PartClass.objects.get_or_create(code=111, name='Mechanical Reference, PCBA', comment='')
+    PartClass.objects.get_or_create(code=112, name='Programmed Device, Firmware/Software', comment='')
+    PartClass.objects.get_or_create(code=113, name='Program File, Firmware, Software', comment='')
+    PartClass.objects.get_or_create(code=114, name='Build-To-Print, Sheet Metal', comment='')
+    PartClass.objects.get_or_create(code=115, name='Build-To-Print, Cast Metal', comment='')
+    PartClass.objects.get_or_create(code=116, name='Build-To-Print, Extruded',
+                                    comment='Applies for both plastic and metal')
+    PartClass.objects.get_or_create(code=117, name='Build-To-Print, Machined',
+                                    comment='Applies for both plastic and metal')
+    PartClass.objects.get_or_create(code=118, name='Build-To-Print, Molded',
+                                    comment='Applies for both Injection and Compression molded')
+    PartClass.objects.get_or_create(code=119, name='Build-To-Print, Formed',
+                                    comment='Applies for plastic only; Formed sheet metal goes under sheet metal')
+    PartClass.objects.get_or_create(code=120, name='Build-To-Print, Die-Cut',
+                                    comment='Applied to foams and PSAs (Pressure Sensitive Adhesives)')
+    PartClass.objects.get_or_create(code=121, name='Build-To-Print, Mechanical',
+                                    comment='Applies to all Build-To-Print Mech Parts that do not fall into one of the other specific groups.')
+    PartClass.objects.get_or_create(code=122, name='Build-To-Print, Printed Material',
+                                    comment='Includes Custom Labels, Product Literature, etc.')
+    PartClass.objects.get_or_create(code=123, name='Build-To-Print, Packaging', comment='')
+    PartClass.objects.get_or_create(code=124, name='Drawing',
+                                    comment='For any drawing that does not use the Item PN as the dwg PN')
+    PartClass.objects.get_or_create(code=125, name='Artwork',
+                                    comment='A/W for printing, silkscreening of labels, sheetmetal, etc.')
+    PartClass.objects.get_or_create(code=126, name='Release Notes/Protocols', comment='')
+    PartClass.objects.get_or_create(code=127, name='Custom Electronic Components', comment='Example: Custom Sensors')
+    PartClass.objects.get_or_create(code=200, name='Adhesive', comment='Includes Loctite, Epoxy, Tape, etc.')
+    PartClass.objects.get_or_create(code=201, name='Battery/Charger', comment='')
+    PartClass.objects.get_or_create(code=202, name='Cable & Wire', comment='')
+    PartClass.objects.get_or_create(code=203, name='Connector, Cable/Harness', comment='')
+    PartClass.objects.get_or_create(code=204, name='Connector, PC Mountable', comment='')
+    PartClass.objects.get_or_create(code=205, name='Connector, Misc', comment='')
+    PartClass.objects.get_or_create(code=206, name='Cable Hardware', comment='Includes Clamps, Ties, etc.')
+    PartClass.objects.get_or_create(code=207, name='Capacitor', comment='')
+    PartClass.objects.get_or_create(code=208, name='Circuit Breaker/Filter', comment='')
+    PartClass.objects.get_or_create(code=209, name='Crystal', comment='')
+    PartClass.objects.get_or_create(code=210, name='Delay Line', comment='')
+    PartClass.objects.get_or_create(code=211, name='Diode', comment='')
+    PartClass.objects.get_or_create(code=212, name='Fan & Fan Accessories', comment='')
+    PartClass.objects.get_or_create(code=213, name='Fuse & Fuse Hardware', comment='')
+    PartClass.objects.get_or_create(code=214, name='Hardware',
+                                    comment='Includes Screws, Nuts, Washers, Springs, Std-offs, Inserts, Fasteners, etc')
+    PartClass.objects.get_or_create(code=215, name='Heatsink', comment='')
+    PartClass.objects.get_or_create(code=216, name='IC', comment='')
+    PartClass.objects.get_or_create(code=217, name='Inductor', comment='')
+    PartClass.objects.get_or_create(code=218, name='Insulator', comment='')
+    PartClass.objects.get_or_create(code=219, name='Label', comment='')
+    PartClass.objects.get_or_create(code=220, name='Led', comment='/Light')
+    PartClass.objects.get_or_create(code=221, name='Packaging Material',
+                                    comment='Includes Bags, Boxes, Pallets, etc. Non-Custom only.')
+    PartClass.objects.get_or_create(code=222, name='Rectifier', comment='')
+    PartClass.objects.get_or_create(code=223, name='Resistor', comment='')
+    PartClass.objects.get_or_create(code=224, name='Resistor Network', comment='')
+    PartClass.objects.get_or_create(code=225, name='Socket', comment='')
+    PartClass.objects.get_or_create(code=226, name='Switch', comment='')
+    PartClass.objects.get_or_create(code=227, name='Terminal', comment='Includes Ring, Spade, Butt, etc.')
+    PartClass.objects.get_or_create(code=228, name='Transformer', comment='')
+    PartClass.objects.get_or_create(code=229, name='Transistor', comment='')
+    PartClass.objects.get_or_create(code=230, name='Tubing', comment='All types')
+    PartClass.objects.get_or_create(code=231, name='Sensor', comment='')
+    PartClass.objects.get_or_create(code=232, name='Power Supply', comment='')
+    PartClass.objects.get_or_create(code=233, name='Enclosures', comment='Off-The-Shelf Enclosures')
+    PartClass.objects.get_or_create(code=234, name='Varistor', comment='')
+    PartClass.objects.get_or_create(code=235, name='Ferrites', comment='')
+    PartClass.objects.get_or_create(code=236, name='Suppressor', comment='')
+    PartClass.objects.get_or_create(code=237, name='Misc Material', comment='')
+    PartClass.objects.get_or_create(code=238, name='Electronic Assy (Non-Custom)', comment='')
+    PartClass.objects.get_or_create(code=239, name='Antenna', comment='')
