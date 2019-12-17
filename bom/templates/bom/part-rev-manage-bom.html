@@ -31,21 +31,12 @@
                     </button>
                 </div>
                 <div class="col s6 right-align">
-                    <!-- Dropdown Trigger -->
-                    <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#'
-                            data-target='dropdown{{ part.id }}'>Options
-                    </button>
-                    <!-- Dropdown Structure -->
-                    <ul id='dropdown{{ part.id }}' class='dropdown-content'>
-                        {% if profile.role == 'A' %}
-                            <li><a class="waves-effect red-text text-lighten-2"
-                                   href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
-                                   onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove
-                                All Subparts</a>
-                            </li>
-
-                        {% endif %}
-                    </ul>
+                    {% if profile.role == 'A' %}
+                    <a class="waves-effect waves-green grey lighten-4 btn-flat red-text"
+                           href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
+                           onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts
+                    </a>
+                    {% endif %}
                 </div>
             </div>
 
@@ -57,15 +48,18 @@
                         <th>Level</th>
                         <th>Part No.</th>
                         <th>Qty</th>
-                        <th>Description</th>
+                        <th>Part Class</th>
+                        <th>Reference</th>
+                        <th>DNL</th>
+                        <th>Synopsis</th>
                         <th>Rev</th>
                         <th>Manufacturer</th>
                         <th>MPN</th>
-                        <th>Reference</th>
+
                         <!-- <th>Seller</th> -->
                         <!-- <th>Price</th> -->
                         {% if profile.role == 'A' %}
-                            <th>Options</th>
+                            <th>Manage</th>
                         {% endif %}
                     </tr>
                     </thead>
@@ -76,20 +70,21 @@
                             <td class="text-normal">{{ subpart.indent_level }}</td>
                             <td>{{ subpart.part.full_part_number }}</td>
                             <td>{{ subpart.quantity }}</td>
-                            <td>{{ subpart.part.description }}</td>
+                            <td>{{ subpart.part.number_class.name }}</td>
+                            <td>{{ subpart.reference }}</td>
+                            <td>{% if subpart.dnl %}x{% endif %}</td>
+                            <td>{{ subpart.part_revision.synopsis }}</td>
                             <td>{{ subpart.part_revision.revision }}</td>
                             <td>{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
                             <td>{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                            <td>{{ subpart.reference }}</td>
                             <!-- <td>{{ subpart.seller_part.seller.name | default:"-" }}</td> -->
                             <!-- <td>{{ subpart.seller_price | default:"-"}}</td> -->
                             {% if subpart.indent_level == 1 and subpart.subpart is not None %}
                                 <td>
                                     <a class='dropdown-trigger' href='#'
-                                       data-target='dropdown{{ subpart.part_revision.id }}'><i
-                                            class="material-icons green-text text-lighten-1">more_horiz</i></a>
+                                       data-target='dropdown{{ subpart.subpart.id }}'><i class="material-icons left ">menu</i></a>
                                     <!-- Dropdown Structure -->
-                                    <ul id='dropdown{{ subpart.part_revision.id }}' class='dropdown-content'>
+                                    <ul id='dropdown{{ subpart.subpart.id }}' class='dropdown-content'>
                                         <li><a class="green-text text-lighten-1"
                                                href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}"><i
                                                 class="material-icons green-text text-lighten-1">edit</i>Edit or Change
@@ -115,9 +110,10 @@
                 <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}"
                       method="post" class="col s12">
                     {% csrf_token %}
-                    {{ add_subpart_form.subpart_part }}
-                    {{ add_subpart_form.count|materializecss:'m6 s12' }}
-                    {{ add_subpart_form.reference|materializecss:'m6 s12' }}
+                    {{ add_subpart_form.subpart_part_number|materializecss:'m4 s12' }}
+                    {{ add_subpart_form.count|materializecss:'m1 s12' }}
+                    {{ add_subpart_form.dnl|materializecss:'m2 s12' }}
+                    {{ add_subpart_form.reference|materializecss:'m4 s12' }}
                     <div class="fieldWrapper">
                         <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">add
                         </button>
@@ -129,7 +125,8 @@
                 <b>part_number</b> <i>or</i> <b>manufacturer_part_number</b> and <b>quantity</b>; the 'part_number' or
                 'manufacturer_part_number' column must contain part numbers that have already been created in this
                 system.</p>
-            <p>Additional fields include 'reference' or 'designator' to add a reference field to the subpart; 'dnp' if
+            <p>Additional fields include 'reference' or 'designator' to add a reference field to the subpart; 
+               'dnl' if you don't want the part loaded into the assembly that contains it; 'dnp' if
                 you don't want to upload the part to IndaBOM.</p>
             <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
                 {% csrf_token %}

@@ -1,3 +1,4 @@
+
 {% extends BASE_TEMPLATE %}
 
 {% load staticfiles %}
@@ -13,18 +14,21 @@
 <li><a href="{% url 'bom:part-info' part_id=part.id %}">Cancel</a></li>
 {% endblock%}
 
+{% if profile.role == 'A' %}
 {% block content %}
 <div class="row">
     <form action="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}" method="post" class="col s12">
-    	<div class="row">
         {% csrf_token %}
-		{{ form|materializecss:'m6 s12' }}
-		</div>
+        {{ part_form.non_field_errors }}
         <div class="row">
             <div class="col s12">
-                <i>Want to manage this revision's bill of materials? <a href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">Click here</a>.</i>
+                <i>Edit this revision's properties below, or click <a href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">here</a> 
+if you want to manage this revision's bill of materials.</i>
             </div>
         </div>
+        
+        {% include 'bom/part-revision-display.html' with part_revision_form=form %}
+        		
 		<div class="row">
 	        <div class="col s6">
                 <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
@@ -36,3 +40,4 @@
     </form>
 </div>
 {% endblock %}
+{% endif %}
