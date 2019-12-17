@@ -14,36 +14,44 @@
 {% endblock%}
 
 {% block content %}
+{% if profile.role == 'A' %}
 {% if h1 %}<h2 class="light" style="margin-top: 0px;">{{h1}}</h2>{% endif %}
-    <form name="seller" action="{{ action }}" method="post" class="col s12">
-    	<div class="row">
-        {% csrf_token %}
-		{{ form|materializecss:'m6 s12' }}
-		</div>
-        {%  if used_part_revisions.count  > 0 %}
-        <div class="row">
-            <div class="col s12">
-                <h5>This part is used by {{ used_part_revisions.count }} working parent assemblies. Select any parent assemblies you want to roll this revision into:</h5>
-                <div class="collection">
-                {% for upr in used_part_revisions %}
-                    <div class="collection-item">
-                    <label>
-                        <input type="checkbox" name="roll" value="{{ upr.id }}" />
-                        <span>{{ upr.part.full_part_number }} Rev {{ upr.revision }} {{ upr.description }} <a href="{% url 'bom:part-info-history' part_id=upr.part.id part_revision_id=upr.id %}" target="_blank">[view]</a></span>
-                    </label>
-                    </div>
-                {% endfor %}
+<form name="seller" action="{{ action }}" method="post" class="col s12">
+    <div class="row">
+    {% csrf_token %}
+    
+    {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_new_form %}
+    
+    {{ part_revision_new_form.copy_assembly|materializecss:'m6 s12' }}
+
+    </div>
+    {%  if used_part_revisions.count  > 0 %}
+    <div class="row">
+        <div class="col s12">
+            <h5>This part is used by {{ used_part_revisions.count }} working parent assemblies. Select any parent assemblies you want to roll this revision into:</h5>
+            <div class="collection">
+            {% for upr in used_part_revisions %}
+                <div class="collection-item">
+                <label>
+                    <input type="checkbox" name="roll" value="{{ upr.id }}" />
+                    <span>{{ upr.part.full_part_number }} Rev {{ upr.revision }} {{ upr.description }} <a href="{% url 'bom:part-info-history' part_id=upr.part.id part_revision_id=upr.id %}" target="_blank">[view]</a></span>
+                </label>
                 </div>
+            {% endfor %}
             </div>
         </div>
-        {% endif %}
-            <div class="row">
-	        <div class="col s6">
-                <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
-            </div>
-            <div class="col s6 right-align">
-	        	<button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
-	    	</div>
-    	</div>
-    </form>
+    </div>
+    {% endif %}
+    <div class="row">
+        <div class="col s6">
+            <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
+        </div>
+        <div class="col s6 right-align">
+            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+        </div>
+    </div>
+</form>
+{% else %}
+{% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+{% endif %}
 {% endblock %}

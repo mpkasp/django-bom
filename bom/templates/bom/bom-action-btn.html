@@ -3,6 +3,7 @@
 {% load staticfiles %}
 
 {% block action-btn %}
+{% if profile.role == 'A' %}
   <div class="fixed-action-btn">
     <a class="btn-floating btn-large red">
       <i class="large material-icons">add</i>
@@ -19,4 +20,6 @@
       $('.tooltipped').tooltip();
     });
   </script>
+{% endif %}
 {% endblock %}
+

@@ -13,6 +13,7 @@
 {% endblock%}
 
 {% block content %}
+{% if profile.role == 'A' %}
 <div class="row">
     <form action="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}" method="post" class="col s12">
         {% csrf_token %}
@@ -54,4 +55,7 @@
     	</div>
     </form>
 </div>
+{% else %}
+{% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+{% endif %}
 {% endblock %}

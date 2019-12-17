@@ -14,6 +14,7 @@
 {% endblock%}
 
 {% block content %}
+{% if profile.role == 'A' %}
 <h5>{{ manufacturer_part.part.full_part_number }} {{ manufacturer_part.part.description }}</h5>
 
 <div class="row">
@@ -80,4 +81,7 @@
     	</div>
     </form>
 </div>
+{% else %}
+{% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+{% endif %}
 {% endblock %}

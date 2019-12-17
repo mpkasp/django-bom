@@ -12,10 +12,21 @@
 <li><a href="{% url 'bom:home' %}">Cancel</a></li>
 {% endblock%}
 
-{% block content %}
-<h5>Upload Parts</h5>
 
-<p>To batch add parts, upload a csv that contains at least three columns with the headers: <b>'part_class'</b>, <b>'description'</b>, and <b>'revision'</b> at a minimum. You may also specify a 'manufacturer_part_number' and a 'manufacturer'. If neither is specified the manufacturer_part_number will default to the generated part number, and the manufacturer will default to your organization.</i></p>
+{% block content %}
+{% if profile.role == 'A' %}
+<h5>Upload Parts</h5>
+    <p>To batch create parts, upload a csv that contains columns with the headers  
+    <b>'part_class'</b> or </b>'part_number'</b>, <b>'description'</b> or <b>'value'</b> 
+    along with <b>'value_units'</b>, and <b>'revision'</b>. If you specify a part number 
+    then it must be one that is not already being used. If you don't specify a part number 
+    then IndaBOM will create one for you.
+    </p>
+    </p>
+    You may optionally specify a manufacturer and manufacturer's part number using 
+    columns with the headers <b>'manufacturer'</b> and a <b>'manufacturer_part_number'</b>. 
+    For the names of other optional columns click <a href="{% url 'bom:upload-parts-help' %}">here</a>.
+    </p> 
 <form action="{% url 'bom:upload-parts' %}" method="post" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="row">
@@ -34,19 +45,8 @@
         </div>
     </div>
 </form>
-<h5>Part Classes Available</h5>
-<table>
-    <thead>
-        <th class="tighter text-normal">Code</th>
-        <th class="tighter text-normal">Name</th>
-        <th class="tighter text-normal">Description</th>
-    </thead>
-    {% for partclass in partclasses %}
-    <tbody>
-        <td class="tighter text-normal">{{ partclass.code }}</td>
-        <td class="tighter text-normal">{{ partclass.name }}</td>
-        <td class="tighter text-normal">{{ partclass.comment }}</td>
-    </tbody>
-    {% endfor %}
-</table>
+{% else %}
+{% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+{% endif %}
 {% endblock %}
+

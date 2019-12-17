@@ -13,6 +13,7 @@
 {% endblock%}
 
 {% block content %}
+{% if profile.role == 'A' %}
     <form name="seller" action="{{ action }}" method="post" class="col s12">
     {% csrf_token %}
     	<div class="row">
@@ -36,4 +37,7 @@
 	    	</div>
     	</div>
     </form>
+{% else %}
+{% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+{% endif %}
 {% endblock %}
