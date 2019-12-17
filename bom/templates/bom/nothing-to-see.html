@@ -1,0 +1,15 @@
+{% comment %}
+
+This file is intended to be used as a Django include file for the purpose of displaying
+the nothing-to-see-here message:
+
+    {% include 'bom/nothing-to-see.html' required_privilege=PPP %}
+ 
+ where UUU is the includee's user profile variable for the currently logged-in user and PPP 
+ is a string that denotes the role that user must have in order to gain access.
+
+{% endcomment %}
+
+
+<p>Nothing to see here 🙈 because you do not have {{ required_privilege }} privileges. Please contact {{ organization }}'s IndaBOM owner 
+<a href="mailto:{{ profile.organization.owner.email }}">{{ profile.organization.owner.email }}</a> for assistance</p>
