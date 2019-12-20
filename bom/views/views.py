@@ -53,20 +53,15 @@ def home(request):
     title = '{}Parts List'.format(organization.name + ' ')
 
     delete_parts_enabled = False
-    query = ''
+    query = request.POST.get('q', '')
 
     if request.method == 'POST':
         part_class_selection_form = PartClassSelectionForm(request.POST, organization=organization)
-        if 'submit-search-query' in request.POST:
-            query = request.POST.get('q', '')
-        elif 'submit-enable-delete-parts' in request.POST:
-            query = request.POST.get('q', '')
+        if 'submit-enable-delete-parts' in request.POST:
             delete_parts_enabled = True
         elif 'submit-disable-delete-parts' in request.POST:
-            query = request.POST.get('q', '')
             delete_parts_enabled = False
         elif 'submit-part-delete' in request.POST:
-            query = request.POST.get('q', '')
             for item in request.POST:
                 if 'delete_part_id_' in item:
                     part_id = item.partition('delete_part_id_')[2]
@@ -77,9 +72,7 @@ def home(request):
                         messages.error(request, "No part found with given id {}.".format(part_id))
         # Note that posting a PartClass selection does not include a named parameter in
         # the POST, so this case is the de facto "else" clause.
-
     else:
-        query = request.GET.get('q', '')
         part_class_selection_form = PartClassSelectionForm(request.GET, organization=organization)
 
     if part_class_selection_form.is_valid():
@@ -126,7 +119,7 @@ def home(request):
     autocomplete = dumps(autocomplete_dict)
 
     if query:
-        query = query.strip()
+        query_stripped = query.strip()
 
         # Parse terms separated by white space but keep together words inside of double quotes,
         # for example 
@@ -134,10 +127,10 @@ def home(request):
         # is parsed as 'Big Company Inc.' while 
         #    Big Company Inc.
         # is parsed as 'Big' 'Company' 'Inc.'
-        search_terms = query
+        search_terms = query_stripped
         search_terms = list(smart_split(search_terms))
         search_terms = [search_term.replace('"', '') for search_term in search_terms]
-        noqoutes_query = query.replace('"', '')
+        noqoutes_query = query_stripped.replace('"', '')
 
         number_class = None
         number_item = None
@@ -185,7 +178,6 @@ def home(request):
         part_revs = PartRevision.objects.raw(q)
 
     if part_class or query:
-        filtered_part_revs = part_revs
         if 'download' in request.POST:
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = 'attachment; filename="indabom_parts_search.csv"'
@@ -198,7 +190,7 @@ def home(request):
                 'part_manufacturer_part_number', ]
             writer = csv.DictWriter(response, fieldnames=fieldnames)
             writer.writeheader()
-            for part_rev in filtered_part_revs:
+            for part_rev in part_revs:
                 row = {
                     'part_number': part_rev.part.full_part_number(),
                     'part_category': part_rev.part.number_class.name,
@@ -213,7 +205,7 @@ def home(request):
 
     paginator = Paginator(part_revs, 50)
 
-    page = request.POST.get('page')
+    page = request.GET.get('page')
     try:
         part_revs = paginator.page(page)
     except PageNotAnInteger:

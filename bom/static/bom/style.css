@@ -179,6 +179,11 @@ table.treetable tr.expanded span.indenter a {
     color: #98ee99;
 }
 
+.btn-icon-round {
+    border-radius: 50%;
+    padding: 0 8px;
+}
+
 
 /* Specific Styling */
 .part-info-form input {
