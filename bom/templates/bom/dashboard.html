@@ -53,7 +53,9 @@
             </div>
             <div class="col s12 m2">
                 <button type="submit" class="waves-effect waves-green btn green lighten-1 input-field" name="action">Submit</button>
+                {% if part_class or query %}
                 <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
+                {% endif %}
                 <a class="waves-effect waves-green btn-flat input-field btn-icon-round" href="{% url 'bom:search-help' %}"><i class="material-icons">help</i></a>
             </div>
         </div>
@@ -63,9 +65,9 @@
             <div class="col s6">
                 {% if profile.role == 'A' %}
                     {% if delete_parts_enabled %}
-                        <button class="waves-effect waves-light btn grey lighten-1" name="submit-disable-delete-parts">Unshow parts delete</button>
+                        <button class="waves-effect waves-light btn grey lighten-1" name="submit-enable-delete-parts" value="">Unshow parts delete</button>
                     {% else %}
-                        <button class="waves-effect waves-light btn grey lighten-1" name="submit-enable-delete-parts">Show parts delete</button>
+                        <button class="waves-effect waves-light btn grey lighten-1" name="submit-enable-delete-parts" value="True">Show parts delete</button>
                     {% endif %}
                 {% endif %}
             </div>
@@ -253,6 +255,7 @@
     <script type='text/javascript'>
         function clearSearchExpression() {
             document.getElementById("autocomplete-input").value = ""
+            $('select[name="part_class"]').val('')
             $('#searchForm').submit();
         }
     </script>

@@ -52,16 +52,12 @@ def home(request):
 
     title = '{}Parts List'.format(organization.name + ' ')
 
-    delete_parts_enabled = False
+    delete_parts_enabled = True if request.POST.get('submit-enable-delete-parts', False) == 'True' else False
     query = request.POST.get('q', '')
 
     if request.method == 'POST':
         part_class_selection_form = PartClassSelectionForm(request.POST, organization=organization)
-        if 'submit-enable-delete-parts' in request.POST:
-            delete_parts_enabled = True
-        elif 'submit-disable-delete-parts' in request.POST:
-            delete_parts_enabled = False
-        elif 'submit-part-delete' in request.POST:
+        if 'submit-part-delete' in request.POST:
             for item in request.POST:
                 if 'delete_part_id_' in item:
                     part_id = item.partition('delete_part_id_')[2]
@@ -102,7 +98,7 @@ def home(request):
     part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
     q = part_rev_query.format(part_list)
     part_revs = PartRevision.objects.raw(q)
-
+    pr1 = PartRevision.objects.first()
     manufacturer_part = ManufacturerPart.objects.filter(part__in=parts)
 
     autocomplete_dict = {}
@@ -143,11 +139,8 @@ def home(request):
             except AttributeError:
                 pass
 
-                # Query searchable_synopsis by OR'ing search terms
-        part_synopsis_ids = PartRevision.objects.filter(
-            reduce(operator.or_, (Q(searchable_synopsis__icontains=term) for term in search_terms))
-        ).values_list("part", flat=True)
-
+        # Query searchable_synopsis by OR'ing search terms
+        part_synopsis_ids = PartRevision.objects.filter(reduce(operator.or_, (Q(searchable_synopsis__icontains=term) for term in search_terms))).values_list("part", flat=True)
         # Prepare Part.primary_manufacturer_part.manufacturer_part_number query by OR'ing search terms
         q_primary_mpn = reduce(operator.or_, (Q(primary_manufacturer_part__manufacturer_part_number__icontains=term) for term in search_terms))
 
