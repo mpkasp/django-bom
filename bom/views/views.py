@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 def home(request):
     profile = request.user.bom_profile()
     organization = profile.organization
-    
+
     if profile.organization is None:
         if request.user.first_name == '' and request.user.last_name == '':
             org_name = request.user.username
@@ -55,13 +55,13 @@ def home(request):
         profile.save()
 
     title = '{}Parts List'.format(organization.name + ' ')
- 
+
     delete_parts_enabled = False
     query = ''
-    
+
     if request.method == 'POST':
-        part_class_selection_form = PartClassSelectionForm(request.POST, organization=organization)  
-        if 'submit-search-query' in request.POST:      
+        part_class_selection_form = PartClassSelectionForm(request.POST, organization=organization)
+        if 'submit-search-query' in request.POST:
             query = request.POST.get('q', '')
         elif 'submit-enable-delete-parts' in request.POST:
             query = request.POST.get('q', '')
@@ -69,7 +69,7 @@ def home(request):
         elif 'submit-disable-delete-parts' in request.POST:
             query = request.POST.get('q', '')
             delete_parts_enabled = False
-        elif 'submit-part-delete' in request.POST: 
+        elif 'submit-part-delete' in request.POST:
             query = request.POST.get('q', '')
             for item in request.POST:
                 if 'delete_part_id_' in item:
@@ -81,7 +81,7 @@ def home(request):
                         messages.error(request, "No part found with given id {}.".format(part_id))
         # Note that posting a PartClass selection does not include a named parameter in
         # the POST, so this case is the de facto "else" clause.
-        
+
     else:
         query = request.GET.get('q', '')
         part_class_selection_form = PartClassSelectionForm(request.GET, organization=organization)
@@ -93,13 +93,13 @@ def home(request):
 
     if part_class:
         parts = Part.objects.filter(
-                Q(organization=organization) & 
-                Q(number_class__code=part_class.code)
-            ).order_by('number_item', 'number_variation')
+            Q(organization=organization) &
+            Q(number_class__code=part_class.code)
+        ).order_by('number_item', 'number_variation')
     else:
         parts = Part.objects.filter(
-                Q(organization=organization)
-            ).order_by('number_item', 'number_variation')
+            Q(organization=organization)
+        ).order_by('number_item', 'number_variation')
 
     part_ids = list(parts.values_list('id', flat=True))
 
@@ -128,7 +128,7 @@ def home(request):
             autocomplete_dict.update({mpn.manufacturer.name.replace('"', ''): None})
 
     autocomplete = dumps(autocomplete_dict)
-    
+
     if query:
         query = query.strip()
 
@@ -142,29 +142,29 @@ def home(request):
         search_terms = list(smart_split(search_terms))
         search_terms = [search_term.replace('"', '') for search_term in search_terms]
         noqoutes_query = query.replace('"', '')
-        
+
         number_class = None
         number_item = None
         number_variation = None
-        
+
         # Scan for search terms that might represent a complete or partial part number
         for search_term in search_terms:
             try:
                 (number_class, number_item, number_variation) = Part.parse_partial_part_number(search_term, organization.number_item_len)
             except AttributeError:
-                pass  
-        
-        # Query searchable_synopsis by OR'ing search terms
+                pass
+
+                # Query searchable_synopsis by OR'ing search terms
         part_synopsis_ids = PartRevision.objects.filter(
-                reduce(operator.or_, (Q(searchable_synopsis__icontains=term) for term in search_terms))
-            ).values_list("part", flat=True)
-        
+            reduce(operator.or_, (Q(searchable_synopsis__icontains=term) for term in search_terms))
+        ).values_list("part", flat=True)
+
         # Prepare Part.primary_manufacturer_part.manufacturer_part_number query by OR'ing search terms
         q_primary_mpn = reduce(operator.or_, (Q(primary_manufacturer_part__manufacturer_part_number__icontains=term) for term in search_terms))
-    
+
         # Prepare Part.primary_manufacturer.part__manufacturer.name query by OR'ing search terms
         q_primary_mfg = reduce(operator.or_, (Q(primary_manufacturer_part__manufacturer__name__icontains=term) for term in search_terms))
-             
+
         if number_class and number_item and number_variation:
             parts = parts.filter(
                 Q(number_class__code=number_class, number_item=number_item, number_variation=number_variation) |
@@ -180,7 +180,7 @@ def home(request):
         else:
             parts = parts.filter(
                 Q(id__in=part_synopsis_ids) |
-                q_primary_mpn | 
+                q_primary_mpn |
                 q_primary_mfg)
 
         part_ids = list(parts.values_list('id', flat=True))
@@ -189,7 +189,7 @@ def home(request):
         part_revs = PartRevision.objects.raw(q)
 
     if part_class or query:
-        filtered_part_revs = part_revs        
+        filtered_part_revs = part_revs
         if 'download' in request.POST:
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = 'attachment; filename="indabom_parts_search.csv"'
@@ -209,9 +209,9 @@ def home(request):
                     'part_synopsis': part_rev.synopsis(),
                     'part_revision': part_rev.revision,
                     'part_manufacturer': part_rev.part.primary_manufacturer_part.manufacturer.name if part_rev.part.primary_manufacturer_part is not None and
-                                                                                                     part_rev.part.primary_manufacturer_part.manufacturer is not None else '',
+                                                                                                      part_rev.part.primary_manufacturer_part.manufacturer is not None else '',
                     'part_manufacturer_part_number': part_rev.part.primary_manufacturer_part.manufacturer_part_number if part_rev.part.primary_manufacturer_part is not None else '',
-                 }
+                }
                 writer.writerow({k: smart_str(v) for k, v in row.items()})
             return response
 
@@ -226,7 +226,7 @@ def home(request):
         part_revs = paginator.page(paginator.num_pages)
 
     return TemplateResponse(request, 'bom/dashboard.html', locals())
-    
+
 
 def error(request):
     msgs = messages.get_messages(request)
@@ -236,7 +236,7 @@ def error(request):
 @login_required
 def search_help(request):
     return TemplateResponse(request, 'bom/search-help.html', locals())
-    
+
 
 @login_required
 def bom_signup(request):
@@ -257,7 +257,7 @@ def bom_settings(request, tab_anchor=None):
     organization = profile.organization
     title = 'Settings'
     action = reverse('bom:settings')
-    
+
     part_classes = PartClass.objects.all().filter(organization=organization)
 
     users_in_organization = User.objects.filter(
@@ -272,13 +272,13 @@ def bom_settings(request, tab_anchor=None):
     number_item_len_form = NumberItemLenForm(organization=organization)
     part_class_form = PartClassForm()
     part_class_csv_form = PartClassCSVForm(organization=organization)
-    
+
     USER_TAB = 'user'
     ORGANIZATION_TAB = 'organization'
     INDABOM_TAB = 'indabom'
-        
+
     if request.method == 'POST':
-    
+
         if 'submit-edit-user' in request.POST:
             tab_anchor = USER_TAB
             user_form = UserForm(request.POST, instance=user)
@@ -286,11 +286,11 @@ def bom_settings(request, tab_anchor=None):
                 user = user_form.save()
             else:
                 messages.error(request, user_form.errors)
-                
+
         elif 'refresh-edit-user' in request.POST:
             tab_anchor = USER_TAB
             user_form = UserForm(instance=user)
-            
+
         elif 'submit-add-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             user_add_form = UserAddForm(request.POST, organization=organization)
@@ -298,11 +298,11 @@ def bom_settings(request, tab_anchor=None):
                 user_add_form.save()
             else:
                 messages.error(request, user_add_form.errors)
-            
+
         elif 'clear-add-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             user_add_form = UserAddForm()
-            
+
         elif 'submit-remove-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             for item in request.POST:
@@ -323,11 +323,11 @@ def bom_settings(request, tab_anchor=None):
                 organization_form.save()
             else:
                 messages.error(request, organization_form.errors)
-                
+
         elif 'refresh-edit-organization' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             organization_form = OrganizationForm(organization=organization)
-                
+
         elif 'submit-number-item-len' in request.POST:
             tab_anchor = INDABOM_TAB
             number_item_len_form = NumberItemLenForm(request.POST, organization=organization)
@@ -335,23 +335,23 @@ def bom_settings(request, tab_anchor=None):
                 number_item_len_form.save()
             else:
                 messages.error(request, number_item_len_form.errors)
-                
+
         elif 'refresh-number-item-len' in request.POST:
             tab_anchor = INDABOM_TAB
             number_item_len_form = NumberItemLenForm(organization=organization)
-            
+
         elif 'submit-part-class-create' in request.POST:
             tab_anchor = INDABOM_TAB
             part_class_form = PartClassForm(request.POST, request.FILES, organization=organization)
             if part_class_form.is_valid():
                 part_class_form.save()
             else:
-                messages.error(request, part_class_form.errors) 
-                
+                messages.error(request, part_class_form.errors)
+
         elif 'cancel-part-class-create' in request.POST:
             tab_anchor = INDABOM_TAB
             part_class_form = PartClassForm()
-            
+
         elif 'submit-part-class-upload' in request.POST and request.FILES['file'] is not None:
             tab_anchor = INDABOM_TAB
             part_class_csv_form = PartClassCSVForm(request.POST, request.FILES, organization=organization)
@@ -361,9 +361,9 @@ def bom_settings(request, tab_anchor=None):
                 for warning in part_class_csv_form.warnings:
                     messages.warning(request, warning)
             else:
-                messages.error(request, part_class_csv_form.errors) 
-                
-        elif 'submit-part-class-delete' in request.POST: 
+                messages.error(request, part_class_csv_form.errors)
+
+        elif 'submit-part-class-delete' in request.POST:
             tab_anchor = INDABOM_TAB
             for item in request.POST:
                 if 'delete_part_class_id_' in item:
@@ -374,21 +374,21 @@ def bom_settings(request, tab_anchor=None):
                     except PartClass.DoesNotExist:
                         messages.error(request, "No part class found with given id {}.".format(part_class_id))
                     except ProtectedError:
-                       messages.error(request, "Cannot delete part class {} because it has parts. You must delete those parts first.".format(part_class))
-                                            
+                        messages.error(request, "Cannot delete part class {} because it has parts. You must delete those parts first.".format(part_class))
+
     return TemplateResponse(request, 'bom/settings.html', locals())
-    
+
 
 @login_required
 def user_meta_edit(request, user_meta_id):
     user = request.user
     profile = user.bom_profile()
-    organization = profile.organization        
+    organization = profile.organization
 
     user_meta = get_object_or_404(UserMeta, pk=user_meta_id)
     user_meta_user = get_object_or_404(User, pk=user_meta.user.id)
     title = 'Edit User {}'.format(user_meta.user.__str__())
-        
+
     if request.method == 'POST':
         user_meta_user_form = UserForm(request.POST, instance=user_meta_user)
         if user_meta_user_form.is_valid():
@@ -405,7 +405,7 @@ def user_meta_edit(request, user_meta_id):
         user_meta_form = UserMetaForm(instance=user_meta, organization=organization)
 
     return TemplateResponse(request, 'bom/edit-user-meta.html', locals())
-    
+
 
 @login_required
 def part_info(request, part_id, part_revision_id=None):
@@ -424,7 +424,7 @@ def part_info(request, part_id, part_revision_id=None):
     else:
         part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     selected_rev_is_latest = True if part_revision.revision == part.latest().revision else False
-    
+
     revisions = PartRevision.objects.filter(part=part_id).order_by('-id')
 
     if part.organization != organization:
@@ -445,7 +445,7 @@ def part_info(request, part_id, part_revision_id=None):
 
     try:
         parts = part_revision.indented()
-        
+
     except RuntimeError:
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         parts = []
@@ -465,7 +465,7 @@ def part_info(request, part_id, part_revision_id=None):
         item['extended_quantity'] = extended_quantity
 
         subpart = item['part']
-                     
+
         seller = subpart.optimal_seller(quantity=extended_quantity)
         order_qty = extended_quantity
         if seller is not None and seller.minimum_order_quantity is not None and extended_quantity > seller.minimum_order_quantity:
@@ -502,7 +502,7 @@ def part_info(request, part_id, part_revision_id=None):
     total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
 
     if len(duplicate_references) > 0:
-        sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely) 
+        sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)
         messages.warning(request, "Warning: The following BOM references are associated with multiple parts: " + str(sorted_duplicate_references))
 
     try:
@@ -548,7 +548,7 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_indented.csv"'.format(
         part.full_part_number())
 
-    bom = part_revision.indented() 
+    bom = part_revision.indented()
 
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 1000)
@@ -645,7 +645,7 @@ def part_export_bom_flat(request, part_revision_id):
     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_flat.csv"'.format(
         part_revision.part.full_part_number())
 
-    bom = part_revision.flat()  
+    bom = part_revision.flat()
 
     # As compared to indented bom, show all references for a subpart as a single item and
     # don't show do_not_load status at all because it won't be clear as to which subpart reference
@@ -722,9 +722,9 @@ def upload_bom(request):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     if request.method == 'POST' and request.FILES['file'] is not None:
-        upload_bom_form = UploadBOMForm(request.POST, organization=organization)    
+        upload_bom_form = UploadBOMForm(request.POST, organization=organization)
         if upload_bom_form.is_valid():
             bom_csv_form = BOMCSVForm(request.POST, request.FILES, parent_part=upload_bom_form.parent_part, organization=organization)
             if bom_csv_form.is_valid():
@@ -733,13 +733,13 @@ def upload_bom(request):
                 for warning in bom_csv_form.warnings:
                     messages.info(request, warning)
             else:
-                messages.error(request, bom_csv_form.errors)              
+                messages.error(request, bom_csv_form.errors)
         else:
-            messages.error(request, upload_bom_form.errors)              
+            messages.error(request, upload_bom_form.errors)
     else:
         upload_bom_form = UploadBOMForm(initial={'organization': organization})
         bom_csv_form = BOMCSVForm()
-        
+
     return TemplateResponse(request, 'bom/upload-bom.html', locals())
 
 
@@ -748,7 +748,7 @@ def part_upload_bom(request, part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     try:
         parent_part = Part.objects.get(id=part_id)
     except Part.DoesNotExist:
@@ -763,23 +763,23 @@ def part_upload_bom(request, part_id):
             for warning in bom_csv_form.warnings:
                 messages.info(request, warning)
         else:
-            messages.error(request, bom_csv_form.errors)                           
+            messages.error(request, bom_csv_form.errors)
     else:
         upload_bom_form = UploadBOMForm(initial={'organization': organization})
         bom_csv_form = BOMCSVForm()
-        
+
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
-    
+
 
 @login_required
 def upload_part_classes(request):
     user = request.user
     profile = user.bom_profile()
-    organization = profile.organization    
+    organization = profile.organization
     title = 'Upload Part Classes'
-    
+
     part_classes = PartClass.objects.all().filter(organization=organization)
-    
+
     if request.method == 'POST' and request.FILES['file'] is not None:
         form = PartClassCSVForm(request.POST, request.FILES, organization=organization)
         if form.is_valid():
@@ -788,18 +788,18 @@ def upload_part_classes(request):
             for warning in form.warnings:
                 messages.warning(request, warning)
         else:
-            messages.error(request, form.errors)  
+            messages.error(request, form.errors)
     else:
         form = PartClassCSVForm()
         return TemplateResponse(request, 'bom/upload-part-classes.html', locals())
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
-    
+
 
 @login_required
 def upload_parts_help(request):
     return TemplateResponse(request, 'bom/upload-parts-help.html', locals())
-    
+
 
 @login_required
 def upload_parts(request):
@@ -807,7 +807,7 @@ def upload_parts(request):
     profile = user.bom_profile()
     organization = profile.organization
     title = 'Upload Parts'
-    
+
     if request.method == 'POST' and request.FILES['file'] is not None:
         form = PartCSVForm(request.POST, request.FILES, organization=organization)
         if form.is_valid():
@@ -816,7 +816,7 @@ def upload_parts(request):
             for warning in form.warnings:
                 messages.warning(request, warning)
         else:
-            messages.error(request, form.errors)  
+            messages.error(request, form.errors)
     else:
         form = FileForm()
         return TemplateResponse(request, 'bom/upload-parts.html', locals())
@@ -872,7 +872,7 @@ def create_part(request):
     organization = profile.organization
 
     organization_item_number_ns = "N" * organization.number_item_len
-    
+
     title = 'Create New Part'
 
     if request.method == 'POST':
@@ -898,7 +898,7 @@ def create_part(request):
             elif old_manufacturer or new_manufacturer_name != '':
                 messages.warning(request,
                                  "No manufacturer was selected or created, no manufacturer part number was assigned.")
-            
+
             new_part = part_form.save(commit=False)
             new_part.organization = organization
             try:
@@ -911,21 +911,21 @@ def create_part(request):
                 return TemplateResponse(request, 'bom/create-part.html', locals())
             except Part.DoesNotExist:
                 pass
- 
+
             if part_revision_form.is_valid():
                 # Save the Part before the PartRevision, as this will again check for part 
                 # number uniqueness. This way if someone else(s) working concurrently is also 
                 # using the same part number, then only one person will succeed.
                 try:
-                    new_part.save() # Database checks that the part number is still unique
+                    new_part.save()  # Database checks that the part number is still unique
                     pr = part_revision_form.save(commit=False)
-                    pr.part = new_part # Associate PartRevision with Part 
+                    pr.part = new_part  # Associate PartRevision with Part
                     pr.save()
                 except IntegrityError:
                     messages.error(request, "Error! Already created a part with part number {0}-{1}-VV".format(new_part.number_class.code, new_part.number_item))
                     return TemplateResponse(request, 'bom/create-part.html', locals())
             else:
-                messages.error(request, part_revision_form.errors)       
+                messages.error(request, part_revision_form.errors)
                 return TemplateResponse(request, 'bom/create-part.html', locals())
 
             manufacturer_part = None
@@ -995,7 +995,7 @@ def manage_bom(request, part_id, part_revision_id):
     add_subpart_form = AddSubpartForm(initial={'count': 1, }, organization=organization, part_id=part_id)
     upload_subparts_csv_form = FileForm()
 
-    parts = part_revision.indented()  
+    parts = part_revision.indented()
 
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 100)
@@ -1009,11 +1009,11 @@ def manage_bom(request, part_id, part_revision_id):
         seller = item['part'].optimal_seller(quantity=extended_quantity)
         item['seller_price'] = seller.unit_cost if seller is not None else None
         item['seller_part'] = seller
-        
+
     if len(duplicate_references) > 0:
-        sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely) 
+        sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)
         messages.warning(request, "Warning: The following BOM references are associated with multiple parts: " + str(sorted_duplicate_references))
- 
+
     return TemplateResponse(request, 'bom/part-rev-manage-bom.html', locals())
 
 
@@ -1022,7 +1022,7 @@ def part_delete(request, part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     try:
         part = Part.objects.get(id=part_id)
     except Part.DoesNotExist:
@@ -1048,7 +1048,7 @@ def add_subpart(request, part_id, part_revision_id):
         if add_subpart_form.is_valid():
             subpart_part = add_subpart_form.subpart_part
             reference = add_subpart_form.cleaned_data['reference']
-            
+
             new_part = Subpart.objects.create(
                 part_revision=subpart_part,
                 count=add_subpart_form.cleaned_data['count'],
@@ -1061,16 +1061,16 @@ def add_subpart(request, part_id, part_revision_id):
 
             AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
             info_msg = "Added subpart "
-            if reference is None: 
+            if reference is None:
                 info_msg += ' '
             else:
                 info_msg += ' ' + reference
-            info_msg += " {} to part {}".format(subpart_part, part_revision) 
+            info_msg += " {} to part {}".format(subpart_part, part_revision)
             messages.info(request, info_msg)
 
         else:
             messages.error(request, add_subpart_form.errors)
-            
+
     return HttpResponseRedirect(
         reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
@@ -1091,7 +1091,7 @@ def remove_subpart(request, part_id, part_revision_id, subpart_id):
 def part_class_edit(request, part_class_id):
     user = request.user
     profile = user.bom_profile()
-    organization = profile.organization        
+    organization = profile.organization
 
     part_class = get_object_or_404(PartClass, pk=part_class_id)
     title = 'Edit Part Class {}'.format(part_class.__str__())
@@ -1128,7 +1128,7 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
         if form.is_valid():
             reference_list = listify_string(form.cleaned_data['reference'])
             count = form.cleaned_data['count']
-            form.save()   
+            form.save()
             return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
         else:
             return TemplateResponse(request, 'bom/bom-form.html', locals())
@@ -1144,10 +1144,10 @@ def remove_all_subparts(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     part_revision.assembly.subparts.all().delete()
-    
+
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
@@ -1178,7 +1178,7 @@ def add_manufacturer_part(request, part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     part = get_object_or_404(Part, pk=part_id)
     title = 'Add Manufacturer Part to {}'.format(part.full_part_number())
 
@@ -1221,7 +1221,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     title = 'Edit Manufacturer Part'
 
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
@@ -1272,7 +1272,7 @@ def manufacturer_part_delete(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     part = manufacturer_part.part
     manufacturer_part.delete()
@@ -1285,7 +1285,7 @@ def sellerpart_edit(request, sellerpart_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     title = "Edit Seller Part"
     action = reverse('bom:sellerpart-edit', kwargs={'sellerpart_id': sellerpart_id})
     sellerpart = get_object_or_404(SellerPart, pk=sellerpart_id)
@@ -1294,8 +1294,7 @@ def sellerpart_edit(request, sellerpart_id):
         form = SellerPartForm(request.POST, instance=sellerpart, organization=organization)
         if form.is_valid():
             form.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={
-                'part_id': sellerpart.manufacturer_part.part.id}) + '?tab_anchor=sourcing')
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': sellerpart.manufacturer_part.part.id}) + '?tab_anchor=sourcing')
     else:
         form = SellerPartForm(instance=sellerpart, organization=organization)
 
@@ -1307,7 +1306,7 @@ def sellerpart_delete(request, sellerpart_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     sellerpart = get_object_or_404(SellerPart, pk=sellerpart_id)
     part = sellerpart.manufacturer_part.part
     sellerpart.delete()
@@ -1319,7 +1318,7 @@ def part_revision_release(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     part = get_object_or_404(Part, pk=part_id)
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     action = reverse('bom:part-revision-release', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id})
@@ -1331,8 +1330,7 @@ def part_revision_release(request, part_id, part_revision_id):
     if request.method == 'POST':
         part_revision.configuration = 'R'
         part_revision.save()
-        return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part.id,
-                                                                             'part_revision_id': part_revision.id}))
+        return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id}))
 
     return TemplateResponse(request, 'bom/part-revision-release.html', locals())
 
@@ -1342,12 +1340,11 @@ def part_revision_revert(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     part_revision.configuration = 'W'
     part_revision.save()
-    return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part_id,
-                                                                         'part_revision_id': part_revision_id}))
+    return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
 @login_required
@@ -1355,19 +1352,18 @@ def part_revision_new(request, part_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    
+
     part = get_object_or_404(Part, pk=part_id)
     title = 'New Revision for {}'.format(part.full_part_number())
     action = reverse('bom:part-revision-new', kwargs={'part_id': part_id})
 
     latest_revision = part.latest()
-    next_revision_number = latest_revision.next_revision()            
+    next_revision_number = latest_revision.next_revision()
 
     all_part_revisions = part.revisions()
     all_used_part_revisions = PartRevision.objects.filter(part=part)
     used_in_subparts = Subpart.objects.filter(part_revision__in=all_used_part_revisions)
-    used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly',
-                                                                                                     flat=True)
+    used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly', flat=True)
     all_used_in_prs = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)
     used_part_revisions = all_used_in_prs.filter(configuration='W')
 
@@ -1375,7 +1371,7 @@ def part_revision_new(request, part_id):
         part_revision_new_form = PartRevisionNewForm(request.POST, part=part, revision=next_revision_number, assembly=latest_revision.assembly)
         if part_revision_new_form.is_valid():
             new_part_revision = part_revision_new_form.save()
-            
+
             revisions_to_roll = request.POST.getlist('roll')
             # TODO: could optimize this, but probably shouldn't get too crazy so may be fine...
             for r_id in revisions_to_roll:
@@ -1399,7 +1395,7 @@ def part_revision_new(request, part_id):
                     new_sp.save()
                     AssemblySubparts.objects.create(assembly=new_assembly, subpart=new_sp)
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
-            
+
     else:
         messages.info(request, 'New revision automatically incremented to `{}` from your last revision `{}`.'.format(next_revision_number, latest_revision.revision))
         latest_revision.revision = next_revision_number  # use updated object to populate form but don't save changes                                    
