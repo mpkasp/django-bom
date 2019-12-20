@@ -295,7 +295,7 @@ class TestBOM(TransactionTestCase):
     def test_upload_parts(self):
         self.client.login(username='kasper', password='ghostpassword')
 
-        create_some_fake_part_classes()
+        create_some_fake_part_classes(self.organization)
 
         # part_count = Part.objects.all().count()
         # Should pass
@@ -554,7 +554,7 @@ class TestForms(TestCase):
         })
 
     def test_part_form(self):
-        (pc1, pc2, pc3) = create_some_fake_part_classes()
+        (pc1, pc2, pc3) = create_some_fake_part_classes(self.organization)
 
         form_data = {
             'number_class': pc1.id,
@@ -595,17 +595,15 @@ class TestForms(TestCase):
     def test_add_subpart_form(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        form_data = {'subpart_part': p1.id, 'count': 10, 'reference': ''}
+        form_data = {'subpart_part_number': p1.full_part_number(), 'count': 10, 'reference': '', 'do_not_load': False}
         form = AddSubpartForm(organization=self.organization, data=form_data, part_id=p2.id)
         self.assertTrue(form.is_valid())
 
     def test_add_subpart_form_blank(self):
         form = AddSubpartForm({}, organization=self.organization)
         self.assertFalse(form.is_valid())
-        self.assertEqual(form.errors, {
-            'subpart_part': [u'This field is required.'],
-            'count': [u'This field is required.'],
-        })
+        self.assertTrue('subpart_part_number' in str(form.errors))
+        self.assertTrue('This field is required.' in str(form.errors))
 
     def test_add_sellerpart_form(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)

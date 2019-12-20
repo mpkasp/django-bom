@@ -112,7 +112,7 @@ class Part(models.Model):
         number_class = elements[0]
         if len(number_class) != PartClass.CODE_LEN or not number_class.isdigit(): raise AttributeError("Expect " + str(PartClass.CODE_LEN) + " digits for part class")
         number_item = elements[1]
-        if len(number_item) != number_item_len or not number_item.isdigit(): raise AttributeError("Expect " + number_item_len + " digits for item number")
+        if len(number_item) != number_item_len or not number_item.isdigit(): raise AttributeError("Expect " + str(number_item_len) + " digits for item number")
         number_variation = elements[2]
         if len(number_variation) != Part.NUMBER_VARIATION_LEN: raise AttributeError("Expect " + str(Part.NUMBER_VARIATION_LEN) + " digits for number variation")
         return number_class, number_item, number_variation
@@ -242,7 +242,7 @@ class Part(models.Model):
                     self.number_variation = "{}".format(increment_str(last_number_variation.number_variation))
 
     def save(self, *args, **kwargs):
-        no_part_revision = kwargs.get('no_part_revision', False)
+        no_part_revision = kwargs.pop('no_part_revision', False)
         self.assign_part_number()
         super(Part, self).save(*args, **kwargs)
 

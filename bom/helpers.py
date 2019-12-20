@@ -6,14 +6,15 @@ def create_a_fake_organization(user, free=False):
     org, created = Organization.objects.get_or_create(
         name="Atlas",
         subscription='F' if free else 'P',
+        number_item_len=4,
         owner=user)
     return org
 
 
-def create_some_fake_part_classes():
-    pc1, c = PartClass.objects.get_or_create(code=500, name='Wendy', comment='Mechanical Switches')
-    pc2, c = PartClass.objects.get_or_create(code=200, name='Archibald', comment='')
-    pc3, c = PartClass.objects.get_or_create(code=503, name='Ghost', comment='Like Kasper')
+def create_some_fake_part_classes(organization):
+    pc1, c = PartClass.objects.get_or_create(code=500, name='Wendy', comment='Mechanical Switches', organization=organization)
+    pc2, c = PartClass.objects.get_or_create(code=200, name='Archibald', comment='', organization=organization)
+    pc3, c = PartClass.objects.get_or_create(code=503, name='Ghost', comment='Like Kasper', organization=organization)
     return pc1, pc2, pc3
 
 
@@ -86,7 +87,7 @@ def create_a_fake_seller_part(
 
 
 def create_some_fake_parts(organization):
-    (pc1, pc2, pc3) = create_some_fake_part_classes()
+    (pc1, pc2, pc3) = create_some_fake_part_classes(organization=organization)
     (m1, m2, m3) = create_some_fake_manufacturers(organization=organization)
 
     pt1 = Part(
