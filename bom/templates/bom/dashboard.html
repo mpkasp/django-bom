@@ -54,7 +54,7 @@
             <div class="col s12 m2">
                 <button type="submit" class="waves-effect waves-green btn green lighten-1 input-field" name="action">Submit</button>
                 {% if part_class or query %}
-                <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
+                    <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
                 {% endif %}
                 <a class="waves-effect waves-green btn-flat input-field btn-icon-round" href="{% url 'bom:search-help' %}"><i class="material-icons">help</i></a>
             </div>
@@ -107,7 +107,7 @@
                         <tr>
                             {% if profile.role == 'A' and delete_parts_enabled %}
                                 <td>
-                                    <label><input type="checkbox" class="filled-in" name="delete_part_id_{{ part_rev.part.id }}""><span/></label>
+                                    <label><input type="checkbox" class="filled-in" name="delete_part_id_{{ part_rev.part.id }}"><span/></label>
                                 </td>
                             {% endif %}
 
@@ -151,13 +151,11 @@
                 {% if profile.role == 'A' and delete_parts_enabled %}
                     <div class="row">
                         <div class="col s6">
-                            <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_checkbox_clear_all()">Clear</button>
-                            <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_checkbox_select_all()">Select All</button>
-                        </div>
-                        <div class="col s6" right-align>
-                            <button class="waves-effect waves-light btn green lighten-1" name="submit-part-delete"
+                            <button class="waves-effect waves-light btn red lighten-1" name="submit-part-delete"
                                     onclick="return confirm('Are you sure you want to delete the selected parts? This cannot be undone.')">Delete
                             </button>
+                            <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_checkbox_clear_all()">Clear</button>
+                            <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_checkbox_select_all()">Select All</button>
                         </div>
                     </div>
                 {% endif %}
