@@ -44,11 +44,7 @@ def home(request):
         else:
             org_name = request.user.first_name + ' ' + request.user.last_name
 
-        organization, created = Organization.objects.get_or_create(
-            owner=request.user,
-            defaults={'name': org_name,
-                      'subscription': 'F'},
-        )
+        organization, created = Organization.objects.get_or_create(owner=request.user, defaults={'name': org_name, 'subscription': 'F'})
 
         profile.organization = organization
         profile.role = 'A'

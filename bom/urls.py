@@ -8,9 +8,9 @@ from bom.third_party_apis import google_drive
 
 bom_patterns = [
     # BOM urls
-	path('', views.home, name='home'),
-    path('/bom', views.home, name='home'),
-	path('search-help/', views.search_help, name='search-help'),
+    path('', views.home, name='home'),
+    path('bom', views.home, name='home'),
+    path('search-help/', views.search_help, name='search-help'),
     path('error/', views.error, name='error'),
     path('signup/', views.bom_signup, name='bom-signup'),
     path('settings/', views.bom_settings, name='settings'),
@@ -33,7 +33,7 @@ bom_patterns = [
     path('part/<int:part_id>/rev/<int:part_revision_id>/delete/', views.part_revision_delete, name='part-revision-delete'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/release/', views.part_revision_release, name='part-revision-release'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/revert/', views.part_revision_revert, name='part-revision-revert'),
-    path('part/<int:part_id>/rev/<int:part_revision_id>/remove-all-subparts/', views.remove_all_subparts, name='part-remove-all-subparts'),  
+    path('part/<int:part_id>/rev/<int:part_revision_id>/remove-all-subparts/', views.remove_all_subparts, name='part-remove-all-subparts'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/edit-subpart/<int:subpart_id>', views.edit_subpart, name='part-edit-subpart'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/remove-subpart/<int:subpart_id>/', views.remove_subpart, name='part-remove-subpart'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/manage-bom/', views.manage_bom, name='part-manage-bom'),
