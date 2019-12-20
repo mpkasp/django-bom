@@ -16,24 +16,21 @@
 {% block content %}
 {% if profile.role == 'A' %}
 <div class="row">
-<p style="text-align: left;">Part numbers must be in the format CCC-NNNNN-VV where CCC is the Part Number Class, NNNNN is the part number (number item), and VV is the part variation.</p>
-</div>
-<div class="row">
     <form name="seller" action="{% url 'bom:create-part' %}" method="post" class="col s12">
+        <h2>Part Number</h2>
+        <p>Part numbers must be in the format CCC-{{ organization_item_number_ns }}-VV where CCC is the Part Number Class, {{ organization_item_number_ns }} is the part number (number item), and VV is the part variation. To change the part number length, go to your settings.</p>
     	<div class="row">
             {% csrf_token %}
             {{ part_form.non_field_errors }}
             {{ part_form|materializecss:'m4 s12' }}
 		</div>
-		
+		<h2>Part Properties</h2>
+        <p><i>The below fields are optional.</i></p>
         {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}
 
-        <h2>Add a Manufacturer Part (optional)</h2>
-        <div class="row">
-            <div class="col s12">
-                <span>Skip this form if your part is a custom part. Leave the manufacturer field unselected if creating a new manufacturer.</span>
-            </div>
-        </div>
+        <h2>Add a Manufacturer Part</h2>
+        <p><i>The below fields are optional.</i></p>
+        <p>Skip this form if your part is a custom part. Leave the manufacturer field unselected if creating a new manufacturer.</p>
     	<div class="row">
             {% csrf_token %}
             {{ manufacturer_part_form|materializecss:'m4 s12' }}

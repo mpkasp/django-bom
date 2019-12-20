@@ -6,15 +6,12 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.db import IntegrityError
 
-# from django.core.validators import DecimalValidator
-
 from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
     Organization, PartRevision, AssemblySubparts
-from .validators import decimal, alphanumeric, numeric
-from .utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely, \
-    strip_trailing_zeros
-from json import dumps
+from .validators import decimal, numeric
+from .utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely
 
+logger = logging.getLogger(__name__)
 
 class UserModelChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, user):

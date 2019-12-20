@@ -9,6 +9,7 @@ from bom.third_party_apis import google_drive
 bom_patterns = [
     # BOM urls
 	path('', views.home, name='home'),
+    path('/bom', views.home, name='home'),
 	path('search-help/', views.search_help, name='search-help'),
     path('error/', views.error, name='error'),
     path('signup/', views.bom_signup, name='bom-signup'),

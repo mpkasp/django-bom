@@ -43,7 +43,6 @@ class UserMeta(models.Model):
             user=self, defaults={
                 'organization': organization})[0]
 
-
     User.add_to_class('bom_profile', _user_meta)
 
 
@@ -221,8 +220,8 @@ class Part(models.Model):
                     self.number_item = '0' + self.number_item
             else:
                 FORMATS = {
-                    1:'{0:0=1d}', 2:'{0:0=2d}', 3:'{0:0=3d}', 4:'{0:0=4d}', 5:'{0:0=5d}',
-                    6:'{0:0=6d}', 7:'{0:0=7d}', 8:'{0:0=8d}', 9:'{0:0=9d}', 10:'{0:0=10d}'
+                    1: '{0:0=1d}', 2: '{0:0=2d}', 3: '{0:0=3d}', 4: '{0:0=4d}', 5: '{0:0=5d}',
+                    6: '{0:0=6d}', 7: '{0:0=7d}', 8: '{0:0=8d}', 9: '{0:0=9d}', 10: '{0:0=10d}'
                 }
                 self.number_item = FORMATS[self.organization.number_item_len].format(
                     int(last_number_item.number_item) + 1)
@@ -263,7 +262,7 @@ class PartRevision(models.Model):
 
     NO_CHOICE = ('', '-----')
 
-    #Part Revision Specification Properties:
+    # Part Revision Specification Properties:
 
     description = models.CharField(max_length=255, default="", null=True, blank=True)
 
@@ -272,7 +271,7 @@ class PartRevision(models.Model):
     # associated units of measure field name must be 'vvv_units'.
 
     VALUE_UNITS = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('Ohms', '\u03A9'),
         ('mOhms', 'm\u03A9'),
         ('kOhms', 'k\u03A9'),
@@ -291,7 +290,7 @@ class PartRevision(models.Model):
         ('Other', 'Other'),
     )
 
-    value_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VALUE_UNITS)
+    value_units = models.CharField(max_length=5, default=None, null=True, blank=False, choices=VALUE_UNITS)
     value = models.CharField(max_length=255, default=None, null=True, blank=True)
 
     attribute = models.CharField(max_length=255, default=None, null=True, blank=True)
@@ -301,7 +300,7 @@ class PartRevision(models.Model):
     tolerance = models.CharField(max_length=6, validators=[validate_pct], default=None, null=True, blank=True)
 
     PACKAGE_TYPES = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('0201 smd', '0201 smd'),
         ('0402 smd', '0402 smd'),
         ('0603 smd', '0603 smd'),
@@ -339,7 +338,7 @@ class PartRevision(models.Model):
     color = models.CharField(max_length=32, default=None, null=True, blank=True)
 
     DISTANCE_UNITS = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('mil', 'mil'),
         ('in', 'in'),
         ('ft', 'ft'),
@@ -362,30 +361,30 @@ class PartRevision(models.Model):
     height = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     WEIGHT_UNITS = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('mg', 'mg'),
         ('g', 'g'),
         ('kg', 'kg'),
         ('oz', 'oz'),
         ('lb', 'lb'),
         ('Other', 'Other'),
-   )
+    )
 
     weight_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=WEIGHT_UNITS)
     weight = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     TEMPERATURE_UNITS = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('C', '\u00B0C'),
         ('F', '\u00B0F'),
         ('Other', 'Other'),
-   )
+    )
 
     temperature_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=TEMPERATURE_UNITS)
     temperature_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     WAVELENGTH_UNITS = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('km', 'km'),
         ('m', 'm'),
         ('cm', 'cm'),
@@ -399,7 +398,7 @@ class PartRevision(models.Model):
     wavelength = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     FREQUENCY_UNITS = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('Hz', 'Hz'),
         ('kHz', 'kHz'),
         ('MHz', 'MHz'),
@@ -411,19 +410,19 @@ class PartRevision(models.Model):
     frequency = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     MEMORY_UNITS = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('KB', 'KB'),
         ('MB', 'MB'),
         ('GB', 'GB'),
         ('TB', 'TB'),
         ('Other', 'Other'),
-   )
+    )
 
     memory_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=MEMORY_UNITS)
     memory = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     INTERFACE_TYPES = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('I2C', 'I2C'),
         ('SPI', 'SPI'),
         ('CAN', 'CAN'),
@@ -445,7 +444,7 @@ class PartRevision(models.Model):
     interface = models.CharField(max_length=12, default=None, null=True, blank=True, choices=INTERFACE_TYPES)
 
     POWER_UNITS = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('W', 'W'),
         ('uW', '\u03BCW'),
         ('mW', 'mW'),
@@ -458,7 +457,7 @@ class PartRevision(models.Model):
     power_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     VOLTAGE_UNITS = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('V', 'V'),
         ('uV', '\u03BCV'),
         ('mV', 'mV'),
@@ -474,7 +473,7 @@ class PartRevision(models.Model):
     voltage_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     CURRENT_UNITS = (
-    	(NO_CHOICE),
+        NO_CHOICE,
         ('A', 'A'),
         ('uA', '\u03BCV'),
         ('mA', 'mA'),
@@ -486,10 +485,9 @@ class PartRevision(models.Model):
     current_rating_units = models.CharField(max_length=2, default=None, null=True, blank=True, choices=CURRENT_UNITS)
     current_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
-
     def synopsis(self, make_searchable=False):
 
-        def verbosify (val, units=None, pre=None, pre_whitespace = True, post=None, post_whitespace=True):
+        def verbosify(val, units=None, pre=None, pre_whitespace=True, post=None, post_whitespace=True):
             elaborated = ""
 
             if val is not None and val is not '':
@@ -574,13 +572,16 @@ class PartRevision(models.Model):
 
         bom = []
         indented_given_bom(bom, self)
+
         # For each indent level, sort by reference, if no reference then use part number.
         # Note that need to convert part number to a list so can be compared with the 
         # list-ified string returned by prep_for_sorting_nicely.
         def sort_by_reference(p):
             return prep_for_sorting_nicely(p['reference']) if p['reference'] else p.__str__().split()
+
         def sort_by_indent_level(p):
             return p['indent_level']
+
         bom = sorted(bom, key=sort_by_reference)
         bom = sorted(bom, key=sort_by_indent_level)
         return bom
@@ -616,11 +617,13 @@ class PartRevision(models.Model):
 
         bom = {}
         flat_given_bom(bom, self)
+
         # Sort by references, if no references then use part number.
         # Note that need to convert part number to a list so can be compared with the 
         # list-ified string returned by prep_for_sorting_nicely.
         def sort_by_references(p):
             return prep_for_sorting_nicely(p['references']) if p['references'] else p.__str__().split()
+
         bom = sorted(bom.values(), key=sort_by_references)
         return bom
 
