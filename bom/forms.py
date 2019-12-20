@@ -718,7 +718,7 @@ class PartRevisionNewForm(PartRevisionForm):
 class SubpartForm(forms.ModelForm):
     class Meta:
         model = Subpart
-        fields = ['part_revision', 'reference', 'count', 'dnl']
+        fields = ['part_revision', 'reference', 'count', 'do_not_load']
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
@@ -768,7 +768,7 @@ class AddSubpartForm(forms.Form):
     subpart_part_number = forms.CharField(required=True, label="Subpart part number")
     count = forms.IntegerField(required=False, label='Quantity')
     reference = forms.CharField(required=False, label="Reference")
-    dnl = forms.BooleanField(required=False, label="DNL")
+    do_not_load = forms.BooleanField(required=False, label="do_not_load")
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
@@ -1021,20 +1021,20 @@ class BOMCSVForm(forms.Form):
                     continue
                 reference = stringify_list(reference_list)
              
-                dnl = False
-                dnl_str = ''
-                if 'dnl' in partData:
-                    dnl_str = partData['dnl'].lower()
+                do_not_load = False
+                do_not_load_str = ''
+                if 'do_not_load' in partData:
+                    do_not_load_str = partData['do_not_load'].lower()
                 elif 'do_not_load' in partData:
-                    dnl_str = partData['do_not_load']
-                if dnl_str == 'Y'.lower() or dnl_str == 'X'.lower():
-                    dnl = True
+                    do_not_load_str = partData['do_not_load']
+                if do_not_load_str == 'Y'.lower() or do_not_load_str == 'X'.lower():
+                    do_not_load = True
         
                 new_subpart = Subpart.objects.create(
                     part_revision=subpart_part.latest(),
                     count=count,
                     reference=reference,
-                    dnl=dnl
+                    do_not_load=do_not_load
                 )                
 
                 if parent_part_revision.assembly is None:

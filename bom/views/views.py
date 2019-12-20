@@ -562,7 +562,7 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
         'quantity',
         'part_class',
         'reference',
-        'dnl',
+        'do_not_load',
         'part_synopsis',
         'part_revision',
         'part_manufacturer',
@@ -609,7 +609,7 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
             'quantity': item['quantity'],
             'part_class': item['part'].number_class.name,
             'reference': item['reference'],
-            'dnl': item['dnl'],
+            'do_not_load': item['do_not_load'],
             'part_synopsis': item['part_revision'].synopsis(),
             'part_revision': item['part_revision'].revision,
             'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item[
@@ -651,8 +651,8 @@ def part_export_bom_flat(request, part_revision_id):
     bom = part_revision.flat()  
 
     # As compared to indented bom, show all references for a subpart as a single item and
-    # don't show DNL status at all because it won't be clear as to which subpart reference 
-    # the DNL refers to.
+    # don't show do_not_load status at all because it won't be clear as to which subpart reference
+    # the do_not_load refers to.
     fieldnames = [
         'part_number',
         'quantity',
@@ -702,7 +702,7 @@ def part_export_bom_flat(request, part_revision_id):
             'quantity': item['quantity'],
             'part_class': item['part'].number_class.name,
             'references': item['references'],
-#            'dnl': item['dnl'],
+#            'do_not_load': item['do_not_load'],
             'part_synopsis': item['part_revision'].synopsis(),
             'part_revision': item['part_revision'].revision,
             'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item['part'].primary_manufacturer_part is not None and
@@ -1057,7 +1057,7 @@ def add_subpart(request, part_id, part_revision_id):
                 part_revision=subpart_part,
                 count=add_subpart_form.cleaned_data['count'],
                 reference=reference,
-                dnl=add_subpart_form.cleaned_data['dnl'])
+                do_not_load=add_subpart_form.cleaned_data['do_not_load'])
 
             if part_revision.assembly is None:
                 part_revision.assembly = Assembly.objects.create()

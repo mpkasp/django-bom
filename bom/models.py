@@ -540,7 +540,7 @@ class PartRevision(models.Model):
 
     def indented(self):
         def indented_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None,
-                               reference='', dnl=False):
+                               reference='', do_not_load=False):
             if part_revision is None:  # hopefully this never happens
                 logger.warning("Indented bom part_revision is None, this shouldn't happen, parent "
                                "part_revision id: {}".format(parent.id))
@@ -555,7 +555,7 @@ class PartRevision(models.Model):
                 'indent_level': indent_level,
                 'parent_id': parent.id if parent is not None else None,
                 'subpart': subpart,
-                'dnl': dnl,
+                'do_not_load': do_not_load,
                 'reference': reference,
             })
 
@@ -568,7 +568,7 @@ class PartRevision(models.Model):
                     qty = sp.count
                     reference = sp.reference
                     indented_given_bom(bom, sp.part_revision, parent=part_revision, qty=qty, parent_qty=parent_qty,
-                                       indent_level=indent_level, subpart=sp, reference=reference, dnl=sp.dnl)
+                                       indent_level=indent_level, subpart=sp, reference=reference, do_not_load=sp.do_not_load)
 
         bom = []
         indented_given_bom(bom, self)
@@ -673,7 +673,7 @@ class Subpart(models.Model):
                                       on_delete=models.CASCADE)
     count = models.PositiveIntegerField(default=1)
     reference = models.TextField(default='', blank=True, null=True)
-    dnl = models.BooleanField(default=False, verbose_name='Do Not Load')
+    do_not_load = models.BooleanField(default=False, verbose_name='Do Not Load')
 
     def save(self, *args, **kwargs):
         # Make sure reference designators are formated as a string with comma-separated

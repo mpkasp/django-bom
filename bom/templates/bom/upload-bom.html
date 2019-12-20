@@ -29,7 +29,7 @@
     </p>
     <p>
         Additional fields include <B>'reference'</b> or <b>'designator'</b> to add a reference field to the subpart; 
-        <b>'dnl'</b> if you don't want the part loaded into the assembly that contains it; <b>'dnp'</b> if 
+        <b>'do_not_load'</b> if you don't want the part loaded into the assembly that contains it; <b>'dnp'</b> if
         you don't want to upload the part to IndaBOM at all (i.e., just skip over it).
     </p>
     <form action="{% url 'bom:upload-bom' %}" method="post" enctype="multipart/form-data">

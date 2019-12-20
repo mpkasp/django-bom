@@ -204,7 +204,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='subpart',
-            name='dnl',
+            name='do_not_load',
             field=models.BooleanField(default=False, verbose_name='Do Not Load'),
         ),
         migrations.AlterField(

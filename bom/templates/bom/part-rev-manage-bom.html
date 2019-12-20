@@ -50,7 +50,7 @@
                         <th>Qty</th>
                         <th>Part Class</th>
                         <th>Reference</th>
-                        <th>DNL</th>
+                        <th>do_not_load</th>
                         <th>Synopsis</th>
                         <th>Rev</th>
                         <th>Manufacturer</th>
@@ -72,7 +72,7 @@
                             <td>{{ subpart.quantity }}</td>
                             <td>{{ subpart.part.number_class.name }}</td>
                             <td>{{ subpart.reference }}</td>
-                            <td>{% if subpart.dnl %}x{% endif %}</td>
+                            <td>{% if subpart.do_not_load %}x{% endif %}</td>
                             <td>{{ subpart.part_revision.synopsis }}</td>
                             <td>{{ subpart.part_revision.revision }}</td>
                             <td>{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
@@ -112,7 +112,7 @@
                     {% csrf_token %}
                     {{ add_subpart_form.subpart_part_number|materializecss:'m4 s12' }}
                     {{ add_subpart_form.count|materializecss:'m1 s12' }}
-                    {{ add_subpart_form.dnl|materializecss:'m2 s12' }}
+                    {{ add_subpart_form.do_not_load|materializecss:'m2 s12' }}
                     {{ add_subpart_form.reference|materializecss:'m4 s12' }}
                     <div class="fieldWrapper">
                         <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">add
@@ -126,7 +126,7 @@
                 'manufacturer_part_number' column must contain part numbers that have already been created in this
                 system.</p>
             <p>Additional fields include 'reference' or 'designator' to add a reference field to the subpart; 
-               'dnl' if you don't want the part loaded into the assembly that contains it; 'dnp' if
+               'do_not_load' if you don't want the part loaded into the assembly that contains it; 'dnp' if
                 you don't want to upload the part to IndaBOM.</p>
             <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
                 {% csrf_token %}

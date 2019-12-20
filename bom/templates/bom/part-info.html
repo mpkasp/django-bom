@@ -228,7 +228,7 @@
                         <th class="text-normal">Part No.</th>
                         <th class="text-normal">Qty</th>
                         <th class="text-normal">Reference</th>
-                        <th class="text-normal">DNL</th>
+                        <th class="text-normal">do_not_load</th>
                         <th class="text-normal">Synopsis</th>
                         <th class="text-normal">Rev</th>
                         <th class="text-normal">Manufacturer</th>
@@ -250,7 +250,7 @@
                             </td>
                             <td class="text-normal">{{ subpart.quantity }}</td>
                             <td class="text-normal">{{ subpart.reference | default:"-" }}</td>
-                            <td class="text-normal">{{ subpart.dnl | default:"-" }}</td>
+                            <td class="text-normal">{{ subpart.do_not_load | default:"-" }}</td>
                             <td class="text-normal">{{ subpart.part_revision.synopsis }}</td>
                             <td class="text-normal">{{ subpart.part_revision.revision }}</td>
                             <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}

@@ -31,16 +31,18 @@ def increment_str(s):
 #   R5 R14
 #
 
-import re 
-def prep_for_sorting_nicely(item): 
-    convert = lambda text: int(text) if text.isdigit() else text 
-    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
+import re
+
+
+def prep_for_sorting_nicely(item):
+    convert = lambda text: int(text) if text.isdigit() else text
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
     return alphanum_key(item)
 
 
 # Convert a string with delimited fields into a list of fields. Delimiters are comma,
 # semi-colon, colon, tab, or blank space. Fields may contain any printable character.
-def listify_string(st): 
+def listify_string(st):
     ss = re.split(' |:|;|,|\t|\n', st)
     split_st = []
     for s in ss:
@@ -48,7 +50,8 @@ def listify_string(st):
         if len(s_strip) != 0:
             split_st.append(s_strip)
     return split_st
-    
+
+
 # Convert a list of items into a comma-separated string without any surrounding brackets, 
 # for example:
 #
@@ -59,15 +62,9 @@ def listify_string(st):
 # as compared to str(list) which
 #
 # becomes '[1, 2, 3 4]'
-def stringify_list(li): 
-    s = ''
-    c = 0
-    for item in li:
-        if c > 0:
-            s += ', '
-        s += str(item)
-        c += 1
-    return s   
+def stringify_list(li):
+    return ', '.join(str(x) for x in li)
+
 
 # Check a string reference designator for duplicates as compared to a running set of 
 # reference already seen. A reference designator may contain multiple delimited references,
@@ -85,7 +82,8 @@ def check_references_for_duplicates(new_refs, seen_refs, duplicate_refs):
                 duplicate_refs.add(r)
         seen_refs.add(r)
 
-# Given a string that represents a number, returns a string that eliminates trailing zeros 
+
+# Given a string that represents a number, returns a string that eliminates trailing zeros
 # and decimal point if any from the input. For example, 25.000 become 25. If the input
 # string that does not represent a number then the original string is returned.
 def strip_trailing_zeros(num):
@@ -95,14 +93,5 @@ def strip_trailing_zeros(num):
             found = True
         elif c not in ['-', '+', '.']:
             found = False
-            break 
+            break
     return ('%.15f' % float(num)).rstrip('0').rstrip('.') if found else num
-
-
-
-
-
-
-
-
-  
