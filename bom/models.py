@@ -23,7 +23,7 @@ class Organization(models.Model):
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
 
     def __str__(self):
-        return u'%s' % (self.name)    
+        return u'%s' % self.name
 
 
 class UserMeta(models.Model):
@@ -54,11 +54,11 @@ class PartClass(models.Model):
     code = models.CharField(max_length=CODE_LEN)
     name = models.CharField(max_length=255, default=None)
     comment = models.CharField(max_length=255, default=None, blank=True)
-    
+
     class Meta:
         unique_together = ['code', 'name', 'organization', ]
         ordering = ['code']
-        
+
     def __str__(self):
         return u'%s' % (self.code + ': ' + self.name)
 
@@ -71,7 +71,7 @@ class Manufacturer(models.Model):
         ordering = ['name']
 
     def __str__(self):
-        return u'%s' % (self.name)
+        return u'%s' % self.name
 
 
 # Part contains the root information for a component. Parts have attributes that can be changed over time
@@ -101,23 +101,23 @@ class Part(models.Model):
         if not part_number is None:
             for c in part_number:
                 if not c.isdigit() and c != '-':
-                    raise AttributeError("{c} is not a proper character for a part number string".format(c))
+                    raise AttributeError("{} is not a proper character for a part number string".format(c))
         else:
             raise AttributeError("Cannot parse empty part number".format(part_number))
 
         elements = part_number.split('-')
-        if (len(elements) != 3): raise AttributeError("Ill-formed part number")
+        if len(elements) != 3: raise AttributeError("Ill-formed part number")
         number_class = elements[0]
-        if (len(number_class) != PartClass.CODE_LEN or not number_class.isdigit()): raise AttributeError("Expect " + PartClass.CODE_LEN + " digits for part class")
+        if len(number_class) != PartClass.CODE_LEN or not number_class.isdigit(): raise AttributeError("Expect " + str(PartClass.CODE_LEN) + " digits for part class")
         number_item = elements[1]
-        if (len(number_item) != number_item_len or not number_item.isdigit()): raise AttributeError("Expect " + number_item_len + " digits for item number")
+        if len(number_item) != number_item_len or not number_item.isdigit(): raise AttributeError("Expect " + number_item_len + " digits for item number")
         number_variation = elements[2]
-        if (len(number_variation) != Part.NUMBER_VARIATION_LEN): raise AttributeError("Expect " + Part.NUMBER_VARIATION_LEN + " digits for number variation")
+        if len(number_variation) != Part.NUMBER_VARIATION_LEN: raise AttributeError("Expect " + str(Part.NUMBER_VARIATION_LEN) + " digits for number variation")
         return number_class, number_item, number_variation
-           
+
     @staticmethod
     def parse_partial_part_number(part_number, number_item_len):
-        if not part_number is None:
+        if part_number is not None:
             for c in part_number:
                 if not c.isdigit() and c != '-':
                     raise AttributeError("{} is not a proper character for a part number string".format(c))
@@ -128,24 +128,24 @@ class Part(models.Model):
         number_class = None
         number_item = None
         number_variation = None
-        
+
         def verify_format_number_class(number_class):
-            if (len(number_class) != PartClass.CODE_LEN or not number_class.isdigit()): 
-                raise AttributeError("Expect " + PartClass.CODE_LEN + " digits for part class")
+            if len(number_class) != PartClass.CODE_LEN or not number_class.isdigit():
+                raise AttributeError("Expect " + str(PartClass.CODE_LEN) + " digits for part class")
             else:
                 return number_class
-            
+
         def verify_format_number_item(number_item):
-            if (len(number_item) != number_item_len or not number_item.isdigit()): 
+            if len(number_item) != number_item_len or not number_item.isdigit():
                 raise AttributeError("Expect " + number_item_len + " digits for item number")
             else:
                 return number_item
-            
+
         def verify_format_number_variation(number_variation):
-            if (len(number_variation) != Part.NUMBER_VARIATION_LEN): 
-                raise AttributeError("Expect " + Part.NUMBER_VARIATION_LEN + " digits for number variation")
+            if len(number_variation) != Part.NUMBER_VARIATION_LEN:
+                raise AttributeError("Expect " + str(Part.NUMBER_VARIATION_LEN) + " digits for number variation")
             else:
-                return number_variation    
+                return number_variation
 
         if len(elements) == 3:
             number_class = verify_format_number_class(elements[0])
@@ -155,8 +155,8 @@ class Part(models.Model):
             number_class = verify_format_number_class(elements[0])
             number_item = verify_format_number_item(elements[1])
 
-        return number_class, number_item, number_variation  
-                
+        return number_class, number_item, number_variation
+
     def description(self):
         return self.latest().description if self.latest() is not None else ''
 
@@ -209,7 +209,7 @@ class Part(models.Model):
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
         sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)
         return SellerPart.optimal(sellerparts, quantity)
-        
+
     def assign_part_number(self):
         if self.number_item is None or self.number_item == '':
             last_number_item = Part.objects.filter(
@@ -221,7 +221,7 @@ class Part(models.Model):
                     self.number_item = '0' + self.number_item
             else:
                 FORMATS = {
-                    1:'{0:0=1d}', 2:'{0:0=2d}', 3:'{0:0=3d}', 4:'{0:0=4d}', 5:'{0:0=5d}', 
+                    1:'{0:0=1d}', 2:'{0:0=2d}', 3:'{0:0=3d}', 4:'{0:0=4d}', 5:'{0:0=5d}',
                     6:'{0:0=6d}', 7:'{0:0=7d}', 8:'{0:0=8d}', 9:'{0:0=9d}', 10:'{0:0=10d}'
                 }
                 self.number_item = FORMATS[self.organization.number_item_len].format(
@@ -238,7 +238,7 @@ class Part(models.Model):
                     self.number_variation = "{0:0=2d}".format(int(last_number_variation.number_variation) + 1)
                 except ValueError as e:
                     self.number_variation = "{}".format(increment_str(last_number_variation.number_variation))
-    
+
     def save(self, *args, **kwargs):
         no_part_revision = kwargs.get('no_part_revision', False)
         self.assign_part_number()
@@ -256,7 +256,7 @@ class PartRevision(models.Model):
     revision = models.CharField(max_length=4, db_index=True, default='1')
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
     searchable_synopsis = models.TextField(editable=False, default="", null=True, blank=True)
-   
+
     class Meta:
         unique_together = (('part', 'revision'),)
         ordering = ['part']
@@ -264,9 +264,9 @@ class PartRevision(models.Model):
     NO_CHOICE = ('', '-----')
 
     #Part Revision Specification Properties:
-    
+
     description = models.CharField(max_length=255, default="", null=True, blank=True)
-    
+
     # By convention for IndaBOM, for part revision properties below, if a property value has
     # an associated units of measure, and if the property value field name is 'vvv' then the
     # associated units of measure field name must be 'vvv_units'.
@@ -290,22 +290,22 @@ class PartRevision(models.Model):
         ('F', '\u00B0F'),
         ('Other', 'Other'),
     )
-    
+
     value_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VALUE_UNITS)
     value = models.CharField(max_length=255, default=None, null=True, blank=True)
-    
+
     attribute = models.CharField(max_length=255, default=None, null=True, blank=True)
 
     pin_count = models.DecimalField(max_digits=3, decimal_places=0, default=None, null=True, blank=True)
-    
+
     tolerance = models.CharField(max_length=6, validators=[validate_pct], default=None, null=True, blank=True)
-    
+
     PACKAGE_TYPES = (
     	(NO_CHOICE),
         ('0201 smd', '0201 smd'),
         ('0402 smd', '0402 smd'),
         ('0603 smd', '0603 smd'),
-        ('0805 smd', '0805 smd'),   
+        ('0805 smd', '0805 smd'),
         ('1206 smd', '1206 smd'),
         ('1210 smd', '1210 smd'),
         ('1812 smd', '1812 smd'),
@@ -330,14 +330,14 @@ class PartRevision(models.Model):
         ('PLCC', 'PLCC'),
         ('VGA', 'VGA'),
         ('Other', 'Other'),
-    )  
- 
+    )
+
     package = models.CharField(max_length=16, default=None, null=True, blank=True, choices=PACKAGE_TYPES)
-    
+
     material = models.CharField(max_length=32, default=None, null=True, blank=True)
     finish = models.CharField(max_length=32, default=None, null=True, blank=True)
     color = models.CharField(max_length=32, default=None, null=True, blank=True)
-    
+
     DISTANCE_UNITS = (
     	(NO_CHOICE),
         ('mil', 'mil'),
@@ -346,12 +346,12 @@ class PartRevision(models.Model):
         ('yd', 'yd'),
         ('km', 'km'),
         ('m', 'm'),
-        ('cm', 'cm'),        
-        ('um', '\u03BCm'),        
-        ('nm', 'nm'),              
+        ('cm', 'cm'),
+        ('um', '\u03BCm'),
+        ('nm', 'nm'),
         ('Other', 'Other'),
     )
-    
+
     length_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=DISTANCE_UNITS)
     length = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
@@ -360,7 +360,7 @@ class PartRevision(models.Model):
 
     height_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=DISTANCE_UNITS)
     height = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    
+
     WEIGHT_UNITS = (
     	(NO_CHOICE),
         ('mg', 'mg'),
@@ -388,13 +388,13 @@ class PartRevision(models.Model):
     	(NO_CHOICE),
         ('km', 'km'),
         ('m', 'm'),
-        ('cm', 'cm'),        
-        ('um', '\u03BCm'),        
-        ('nm', 'nm'),        
-        ('A', '\u212B'),        
+        ('cm', 'cm'),
+        ('um', '\u03BCm'),
+        ('nm', 'nm'),
+        ('A', '\u212B'),
         ('Other', 'Other'),
     )
-    
+
     wavelength_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=WAVELENGTH_UNITS)
     wavelength = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
@@ -402,32 +402,32 @@ class PartRevision(models.Model):
     	(NO_CHOICE),
         ('Hz', 'Hz'),
         ('kHz', 'kHz'),
-        ('MHz', 'MHz'),        
-        ('GHz', 'GHz'),        
+        ('MHz', 'MHz'),
+        ('GHz', 'GHz'),
         ('Other', 'Other'),
     )
-    
+
     frequency_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=FREQUENCY_UNITS)
     frequency = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    
+
     MEMORY_UNITS = (
     	(NO_CHOICE),
         ('KB', 'KB'),
         ('MB', 'MB'),
-        ('GB', 'GB'),       
-        ('TB', 'TB'), 
+        ('GB', 'GB'),
+        ('TB', 'TB'),
         ('Other', 'Other'),
-   ) 
-    
+   )
+
     memory_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=MEMORY_UNITS)
     memory = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    
+
     INTERFACE_TYPES = (
     	(NO_CHOICE),
         ('I2C', 'I2C'),
         ('SPI', 'SPI'),
-        ('CAN', 'CAN'),        
-        ('One-Wire', '1-Wire'),   
+        ('CAN', 'CAN'),
+        ('One-Wire', '1-Wire'),
         ('RS485', 'RS-485'),
         ('RS232', 'RS-232'),
         ('WiFi', 'Wi-Fi'),
@@ -438,10 +438,10 @@ class PartRevision(models.Model):
         ('Zigbee', 'Zigbee'),
         ('LAN', 'LAN'),
         ('USB', 'USB'),
-        ('HDMI', 'HDMI'),                   
+        ('HDMI', 'HDMI'),
         ('Other', 'Other'),
     )
-    
+
     interface = models.CharField(max_length=12, default=None, null=True, blank=True, choices=INTERFACE_TYPES)
 
     POWER_UNITS = (
@@ -450,52 +450,52 @@ class PartRevision(models.Model):
         ('uW', '\u03BCW'),
         ('mW', 'mW'),
         ('kW', 'kW'),
-        ('MW', 'MW'),        
+        ('MW', 'MW'),
         ('Other', 'Other'),
     )
-    
+
     power_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=POWER_UNITS)
     power_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    
+
     VOLTAGE_UNITS = (
     	(NO_CHOICE),
         ('V', 'V'),
         ('uV', '\u03BCV'),
         ('mV', 'mV'),
         ('kV', 'kV'),
-        ('MV', 'MV'),        
+        ('MV', 'MV'),
         ('Other', 'Other'),
     )
- 
+
     supply_voltage_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VOLTAGE_UNITS)
     supply_voltage = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-   
+
     voltage_rating_units = models.CharField(max_length=2, default=None, null=True, blank=True, choices=VOLTAGE_UNITS)
     voltage_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    
+
     CURRENT_UNITS = (
     	(NO_CHOICE),
         ('A', 'A'),
         ('uA', '\u03BCV'),
         ('mA', 'mA'),
         ('kA', 'kA'),
-        ('MA', 'MA'),        
+        ('MA', 'MA'),
         ('Other', 'Other'),
     )
 
     current_rating_units = models.CharField(max_length=2, default=None, null=True, blank=True, choices=CURRENT_UNITS)
     current_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-         
+
 
     def synopsis(self, make_searchable=False):
 
         def verbosify (val, units=None, pre=None, pre_whitespace = True, post=None, post_whitespace=True):
             elaborated = ""
-    
+
             if val is not None and val is not '':
                 elaborated = strip_trailing_zeros(str(val))
-                if units is not None and units is not '': elaborated += units 
-                if pre is not None and pre is not '': 
+                if units is not None and units is not '': elaborated += units
+                if pre is not None and pre is not '':
                     elaborated = pre + (' ' if pre_whitespace else '') + elaborated
                 if post is not None and post is not '': elaborated += (' ' if post_whitespace else '') + post
                 elaborated = elaborated + ' '
@@ -505,28 +505,28 @@ class PartRevision(models.Model):
         s += verbosify(self.value, units=self.value_units if make_searchable else self.get_value_units_display())
         s += verbosify(self.description)
         tolerance = self.tolerance.replace('%', '') if self.tolerance else ''
-        s += verbosify(tolerance, post='%', post_whitespace=False)         
+        s += verbosify(tolerance, post='%', post_whitespace=False)
         s += verbosify(self.attribute)
         s += verbosify(self.package if make_searchable else self.get_package_display())
         s += verbosify(self.pin_count, post='pins')
-        s += verbosify(self.frequency, units=self.frequency_units if make_searchable else self.get_frequency_units_display())	
+        s += verbosify(self.frequency, units=self.frequency_units if make_searchable else self.get_frequency_units_display())
         s += verbosify(self.wavelength, units=self.wavelength_units if make_searchable else self.get_wavelength_units_display())
         s += verbosify(self.memory, units=self.memory_units if make_searchable else self.get_memory_units_display())
         s += verbosify(self.interface if make_searchable else self.get_interface_display())
         s += verbosify(self.supply_voltage, units=self.supply_voltage_units if make_searchable else self.get_supply_voltage_units_display(), post='supply')
-        s += verbosify(self.temperature_rating, units=self.temperature_rating_units if make_searchable else self.get_temperature_rating_units_display(), post='rating')	
+        s += verbosify(self.temperature_rating, units=self.temperature_rating_units if make_searchable else self.get_temperature_rating_units_display(), post='rating')
         s += verbosify(self.power_rating, units=self.power_rating_units if make_searchable else self.get_power_rating_units_display(), post='rating')
         s += verbosify(self.voltage_rating, units=self.voltage_rating_units if make_searchable else self.get_voltage_rating_units_display(), post='rating')
         s += verbosify(self.current_rating, units=self.current_rating_units if make_searchable else self.get_current_rating_units_display(), post='rating')
         s += verbosify(self.material)
         s += verbosify(self.color)
         s += verbosify(self.finish)
-        s += verbosify(self.length, units=self.length_units if make_searchable else self.get_length_units_display(), pre='L')	
+        s += verbosify(self.length, units=self.length_units if make_searchable else self.get_length_units_display(), pre='L')
         s += verbosify(self.width, units=self.width_units if make_searchable else self.get_width_units_display(), pre='W')
         s += verbosify(self.height, units=self.height_units if make_searchable else self.get_height_units_display(), pre='H')
         s += verbosify(self.weight, units=self.weight_units if make_searchable else self.get_weight_units_display())
-        return s 
- 
+        return s
+
     def save(self, *args, **kwargs):
         if self.tolerance:
             self.tolerance = self.tolerance.replace('%', '')
@@ -574,14 +574,14 @@ class PartRevision(models.Model):
 
         bom = []
         indented_given_bom(bom, self)
-        # For each indent level, sort by reference, if no reference then use part number. 
+        # For each indent level, sort by reference, if no reference then use part number.
         # Note that need to convert part number to a list so can be compared with the 
         # list-ified string returned by prep_for_sorting_nicely.
         def sort_by_reference(p):
             return prep_for_sorting_nicely(p['reference']) if p['reference'] else p.__str__().split()
         def sort_by_indent_level(p):
             return p['indent_level']
-        bom = sorted(bom, key=sort_by_reference)   
+        bom = sorted(bom, key=sort_by_reference)
         bom = sorted(bom, key=sort_by_indent_level)
         return bom
 
@@ -616,12 +616,12 @@ class PartRevision(models.Model):
 
         bom = {}
         flat_given_bom(bom, self)
-        # Sort by references, if no references then use part number. 
+        # Sort by references, if no references then use part number.
         # Note that need to convert part number to a list so can be compared with the 
         # list-ified string returned by prep_for_sorting_nicely.
         def sort_by_references(p):
             return prep_for_sorting_nicely(p['references']) if p['references'] else p.__str__().split()
-        bom = sorted(bom.values(), key=sort_by_references) 
+        bom = sorted(bom.values(), key=sort_by_references)
         return bom
 
     def where_used(self):
@@ -677,8 +677,8 @@ class Subpart(models.Model):
         # fields.
         reference = stringify_list(listify_string(self.reference))
         self.reference = reference
-        super(Subpart, self).save(*args, **kwargs) 
-            
+        super(Subpart, self).save(*args, **kwargs)
+
     def __str__(self):
         return u'{} {}'.format(self.part_revision, self.count)
 
