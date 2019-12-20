@@ -1,0 +1,179 @@
+{% load staticfiles %}
+{% load materializecss %}
+{% load bom_filters %}
+
+{% comment %}
+
+This file is intended to be used as a Django include file for the purpose of displaying
+all of the properties of a part revision, as follows:
+
+    {% include 'bom/part-revision-display.html' with part_revision_form=XXX %}
+ 
+where XXX should be the name of the includee's object that represent its PartRevisionForm.
+
+{% endcomment %}
+
+<div class="row">
+    <div class="fieldWrapper">
+        {{ part_revision_form.revision|materializecss:'m2 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.description|materializecss:'m8 s12' }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col s12">
+        <span>Electronics</span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="fieldWrapper">
+        {{ part_revision_form.value|materializecss:'m2 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.value_units|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.tolerance|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.package|materializecss:'m2 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.pin_count|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.supply_voltage|materializecss:'m1 s12' }}
+    </div>
+     <div class="fieldWrapper">
+        {{ part_revision_form.supply_voltage_units|materializecss:'m1 s12' }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col s12">
+        <span>Ratings</span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="fieldWrapper">
+        {{ part_revision_form.power_rating|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.power_rating_units|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.voltage_rating|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.voltage_rating_units|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.current_rating|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.current_rating_units|materializecss:'m1 s12' }}
+    </div>
+   <div class="fieldWrapper">
+        {{ part_revision_form.temperature_rating|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.temperature_rating_units|materializecss:'m1 s12' }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col s12">
+        <span>Miscellaneous</span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="fieldWrapper">
+        {{ part_revision_form.memory|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.memory_units|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.interface|materializecss:'m2 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.frequency|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.frequency_units|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.wavelength|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.wavelength_units|materializecss:'m1 s12' }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col s12">
+        <span>Appearance</span>
+    </div>
+</div>
+
+<div class="row">
+   <div class="fieldWrapper">
+        {{ part_revision_form.color|materializecss:'m2 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.material|materializecss:'m2 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.finish|materializecss:'m2 s12' }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col s12">
+        <span>Dimensions</span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="fieldWrapper">
+        {{ part_revision_form.length|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.length_units|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.width|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.width_units|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.height|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.height_units|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.weight|materializecss:'m1 s12' }}
+    </div>
+    <div class="fieldWrapper">
+        {{ part_revision_form.weight_units|materializecss:'m1 s12' }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col s12">
+        <span>Other Attributes</span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="fieldWrapper">
+        {{ part_revision_form.attribute|materializecss:'m12 s12' }}
+    </div>
+</div>

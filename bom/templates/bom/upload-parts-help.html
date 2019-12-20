@@ -1,0 +1,92 @@
+{% extends BASE_TEMPLATE %}
+
+{% load staticfiles %}
+{% load materializecss %}
+
+{% block head-title %}{{ title }}{% endblock %}
+
+{% block main%}
+<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{% endblock %}
+
+{% block menu %}
+<li><a href="{% url 'bom:home' %}">Home</a></li>
+{% endblock%}
+
+{% block content %}
+
+<h5>Help For Uploading Parts</h5>
+    <p/>
+    To batch create parts, upload a csv that contains columns with the headers  
+    <b>'part_class'</b> or </b>'part_number'</b>, <b>'description'</b> or <b>'value'</b> 
+    along with <b>'value_units'</b>, and <b>'revision'</b>. If you specify a part number 
+    then it must be one that is not already being used. If you don't specify a part number 
+    then IndaBOM will create one for you.
+    </p>
+    <p>If you specify <b>'value_units'</b> then valid choices are: 
+    Ohms, mOhms, kOhms, F, pF, nF, uF, V, uV, mV, A, uA, mA, C, F, Other 
+    <p>
+    You may optionally specify a manufacturer and manufacturer's part number using
+    columns with the headers <b>'manufacturer'</b> and a <b>'manufacturer_part_number'</b>.
+    <p>
+    If you specify a part number that is already in use then the part will not be uploaded. 
+    Similarly, other errors may prevent a part from being uploaded, for example, an improperly 
+    formatted IndaBOM part number or the use of an unknown IndaBOM part class. The 
+    uploading will continue with the next valid part in the file.
+    </p>
+    <p>
+    Any optional information that you can enter manually about a part via the
+    Create Part page may also be submitted via the part list CSV file.
+    Below is the complete list of the additional items you can upload for each part in
+    the file.
+    </p>
+    
+<h5>Optional Part Properties</h5>
+    <p/>
+    <p>
+    Optional part properties are listed below. Some properties requires that you also
+    specify units of measure.
+    </p>
+    <p>
+    Valid choices for part properties and units appear below.
+    </p>
+    <p><b>'tolerance'</b></p>
+    <p><b>'package'</b> (See choices below)</p>
+    <p><b>'pin_count'</b></p>
+    <p><b>'supply_voltage'</b> and <b>'supply_voltage_units'</b> (See choices below)</p>
+    <p><b>'power_rating'</b> and <b>'power_rating_units'</b> (See choices below)</p>
+    <p><b>'voltage_rating'</b> and <b>'voltage_rating_units'</b> (See choices below)</p>
+    <p><b>'current_rating'</b> and <b>'current_rating_units'</b> (See choices below)</p>
+    <p><b>'temperature_rating'</b> and <b>'temperature_rating_units'</b> (See choices below)</p>
+    <p><b>'memory'</b> and <b>'memory_units'</b> (See choices below)</p>
+    <p><b>'interface'</b> (See choices below)</p>
+    <p><b>'frequency'</b> and <b>'frequency_units'</b> (See choices below)</p>
+    <p><b>'wavelength'</b> and <b>'wavelength_units'</b> (See choices below)</p>
+    <p><b>'color'</b></p>
+    <p><b>'material'</b></p>
+    <p><b>'finish'</b></p>
+    <p><b>'length'</b> and <b>'length_units'</b> (See choices below)</p>
+    <p><b>'width'</b> and <b>'width_units'</b> (See choices below)</p>
+    <p><b>'height'</b> and <b>'height_units'</b> (See choices below)</p>
+    <p><b>'weight'</b> and <b>'weight_units'</b> (See choices below)</p>
+    <p><b>'attribute'</b></p>
+    <p/>
+    
+<h5>Valid Choices for Part Properties or Units</h5>
+    <p/>
+    <p><b>'package'</b> = 0201 smd, 0402 smd, 0603 smd, 0805 smd, 1206 smd, 1210 smd, 1812 smd, 
+    2010 smd, 2512 smd, 1/8 radial, 1/4 radial, 1/2 radial, Size A, Size B, Size C, Size D, Size E, SOT-23, 
+    SOT-223, DIL, SOP, SOIC, QFN, QFP, QFT,  PLCCP, VGA</p>
+    <p><b>'power_rating'</b> = W, uW, mW, kW, MW</p>
+    <p><b>'supply_voltage'</b>, <b>'voltage_rating'</b> = V, uV, mV, kV, MV</p>
+    <p><b>'current_rating'</b> = A, uA, mA, kA, MA</p>
+    <p><b>'temperature_rating'</b> = C, F</p>
+    <p><b>'memory'</b> = KB, MB, GB, TB</p> 
+    <p><b>'interface'</b> = I2C, SPI, CAN, One-Wire, RS485, RS232, WiFi, 4G, BT, Z_Wave, Zigbee, LAN, USB, HDMI, Other</p>
+    <p><b>'frequency'</b> = Hz, kHz MHz, GHz</p> 
+    <p><b>'wavelength'</b> = km m, cm, um, nm,  A  (where A means Angstrom)</p>
+    <p><b>'length'</b>, <b>'width'</b>, <b>'height'</b> = mil, in, ft, yd, km, m, cm, um,  nm</p>
+    <p><b>'weight'</b> = mg, g, kb, oz, lb</p>
+    </p>
+   
+{% endblock %}
