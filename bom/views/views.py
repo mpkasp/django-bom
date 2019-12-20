@@ -1,12 +1,9 @@
 import csv
-import codecs
 import logging
 import operator
-import re 
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.core.cache import cache
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import IntegrityError
@@ -702,7 +699,6 @@ def part_export_bom_flat(request, part_revision_id):
             'quantity': item['quantity'],
             'part_class': item['part'].number_class.name,
             'references': item['references'],
-#            'do_not_load': item['do_not_load'],
             'part_synopsis': item['part_revision'].synopsis(),
             'part_revision': item['part_revision'].revision,
             'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item['part'].primary_manufacturer_part is not None and
@@ -1120,8 +1116,7 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-    action = reverse('bom:part-edit-subpart', kwargs={'part_id': part_id, 'subpart_id': subpart_id,
-                                                      'part_revision_id': part_revision_id})
+    action = reverse('bom:part-edit-subpart', kwargs={'part_id': part_id, 'subpart_id': subpart_id, 'part_revision_id': part_revision_id})
 
     part = get_object_or_404(Part, pk=part_id)
     subpart = get_object_or_404(Subpart, pk=subpart_id)
@@ -1129,16 +1124,12 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
     h1 = "{} {}".format(subpart.part_revision.part.full_part_number(), subpart.part_revision.synopsis())
 
     if request.method == 'POST':
-        form = SubpartForm(request.POST, instance=subpart, organization=organization,
-                           part_id=subpart.part_revision.part.id)
-                           
+        form = SubpartForm(request.POST, instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
         if form.is_valid():
             reference_list = listify_string(form.cleaned_data['reference'])
             count = form.cleaned_data['count']
             form.save()   
-            return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id,
-                                                                               'part_revision_id': part_revision_id}))
-                                                                               
+            return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
         else:
             return TemplateResponse(request, 'bom/bom-form.html', locals())
 
@@ -1157,8 +1148,7 @@ def remove_all_subparts(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     part_revision.assembly.subparts.all().delete()
     
-    return HttpResponseRedirect(
-        reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
 @login_required
@@ -1199,20 +1189,15 @@ def add_manufacturer_part(request, part_id):
             manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
             manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
             new_manufacturer_name = manufacturer_form.cleaned_data['name']
-            print("T1", type(manufacturer))
             if manufacturer is None and new_manufacturer_name == '':
-                messages.error(request,
-                               "Must either select an existing manufacturer, or enter a new manufacturer name.")
+                messages.error(request, "Must either select an existing manufacturer, or enter a new manufacturer name.")
                 return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
 
             if new_manufacturer_name != '' and new_manufacturer_name is not None:
-                manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name,
-                                                                           organization=organization)
+                manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization)
                 manufacturer_part_form.cleaned_data['manufacturer'] = manufacturer
 
-            manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part,
-                                                                                manufacturer_part_number=manufacturer_part_number,
-                                                                                manufacturer=manufacturer)
+            manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
 
             if part.primary_manufacturer_part is None and manufacturer_part is not None:
                 part.primary_manufacturer_part = manufacturer_part
@@ -1226,9 +1211,7 @@ def add_manufacturer_part(request, part_id):
     else:
         default_mfg = Manufacturer.objects.filter(organization=organization, name__iexact=organization.name).first()
         manufacturer_form = ManufacturerForm(initial={'organization': organization})
-        manufacturer_part_form = ManufacturerPartForm(organization=organization,
-                                                      initial={'manufacturer_part_number': part.full_part_number(),
-                                                               'manufacturer': default_mfg})
+        manufacturer_part_form = ManufacturerPartForm(organization=organization, initial={'manufacturer_part_number': part.full_part_number(), 'manufacturer': default_mfg})
 
     return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
 
@@ -1245,8 +1228,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
     part = manufacturer_part.part
 
     if request.method == 'POST':
-        manufacturer_part_form = ManufacturerPartForm(request.POST, instance=manufacturer_part,
-                                                      organization=organization)
+        manufacturer_part_form = ManufacturerPartForm(request.POST, instance=manufacturer_part, organization=organization)
         manufacturer_form = ManufacturerForm(request.POST, instance=manufacturer_part.manufacturer)
         if manufacturer_part_form.is_valid() and manufacturer_form.is_valid():
             manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
@@ -1254,14 +1236,12 @@ def manufacturer_part_edit(request, manufacturer_part_id):
             new_manufacturer_name = manufacturer_form.cleaned_data['name']
 
             if manufacturer is None and new_manufacturer_name == '':
-                messages.error(request,
-                               "Must either select an existing manufacturer, or enter a new manufacturer name.")
+                messages.error(request, "Must either select an existing manufacturer, or enter a new manufacturer name.")
                 return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
 
             new_manufacturer = None
             if new_manufacturer_name != '' and new_manufacturer_name is not None:
-                new_manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name,
-                                                                               organization=organization)
+                new_manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization)
                 manufacturer_part = manufacturer_part_form.save(commit=False)
                 manufacturer_part.manufacturer = new_manufacturer
                 manufacturer_part.save()
@@ -1278,8 +1258,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
             messages.error(request, manufacturer_form.errors)
     else:
         if manufacturer_part.manufacturer is None:
-            manufacturer_form = ManufacturerForm(instance=manufacturer_part.manufacturer,
-                                                 initial={'organization': organization})
+            manufacturer_form = ManufacturerForm(instance=manufacturer_part.manufacturer, initial={'organization': organization})
         else:
             manufacturer_form = ManufacturerForm(initial={'organization': organization})
 
@@ -1344,9 +1323,7 @@ def part_revision_release(request, part_id, part_revision_id):
     part = get_object_or_404(Part, pk=part_id)
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     action = reverse('bom:part-revision-release', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id})
-    title = 'Promote {} Rev {} {} from <b>Working</b> to <b>Released</b>?'.format(part.full_part_number(),
-                                                                                  part_revision.revision,
-                                                                                  part_revision.synopsis())
+    title = 'Promote {} Rev {} {} from <b>Working</b> to <b>Released</b>?'.format(part.full_part_number(), part_revision.revision, part_revision.synopsis())
 
     subparts = part_revision.assembly.subparts.filter(part_revision__configuration="W")
     release_warning = subparts.count() > 0
@@ -1386,7 +1363,6 @@ def part_revision_new(request, part_id):
     latest_revision = part.latest()
     next_revision_number = latest_revision.next_revision()            
 
-
     all_part_revisions = part.revisions()
     all_used_part_revisions = PartRevision.objects.filter(part=part)
     used_in_subparts = Subpart.objects.filter(part_revision__in=all_used_part_revisions)
@@ -1425,8 +1401,7 @@ def part_revision_new(request, part_id):
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
             
     else:
-        messages.info(request, 'New revision automatically incremented to `{}` from your last revision `{}`.'
-                      .format(next_revision_number, latest_revision.revision))
+        messages.info(request, 'New revision automatically incremented to `{}` from your last revision `{}`.'.format(next_revision_number, latest_revision.revision))
         latest_revision.revision = next_revision_number  # use updated object to populate form but don't save changes                                    
         part_revision_new_form = PartRevisionNewForm(instance=latest_revision)
 
