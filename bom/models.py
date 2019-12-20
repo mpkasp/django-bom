@@ -22,6 +22,9 @@ class Organization(models.Model):
     number_item_len = models.PositiveIntegerField(default=3, validators=[MinValueValidator(3), MaxValueValidator(10)])
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
 
+    def number_ns(self):
+        return "N" * self.number_item_len
+
     def __str__(self):
         return u'%s' % self.name
 

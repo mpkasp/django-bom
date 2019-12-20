@@ -6,60 +6,144 @@
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
 {% endblock %}
 
 {% block content %}
 
-<div class="row">
-    <div class="col s12">
-        <ul id="tabs" class="tabs tabs-fixed-width">
-            <li class="tab"><a href="#user">User</a></li>
-            <li class="tab"><a href="#indabom">IndaBOM</a></li>
-            <li class="tab"><a href="#organization">Organization</a></li>
-        </ul>
-    </div>
+    <div class="row">
+        <div class="col s12">
+            <ul id="tabs" class="tabs tabs-fixed-width">
+                <li class="tab"><a href="#user">User</a></li>
+                <li class="tab"><a href="#indabom">IndaBOM</a></li>
+                <li class="tab"><a href="#organization">Organization</a></li>
+            </ul>
+        </div>
 
-    <div id="user" class="col s12">
-    	<form name="seller" action="{{ action }}" method="post" class="col s12">
-	    	{% csrf_token %}
-            <br>
-            <div class="row">
-                <h4>Your IndaBOM Info:</h4>
-                <div clas="row">
-                    <p>Your role is: <b>{{ user.bom_profile.get_role_display }}</b><p>
-                    <p>To request a change in role please contact <a href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for assistance.</p>
+        <div id="user" class="col s12">
+            <form name="seller" action="{{ action }}" method="post" class="col s12">
+                {% csrf_token %}
+                <br>
+                <div class="row">
+                    <h4>Your IndaBOM Info:</h4>
+                    <div clas="row">
+                        <p>Your role is: <b>{{ user.bom_profile.get_role_display }}</b>
+                        <p>
+                        <p>To request a change in role please contact <a href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for assistance.</p>
+                    </div>
+                    <div class="row">
+                        {{ user_form.username|materializecss:'s12 m6' }}
+                    </div>
                 </div>
                 <div class="row">
-                    {{ user_form.username|materializecss:'s12 m6' }}
+                    <h4>Your contact info:</h4>
                 </div>
-            </div>
-            <div class="row">
-                <h4>Your contact info:</h4>
-            </div>
-            <div class="row">
-                {{ user_form.first_name|materializecss:'s12 m4' }}
-                {{ user_form.last_name|materializecss:'s12 m4' }}
-                {{ user_form.email|materializecss:'s12 m4' }}
-            </div>               
-            <div class="row">
-                <div class="col s6">
-                    <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="refresh-edit-user">Refresh</button>
+                <div class="row">
+                    {{ user_form.first_name|materializecss:'s12 m4' }}
+                    {{ user_form.last_name|materializecss:'s12 m4' }}
+                    {{ user_form.email|materializecss:'s12 m4' }}
                 </div>
-                <div class="col s6 right-align">
-                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-user">Save</button>
+                <div class="row">
+                    <div class="col s6">
+                        <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="refresh-edit-user">Refresh</button>
+                    </div>
+                    <div class="col s6 right-align">
+                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-user">Save</button>
+                    </div>
                 </div>
-            </div>
-		</form>
-    </div> 
-         
-    <div id="indabom" class="col s12">
-        <form name="seller" action="{{ action }}" method="post" class="col s12" enctype="multipart/form-data">
-            {% csrf_token %}
-            {% if profile.role == 'A' %}
-            <br/>
+            </form>
+        </div>
+
+        <div id="indabom" class="col s12">
+            <form name="seller" action="{{ action }}" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {% if profile.role == 'A' %}
+                    <br/>
+                    <h3>Edit Part Classes</h3>
+                    {% if part_classes.count > 0 %}
+                        <table class="striped tight">
+                            <thead>
+                            <tr>
+                                <th class="text-normal">Delete?</th>
+                                <th class="text-normal">Code</th>
+                                <th class="text-normal">Name</th>
+                                <th class="text-normal">Description</th>
+                                <th class="text-normal">Options</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for part_class in part_classes %}
+                                <tr>
+                                    <td>
+                                        <label><input type="checkbox" class="filled-in" name="delete_part_class_id_{{ part_class.id }}"><span/></label>
+                                    </td>
+                                    <td class="text-normal">{{ part_class.code }}</td>
+                                    <td class="text-normal">{{ part_class.name }}</td>
+                                    <td class="text-normal">{{ part_class.comment }}</td>
+                                    <td>
+                                        <a class="waves-effect waves-green btn-flat green-text text-lighten-1" href="{% url 'bom:part-class-edit' part_class_id=part_class.id %}"><i
+                                                class="material-icons left green-text text-lighten-1">edit</i>Edit</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="row" style="padding-top:16px;">
+                            <div class="col s6">
+                                <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_class_checkbox_clear_all()">Clear</button>
+                                <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-part-class-delete"
+                                        onclick="return confirm('Are you sure you want to delete the selected part classes? This cannot be undone.')">Delete
+                                </button>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p>No part classes have been defined yet.</p>
+                    {% endif %}
+
+                    <h3>Create Part Class</h3>
+                    <div class="row">
+                        {{ part_class_form.non_field_errors }}
+                        {{ part_class_form.code|materializecss:'s12 m1' }}
+                        {{ part_class_form.name|materializecss:'s12 m4' }}
+                        {{ part_class_form.comment|materializecss:'s12 m7' }}
+                    </div>
+                    <div class="row">
+                        <div class="col s6">
+                            <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="cancel-part-class-create">Clear</button>
+                        </div>
+                        <div class="col s6 right-align">
+                            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-part-class-create">Create</button>
+                        </div>
+                    </div>
+
+                    <h3>Upload Part Classes</h3>
+                    <p>To batch define {% if part_classes.count > 0 %} additional {% endif %}part classes, upload a csv that contains columns with the headers
+                        <b>'part_class'</b> and <b>'code'</b>. You may optionally specify a description or comment by including
+                        a column with the header <b>'description'</b> or <b>'comment'</b>.</p>
+                    <div class="row">
+                        <div class="col s11 file-field input-field">
+                            <div class="green lighten-1 btn">
+                                <span>File</span>
+                                {{ part_class_csv_form.file }}
+                            </div>
+                            <div class="file-path-wrapper">
+                                <input class="file-path validate" type="text" placeholder="Upload a file.">
+                                {{ part_class_csv_form.file.errors }}
+                            </div>
+                        </div>
+                        <div class="col s1 input-field">
+                            <input class="green lighten-1 btn" type="submit" name="submit-part-class-upload" value="Upload"/>
+                        </div>
+                    </div>
+
+                {% else %}
+                    {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+                {% endif %}
+
+            </form>
+
             <h3>Part Number</h3>
-            <p>You may only increase the number of digits, up to 10, in your part number item number (CC-NNNNNN-VV, where NNNNNN is the number item).</p>
+            <p>You may only increase the number of digits, up to 10, in your part number item number (CC-{{ organization.number_ns }}-VV, where {{ organization.number_ns }} is the number item).</p>
             <div class="row">
                 {{ number_item_len_form.number_item_len|materializecss:'s12 m3' }}
             </div>
@@ -68,233 +152,161 @@
                     <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="refresh-number-item-len">Refresh</button>
                 </div>
                 <div class="col s6 right-align">
-                  <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-number-item-len
-                            onclick="return confirm('Are you sure you want to change the number of digits?')">Save</button>
+                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-number-item-len"
+                            onclick="return confirm('Are you sure you want to change the number of digits?')">Save
+                    </button>
                 </div>
             </div>
+        </div>
 
-            <br/>
-            <h3>Edit Part Classes</h3>
-                {% if part_classes.count > 0 %}
-                <table>
-                    <thead>
-                        <th class="tighter text-normal">Delete?</th>
-                        <th class="tighter text-normal">Code</th>
-                        <th class="tighter text-normal">Name</th>
-                        <th class="tighter text-normal">Description</th>
-                        <th class="tighter text-normal"/>
-                    </thead>
-                    {% for part_class in part_classes %}
-                    <tbody>
-                        <td>
-                            <label><input type="checkbox" class="filled-in" name="delete_part_class_id_{{part_class.id}}""><span/></label>
-                        </td>
-                        <td class="tighter text-normal">{{ part_class.code }}</td>
-                        <td class="tighter text-normal">{{ part_class.name }}</td>
-                        <td class="tighter text-normal">{{ part_class.comment }}</td>
-                        <td>
-                            <a class="green-text text-lighten-1" href="{% url 'bom:part-class-edit' part_class_id=part_class.id %}"><i
-                                class="material-icons green-text text-lighten-1">edit</i>Edit</a>                            
-                        </td>
-                    </tbody>
-                    {% endfor %}
-                </table> 
-                <div class="row">
-                    <div class="col s6">
-                        <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_class_checkbox_clear_all()">Clear</button>
+        <div id="organization" class="col s12">
+            <form name="seller" action="{{ action }}" method="post" class="col s12" enctype="multipart/form-data">
+                {% csrf_token %}
+                {% if organization.owner == user %}
+                    <h3>Organization</h3>
+                    <div class="row">
+                        {{ organization_form.name|materializecss:'s12 m6' }}
+                        {{ organization_form.owner|materializecss:'s12 m6' }}
                     </div>
-                    <div class="col s6" right-align>
-                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-part-class-delete"
-                                onclick="return confirm('Are you sure you want to delete the selected part classes? This cannot be undone.')">Delete</button>
+                    <div class="row">
+                        <div class="col s6">
+                            <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="refresh-edit-organization">Refresh</button>
+                        </div>
+                        <div class="col s6 right-align">
+                            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-organization"
+                                    onclick="return confirm('Are you sure you want to change the organization information?')">Save
+                            </button>
+                        </div>
                     </div>
-                </div>
+                    <br/>
+                    <br/>
+                    <h3>Users</h3>
+                    {% if users_in_organization.count > 0 %}
+                        <table>
+                            <thead>
+                            <tr>
+                                <th class="text-normal">Remove?</th>
+                                <th class="text-normal">Role</th>
+                                <th class="text-normal">User Name</th>
+                                <th class="text-normal">Full Name</th>
+                                <th class="text-normal">Email</th>
+                                <th class="text-normal"></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for org_user in users_in_organization %}
+                                <tr>
+                                    <td>
+                                        <label><input type="checkbox" class="filled-in" name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>
+                                    </td>
+                                    <td class="text-normal">{{ org_user.bom_profile.get_role_display }}</td>
+                                    <td class="text-normal">{{ org_user.username }}</td>
+                                    <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
+                                    <td class="text-normal"><a href="mailto:{{ user.email }}">{{ org_user.email }}</a></td>
+                                    <td>
+                                        <a class="green-text text-lighten-1" href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
+                                                class="material-icons green-text text-lighten-1">edit</i>Edit</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="row" style="padding-top: 16px;">
+                            <div class="col s6">
+                                <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="user_checkbox_clear_all()">Clear</button>
+                                <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-remove-user"
+                                        onclick="return confirm('Are you sure you want to remove the selected users from {{ organization }}?')">Remove
+                                </button>
+                            </div>
+                        </div>
+                    {% else %}
+                        <span>No additional users in this {{ organization }}.</span>
+                    {% endif %}
+
+                    <br/>
+                    <br/>
+                    <div>
+                        <i>Adding users to your organization is a paid feature, but is free for a
+                            limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.</i>
+                    </div>
+                    <div>
+                        <h3>Add User</h3>
+                        <div class="row">
+                            {{ user_add_form.username|materializecss:'s12 m8' }}
+                            {{ user_add_form.role|materializecss:'s12 m4' }}
+                            {{ user_add_form.file.errors }}
+                        </div>
+                        <br/>
+                        <div class="row">
+                            <div class="col s6">
+                                <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="clear-add-user">Clear</button>
+                            </div>
+                            <div class="col s6 right-align">
+                                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-add-user">Add</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <br/>
+                    <br/>
+                    <br/>
+                    <h3>Part File Storage with Google Drive <img title="Via Google Drive" style="height: 1em; vertical-align: middle;" src="{% static 'bom/img/google_drive_logo.svg' %}"></img></h3>
+                    <p>Connect your Google account. Organization owners can enable file storage using Google Drive. {% if organization.owner == user %} Since you are the owner, you are able to enable
+                        file storage!{% else %}Contact your organization owner to enable.{% endif %}<p>
+                    <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root of Google drive (and can be moved anywhere in your drive). To add files to a part,
+                        navigate to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img title="Via Google Drive" style="width: 16px; vertical-align: middle;"
+                                                                                                                     src="{% static 'bom/img/google_drive_logo.svg' %}"></img>&nbsp;Google Drive link.
+                        This will create a folder for your part in your root IndaBOM directory, or take you there if it already exists.<p>
+                    <p>You'll be able to access the files directly through Google Drive, and through IndaBOM.</p>
+                    <h3>Google Connections</h3>
+                    <ul>
+                        {% if google_authentication %}
+                            <p>Logged in to Google as: {{ google_authentication.uid }}
+                            <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
+                                {% csrf_token %}
+                                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-organization">Disconnect</button>
+                            </form>
+                        {% else %}
+                            <a href="{% url "social:begin" "google-oauth2" %}">
+                                <img title="Google sign-in." src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}"></img>
+                            </a>
+                        {% endif %}
+                    </ul>
+
+                    </div>
                 {% else %}
-                <p>No part classes have been defined yet.</p>
+                    <p>Nothing to see here 🙈 because you are not the organization owner. Please contact
+                        <a href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for assistance.</p>
                 {% endif %}
-            
-            <h3>Create Part Class</h3>
-            <div class="row">
-            {{ part_class_form.non_field_errors }}
-            {{ part_class_form.code|materializecss:'s12 m1' }}
-            {{ part_class_form.name|materializecss:'s12 m4' }}
-            {{ part_class_form.comment|materializecss:'s12 m7' }}
-            </div>
-            <div class="row">
-                <div class="col s6">
-                    <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="cancel-part-class-create">Clear</button>
-                </div>
-                <div class="col s6" right-align>
-                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-part-class-create">Create</button>
-                </div>
-            </div>
-    
-            <h3>Upload Part Classes</h3>
-            <p>To batch define {% if part_classes.count > 0 %} additional {% endif %}part classes, upload a csv that contains columns with the headers 
-            <b>'part_class'</b> and <b>'code'</b>. You may optionally specify a description or comment by including 
-            a column with the header <b>'description'</b> or <b>'comment'</b>.</p> 
-            <div class="row">
-                <div class="col s8 file-field input-field">
-                    <div class="green lighten-1 btn">
-                        <span>File</span>
-                        {{ part_class_csv_form.file }}
-                    </div>
-                    <div class="file-path-wrapper">
-                        <input class="file-path validate" type="text" placeholder="Upload a file.">
-                        {{ part_class_csv_form.file.errors }}
-                    </div>
-                </div>
-                <div class="col s1 input-field">
-                    <input class="green lighten-1 btn" type="submit" name="submit-part-class-upload" value="Upload"/>
-                </div>
-            </div>
-            
-            {% else %}
-            {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
-            {% endif %}
-            
+
         </form>
     </div>
 
-    <div id="organization" class="col s12">
- 		<form name="seller" action="{{ action }}" method="post" class="col s12" enctype="multipart/form-data">
-            {% csrf_token %}
-            {% if organization.owner == user %}
-            <h3>Organization</h3>
-            <div class="row">
-                {{ organization_form.name|materializecss:'s12 m6' }}
-                {{ organization_form.owner|materializecss:'s12 m6' }}
-            </div>
-            <div class="row">
-                <div class="col s6">
-                    <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="refresh-edit-organization">Refresh</button>
-                </div>
-                <div class="col s6 right-align">
-                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-organization"
-                    onclick="return confirm('Are you sure you want to change the organization information?')">Save</button>
-                </div>
-            </div>
-            <br/>
-            <br/>
-            <h3>Users</h3>
-                {% if users_in_organization.count > 0 %}
-                <table>
-                    <thead>
-                        <th class="tighter text-normal">Remove?</th>
-                        <th class="tighter text-normal">Role</th>
-                        <th class="tighter text-normal">User Name</th>
-                        <th class="tighter text-normal">Full Name</th>
-                        <th class="tighter text-normal">Email</th>
-                        <th class="tighter text-normal"></th>
-                    </thead>
-                    {% for org_user in users_in_organization %}
-                    <tbody>
-                        <td>
-                            <label><input type="checkbox" class="filled-in" name="remove_user_meta_id_{{org_user.bom_profile.id}}"><span/></label>
-                        </td>
-                        <td class="tighter text-normal">{{ org_user.bom_profile.get_role_display }}</td>
-                        <td class="tighter text-normal">{{ org_user.username }}</td>
-                        <td class="tighter text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
-                        <td class="tighter text-normal"><a href="mailto:{{ user.email }}">{{ org_user.email }}</a></td>
-                        <td>
-                            <a class="green-text text-lighten-1" href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
-                                class="material-icons green-text text-lighten-1">edit</i>Edit</a>                            
-                        </td>
-                    </tbody>
-                    {% endfor %}
-                </table> 
-                <div class="row">
-                    <div class="col s6">
-                        <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="user_checkbox_clear_all()">Clear</button>
-                    </div>
-                    <div class="col s6 right-align">
-                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-remove-user"
-                                onclick="return confirm('Are you sure you want to remove the selected users from {{ organization }}?')">Remove</button>
-                    </div>
-                </div>
-                {% else %}
-                <span>No additional users in this {{ organization }}.</span>
-                {% endif %}
-
-            <br/> 
-            <br/>              
-            <div>
-                <i>Adding users to your organization is a paid feature, but is free for a 
-                limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.</i>
-            </div>
-            <div>
-                <h3>Add User</h3>
-                <div class="row">
-                        {{ user_add_form.username|materializecss:'s12 m8' }}
-                        {{ user_add_form.role|materializecss:'s12 m4' }}
-                        {{ user_add_form.file.errors }}
-                </div>
-                <br/>
-                <div class="row">
-                    <div class="col s6">
-                       <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="clear-add-user">Clear</button>
-                   </div>
-                    <div class="col s6 right-align">
-                       <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-add-user">Add</button>
-                  </div>
-                </div>
-            </div>
-
-            <br/>
-            <br/>
-            <br/>
-            <h3>Part File Storage with Google Drive <img title="Via Google Drive" style="height: 1em; vertical-align: middle;" src="{% static 'bom/img/google_drive_logo.svg' %}"></img></h3>
-            <p>Connect your Google account. Organization owners can enable file storage using Google Drive. {% if organization.owner == user %} Since you are the owner, you are able to enable file storage!{% else %}Contact your organization owner to enable.{% endif %}<p>
-            <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root of Google drive (and can be moved anywhere in your drive). To add files to a part, navigate to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img title="Via Google Drive" style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/google_drive_logo.svg' %}"></img>&nbsp;Google Drive link. This will create a folder for your part in your root IndaBOM directory, or take you there if it already exists.<p>
-            <p>You'll be able to access the files directly through Google Drive, and through IndaBOM.</p>
-            <h3>Google Connections</h3>
-            <ul>
-            {% if google_authentication %}
-            <p>Logged in to Google as: {{ google_authentication.uid }}
-            <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
-                {% csrf_token %}
-                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-organization">Disconnect</button>
-            </form>
-            {% else %}
-            <a href="{% url "social:begin" "google-oauth2" %}">
-                <img title="Google sign-in." src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}"></img>
-            </a>
-            {% endif%}
-            </ul>
-
-            </div>
-            {% else %}
-            <p>Nothing to see here 🙈 because you are not the organization owner. Please contact 
-            <a href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for assistance.</p>
-            {% endif %}
-        
-        </form>
-    </div>  
-       
-</div>
+    </div>
 
 {% endblock %}
 
 {% block script %}
 
-<!-- Handle if there's an anchor, select tab -->
-<script type='text/javascript'>
-    var tabsElem= document.querySelector('.tabs');
-    var tabs = M.Tabs.init(tabsElem);
-    {% if tab_anchor %}
-    tabs.select('{{tab_anchor}}');
-    {% endif %}
-</script>
+    <!-- Handle if there's an anchor, select tab -->
+    <script type='text/javascript'>
+        var tabsElem = document.querySelector('.tabs');
+        var tabs = M.Tabs.init(tabsElem);
+        {% if tab_anchor %}
+            tabs.select('{{tab_anchor}}');
+        {% endif %}
+    </script>
 
-<script type='text/javascript'>
-    function user_checkbox_clear_all() {
-      $("input[type='checkbox']:checked").prop("checked", false)
-    }
-</script>
+    <script type='text/javascript'>
+        function user_checkbox_clear_all() {
+            $("input[type='checkbox']:checked").prop("checked", false)
+        }
+    </script>
 
-<script type='text/javascript'>
-    function part_class_checkbox_clear_all() {
-      $("input[type='checkbox']:checked").prop("checked", false)
-    }
-</script>
+    <script type='text/javascript'>
+        function part_class_checkbox_clear_all() {
+            $("input[type='checkbox']:checked").prop("checked", false)
+        }
+    </script>
 
-{% endblock script%}
+{% endblock script %}

@@ -867,8 +867,6 @@ def create_part(request):
     profile = user.bom_profile()
     organization = profile.organization
 
-    organization_item_number_ns = "N" * organization.number_item_len
-
     title = 'Create New Part'
 
     if request.method == 'POST':

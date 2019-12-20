@@ -1,4 +1,3 @@
-
 {% extends 'bom/bom-action-btn.html' %}
 
 {% load staticfiles %}
@@ -7,284 +6,285 @@
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
 {% endblock %}
 
 {% block menu %}
-{% if profile.role == 'A' %}
-<li>
-	<!-- Dropdown Trigger -->
-	<a class="dropdown-trigger" href='#'
-			data-target='upload-lists-menu'><i class="material-icons left">menu</i>Upload</a>
-	<!-- Dropdown Structure -->
-	<ul id='upload-lists-menu' class='dropdown-content'>
-		<li><a class="green-text text-lighten-1"
-			   href="{% url 'bom:upload-parts' %}"><i
-				class="material-icons green-text text-lighten-1">cloud_upload</i>Upload Parts CSV</a>
-		</li>
-		<li><a class="green-text text-lighten-1"
-			   href="{% url 'bom:upload-bom' %}"><i
-				class="material-icons green-text text-lighten-1">cloud_upload</i>Upload BOM CSV</a>
-		</li>
-	</ul>
-</li>
-{% endif %}
+    {% if profile.role == 'A' %}
+        <li>
+            <!-- Dropdown Trigger -->
+            <a class="dropdown-trigger" href='#' data-target='upload-lists-menu'>Upload<i class="material-icons right">arrow_drop_down</i></a>
+            <!-- Dropdown Structure -->
+            <ul id='upload-lists-menu' class='dropdown-content'>
+                <li><a class="green-text text-lighten-1"
+                       href="{% url 'bom:upload-parts' %}"><i
+                        class="material-icons green-text text-lighten-1">cloud_upload</i>Upload Parts CSV</a>
+                </li>
+                <li><a class="green-text text-lighten-1"
+                       href="{% url 'bom:upload-bom' %}"><i
+                        class="material-icons green-text text-lighten-1">cloud_upload</i>Upload BOM CSV</a>
+                </li>
+            </ul>
+        </li>
+    {% endif %}
 {% endblock %}
 
 {% block content %}
 
 
-<form id="searchForm" name="search-form" action="{% url 'bom:home' %}" method="post" enctype="multipart/form-data">
-	{% csrf_token %}
-	<div class="row">
-		<div class="col s12">
-			<div class="input-field col s4">        
-				<div>
-					<i class="material-icons prefix">search</i>
-					{{ part_class_selection_form }}
-					<!-- Implicit submit when select an item from form via jscript function below. 
-						 Note then when submit a selection a widget name is not included in the post. -->
-				</div>
-			</div>
-		</div>
-	</div>
+    <form id="searchForm" name="search-form" action="{% url 'bom:home' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col s12">
+                <div class="input-field col s4">
+                    <div>
+                        <i class="material-icons prefix">search</i>
+                        {{ part_class_selection_form }}
+                        <!-- Implicit submit when select an item from form via jscript function below.
+                             Note then when submit a selection a widget name is not included in the post. -->
+                    </div>
+                </div>
+            </div>
+        </div>
 
-	{% if not part_class %}
-	<div class="row">
-		<div class="col s12">
-			<span>- OR - </span>
-		</div>
-	</div>
-	{% endif %}
+        {% if not part_class %}
+            <div class="row">
+                <div class="col s12">
+                    <span>- OR - </span>
+                </div>
+            </div>
+        {% endif %}
 
-	<div class="row">
-		<div class="col s12">
-			<div class="input-field col s12">
-				<i class="material-icons prefix">search</i>
-				<input type="text" id="autocomplete-input" class="text" name="q" value="{% if query %}{{ query }}{% endif %}">
-				{% if part_class %}
-				<label for="autocomplete-input">Search for parts within selected part class:</label>
-				{% elif part_assembly %}
-				<label for="autocomplete-input">Search for parts within selected part assembly:</label>
-				{% else %}
-				<label for="autocomplete-input">Search for parts in any part class:</label>
-				{% endif %}
-	    		<input type="button" onclick="clearSearchExpression()" value="Reset">
-				<input type="submit" name="submit-search-query" value="Search" />
-			</div>
-		</div>
-	</div>
-	
-	<div class="row">
-		<div class="col s12">
- 			For help with searching click <a href="{% url 'bom:search-help' %}">here</a>.
-		</div>
-	</div>	
+        <div class="row">
+            <div class="col s12">
+                <div class="input-field col s12">
+                    <i class="material-icons prefix">search</i>
+                    <input type="search" id="autocomplete-input" class="text" name="q" value="{% if query %}{{ query }}{% endif %}">
+                    <a type="button" class="waves-effect waves-green btn green lighten-1" onclick="clearSearchExpression()">Reset</a>
+                    <a type="submit" class="waves-effect waves-green btn green lighten-1" name="submit-search-query">Search</a>
+                    {% if part_class %}
+                        <label for="autocomplete-input">Search for parts within selected part class:</label>
+                    {% elif part_assembly %}
+                        <label for="autocomplete-input">Search for parts within selected part assembly:</label>
+                    {% else %}
+                        <label for="autocomplete-input">Search for parts in any part class:</label>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
 
-	<br/>
-	{% if part_class or query %}
-	<div class="row">
-		<div class="col s6">
-			{% if profile.role == 'A' %}
-				{% if delete_parts_enabled %}	
-				<button 
-					class="waves-effect waves-light btn grey lighten-1" type="submit" name="submit-disable-delete-parts">Unshow parts delete
-				</button>
-				{% else %}
-				<button
-					class="waves-effect waves-light btn grey lighten-1" type="submit" name="submit-enable-delete-parts">Show parts delete
-				</button>
-				{% endif %}
-			{% endif %}
-			</div>
-		<div class="col s6" right-align>
-			{% if filtered_part_revs %}
-			<button 
-				class="waves-effect waves-light btn grey lighten-1" type="submit" name="download">Download Search Results as CSV
-			</button>
-			{% endif %}
-		</div>
-	</div>
+        <div class="row">
+            <div class="col s12">
+                For help with searching click <a href="{% url 'bom:search-help' %}">here</a>.
+            </div>
+        </div>
 
-	<div class="part-list push-footer">
-		<div class="responsive-table-wrapper">
-			<table class="highlight part-list tight single-line" style="margin-bottom: 14px;">
-				<thead>
-					<tr>
-						{% if profile.role == 'A' and delete_parts_enabled %}
-						<th class=text-normal td-small">Delete?</th>
-						{% endif %}
-					
-						<th class="text-normal td-med">Part Number</th>
-					
-						<th class="text-normal td-small">Category</th>
+        <br/>
+        {% if part_class or query %}
+            <div class="row">
+                <div class="col s6">
+                    {% if profile.role == 'A' %}
+                        {% if delete_parts_enabled %}
+                            <button
+                                    class="waves-effect waves-light btn grey lighten-1" type="submit" name="submit-disable-delete-parts">Unshow parts delete
+                            </button>
+                        {% else %}
+                            <button
+                                    class="waves-effect waves-light btn grey lighten-1" type="submit" name="submit-enable-delete-parts">Show parts delete
+                            </button>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                <div class="col s6 right-align">
+                    {% if filtered_part_revs %}
+                        <button
+                                class="waves-effect waves-light btn grey lighten-1" type="submit" name="download">Download Search Results as CSV
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
 
-						<th class="text-normal td-large">Synopsis</th> 
+            <div class="part-list push-footer">
+                <div class="responsive-table-wrapper">
+                    <table class="highlight part-list tight single-line" style="margin-bottom: 14px;">
+                        <thead>
+                        <tr>
+                            {% if profile.role == 'A' and delete_parts_enabled %}
+                                <th class="text-normal td-small">Delete?</th>
+                            {% endif %}
 
-						<th class="text-normal td-small">Revision</th>
-					
-						<th class="text-normal td-med">Manufacturer</th>
-					
-						<th class="text-normal td-med">MPN</th>
-					
-						<th class="text-normal td-med">Download</th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for part_rev in filtered_part_revs %}
-					<tr>
-						{% if profile.role == 'A' and delete_parts_enabled %}
-						<td>
-							<label><input type="checkbox" class="filled-in" name="delete_part_id_{{part_rev.part.id}}""><span/></label>
-						</td>
-						{% endif %}
+                            <th class="text-normal td-med">Part Number</th>
 
-						<td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part_rev.part.id %}">{{ part_rev.part.full_part_number }}</a></td>
+                            <th class="text-normal td-small">Category</th>
 
-						<td class="text-normal td-small">{{ part_rev.part.number_class.name }}</td>
+                            <th class="text-normal td-large">Synopsis</th>
 
-						<td class="text-normal td-large">{{ part_rev.synopsis }}</td>	
+                            <th class="text-normal td-small">Revision</th>
 
-						<td class="text-normal td-small">{{ part_rev.revision }}</td>	
+                            <th class="text-normal td-med">Manufacturer</th>
 
-						<td class="text-normal td-med">{{ part_rev.part.primary_manufacturer_part.manufacturer.name }}</td>
-					
-						<td class="text-normal td-med">{{ part_rev.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-					
-						<td class="text-normal td-med">
-							<!-- Dropdown Trigger -->
-							<a class="dropdown-trigger" href='#'
-									data-target='export-part-{{ part_rev.id }}'><i class="material-icons left">menu</i></a>
-							<!-- Dropdown Structure -->
-							<ul id='export-part-{{ part_rev.id }}' class='dropdown-content'>
-								<li><a class="green-text text-lighten-1"
-									   href="{% url 'bom:part-revision-export-bom' part_revision_id=part_rev.id %}"><i
-										class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
-								</li>
-								<li class="divider" tabindex="-1"></li>
-								<li><a class="green-text text-lighten-1"
-									   href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_rev.id %}"><i
-										class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
-								</li>
-							</ul>
-						</td>
-					</tr>
-					{% empty %}
-					<tr>
-						<td colspan="99" style="text-align: center; padding: 5%;"><i>No parts found. To add your first part, click the red + button in the bottom right of your screen.</i></td>
-					</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-			{% if profile.role == 'A' and delete_parts_enabled %}
-			<div class="row">
-				<div class="col s6">
-					<button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_checkbox_clear_all()">Clear</button>
-					<button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_checkbox_select_all()">Select All</button>
-				</div>
-				<div class="col s6" right-align>
-					<button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-part-delete"
-							onclick="return confirm('Are you sure you want to delete the selected parts? This cannot be undone.')">Delete</button>
-				</div>
-			</div>
-			{% endif %}
-		</div>
-		{% if part_revs.has_other_pages %}
-		<ul class="pagination center" style="padding-top: 24px;">
-			{% if part_revs.has_previous %}
-			<li><a href="?page={{ part_revs.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
-			{% else %}
-			<li class="disabled"><i class="material-icons">chevron_left</i></li>
-			{% endif %}
-			{% for i in part_revs.paginator.page_range %}
-			{% if part_revs.number == i %}
-				<li class="active green lighten-2"><a>{{ i }}</a></li>
-			{% else %}
-				<li class="waves-effect waves-green"><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
-			{% endif %}
-			{% endfor %}
-			{% if part_revs.has_next %}
-			<li><a href="?page={{ part_revs.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
-			{% else %}
-			<li class="disabled"><i class="material-icons">chevron_right</i></li>
-			{% endif %}
-		</ul>
-		{% endif %}
-	</div>
+                            <th class="text-normal td-med">MPN</th>
 
-</form>
+                            <th class="text-normal td-med">Download</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for part_rev in filtered_part_revs %}
+                            <tr>
+                                {% if profile.role == 'A' and delete_parts_enabled %}
+                                    <td>
+                                        <label><input type="checkbox" class="filled-in" name="delete_part_id_{{ part_rev.part.id }}""><span/></label>
+                                    </td>
+                                {% endif %}
 
-{% endif %}
-    
+                                <td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part_rev.part.id %}">{{ part_rev.part.full_part_number }}</a></td>
+
+                                <td class="text-normal td-small">{{ part_rev.part.number_class.name }}</td>
+
+                                <td class="text-normal td-large">{{ part_rev.synopsis }}</td>
+
+                                <td class="text-normal td-small">{{ part_rev.revision }}</td>
+
+                                <td class="text-normal td-med">{{ part_rev.part.primary_manufacturer_part.manufacturer.name }}</td>
+
+                                <td class="text-normal td-med">{{ part_rev.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+
+                                <td class="text-normal td-med">
+                                    <!-- Dropdown Trigger -->
+                                    <a class="dropdown-trigger" href='#'
+                                       data-target='export-part-{{ part_rev.id }}'><i class="material-icons left">menu</i></a>
+                                    <!-- Dropdown Structure -->
+                                    <ul id='export-part-{{ part_rev.id }}' class='dropdown-content'>
+                                        <li><a class="green-text text-lighten-1"
+                                               href="{% url 'bom:part-revision-export-bom' part_revision_id=part_rev.id %}"><i
+                                                class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
+                                        </li>
+                                        <li class="divider" tabindex="-1"></li>
+                                        <li><a class="green-text text-lighten-1"
+                                               href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_rev.id %}"><i
+                                                class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
+                                        </li>
+                                    </ul>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="99" style="text-align: center; padding: 5%;"><i>No parts found. To add your first part, click the red + button in the bottom right of your screen.</i></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if profile.role == 'A' and delete_parts_enabled %}
+                        <div class="row">
+                            <div class="col s6">
+                                <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_checkbox_clear_all()">Clear</button>
+                                <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_checkbox_select_all()">Select All</button>
+                            </div>
+                            <div class="col s6" right-align>
+                                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-part-delete"
+                                        onclick="return confirm('Are you sure you want to delete the selected parts? This cannot be undone.')">Delete
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                {% if part_revs.has_other_pages %}
+                    <ul class="pagination center" style="padding-top: 24px;">
+                        {% if part_revs.has_previous %}
+                            <li><a href="?page={{ part_revs.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
+                        {% else %}
+                            <li class="disabled"><i class="material-icons">chevron_left</i></li>
+                        {% endif %}
+                        {% for i in part_revs.paginator.page_range %}
+                            {% if part_revs.number == i %}
+                                <li class="active green lighten-2"><a>{{ i }}</a></li>
+                            {% else %}
+                                <li class="waves-effect waves-green"><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        {% if part_revs.has_next %}
+                            <li><a href="?page={{ part_revs.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
+                        {% else %}
+                            <li class="disabled"><i class="material-icons">chevron_right</i></li>
+                        {% endif %}
+                    </ul>
+                {% endif %}
+            </div>
+
+            </form>
+
+        {% endif %}
+
 {% endblock %}
 
 {% block script %}
-<!-- Autocomplete -->
-<script>
-var data = JSON.parse('{{ autocomplete|safe }}');;
-$(document).ready(function(){
-    $('input.autocomplete').autocomplete({
-        data: data,
-        limit: 10, // The max amount of results that can be shown at once. Default: Infinity.
-        onAutocomplete: function(val) {
-            document.getElementById("searchForm").submit();
-        },
-        minLength: 1, // The minimum length of the input for the autocomplete to start. Default: 1.
-    });
-});
-</script>
+    <!-- Autocomplete -->
+    <script>
+        var data = JSON.parse('{{ autocomplete|safe }}');
+        ;
+        $(document).ready(function () {
+            $('input.autocomplete').autocomplete({
+                data: data,
+                limit: 10, // The max amount of results that can be shown at once. Default: Infinity.
+                onAutocomplete: function (val) {
+                    document.getElementById("searchForm").submit();
+                },
+                minLength: 1, // The minimum length of the input for the autocomplete to start. Default: 1.
+            });
+        });
+    </script>
 
-<!-- Floating Horizontal Scrollbar -->
-<script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
-<script>
-$(function() {
-  $('.responsive-table-wrapper').floatingScrollbar();
-});
-</script>
+    <!-- Floating Horizontal Scrollbar -->
+    <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
+    <script>
+        $(function () {
+            $('.responsive-table-wrapper').floatingScrollbar();
+        });
+    </script>
 
-<!-- Handle if there's an anchor, select tab -->
-<script type='text/javascript'>
-// For dropdown menu
-$(document).ready(function () {
-	$('.dropdown-trigger').dropdown({
-			inDuration: 300,
-			outDuration: 225,
-			constrainWidth: false, // Does not change width of dropdown to that of the activator
-			hover: false, // Activate on hover
-			gutter: 0, // Spacing from edge
-			belowOrigin: false, // Displays dropdown below the button
-			alignment: 'left', // Displays dropdown with edge aligned to the left of button
-			stopPropagation: false // Stops event propagation
-		}
-	);
+    <!-- Handle if there's an anchor, select tab -->
+    <script type='text/javascript'>
+        // For dropdown menu
+        $(document).ready(function () {
+            $('.dropdown-trigger').dropdown({
+                    inDuration: 300,
+                    outDuration: 225,
+                    constrainWidth: false, // Does not change width of dropdown to that of the activator
+                    hover: false, // Activate on hover
+                    gutter: 0, // Spacing from edge
+                    belowOrigin: false, // Displays dropdown below the button
+                    alignment: 'left', // Displays dropdown with edge aligned to the left of button
+                    stopPropagation: false // Stops event propagation
+                }
+            );
 
-});
-</script>
+        });
+    </script>
 
-<script type='text/javascript'>
-    function part_checkbox_clear_all() {
-      $("input[type='checkbox']:checked").prop("checked", false)
-    }
-</script>
+    <script type='text/javascript'>
+        function part_checkbox_clear_all() {
+            $("input[type='checkbox']:checked").prop("checked", false)
+        }
+    </script>
 
-<script type='text/javascript'>
-    function part_checkbox_select_all() {
-      $("input[type='checkbox']").prop("checked", true)
-    }
-</script>
+    <script type='text/javascript'>
+        function part_checkbox_select_all() {
+            $("input[type='checkbox']").prop("checked", true)
+        }
+    </script>
 
-<script type='text/javascript'>
-	 $(function(){
-		$('#id_part_class').change(function(){
-			$('#searchForm').submit();
-		});
-	});
-</script>
+    <script type='text/javascript'>
+        $(function () {
+            $('#id_part_class').change(function () {
+                $('#searchForm').submit();
+            });
+        });
+    </script>
 
-<script type='text/javascript'>
-	function clearSearchExpression() {
-		document.getElementById("autocomplete-input").value=""
-	}
-</script>
+    <script type='text/javascript'>
+        function clearSearchExpression() {
+            document.getElementById("autocomplete-input").value = ""
+        }
+    </script>
 
-{% endblock script%}
+{% endblock script %}
