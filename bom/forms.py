@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
     Organization, PartRevision, AssemblySubparts, Assembly
 from .validators import decimal, numeric
-from .utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely
+from .utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely, get_from_dict
 
 logger = logging.getLogger(__name__)
 
@@ -367,107 +367,78 @@ class PartCSVForm(forms.Form):
             reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
             headers = [h.lower() for h in next(reader)]
 
-            if 'part_class' not in headers:
-                if 'part_number' not in headers:
-                    raise ValidationError("Missing required column named 'part_class' or column named 'part_number'",
-                                          code='invalid')
+            if 'part_class' not in headers and 'part_number not in headers':
+                raise ValidationError("Missing required column named 'part_class' or column named 'part_number'", code='invalid')
 
             if 'revision' not in headers:
-                if 'part_number' not in headers:
-                    raise ValidationError("Missing required column named 'revision'",
-                                          code='invalid')
+                raise ValidationError("Missing required column named 'revision'", code='invalid')
 
             if 'description' not in headers:
                 if 'value' not in headers or 'value_units' not in headers:
-                    raise ValidationError("Missing required column named 'descrption' or columns named 'value' and 'value_units'",
+                    raise ValidationError("Missing required column named 'description' or columns named 'value' and 'value_units'",
                                           code='invalid')
 
             row_count = 1  # Skip over header row
             for row in reader:
                 row_count += 1
                 part_data = {}
-                part_number = None
-                part_class = None
-                number_item = None
-                number_variation = None
                 for idx, item in enumerate(row):
                     part_data[headers[idx]] = item
+                part_number = get_from_dict(part_data, ['part_number', 'pn', 'part no', 'part number', 'part_no', ])
+                part_class = get_from_dict(part_data, ['part_class', 'part class', 'class', ])
+                number_item = None
+                number_variation = None
+                revision = get_from_dict(part_data, ['revision', 'rev', 'part_rev', 'part rev', 'part_revision', 'part revision'])
+                mpn = get_from_dict(part_data, ['manufacturer_part_number', 'mpn', ])
+                mfg_name = get_from_dict(part_data, ['mfg', 'manufacturer', 'mfg name', 'manufacturer name', ])
 
                 # Check part number for uniqueness. If part number not specified
                 # then Part.save() will create one.
-                if 'part_number' in part_data:
-                    part_number = part_data['part_number']
-                    if part_number:
-                        try:
-                            (part_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization.number_item_len)
-                            Part.objects.get(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
-                            self.add_error(None, "Part number {0} in row {1} already exists. "
-                                                 "Uploading of this part skipped.".format(part_number, row_count))
-
-                        except AttributeError as e:
-                            self.add_error(None, str(e) + " on row {}. Creation of this part skipped.".format(row_count))
-                            continue
-                        except Part.DoesNotExist:
-                            pass
-
-                if 'part_class' in part_data:
-                    part_class = part_data['part_class']
-                    if part_class:
-                        try:
-                            part_class = PartClass.objects.get(code=part_data['part_class'], organization=self.organization)
-                        except PartClass.DoesNotExist:
-                            self.add_error(None, "Part class {0} in row {1} doesn't exist. "
-                                                 "Uploading of this part skipped.".format(part_data['part_class'], row_count))
-                            continue
-
-                if not part_number and not part_class:
-                    self.add_error(None, "In row {} need to specify a part_class or a part_number. "
-                                         "Uploading of this part skipped.".format(row_count))
-
-                revision = ''
-                if part_data['revision'] is None:
-                    self.add_error(None, "Missing revision in row {}. "
-                                         "Uploading of this part skipped.", format(row_count))
+                if part_number:
+                    try:
+                        (part_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization.number_item_len)
+                        Part.objects.get(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
+                        self.add_error(None, "Part number {0} in row {1} already exists. Uploading of this part skipped.".format(part_number, row_count))
+                    except AttributeError as e:
+                        self.add_error(None, str(e) + " on row {}. Creation of this part skipped.".format(row_count))
+                        continue
+                    except Part.DoesNotExist:
+                        pass
+                elif part_class:
+                    try:
+                        part_class = PartClass.objects.get(code=part_data['part_class'], organization=self.organization)
+                    except PartClass.DoesNotExist:
+                        self.add_error(None, "Part class {0} in row {1} doesn't exist. "
+                                             "Uploading of this part skipped.".format(part_data['part_class'], row_count))
+                        continue
+                else:
+                    self.add_error(None, "In row {} need to specify a part_class or a part_number. Uploading of this part skipped.".format(row_count))
                     continue
-                elif len(part_data['revision']) > 2:
+
+                if not revision:
+                    self.add_error(None, "Missing revision in row {}. Uploading of this part skipped.", format(row_count))
+                    continue
+                elif len(revision) > 2:
                     self.add_error(None, "Revision {0} in row {1} is more than the maximum 2 characters. "
                                          "Uploading of this part skipped.".format(part_data['revision'], row_count))
                     continue
-                elif not part_data['revision'].isdigit():
+                elif not revision.isdigit():
                     self.add_error(None, "Revision {0} in row {1} must be a number. "
                                          "Uploading of this part skipped.".format(part_data['revision'], row_count))
                     continue
-                elif int(part_data['revision']) < 0:
+                elif int(revision) < 0:
                     self.add_error(None, "Revision {0} in row {1} cannot be negative. "
                                          "Uploading of this part skipped.".format(part_data['revision'], row_count))
                     continue
-                else:
-                    revision = part_data['revision']
 
-                mpn = ''
-                mfg = None
-                mfg_name = ''
-                if 'manufacturer_part_number' in part_data:
-                    mpn = part_data['manufacturer_part_number']
-                elif 'mpn' in part_data:
-                    mpn = part_data['mpn']
-
-                try:
-                    if 'manufacturer' in part_data:
-                        mfg_name = part_data['manufacturer'] if part_data['manufacturer'] is not None else ''
-                        mfg = Manufacturer.objects.get(name__iexact=mfg_name, organization=self.organization)
-                    elif 'mfg' in part_data:
-                        mfg_name = part_data['mfg'] if part_data['mfg'] is not None else ''
-                        mfg = Manufacturer.objects.get(name__iexact=mfg_name, organization=self.organization)
-
-                    manufacturer_part = ManufacturerPart.objects.filter(manufacturer_part_number=mpn, manufacturer=mfg)
-                    if mpn != '' and manufacturer_part.count() > 0:
+                if mpn and mfg_name:
+                    manufacturer_part = ManufacturerPart.objects.filter(manufacturer_part_number=mpn,
+                                                                        manufacturer__name=mfg_name,
+                                                                        manufacturer__organization=self.organization)
+                    if manufacturer_part.count() > 0:
                         self.add_error(None, "Part already exists for manufacturer part {0} in row {1}. "
                                              "Uploading of this part skipped.".format(row_count, mpn, row_count))
                         continue
-
-                except Manufacturer.DoesNotExist:
-                    pass
 
                 skip = False
                 part_revision = PartRevision()
@@ -555,10 +526,11 @@ class PartCSVForm(forms.Form):
 
                 part = Part.objects.create(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
                 part_revision.part = part
-                mfg, created = Manufacturer.objects.get_or_create(name__iexact=mfg_name, organization=self.organization)
-                manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=mpn, manufacturer=mfg)
-                if part.primary_manufacturer_part is None and manufacturer_part is not None:
-                    part.primary_manufacturer_part = manufacturer_part
+                if mfg_name and mpn:
+                    mfg, created = Manufacturer.objects.get_or_create(name__iexact=mfg_name, organization=self.organization, defaults={'name': mfg_name})
+                    manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=mpn, manufacturer=mfg)
+                    if part.primary_manufacturer_part is None and manufacturer_part is not None:
+                        part.primary_manufacturer_part = manufacturer_part
 
                 part.save()
                 part_revision.save()
@@ -882,13 +854,6 @@ class BOMCSVForm(forms.Form):
         file = self.cleaned_data.get('file')
         self.successes = list()
         self.warnings = list()
-
-        def get_from_dict(part_dict, key_options):
-            for key in key_options:
-                val = part_dict.get(key, None)
-                if val:
-                    return val
-            return None
 
         try:
             csv_row_decoded = file.readline().decode('utf-8')

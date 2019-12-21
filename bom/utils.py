@@ -95,3 +95,12 @@ def strip_trailing_zeros(num):
             found = False
             break
     return ('%.15f' % float(num)).rstrip('0').rstrip('.') if found else num
+
+
+# Input a dict with a list of key options, return the value if it exists, else None
+def get_from_dict(input_dict, key_options):
+    for key in key_options:
+        val = input_dict.get(key, None)
+        if val:
+            return val
+    return None
