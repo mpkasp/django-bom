@@ -87,8 +87,7 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(
-            reverse('bom:part-revision-export-bom', kwargs={'part_revision_id': p1.latest().id}))
+        response = self.client.post(reverse('bom:part-revision-export-bom', kwargs={'part_revision_id': p1.latest().id}))
         self.assertEqual(response.status_code, 200)
 
     def test_part_revision_export_bom_flat(self):
@@ -96,24 +95,20 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(
-            reverse('bom:part-revision-export-bom-flat', kwargs={'part_revision_id': p1.latest().id}))
+        response = self.client.post(reverse('bom:part-revision-export-bom-flat', kwargs={'part_revision_id': p1.latest().id}))
         self.assertEqual(response.status_code, 200)
 
     def test_part_upload_bom(self):
+        # TODO: Why is this so slow?
         self.client.login(username='kasper', password='ghostpassword')
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         with open('bom/test_files/test_parts.csv') as test_csv:
-            response = self.client.post(
-                reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}),
-                {'file': test_csv})
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv})
         self.assertEqual(response.status_code, 302)
 
         with open('bom/test_files/test_parts_2.csv') as test_csv:
-            response = self.client.post(
-                reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}),
-                {'file': test_csv})
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv})
         self.assertEqual(response.status_code, 302)
 
     def test_export_part_list(self):

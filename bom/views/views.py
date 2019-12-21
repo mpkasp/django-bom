@@ -1337,7 +1337,7 @@ def part_revision_new(request, part_id):
     action = reverse('bom:part-revision-new', kwargs={'part_id': part_id})
 
     latest_revision = part.latest()
-    next_revision_number = latest_revision.next_revision()
+    next_revision_number = latest_revision.next_revision() if latest_revision else None
 
     all_part_revisions = part.revisions()
     all_used_part_revisions = PartRevision.objects.filter(part=part)
@@ -1376,9 +1376,12 @@ def part_revision_new(request, part_id):
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
 
     else:
-        messages.info(request, 'New revision automatically incremented to `{}` from your last revision `{}`.'.format(next_revision_number, latest_revision.revision))
-        latest_revision.revision = next_revision_number  # use updated object to populate form but don't save changes                                    
-        part_revision_new_form = PartRevisionNewForm(instance=latest_revision)
+        if latest_revision:
+            messages.info(request, 'New revision automatically incremented to `{}` from your last revision `{}`.'.format(next_revision_number, latest_revision.revision))
+            latest_revision.revision = next_revision_number  # use updated object to populate form but don't save changes
+            part_revision_new_form = PartRevisionNewForm(instance=latest_revision)
+        else:
+            part_revision_new_form = PartRevisionNewForm()
 
     return TemplateResponse(request, 'bom/part-revision-new.html', locals())
 
