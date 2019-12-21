@@ -385,9 +385,7 @@ class TestBOM(TransactionTestCase):
             'name': '',
         }
 
-        response = self.client.post(
-            reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}),
-            data)
+        response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}), data)
         self.assertEqual(response.status_code, 302)
 
         data = {
@@ -397,9 +395,7 @@ class TestBOM(TransactionTestCase):
         }
 
         old_id = p1.primary_manufacturer_part.manufacturer.id
-        response = self.client.post(
-            reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}),
-            data)
+        response = self.client.post(reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}), data)
         self.assertEqual(response.status_code, 302)
         p1.refresh_from_db()
         self.assertNotEqual(p1.primary_manufacturer_part.manufacturer.id, old_id)

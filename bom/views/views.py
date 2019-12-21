@@ -1206,9 +1206,9 @@ def manufacturer_part_edit(request, manufacturer_part_id):
         manufacturer_part_form = ManufacturerPartForm(request.POST, instance=manufacturer_part, organization=organization)
         manufacturer_form = ManufacturerForm(request.POST, instance=manufacturer_part.manufacturer)
         if manufacturer_part_form.is_valid() and manufacturer_form.is_valid():
-            manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
-            manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
-            new_manufacturer_name = manufacturer_form.cleaned_data['name']
+            manufacturer_part_number = manufacturer_part_form.cleaned_data.get('manufacturer_part_number')
+            manufacturer = manufacturer_part_form.cleaned_data.get('manufacturer', None)
+            new_manufacturer_name = manufacturer_form.cleaned_data.get('name', '')
 
             if manufacturer is None and new_manufacturer_name == '':
                 messages.error(request, "Must either select an existing manufacturer, or enter a new manufacturer name.")
@@ -1216,7 +1216,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
 
             new_manufacturer = None
             if new_manufacturer_name != '' and new_manufacturer_name is not None:
-                new_manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization)
+                new_manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization, defaults={'name': new_manufacturer_name})
                 manufacturer_part = manufacturer_part_form.save(commit=False)
                 manufacturer_part.manufacturer = new_manufacturer
                 manufacturer_part.save()
