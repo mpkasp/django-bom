@@ -404,7 +404,11 @@ def part_info(request, part_id, part_revision_id=None):
         part_revision = part.latest()
     else:
         part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-    selected_rev_is_latest = True if part_revision.revision == part.latest().revision else False
+
+    try:
+        selected_rev_is_latest = part_revision.revision == part.latest().revision
+    except AttributeError:
+        selected_rev_is_latest = False
 
     revisions = PartRevision.objects.filter(part=part_id).order_by('-id')
 
