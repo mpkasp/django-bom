@@ -599,8 +599,8 @@ class PartForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super(PartForm, self).__init__(*args, **kwargs)
-        self.fields['number_class'] = forms.ModelChoiceField(queryset=PartClass.objects.all().filter(organization=self.organization), empty_label="- Select Part Number Class -",
-                                        label='Part Number Class*', required=True)
+        self.fields['number_class'] = forms.ModelChoiceField(queryset=PartClass.objects.filter(organization=self.organization),
+                                                             empty_label="- Select Part Number Class -", label='Part Number Class*', required=True)
         if self.instance and self.instance.id:
             self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(
                 part__id=self.instance.id).order_by('manufacturer_part_number')
@@ -612,9 +612,9 @@ class PartForm(forms.ModelForm):
             
     def clean(self):
         cleaned_data = super(PartForm, self).clean()
-        number_class = cleaned_data['number_class']
-        number_item = cleaned_data['number_item']
-        number_variation = cleaned_data['number_variation']
+        number_class = cleaned_data.get('number_class')
+        number_item = cleaned_data.get('number_item')
+        number_variation = cleaned_data.get('number_variation')
 
         try:
             Part.objects.get(
@@ -627,11 +627,10 @@ class PartForm(forms.ModelForm):
                                         ("Part number {0}-{1}-{2} already in use.".format(number_class, number_item, number_variation)),
                                         code='invalid')
             self.add_error(None, validation_error)   
-
         except Part.DoesNotExist:
             pass
-            
-        return cleaned_data     
+
+        return cleaned_data
         
 
 class PartRevisionForm(forms.ModelForm):
@@ -656,7 +655,6 @@ class PartRevisionForm(forms.ModelForm):
         for f in self.fields.values():
             if 'units' in f.label: f.label = 'Units'
             f.label.replace('rating', '')
-            print ("F", f)
             #f.value = strip_trailing_zeros(f.value) # Harmless if field is not a number
         self.fields['supply_voltage'].label = 'Vsupply' 
         self.fields['attribute'].label = ''

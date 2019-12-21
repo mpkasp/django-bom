@@ -7,18 +7,17 @@ alphanumeric = RegexValidator(r'^[0-9a-zA-Z]*$', 'Only alphanumeric characters a
 numeric = RegexValidator(r'^[0-9]*$', 'Only numeric characters are allowed.')
 decimal = RegexValidator(r'^[0-9]\d*(\.\d+)?$', 'Only decimal number characters are allowed.')
 
+
 def validate_pct(value):
     if value is not None and len(value) > 1:
         try:
             if value.endswith("%"):
-                return float(value[:-1])/100
+                return float(value[:-1]) / 100
             else:
                 return float(value)
-        except (TypeError, ValueError):          
+        except (TypeError, ValueError):
             raise ValidationError(
                 _('%(value)s is not a valid pct'),
                 params={'value': value},
             )
     return None
-           
-           

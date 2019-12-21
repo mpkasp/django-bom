@@ -22,7 +22,7 @@ class MouserPartMatchBOM(BomJsonResponse):
         part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
         subparts = part_revision.assembly.subparts.all()
         part_revision_ids = list(subparts.values_list('part_revision', flat=True))
-        print(list(part_revision_ids))
+        # print(list(part_revision_ids))
         part_revision_ids.append(part_revision_id)
         part_revisions = PartRevision.objects.filter(id__in=part_revision_ids)
         mouser = Mouser()

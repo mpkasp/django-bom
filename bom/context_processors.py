@@ -1,4 +1,5 @@
-from django.conf import settings # import the settings file
+from django.conf import settings  # import the settings file
+
 
 def bom_config(request):
     base_template = 'bom/base.html'

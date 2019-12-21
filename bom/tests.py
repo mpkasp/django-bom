@@ -124,7 +124,6 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:export-part-list'))
         self.assertEqual(response.status_code, 200)
 
-
     def test_create_part(self):
         self.client.login(username='kasper', password='ghostpassword')
 
@@ -499,7 +498,6 @@ class TestBOM(TransactionTestCase):
         for nsid in new_subpart_ids:
             self.assertNotIn(nsid, previous_subpart_ids)
 
-
     def test_part_revision_edit(self):
         self.client.login(username='kasper', password='ghostpassword')
 
@@ -555,14 +553,13 @@ class TestForms(TestCase):
 
     def test_part_form(self):
         (pc1, pc2, pc3) = create_some_fake_part_classes(self.organization)
-
         form_data = {
             'number_class': pc1.id,
             'description': "ASSY, ATLAS WRISTBAND 10",
             'revision': 'AA'
         }
 
-        form = PartForm(data=form_data)
+        form = PartForm(data=form_data, organization=self.organization)
         self.assertTrue(form.is_valid())
 
         (m1, m2, m3) = create_some_fake_manufacturers(self.organization)
@@ -573,7 +570,7 @@ class TestForms(TestCase):
             'revision': '1',
         }
 
-        form = PartForm(data=form_data)
+        form = PartForm(data=form_data, organization=self.organization)
         self.assertTrue(form.is_valid())
 
         new_part, created = Part.objects.get_or_create(
@@ -586,7 +583,10 @@ class TestForms(TestCase):
         self.assertEqual(new_part.number_class.id, pc2.id)
 
     def test_part_form_blank(self):
-        form = PartForm({})
+        (pc1, pc2, pc3) = create_some_fake_part_classes(self.organization)
+
+        form = PartForm(data={}, organization=self.organization)
+
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors, {
             'number_class': [u'This field is required.'],
