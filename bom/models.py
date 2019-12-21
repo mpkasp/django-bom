@@ -545,8 +545,7 @@ class PartRevision(models.Model):
         def indented_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None,
                                reference='', do_not_load=False):
             if part_revision is None:  # hopefully this never happens
-                logger.warning("Indented bom part_revision is None, this shouldn't happen, parent "
-                               "part_revision id: {}".format(parent.id))
+                logger.warning("Indented bom part_revision is None, this shouldn't happen, parent part_revision id: {}".format(parent.id))
                 return
 
             bom.append({
