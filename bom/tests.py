@@ -202,7 +202,7 @@ class TestBOM(TransactionTestCase):
             'manufacturer_part_number': '',
             'manufacturer': '',
             'number_class': p1.number_class.id,
-            'number_item': '1234',
+            'number_item': '1235',
             'number_variation': '',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',

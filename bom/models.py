@@ -293,7 +293,7 @@ class PartRevision(models.Model):
         ('Other', 'Other'),
     )
 
-    value_units = models.CharField(max_length=5, default=None, null=True, blank=False, choices=VALUE_UNITS)
+    value_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VALUE_UNITS)
     value = models.CharField(max_length=255, default=None, null=True, blank=True)
 
     attribute = models.CharField(max_length=255, default=None, null=True, blank=True)

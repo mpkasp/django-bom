@@ -875,9 +875,7 @@ def create_part(request):
                     messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
                     return TemplateResponse(request, 'bom/create-part.html', locals())
             elif old_manufacturer or new_manufacturer_name != '':
-                messages.warning(request,
-                                 "No manufacturer was selected or created, no manufacturer part number was assigned.")
-
+                messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
             new_part = part_form.save(commit=False)
             new_part.organization = organization
             try:
@@ -890,9 +888,8 @@ def create_part(request):
                 return TemplateResponse(request, 'bom/create-part.html', locals())
             except Part.DoesNotExist:
                 pass
-
             if part_revision_form.is_valid():
-                # Save the Part before the PartRevision, as this will again check for part 
+                # Save the Part before the PartRevision, as this will again check for part
                 # number uniqueness. This way if someone else(s) working concurrently is also 
                 # using the same part number, then only one person will succeed.
                 try:
@@ -919,8 +916,7 @@ def create_part(request):
             new_part.primary_manufacturer_part = manufacturer_part
             new_part.save()
 
-            return HttpResponseRedirect(
-                reverse('bom:part-info', kwargs={'part_id': str(new_part.id)}))
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': str(new_part.id)}))
         else:
             part_revision_form = PartRevisionForm(request.POST)
     else:
