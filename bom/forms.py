@@ -267,7 +267,7 @@ class PartClassSelectionForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super(PartClassSelectionForm, self).__init__(*args, **kwargs)
-        self.fields['part_class'] = forms.ModelChoiceField(queryset=PartClass.objects.all().filter(organization=self.organization).order_by('code'),
+        self.fields['part_class'] = forms.ModelChoiceField(queryset=PartClass.objects.filter(organization=self.organization).order_by('code'),
                                                            empty_label="- Select Part Class -", label='List parts by class', required=False)
 
 

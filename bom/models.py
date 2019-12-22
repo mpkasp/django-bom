@@ -74,6 +74,7 @@ class PartClass(models.Model):
     class Meta:
         unique_together = ['code', 'name', 'organization', ]
         ordering = ['code']
+        index_together = ['organization', 'code', ]
 
     def __str__(self):
         return u'%s' % (self.code + ': ' + self.name)
@@ -272,7 +273,7 @@ class PartRevision(models.Model):
     configuration = models.CharField(max_length=1, choices=(('R', 'Released'), ('W', 'Working'),), default='W')
     revision = models.CharField(max_length=4, db_index=True, default='1')
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
-    searchable_synopsis = models.TextField(editable=False, default="", null=True, blank=True, db_index=True)
+    searchable_synopsis = models.CharField(editable=False, default="", null=True, blank=True, max_length=255, db_index=True)
 
     class Meta:
         unique_together = (('part', 'revision'),)
