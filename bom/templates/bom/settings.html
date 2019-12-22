@@ -226,10 +226,6 @@
                     <br/>
                     <br/>
                     <div>
-                        <i>Adding users to your organization is a paid feature, but is free for a
-                            limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.</i>
-                    </div>
-                    <div>
                         <h3>Add User</h3>
                         <div class="row">
                             {{ user_add_form.username|materializecss:'s12 m8' }}
@@ -238,11 +234,17 @@
                         </div>
                         <br/>
                         <div class="row">
+                            <div class="col">
+                                <i>Adding users to your organization is a paid feature, but is free for a
+                            limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.</i>
+                            </div>
+                        </div>
+                        <div class="row">
                             <div class="col s6">
                                 <a class="waves-effect waves-light btn grey lighten-1" type="button" href="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}">Clear</a>
                             </div>
                             <div class="col s6 right-align">
-                                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-add-user">Add</button>
+                                <button class="waves-effect waves-light btn green lighten-1" type="submit" {% if organization.subscription == 'F' %}disabled{% endif %} name="submit-add-user">Add</button>
                             </div>
                         </div>
                     </div>

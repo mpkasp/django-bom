@@ -273,11 +273,14 @@ def bom_settings(request, tab_anchor=None):
 
         elif 'submit-add-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
-            user_add_form = UserAddForm(request.POST, organization=organization)
-            if user_add_form.is_valid():
-                user_add_form.save()
+            if organization.subscription == 'F':
+                messages.error(request, "Error: You must have a paid account to add users.")
             else:
-                messages.error(request, user_add_form.errors)
+                user_add_form = UserAddForm(request.POST, organization=organization)
+                if user_add_form.is_valid():
+                    user_add_form.save()
+                else:
+                    messages.error(request, user_add_form.errors)
 
         elif 'clear-add-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
@@ -751,31 +754,6 @@ def part_upload_bom(request, part_id):
     else:
         upload_bom_form = UploadBOMForm(initial={'organization': organization})
         bom_csv_form = BOMCSVForm()
-
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
-
-
-@login_required
-def upload_part_classes(request):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-    title = 'Upload Part Classes'
-
-    part_classes = PartClass.objects.all().filter(organization=organization)
-
-    if request.method == 'POST' and request.FILES['file'] is not None:
-        form = PartClassCSVForm(request.POST, request.FILES, organization=organization)
-        if form.is_valid():
-            for success in form.successes:
-                messages.info(request, success)
-            for warning in form.warnings:
-                messages.warning(request, warning)
-        else:
-            messages.error(request, form.errors)
-    else:
-        form = PartClassCSVForm()
-        return TemplateResponse(request, 'bom/upload-part-classes.html', locals())
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
