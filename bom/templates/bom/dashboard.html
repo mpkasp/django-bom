@@ -60,21 +60,17 @@
             </div>
         </div>
 
-        <br/>
         <div class="row">
             <div class="col s6">
                 {% if profile.role == 'A' %}
-                    {% if delete_parts_enabled %}
-                        <button class="waves-effect waves-light btn grey lighten-1" name="submit-enable-delete-parts" value="">Unshow parts delete</button>
-                    {% else %}
-                        <button class="waves-effect waves-light btn grey lighten-1" name="submit-enable-delete-parts" value="True">Show parts delete</button>
-                    {% endif %}
+                    <span><a class="action-checkbox-show" href="#" onclick="enableActionCheckboxColumn()">Show Actions</a></span>
+                    <span class="action-checkbox-hide" style="display: none;"><a href="#" onclick="disableActionCheckboxColumn()">Hide Actions</a> |</span>
+                    <span class="action-checkbox-hide" style="display: none;"><a href="#" onclick="part_checkbox_select_all()">Select All</a> |</span>
+                    <span class="action-checkbox-hide" style="display: none;"><a href="#" onclick="part_checkbox_clear_all()">Clear</a></span>
                 {% endif %}
             </div>
             <div class="col s6 right-align">
-                {% if filtered_part_revs %}
-                    <button class="waves-effect waves-light btn grey lighten-1" name="download">Download Search Results as CSV</button>
-                {% endif %}
+
             </div>
         </div>
 
@@ -83,8 +79,8 @@
                 <table class="highlight part-list tight single-line" style="margin-bottom: 14px;">
                     <thead>
                     <tr>
-                        {% if profile.role == 'A' and delete_parts_enabled %}
-                            <th class="text-normal td-small">Delete?</th>
+                        {% if profile.role == 'A' %}
+                            <th class="text-normal td-small action-checkbox-column" style="display: none;">Delete?</th>
                         {% endif %}
 
                         <th class="text-normal td-med">Part Number</th>
@@ -105,9 +101,12 @@
                     <tbody>
                     {% for part_rev in part_revs %}
                         <tr>
-                            {% if profile.role == 'A' and delete_parts_enabled %}
-                                <td>
-                                    <label><input type="checkbox" class="filled-in" name="delete_part_id_{{ part_rev.part.id }}"><span/></label>
+                            {% if profile.role == 'A' %}
+                                <td class="action-checkbox-column" style="display: none;">
+                                    <label>
+                                        <input type="checkbox" class="filled-in" name="delete_part_id_{{ part_rev.part.id }}">
+                                        <span></span>
+                                    </label>
                                 </td>
                             {% endif %}
 
@@ -143,19 +142,20 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="99" style="text-align: center; padding: 5%;"><i>No parts found. To add your first part, click the red + button in the bottom right of your screen.</i></td>
+                            <td colspan="99" style="text-align: center; padding: 5%;"><i>No parts found. To add your first part, first create a Part Class on the <a href="{% url 'bom:settings' tab_anchor='indabom' %}">settings</a> page, then click the red + button in the bottom right of your screen.</i></td>
                         </tr>
                     {% endfor %}
                     </tbody>
                 </table>
-                {% if profile.role == 'A' and delete_parts_enabled %}
-                    <div class="row">
+                {% if profile.role == 'A' %}
+                    <div class="row action-checkbox-column" style="display: none;">
                         <div class="col s6">
                             <button class="waves-effect waves-light btn red lighten-1" name="submit-part-delete"
                                     onclick="return confirm('Are you sure you want to delete the selected parts? This cannot be undone.')">Delete
                             </button>
-                            <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_checkbox_clear_all()">Clear</button>
-                            <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_checkbox_select_all()">Select All</button>
+                        </div>
+                        <div class="col s6 right-align">
+                            <button class="waves-effect waves-light btn grey lighten-1" name="download">Download Search Results as CSV</button>
                         </div>
                     </div>
                 {% endif %}
@@ -190,7 +190,6 @@
     <!-- Autocomplete -->
     <script>
         var data = JSON.parse('{{ autocomplete|safe }}');
-        ;
         $(document).ready(function () {
             $('input.autocomplete').autocomplete({
                 data: data,
@@ -228,6 +227,19 @@
             );
 
         });
+    </script>
+
+    <script type='text/javascript'>
+        function enableActionCheckboxColumn() {
+            $(".action-checkbox-column").show();
+            $(".action-checkbox-hide").show();
+            $(".action-checkbox-show").hide();
+        }
+        function disableActionCheckboxColumn() {
+            $(".action-checkbox-column").hide();
+            $(".action-checkbox-hide").hide();
+            $(".action-checkbox-show").show();
+        }
     </script>
 
     <script type='text/javascript'>

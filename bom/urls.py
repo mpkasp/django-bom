@@ -10,7 +10,7 @@ from bom.third_party_apis import google_drive
 bom_patterns = [
     # BOM urls
     path('', views.home, name='home'),
-    path('bom/', views.home, name='home'),
+    # path('bom/', views.home, name='home'),
     path('help/', TemplateView.as_view(template_name='bom/help.html'), name='help'),
     path('search-help/', views.search_help, name='search-help'),
     path('error/', views.error, name='error'),

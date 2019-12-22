@@ -43,8 +43,8 @@
             <div class="nav-wrapper">
  
             	{% if user.is_authenticated %}
-                <a href="/bom" title="IndaBOM | Home" class="brand-logo left hide-on-med-and-down"><img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a>
-                <a href="/bom" title="IndaBOM | Home" class="brand-logo left hide-on-large-only" style="left: 2.5rem;"><img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a>
+                <a href="{% url 'bom:home' %}" title="IndaBOM | Home" class="brand-logo left hide-on-med-and-down"><img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a>
+                <a href="{% url 'bom:home' %}" title="IndaBOM | Home" class="brand-logo left hide-on-large-only" style="left: 2.5rem;"><img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a>
                 {% else %}
                 <a href="/bom/login" title="IndaBOM | Home" class="brand-logo left hide-on-med-and-down"><img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a>
                 <a href="/bom/login" title="IndaBOM | Home" class="brand-logo left hide-on-large-only" style="left: 2.5rem;"><img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a> 

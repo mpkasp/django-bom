@@ -5,7 +5,7 @@
 {% block action-btn %}
 {% if profile.role == 'A' %}
   <div class="fixed-action-btn">
-    <a class="btn-floating btn-large red">
+    <a class="btn-floating btn-large red" href="{% url 'bom:create-part' %}">
       <i class="large material-icons">add</i>
     </a>
     <ul>

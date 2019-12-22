@@ -11,12 +11,15 @@ def synopsis(pr, make_searchable=False):
         elaborated = ""
 
         if val is not None and val is not '':
-            elaborated = strip_trailing_zeros(str(val))
-            if units is not None and units is not '': elaborated += units
-            if pre is not None and pre is not '':
-                elaborated = pre + (' ' if pre_whitespace else '') + elaborated
-            if post is not None and post is not '': elaborated += (' ' if post_whitespace else '') + post
-            elaborated = elaborated + ' '
+            try:
+                elaborated = strip_trailing_zeros(str(val))
+                if units is not None and units is not '': elaborated += units
+                if pre is not None and pre is not '':
+                    elaborated = pre + (' ' if pre_whitespace else '') + elaborated
+                if post is not None and post is not '': elaborated += (' ' if post_whitespace else '') + post
+                elaborated = elaborated + ' '
+            except ValueError:
+                pass
         return elaborated
 
     s = ""

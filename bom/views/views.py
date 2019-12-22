@@ -170,31 +170,30 @@ def home(request):
         q = part_rev_query.format(part_list)
         part_revs = PartRevision.objects.raw(q)
 
-    if part_class or query:
-        if 'download' in request.POST:
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = 'attachment; filename="indabom_parts_search.csv"'
-            fieldnames = [
-                'part_number',
-                'part_category',
-                'part_synopsis',
-                'part_revision',
-                'part_manufacturer',
-                'part_manufacturer_part_number', ]
-            writer = csv.DictWriter(response, fieldnames=fieldnames)
-            writer.writeheader()
-            for part_rev in part_revs:
-                row = {
-                    'part_number': part_rev.part.full_part_number(),
-                    'part_category': part_rev.part.number_class.name,
-                    'part_synopsis': part_rev.synopsis(),
-                    'part_revision': part_rev.revision,
-                    'part_manufacturer': part_rev.part.primary_manufacturer_part.manufacturer.name if part_rev.part.primary_manufacturer_part is not None and
-                                                                                                      part_rev.part.primary_manufacturer_part.manufacturer is not None else '',
-                    'part_manufacturer_part_number': part_rev.part.primary_manufacturer_part.manufacturer_part_number if part_rev.part.primary_manufacturer_part is not None else '',
-                }
-                writer.writerow({k: smart_str(v) for k, v in row.items()})
-            return response
+    if 'download' in request.POST:
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="indabom_parts_search.csv"'
+        fieldnames = [
+            'part_number',
+            'part_category',
+            'part_synopsis',
+            'part_revision',
+            'part_manufacturer',
+            'part_manufacturer_part_number', ]
+        writer = csv.DictWriter(response, fieldnames=fieldnames)
+        writer.writeheader()
+        for part_rev in part_revs:
+            row = {
+                'part_number': part_rev.part.full_part_number(),
+                'part_category': part_rev.part.number_class.name,
+                'part_synopsis': part_rev.synopsis(),
+                'part_revision': part_rev.revision,
+                'part_manufacturer': part_rev.part.primary_manufacturer_part.manufacturer.name if part_rev.part.primary_manufacturer_part is not None and
+                                                                                                  part_rev.part.primary_manufacturer_part.manufacturer is not None else '',
+                'part_manufacturer_part_number': part_rev.part.primary_manufacturer_part.manufacturer_part_number if part_rev.part.primary_manufacturer_part is not None else '',
+            }
+            writer.writerow({k: smart_str(v) for k, v in row.items()})
+        return response
 
     paginator = Paginator(part_revs, 50)
 
@@ -238,11 +237,12 @@ def bom_settings(request, tab_anchor=None):
     organization = profile.organization
     title = 'Settings'
     action = reverse('bom:settings')
+    owner = organization.owner
 
     part_classes = PartClass.objects.all().filter(organization=organization)
 
     users_in_organization = User.objects.filter(
-        id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).order_by(
+        id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).exclude(id__in=[organization.owner.id]).order_by(
         'first_name', 'last_name', 'email')
     google_authentication = UserSocialAuth.objects.filter(user=user).first()
     user_form = UserForm(instance=user)
@@ -293,9 +293,12 @@ def bom_settings(request, tab_anchor=None):
                     user_meta_id = item.partition('remove_user_meta_id_')[2]
                     try:
                         user_meta = UserMeta.objects.get(id=user_meta_id, organization=organization)
-                        user_meta.organization = None
-                        user_meta.role = ''
-                        user_meta.save()
+                        if user_meta.user == organization.owner:
+                            messages.error(request, "Can't remove organization owner.")
+                        else:
+                            user_meta.organization = None
+                            user_meta.role = ''
+                            user_meta.save()
                     except UserMeta.DoesNotExist:
                         messages.error(request, "No user found with given id {}.".format(user_meta_id))
 

@@ -5,85 +5,101 @@
 
 {% block head-title %}{{ title }}{% endblock %}
 
-{% block main%}
-<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{% block main %}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
 {% endblock %}
 
 {% block menu %}
-<li><a href="{% url 'bom:home' %}">Home</a></li>
-{% endblock%}
+    <li><a href="{% url 'bom:home' %}">Home</a></li>
+{% endblock %}
 
 {% block content %}
+    <div style="font-size: 16px;">
+        <h1 class="text-center">Help With Searching for Parts</h1>
 
-<h5>Help With Searching for Parts</h5>
+        <p>
+            You can use free-form searching to find parts based upon a part’s part number, synopsis,
+            primary manufacturer’s name or primary manufacturer’s part number (MPN). Terms that
+            represents these elements may be mixed and matched in your search expression.
+        </p>
+        <h2>Contents</h2>
+        <ul class="browser-default">
+            <li>Searching by Part Number</li>
+            <li>Searching Free-form</li>
+            <li>Part Class Filtering</li>
+            <li>Searching With Multiple Terms</li>
+        </ul>
 
-<p>
-You can use free-form searching to find parts based upon a part’s part number, synopsis, 
-primary manufacturer’s name or primary manufacturer’s part number (MPN). Terms that 
-represents these elements may be mixed and matched in your search expression.
-</p>
+        <div class="divider"></div>
+        <h2>Searching by Part Number</h2>
+        <p>
+            If you enter a part number as a search term then to be recognized as a part number, it
+            must at least include the part class number and the item number. It may optionally include
+            the number item variation.
+        </p>
 
-If you enter a part number as a search term then to be recognized as a part number, it 
-must at least include the part class number and the item number. It may optionally include 
-the number item variation. 
-</p>
+        <p>
+            For example, both <b>102-00033-04</b> and <b>102-000033</b> are valid part number search terms. This
+            example assumes that your organization uses 5 digits for its item number.
+        </p>
 
-<p>
-For example, both <b>102-00033-04</b> and <b>102-000033</b> are valid part number search terms. This 
-example assumes that your organization uses 5 digits for its item number.
-</p>
+        <div class="divider"></div>
+        <h2>Searching Free-form</h2>
+        <p>
+            When entering a free-form search expression, the special characters that are used by IndaBOM
+            to display units of measure need to be represented as standard text characters in your search term:
+        </p>
 
-<p>
-When entering a free-form search expression, the special characters that are used by IndaBOM 
-to display units of measure need to be represented as standard text characters in your search term:
-</p>
+        <ul class="browser-default">
+            <li>&Omega; is represented as Ohms or ohms</li>
+            <li>&#181; is represented as U or u</li>
+            <li>&#8451; is represented as C or c</li>
+            <li>&#8457; is represented as F or f</li>
+            <li>&#8491; is represented A or a</li>
+        </ul>
 
-<bl>
-<li>&Omega; is represented as Ohms or ohms</li>
-<li>&#181; is represented as U or u</li>
-<li>&#8451; is represented as C or c</li>
-<li>&#8457; is represented as F or f</li>
-<li>&#8491; is represented A or a</li>
-</bl>
+        <div class="divider"></div>
+        <h2>Part Class Filtering</h2>
+        <p>
+            You can narrow your search to a specific class of parts by first selecting a part class.
+        </p>
 
-<p>
-You can narrow your search to a specific class of parts by first selecting a part class. 
-</p>
+        <p>
+            For example, to search for all capacitors whose capacitance is 10&#181;F, you would first select
+            the capacitor part class, then enter <b>10uF</b> as the search term.
+        </p>
 
-<p>
-For example, to search for all capacitors whose capacitance is 10&#181;F, you would first select 
-the capacitor part class, then enter <b>10uF</b> as the search term.
-</p>
+        <p>
+            Matches will be made against partial words as well, for example <b>yel</b> will match all parts that
+            contain the word “yellow” or “Yellow” or “yell” and so-on.
+        </p>
 
-<p>
-Matches will be made against partial words as well, for example <b>yel</b> will match all parts that 
-contain the word “yellow” or “Yellow” or “yell” and so-on.
-</p>
+        <div class="divider"></div>
+        <h2>Searching With Multiple Terms</h2>
+        <p>
+            If your search expression is composed of multiple terms, then each search term is OR’ed,
+            meaning that the search results will list all of the parts that match at least one of the
+            terms of your search expression.
+        </p>
 
-<p>
-If your search expression is composed of multiple terms, then each search term is OR’ed, 
-meaning that the search results will list all of the parts that match at least one of the 
-terms of your search expression. 
-</p>
+        <p>
+            For example, if your search term is <b>270Ohms 5% 0805</b> then your search will list all parts
+            that contain “270&Omega; ” or the “5%” or “0805”.
+        </p>
 
-<p>
-For example, if your search term is <b>270Ohms 5% 0805</b> then your search will list all parts 
-that contain “270&Omega; ” or the “5%” or “0805”.
-</p>
+        <p>
+            White space, comprised of any number of spaces or tabs, separates your search terms. If
+            you have a term that is composed of multiple words and you want these words to be treated as
+            a single term then they should be put in quotes, for example <b>“Big Company Inc.”</b> will be treated
+            as single term whereas <b>Big Company Inc.</b> will be treated as three separate terms.
+        </p>
 
-<p>
-White space, comprised of any number of spaces or tabs, separates your search terms. If 
-you have a term that is composed of multiple words and you want these words to be treated as 
-a single term then they should be put in quotes, for example <b>“Big Company Inc.”</b> will be treated 
-as single term whereas <b>Big Company Inc.</b> will be treated as three separate terms.
-</p>
-
-<p>
-Given how white space is interpreted, you should not have whitespace between a value and 
-the associated units of measure. In other words, want to search for parts that contain “10V”, 
-then your search term should be <b>10V</b> or <b>“10V”</b> as opposed to 10 V. If you 
-type <b>10 V</b> then the <b>10</b> and the <b>V</b> will be treated as separate search terms 
-and the search will match all parts that contain “10” and “V”, which is probably not what you want!
-</p>
-   
+        <p>
+            Given how white space is interpreted, you should not have whitespace between a value and
+            the associated units of measure. In other words, want to search for parts that contain “10V”,
+            then your search term should be <b>10V</b> or <b>“10V”</b> as opposed to 10 V. If you
+            type <b>10 V</b> then the <b>10</b> and the <b>V</b> will be treated as separate search terms
+            and the search will match all parts that contain “10” and “V”, which is probably not what you want!
+        </p>
+    </div>
 {% endblock %}
