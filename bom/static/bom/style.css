@@ -184,6 +184,10 @@ table.treetable tr.expanded span.indenter a {
     padding: 0 8px;
 }
 
+li {
+    padding-bottom: 8px;
+}
+
 
 /* Specific Styling */
 .part-info-form input {

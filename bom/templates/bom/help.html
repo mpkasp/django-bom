@@ -1,0 +1,1038 @@
+{% extends BASE_TEMPLATE %}
+
+{% load staticfiles %}
+
+{% block head-title %}Help - IndaBOM{% endblock %}
+
+{% block main %}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
+{% endblock %}
+
+{% block menu %}
+{% endblock %}
+
+{% block content %}
+    <div style="font-size: 16px">
+        <h1>IndaBOM Guide</h1>
+        <h2>Quick Start</h2>
+        <ol>
+            <li>Assuming that you have the role of Admin, the first thing you want to do is go to the Settings page and select the IndaBOM tab.
+                <ul class="browser-default">
+                    <li>Set the number of digits you want to use for your organization&rsquo;s part number item number. Keep in mind that in the future you can increase, but you cannot decrease, the
+                        number of
+                        digits that you set.
+                    </li>
+                    <li>Define part classes for your organization either by entering them into the form and/or by uploading a CSV file. On-line instructions provide the details.</li>
+                </ul>
+            </li>
+            <li>Create or upload the specifications for parts for the part classes that you defined. You can create part specification one at a time by entering data into a form, or you can upload one
+                or more part specifications from a CSV file.&nbsp;
+                <ul class="browser-default">
+                    <li>If you mouse over the red &ldquo;+&rdquo; button at the bottom right of the web page you will be presented with choices to create a part or to upload parts.&nbsp;</li>
+                    <li>If you click on the &ldquo;Upload&rdquo; menu at the top of the web page one of the choices you will be presented with is to upload parts. On-line instructions provide the
+                        details.
+                    </li>
+                </ul>
+            </li>
+            <li>Create or upload BOMs for assemblies that use the parts you defined.&nbsp;
+                <ul class="browser-default">
+                    <li>If you click on the &ldquo;Upload&rdquo; menu at the top of the web page one of the choices you will be presented with is to upload a BOM. On-line instructions provide the
+                        details.
+                    </li>
+                    <li>Alternatively, from the Home page you can search for parts, then from the search results you can select a part that represents an assembly of interest. In the page that you are
+                        brought
+                        to, select the &ldquo;Bill Of Materials&rdquo; tab. Click on the &ldquo;Manage&rdquo; menu on the right side of the page, and select &ldquo;Edit BOM&rdquo;. You will be able to
+                        fill
+                        out your BOM one subpart at a time by entering data into a form, or you can upload a CSV file. Again, on-line instructions provide the details.
+                    </li>
+                </ul>
+            </li>
+        </ol>
+        <p>There are many more things you can do with IndaBOM, but these three steps will get you started.</p>
+        <h2>Introduction to IndaBOM Concepts</h2>
+        <p>IndaBOM may be used to create a catalog of parts and to organize parts into assemblies. The parts that comprise a particular assembly is referred to as a Bill of Materials, or BOM. BOMs and
+            parts may be entered directly into IndaBOM or they may be uploaded as comma-separated (CSV) files. Information about an individual part, a collection of parts, or a BOM may be downloaded
+            as CSV files.</p>
+        <p>Parts are grouped by class. A part class represents a category of parts and is used to classify parts, such as resistors, capacitors, or printed circuit board assemblies.&nbsp;</p>
+        <p>All of the information about parts, part classes, and BOMs is maintained by IndaBOM in an underlying relational database.</p>
+        <p>The general use model for IndaBOM is to define part classes, then define parts, then define BOMs for the parts that are assemblies of other parts, and then use this information as the
+            authoritative source of parts and assemblies for your projects or products. For example, you might provide a downloaded BOM to a contract manufacturer so that they are able to procure
+            parts and assemble your product.</p>
+        <p>Over time, new part classes and parts may be added and new assembly BOMs may be defined. Similarly, the definitions for existing part classes, parts, and assemblies may be revised or even
+            deleted altogether.</p>
+        <p>IndaBOM is capable of representing many of the key relationships that are required to represent parts and assemblies. Below are some of the key relationships. Note that in the narrative
+            below, a subpart refers to a part that is used to construct another part. A subpart is not a real-world part but rather it represents a relationship between a real-world part and another
+            part that incorporates it (i.e., an assembly). The word assembly is used to indicate a part that contains other parts. Any part can be an assembly. Which ones actually are assemblies are
+            up to you:</p>
+        <p>For each part &hellip;.</p>
+        <p>&emsp;a list of properties and free-form text that specify the part in detail</p>
+        <p>&emsp;a history of revisions that you have made to the part&rsquo;s specification</p>
+        <p>For each part revision ...</p>
+        <p>&emsp;a list of manufacturers who are approved as sources for the part along with each manufacturer&rsquo;s assigned part number, costing information, and other manufacturer-related
+            parameters</p>
+        <p>&emsp;the list of subparts that are required to assemble the particular part</p>
+        <p>For each subpart &hellip;.</p>
+        <p>&emsp;the part that is represented by the subpart</p>
+        <p>&emsp;the list of parts (i.e., assemblies) that use the subpart</p>
+        <p>&emsp;the quantity of the subpart that is needed for a particular assembly</p>
+        <p>&emsp;an optional assembly-specific reference designator (e.g., R1 for a resistor, C1 for a capacitor, and so on)</p>
+        <p>&emsp;an assembly-specific indicator as whether or not the subpart should be loaded into the assembly (referred to as &ldquo;Do No Load&rdquo;)</p>
+        <h3>Organizations</h3>
+        <p>IndaBOM may be used on a shared-host via indabom.com. IndaBOM may also be downloaded and installed on your own server. In either case, you define the organization on whose behalf IndaBOM
+            maintains a database of parts and BOMs. You also define the valid users and their roles. A user may only access the parts and BOMs for their organization and may only perform the IndaBOM
+            operations that are allowed by their role.&nbsp;</p>
+        <h3>Users and Roles</h3>
+        <p>An IndaBOM user may be affiliated with only one IndaBOM organization at a time. A user can only view and revise information that is associated with their organization.</p>
+        <p>Within the scope of an organization, an IndaBOM user may have either the role of &ldquo;Viewer&rdquo; or of &ldquo;Admin&rdquo;. A viewer can search for and view data about part classes,
+            parts and BOMs. An admin can additionally add, revise, and delete part class, part and BOM data.</p>
+        <p>The user who initially sets-up IndaBOM for an organization is referred to as the &ldquo;organization&rsquo;s owner&rdquo;. This person may add or remove users to their organization, and
+            they may transfer organizational ownership to another user in the organization. An organization can have only one owner.</p>
+        <h3>Part Classes</h3>
+        <p>Part classes are not built into IndaBOM. Instead, one of the first things you need to do when you set-up your IndaBOM environment is to define part classes. A part class is represented by a
+            unique number and a unique name. It may also optionally include a comment or description.</p>
+        <p>You can define part classes by uploading a CSV file in which one column contains a name for the part class, and another column contains the three-digit code that you have assigned.
+            Alternatively, you manually may define a part class using a form.</p>
+        <p>You may also use the sample CSV file that is available on the IndaBOM web site.</p>
+        <p>Over time you may add additional part classes, and you can edit or delete existing part classes.</p>
+        <h3>Part Numbers</h3>
+        <p>One of the core decisions made when IndaBOM was conceived is to use a predominantly agnostic part numbering scheme. This as opposed to so-called &ldquo;smart part numbers&rdquo;. This means
+            that an IndaBOM part number does not convey much information about a part. Instead, part numbers are designed to be simple to assign and simple to subsequently write, type, or speak. This
+            approach makes it a lot easier to maintain part numbers over time while minimizing the possibility of communication or transcription mistakes.&nbsp;</p>
+        <p>If detailed information about a part is needed then IndaBOM may be easily used to look up or search for the part.</p>
+        <p>An IndaBOM part number is comprised of three components:</p>
+        <ul class="browser-default">
+            <li>A three-digit part class that uniquely represents the class (category) of a particular part as selected from the part classes that you defined for your organization in IndaBOM.&nbsp;
+            </li>
+            <li>A multi-digit item number, representing the particular part within a part class. You may select the quantity of digits to be for your organization. The minimum is three and the maximum
+                is ten. The default is three.
+            </li>
+            <li>A two-character (alpha-numeric) part number variation, enabling multiple configurations or versions of a part to be denoted as an element of a part number. This variation may represent
+                different configurations of a part such as a GN for the green variation versus a BE for the blue variation, or it may denote the version of the part such as 01 vs 02; the decision how
+                to use this field is up to you.&nbsp;
+            </li>
+        </ul>
+        <p>The overall part number looks like:</p>
+        <p>CCC-NNNNNN-VV</p>
+        <p>where the quantity of number item digits N depends on your organization&rsquo;s configuration (six in this example).</p>
+        <p>IndaBOM ensures that every part number is unique relative to an organization&rsquo;s catalog of parts. In other words, the tuple {CCC, NNNNNN, VV} is defined as unique in IndaBOM&rsquo;s
+            underlying database.</p>
+        <p>The actual assignment of part numbers may be done explicitly or automatically. When you create a part, or when you uploaded a list of parts, you may specify the part numbers that you would
+            like IndaBOM to use. As long as a part number you specify is unique then it will be accepted by IndaBOM.&nbsp;</p>
+        <p>Alternatively, you can just specify a part&rsquo;s part class and leave it to IndaBOM to assign an item number. The item number created by IndaBOM will be one greater-than the largest item
+            number that has <em>ever</em> been assigned to the new part&rsquo;s part class. The variation will be set to &ldquo;00&rdquo;.</p>
+        <p>No matter how a part number was created, you can of course subsequently change a part&rsquo;s part class or variation to whatever you would like.</p>
+        <h3>Part Specifications &amp; Synopsis</h3>
+        <p>IndaBOM is designed to handle a wide-range of parts. To enable you to adequately specify your parts, you may use a mix of pre-defined part properties in conjunction with free-form text to
+            fully specify a part. A part property may be just a value, or it may be a value and an associated unit of measure.</p>
+        <p>The list of available properties is comprehensive but not exhaustive. The free-form text provides a means for conveying information not covered by the properties.</p>
+        <p>When information about a part is displayed a synopsis is often generated and displayed. A part&rsquo;s synopsis is a synthesis of the property values and associated units of measure, along
+            with free-form text, that were used to specify the part.</p>
+        <p>The synopsis also plays a role when you search for parts. Anything contained in a part&rsquo;s synopsis may be subsequently searched for.</p>
+        <h3>Part Revisions</h3>
+        <p>As you edit, update or otherwise revise a part&rsquo;s specification, you can use IndaBOM to keep track of your specification revisions. Independent of how you choose to use the part number
+            part variation field, a revision is a snapshot of your part in terms of the specification information captured and stored in IndaBOM.&nbsp;</p>
+        <p>A newly created part is assigned a revision of 1. You may edit a part without changing its revision, or you may create a new revision with is initialized with data from the latest revision.
+            Note that you cannot explicitly set the revision number. Instead, IndaBOM manages the assignment of revision numbers, for example, it will increment a part&rsquo;s current revision number
+            when you instruct IndaBOM to create a new revision.</p>
+        <p>In addition, at various times IndaBOM will automatically manage part revisions for you. For example, if you change a part&rsquo;s part class and the part number item and number variation
+            would conflict with a part that already exists in the target class, then IndaBOM will create a new revision of the part. The revision number will be set to one greater than the largest
+            revision for the otherwise conflicting part.</p>
+        <h3>Part Release Management</h3>
+        <p>IndaBOM enables you to control whether or not a part&rsquo;s specification is still a work-in-progress, or whether it has been released for use by your team. A part is tagged in IndaBOM as
+            &ldquo;Working&rdquo; if it is a work-in-progress, in which case you may continue to edit the part&rsquo;s specification or create new revisions. When you are ready, you can change a part&rsquo;s
+            status so that it is tagged as &ldquo;Released&rdquo;. You will not be able to edit the specification or create new revisions of the specification for a &ldquo;Released&rdquo; part.
+            However, you can revert a &ldquo;Released&rdquo; part back to &ldquo;Working&rdquo;, edit the specification or create additional revisions, and then re-tag the part as &ldquo;Released&rdquo;.</p>
+        <h2>Application Guide</h2>
+        <h3>Case Sensitivity</h3>
+        <p>Throughout the IndaBOM application you will need to enter names for part classes, organizations, and manufacturers. These names you enter are stored in with case preserved, but for
+            comparison purposes the names are treated as case insensitive. In fact, for comparison purposes, any text that you enter is treated as case insensitive.&nbsp;</p>
+        <p>For example, the part class names &ldquo;capacitor&rdquo; and &ldquo;Capacitor&rdquo; are treated by IndaBOM as the same thing when it comes to validating part class names. You can edit the
+            part class &ldquo;Capacitor&rdquo; so that its new name is &ldquo;capacitor&rdquo;, but if you try to create another part class so that its name is also &ldquo;capacitor&rdquo;, or &ldquo;Capacitor&rdquo;,
+            or &ldquo;CaPaCiTor&rdquo;, or any other combination of upper and lower case, as long as it spells &ldquo;capacitor&rdquo; then the new part class name will be flagged as an error and
+            rejected.</p>
+        <h3>Settings Page</h3>
+        <p>The Settings page contains three tabs: User, IndaBOM, Organization.</p>
+        <p>If your role is &ldquo;Viewer&rdquo; then you can only access the &ldquo;User&rdquo; tab, from which you can edit your IndaBOM username and contact information.</p>
+        <p>If your role is &ldquo;Admin&rdquo; then you can access the &ldquo;IndaBOM&rdquo; tab you can revise your organization&rsquo;s IndaBOM configuration, including:</p>
+        <ul class="browser-default">
+            <li>Setting the number of digits for part number item numbers.</li>
+            <li>Edit or delete existing part classes.</li>
+            <li>Create or upload new part classes.</li>
+        </ul>
+        <p>If your role as &ldquo;Admin&rdquo; and you are your organization&rsquo;s owner, then from the &ldquo;Organization&rdquo; tab you can revise your organization&rsquo;s configuration,
+            including.</p>
+        <ul class="browser-default">
+            <li>Change your organization&rsquo;s name.</li>
+            <li>Change your organization&rsquo;s owner (to any other of your organization&rsquo;s current IndaBOM users).</li>
+            <li>Edit any user&rsquo;s username or contact information, as well as their role.</li>
+            <li>Remove any user from your organization (after which the user remains as a valid IndaBOM user but is no longer associated with any organization)</li>
+            <li>Add a user to your organization (must be an existing IndaBOM user who is not presently associated with another organization).</li>
+            <li>Establish a connection to Google Drive for downloading and uploading IndaBOM CSV files.</li>
+        </ul>
+        <h3>Home Page</h3>
+        <p>Once you have logged into IndaBOM you will be brought to the application&rsquo;s Home page. From this you may select a part class in order to view all of the parts in the class, or you can
+            search for a part or set of parts using a search term.</p>
+        <p>The &ldquo;Upload&rdquo; menu at the top of the page enables you to upload CSV&rsquo;s files for parts, BOMs, or part classes. Other buttons at the top of the page enable you to jump to the
+            Settings page or logout.</p>
+        <p>In addition, pop-up icon buttons at the bottom right of the Home page enable you to explicitly create a part using a form or to upload parts from a CSV file.</p>
+        <p>Note &hellip; you can return to this page from any other IndaBOM page by clicking on the IndaBOM icon that appears on the upper left corner of every page.</p>
+        <h3>Search Results Page</h3>
+        <p>The Search Results page is a lot like the Home page except that it lists the part or parts that satisfy your search criteria or part class selection. The information displayed about each
+            part includes the part number, a synopsis, and a drop-drop down menu that gives you various choices about how you can download information about the part to a CSV file.</p>
+        <p>The synopsis presents information about the part as culled from the property values and free-text information that have been specified.&nbsp;</p>
+        <p>If you like, you can use the search function on the Search Results page to search for parts within the part class that you previously selected (if, in fact, you had done so). You may also
+            select a different part class to view, obviating the need to return to the Home page.</p>
+        <p>Additionally, from the Search Results page you can also download to a CSV file the information presented about all of the parts listed in the search results list.</p>
+        <p>And, from this page, you can select any part for viewing in detail by clicking on its part number.</p>
+        <p>Finally, if you have the role of Admin, then can show or hide controls that allow you to select one or more parts to delete from IndaBOM. You should do this carefully because the deleting
+            of a part cannot be undone. You will have to re-enter the information about a part you did not really want to delete.</p>
+        <h3>Searching</h3>
+        <p>You can use free-form searching to find parts based upon a part&rsquo;s part number, synopsis, primary manufacturer&rsquo;s name or primary manufacturer&rsquo;s part number (MPN). Terms
+            that represents these elements may be mixed and matched in your search expression.</p>
+        <p>If you enter a part number as a search term then to be recognized as a part number, it must at least include the part class number and the item number. It may optionally include the number
+            item variation.&nbsp;</p>
+        <p>For example, both 102-00033-04 and 102-000033 are valid part number search terms. This example assumes that your organization uses 5 digits for its item
+            number.</p>
+        <p>When entering a free-form search expression, the special characters that are used by IndaBOM to display units of measure need to be represented as standard text characters in your search
+            term:</p>
+        <ul class="browser-default">
+            <li>&Omega; is represented as Ohms or ohms</li>
+            <li>&mu; is represented as U or u</li>
+            <li>&deg;C is represented as C or c</li>
+            <li>&deg;F is represented as F or f</li>
+            <li>&Aring; is represented A or a</li>
+        </ul>
+        <p>You can narrow your search to a specific class of parts by first selecting a part class. For example, to search for all capacitors whose capacitance is
+            10&mu;F, you would first select the capacitor part class, then enter 10uF as the search term.</p>
+        <p>Matches will be made against partial words as well, for example yel will match all parts that contain the word &ldquo;yellow&rdquo;or &ldquo;Yellow&rdquo;
+            or &ldquo;yell&rdquo; and so-on.</p>
+        <p>If your search expression is composed of multiple terms, then each search term is OR&rsquo;ed, meaning that the search results will list all of the parts that match at least one of the
+            terms of your search expression.&nbsp;</p>
+        <p>For example, if your search term is 270Ohms 5% 0805 then your search will list all parts that contain &ldquo;270&Omega;&rdquo; or the &ldquo;5%&rdquo; or &ldquo;0805&rdquo;.
+        </p>
+        <p>White space, comprised of any number of spaces or tabs, separates your search terms. If you have a term that is composed of multiple words and you want these words to be treated as a single
+            term then they should be put in quotes, for example &ldquo;Big Company Inc.&rdquo; will be treated as single term whereas Big Company Inc. will be treated
+            as three separate terms.</p>
+        <p>Given how white space is interpreted, you should not have whitespace between a value and the associated units of measure. In other words, want to search for parts that contain &ldquo;10V&rdquo;,
+            then your search term should be 10V or &ldquo;10V&rdquo; as opposed to 10 V. If you type 10 V then the
+            10 and the V will be treated as separate search terms and the search will match all parts that contain &ldquo;10&rdquo; and &ldquo;V&rdquo;, which is
+            probably not what you want!</p>
+        <p>Finally, note that after you perform a search that the search expression you used continues to be displayed. This servers as a reminder for what you searched for, and it enables you to
+            easily edit the search expression to make minor adjustments. If you want to start a completely new search then just type over your previous search or push the &ldquo;Clear&rdquo;
+            button.</p>
+        <h3>Part Info Page</h3>
+        <p>The Part Info Page enables you to view all kinds of information about a part, edit a part, and manage its lifecycle. You can get to the Part Info Page by selecting a part of interest from
+            search results, or after creating a new part.</p>
+        <p>If you have the role of Admin, then you can also edit the part, add new revisions, and change the part&rsquo;s status from Working to/from Release.</p>
+        <p>At the top of the page is a drop down menu from which you can select which revision of the part you want to work with. The default is the most recent version.</p>
+        <p>Next to this menu is another drop down menu labeled &ldquo;Manage&rdquo;. You can use this menu to edit the information about the part (e.g. its various properties). You can also release
+            the part, meaning it is now finalized and available to your organization for general use. And you can create a new revision of the part and you can even delete the part altogether.</p>
+        <p>The Part Info Page also presents four tabs, each of which enables you to view details about the part and to add more information. The tabs are:</p>
+        <p>Specifications &ndash; this is the default tab, and it enables you to view and edit the part&rsquo;s class, item number and revision number. You can also set or change the
+            primary manufacturer of the part.</p>
+        <p>Bill Of Materials &ndash; this tab enables you to view and edit the part&rsquo;s Bill of Materials. See the section Bill Of Materials Page.</p>
+        <p>Where Used &ndash; this tab presents the list of assemblies, if any, that include the part in their own Bill of Materials.</p>
+        <p>Sourcing &ndash; this tab presents the list of manufacturers, if any, for the part, and includes vital information such as pricing and lead time.</p>
+        <h3>Part Creation Page</h3>
+        <p>If you have the role of Admin, then the Part Creation page enables you to specify a new part. First you need to select a part class, then you may optionally specify the item number and
+            revision, or may allow IndaBOM to specify either or both values of these for you.</p>
+        <p>The remaining information you may enter describes the part. At a minimum you must specify a value for the part along with the units of measure, or you must provide a free-text description.&nbsp;</p>
+        <p>The optional properties of a part are organized into the following groups:</p>
+        <p>Electronics &ndash; properties pertinent to electronic parts, such as tolerance, package and pin count.</p>
+        <p>Ratings &ndash; properties representing electrical and temperature limits for a part&nbsp;</p>
+        <p>Miscellaneous &ndash; properties generally useful for describing an electronic part, such as memory capacity</p>
+        <p>Appearance &ndash; properties that describe a part&rsquo;s color, finish and material&nbsp;</p>
+        <p>Dimensions &ndash; properties that describe the size and weight of a part</p>
+        <p>Other &ndash; free-form text describing properties not included in any of the above</p>
+        <p>The type of value you can enter for a particular property is generally constrained. In some cases, the value must be a number. In other cases, the value must be selected from a drop down
+            list.&nbsp;</p>
+        <p>Most properties also have an associated unit of measure. If a property has a value and units of measure, then you must specify both. For each property that has an associated units of
+            measure, a list a relevant built-in units appears in a drop down list.&nbsp;</p>
+        <p>All property-related drop down lists include the choice &ldquo;Other&rdquo;. You can use the free-form text fields to explain how users should interpret &ldquo;Other&rdquo;.</p>
+        <p>Additionally, you can use free-form text fields to provide additional information, such as special storage or handling instructions, or to describe properties not presented in the form.</p>
+        <p>When you are done, scroll down to the bottom of the page and select &ldquo;save&rdquo;.</p>
+        <h3>Uploading Parts</h3>
+        <p>If you have the role of Admin, then you may upload the specification for one or more parts from a comma-separated-value (CSV) file. A pop-up icon button at the bottom right of the Home page
+            and search results page, as well as several other pages, also enable you to upload a CSV file for parts. Uploading can also be initiated using the &ldquo;Upload&rdquo; menu that appears at
+            the top of the Home page and Search Results pages.</p>
+        <p>When you upload parts from a CSV file you can assign IndaBOM part numbers in the file or you can allow IndaBOM to automatically assign part numbers. If you specify a part number that is
+            already in use then the conflicting part will not be uploaded. Similarly, other errors may prevent a part from being uploaded, for example, an improperly formatted IndaBOM part number or
+            the use of an unknown IndaBOM part class. The uploading will continue with the next valid part in the file.</p>
+        <h4>CSV File Headers and Values</h4>
+        <p>Any information that you can enter using the Create Part page may also be submitted via the part list upload file. Here is the complete list of items you can upload for each part in the
+            list:</p>
+        <h4>Required:</h4>
+        <table class="tight">
+            <tbody>
+            <tr>
+                <th>
+                    <p>Item</p>
+                </th>
+                <th>
+                    <p>Header Name</p>
+                </th>
+                <th>
+                    <p>Header Value</p>
+                </th>
+                <th>
+                    <p>Guidance</p>
+                </th>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Either:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s part class</p>
+                </td>
+                <td>
+                    <p>part_class</p>
+                </td>
+                <td>
+                    <p>3-digit valid IndaBOM part class</p>
+                </td>
+                <td>
+                    <p>You need to first define the part classes for your organization; If a part_number is also specified then its part_class takes precedence over this part_class should they happen
+                        to be different</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Or:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>A pre-assigned IndaBOM part number</p>
+                </td>
+                <td>
+                    <p>part_number</p>
+                </td>
+                <td>
+                    <p>CCC-NNNNNN-VV</p>
+                </td>
+                <td>
+                    <p>Must not yet exist in IndaBOM; The part class code must be valid; the number of digits in the item number must match your organization&rsquo;s configuration</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>And for either of the above:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s revision</p>
+                </td>
+                <td>
+                    <p>revision</p>
+                </td>
+                <td>
+                    <p>2-digit revision</p>
+                </td>
+                <td>
+                    <p>Must not be a negative number.</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Either:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>A description of the part</p>
+                </td>
+                <td>
+                    <p>description</p>
+                </td>
+                <td>
+                    <p>Free form text up to 255 characters</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>And/Or both of:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>A value for the part</p>
+                </td>
+                <td>
+                    <p>value</p>
+                </td>
+                <td>
+                    <p>Free form text up to 255 characters</p>
+                </td>
+                <td>
+                    <p>Value should make sense given the units</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s value unit of measure</p>
+                </td>
+                <td>
+                    <p>value_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Value Units&rdquo; list below or free form text up to 5 characters</p>
+                </td>
+                <td>
+                    <p>Units should make sense given the value</p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <h4>Optional:</h4>
+        <table>
+            <tbody>
+            <tr>
+                <th>
+                    <p>Item</p>
+                </th>
+                <th>
+                    <p>Header Name</p>
+                </th>
+                <th>
+                    <p>Header Value</p>
+                </th>
+                <th>
+                    <p>Guidance</p>
+                </th>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Manufacturer:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>manufacturer</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>manufacturer_part_number</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Electronics:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s tolerance</p>
+                </td>
+                <td>
+                    <p>tolerance</p>
+                </td>
+                <td>
+                    <p>A percentage, must be numbers or a decimal point, up to 6 total characters</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s package</p>
+                </td>
+                <td>
+                    <p>package</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Package Types&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s pin count</p>
+                </td>
+                <td>
+                    <p>pin_count</p>
+                </td>
+                <td>
+                    <p>Must be a number between 1 and 999</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s supply voltage</p>
+                </td>
+                <td>
+                    <p>supply_voltage</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+                <td>
+                    <p>Value should make sense given the units</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s supply voltage units of measure</p>
+                </td>
+                <td>
+                    <p>supply_voltage_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Voltage Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+                <td>
+                    <p>Units should make sense given the value</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Ratings:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s power rating</p>
+                </td>
+                <td>
+                    <p>power_rating</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+                <td>
+                    <p>Value should make sense given the units</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s power rating units of measure</p>
+                </td>
+                <td>
+                    <p>power_rating_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Power Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+                <td>
+                    <p>Units should make sense given the value</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s voltage rating</p>
+                </td>
+                <td>
+                    <p>voltage_rating</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+                <td>
+                    <p>Value should make sense given the units</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s voltage rating units of measure</p>
+                </td>
+                <td>
+                    <p>voltage_rating_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Voltage Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+                <td>
+                    <p>Units should make sense given the value</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s current rating</p>
+                </td>
+                <td>
+                    <p>current_rating</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+                <td>
+                    <p>Value should make sense given the units</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s current rating units of measure</p>
+                </td>
+                <td>
+                    <p>current_rating_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Current Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+                <td>
+                    <p>Units should make sense given the value</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s temperature rating</p>
+                </td>
+                <td>
+                    <p>temperature_rating</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+                <td>
+                    <p>Value should make sense given the units</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s temperature rating units of measure</p>
+                </td>
+                <td>
+                    <p>temperature_rating_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Temperature Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+                <td>
+                    <p>Units should make sense given the value</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Miscellaneous:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The amount of memory provided by the part</p>
+                </td>
+                <td>
+                    <p>memory</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+                <td>
+                    <p>Value should make sense given the units</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s memory units of measure</p>
+                </td>
+                <td>
+                    <p>memory_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Memory Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+                <td>
+                    <p>Units should make sense given the value</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The primary communications interface for the part</p>
+                </td>
+                <td>
+                    <p>interface</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Interface Types&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s operating frequency</p>
+                </td>
+                <td>
+                    <p>frequency</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+                <td>
+                    <p>Value should make sense given the units</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s frequency units of measure</p>
+                </td>
+                <td>
+                    <p>frequency_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Frequency Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+                <td>
+                    <p>Units should make sense given the value</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s operating wavelength</p>
+                </td>
+                <td>
+                    <p>wavelength</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+                <td>
+                    <p>Value should make sense given the units</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s wavelength units of measure</p>
+                </td>
+                <td>
+                    <p>wavelength_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Wavelength Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+                <td>
+                    <p>Units should make sense given the value</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Appearance:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s color</p>
+                </td>
+                <td>
+                    <p>color</p>
+                </td>
+                <td>
+                    <p>Free form text up to 32 characters</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s material</p>
+                </td>
+                <td>
+                    <p>material</p>
+                </td>
+                <td>
+                    <p>Free form text up to 32 characters</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s finish</p>
+                </td>
+                <td>
+                    <p>finish</p>
+                </td>
+                <td>
+                    <p>Free form text up to 32 characters</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Dimensions:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s length</p>
+                </td>
+                <td>
+                    <p>length</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s length units of measure</p>
+                </td>
+                <td>
+                    <p>length_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Distance Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s width</p>
+                </td>
+                <td>
+                    <p>width</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s width units of measure</p>
+                </td>
+                <td>
+                    <p>width_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Distance Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s height</p>
+                </td>
+                <td>
+                    <p>height</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s height units of measure</p>
+                </td>
+                <td>
+                    <p>height_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Distance Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s weight</p>
+                </td>
+                <td>
+                    <p>weight</p>
+                </td>
+                <td>
+                    <p>Plus/minus number up to 7 digits including a resolution of up to 3 decimal places</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s weight units of measure</p>
+                </td>
+                <td>
+                    <p>weight_units</p>
+                </td>
+                <td>
+                    <p>Choose from the &ldquo;Weight Units&rdquo; list below or &ldquo;Other&rdquo;</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Other:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>Other part attributes not covered in the above list</p>
+                </td>
+                <td>
+                    <p>attribute</p>
+                </td>
+                <td>
+                    <p>Free form text up to 255 characters</p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <h4>Units of Measure Lists</h4>
+        <p>Value Units = Ohms, mOhms, kOhms, F, pF, nF, uF, V, uV, mV, A, uA, mA, C, F, Other</p>
+        <p>Package Type = 0201 smd, 0402 smd, 0603 smd, 0805 smd, 1206 smd, 1210 smd, 1812 smd, <br/>2010 smd, 2512 smd, 1/8 radial, 1/4 radial, 1/2 radial, Size A, Size B, Size C, Size D, Size E,
+            SOT-23, <br/>SOT-223, DIL, SOP, SOIC, QFN, QFP, QFT, PLCC, VGA&nbsp;</p>
+        <p>Power Units = W, uW, mW, kW, MW</p>
+        <p>Voltage Units = V, uV, mV, kV, MV</p>
+        <p>Current Units = A, uA, mA, kA, MA</p>
+        <p>Temperature Units = C, F</p>
+        <p>Memory Units = KB, MB, GB, TB</p>
+        <p>Interface Types = I2C, SPI, CAN, One-Wire, RS485, RS232, WiFi, 4G, BT, Z_Wave, Zigbee, LAN, USB, HDMI, Other</p>
+        <p>Frequency Units = Hz, kHz MHz, GHz</p>
+        <p>Wavelength Units = km m, cm, um, nm, A (where A means &Aring;ngstrom)</p>
+        <p>Distance Units = mil, in, ft, yd, km, m, cm, um, nm</p>
+        <p>Weight Units = mg, g, kb, oz, lb</p>
+        <h3>Bill Of Materials Page</h3>
+        <p>The Bill Of Materials page itemizes all of the parts used in an assembly. An assembly is a part that is comprised of other parts. Assemblies may be nested, meaning that an assembly may
+            include other assemblies.</p>
+        <h3>BOM Reference Designators</h3>
+        <p>The Bill Of Materials display orders the listing of parts based upon the optional reference designator assigned to the part. For example, using common electrical engineering conventions,
+            capacitors might have a reference designator that begins with the letter &lsquo;C&rsquo; followed by a number, such as C10, C13, C26 and so on. A resistor might have a reference designator
+            that begins with the letter &lsquo;R&rdquo; followed by a number, such as R1, R13, R15. In the Bill Of Materials listing, these parts would be presented in the order: C10, C13, C26, R1,
+            R13, R15.</p>
+        <p>A reference designator may be comprised of any printable character. It cannot, however, include any of the delimiters listed below.</p>
+        <p>If a part does not have a reference then its part number is used to determine its order in the listing.</p>
+        <p>Whether editing a BOM or uploading a BOM, a warning will be issued when the same reference designator is associated with multiple parts in a Bill of Materials. Sometimes it is desirable to
+            use the same reference designator for multiple parts, which is why this situation is only a warning. The warning is displayed at the top of the page.</p>
+        <p>Further, when a part is added to a BOM or an existing BOM part is edited, and a reference designator is specified, then the number of designators must match the part quantity specified.
+            Multiple reference designators may be separated by white space, commas, semi-colons, colons, or tabs, such as &ldquo;R1, R2, R3&rdquo; or &ldquo;R1 R2 R3&rdquo; or &ldquo;R1; R2, R3&rdquo;.
+            If the number of reference designators does not match the part quantity then an error is presented and the part is not added to the BOM.</p>
+        <h3>Editing a BOM</h3>
+        <p>From the Bill Of Materials page it is possible to edit a BOM. The &ldquo;Manage&rdquo; menu on the right side of the page includes the choice &ldquo;Edit BOM&rdquo;. When selected, a form
+            appears that enables adding a part to the current BOM. The part of interest is identified by its part number. The quantity of parts, one or more reference designators, and the ability to
+            indicate &ldquo;do not load&rdquo; are parameters that may be set when adding a part. Only parts that are already in your IndaBOM database may be added to a BOM.</p>
+        <h3>Editing a Subpart</h3>
+        <p>When a BOM is being edited, it is also possible to edit the information about an existing subpart or remove a subpart altogether. At the end of each subpart row is a drop down menu that
+            allows you to edit or delete the subpart. If you chose to edit the subpart you can change which part revision it is tied to, you can change its reference designator(s), you can change the
+            quantity of the subpart, and you can set or unset the subpart&rsquo;s Do Not Load flag.</p>
+        <p>If you chose to delete the part then it will be removed from the BOM you are editing. This does not affect any other BOM, and it does not affect the part that the subpart is tied to. In
+            addition, if the subpart appears more than once in the BOM, deleting a subpart row only removes the information contained on that row.</p>
+        <h3>Uploading a BOM</h3>
+        <p>A BOM may be uploaded from a comma-separated file. This can be done from the bottom of the Bill of Materials page when a particular BOM is being edited. It can also be done using the
+            &ldquo;Upload&rdquo; menu that appears on the Home page and search results pages.</p>
+        <p>When you upload BOM subparts from a file, errors may prevent a subpart from being uploaded, for example, an improperly formatted IndaBOM part number a mismatch between the part count and
+            the number of reference designators. The uploading will continue with the next valid subpart in the file.</p>
+        <h3>CSV File Headers and Values</h3>
+        <p>Any information that you can enter manually about a BOM via the Bill Of Materials page may also be submitted via the BOM upload file. Here is the complete list of items you can upload for a
+            subpart in the list:</p>
+        <h4>Required:</h4>
+        <table class="tight">
+            <tbody>
+            <tr>
+                <th>
+                    <p>Item</p>
+                </th>
+                <th>
+                    <p>Header</p>
+                </th>
+                <th>
+                    <p>Value</p>
+                </th>
+                <th>
+                    <p>Guidance</p>
+                </th>
+            </tr>
+            <tr>
+                <td>
+                    <p>The subpart&rsquo;s IndaBOM part number</p>
+                </td>
+                <td>
+                    <p>part_number</p>
+                </td>
+                <td>
+                    <p>CCC-NNNNN-VV</p>
+                </td>
+                <td>
+                    <p>Must be a valid IndaBOM part number; the number of digits in the item number must match your organization&rsquo;s configuration</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>Or:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The subpart&rsquo;s manufacturer&rsquo;s part number</p>
+                </td>
+                <td>
+                    <p>manufacturer_part_number</p>
+                </td>
+                <td>
+                    <p>Per the manufacturer&rsquo;s convention, up to 128 characters</p>
+                </td>
+                <td>
+                    <p>Must be a valid manufacturer&rsquo;s part number previously entered into IndaBOM</p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <p><em>For either of the above, must also include:</em></p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>The quantity of the subpart needed for the BOM</p>
+                </td>
+                <td>
+                    <p>count</p>
+                </td>
+                <td>
+                    <p>A positive integer &ndash; or - empty</p>
+                </td>
+                <td>
+                    <p>If empty, the count defaults to 1</p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <h4>Optional:</h4>
+        <table>
+            <tbody>
+            <tr>
+                <th>
+                    <p>Item</p>
+                </th>
+                <th>
+                    <p>Header</p>
+                </th>
+                <th>
+                    <p>Value</p>
+                </th>
+                <th>
+                    <p>Guidance</p>
+                </th>
+            </tr>
+            <tr>
+                <td>
+                    <p>The part&rsquo;s reference designator</p>
+                </td>
+                <td>
+                    <p>reference - or -&nbsp;</p>
+                    <p>designator</p>
+                </td>
+                <td>
+                    <p>See the section BOM Reference Designators</p>
+                </td>
+                <td>
+                    <p>If specified, then the number of reference designators must match the part&rsquo;s count; A warning will be issued for designators already in use elsewhere in the BOM, however
+                        the subpart will still be uploaded</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>Do not process the part, in other words skip it</p>
+                </td>
+                <td>
+                    <p>dnp - or -&nbsp;</p>
+                    <p>do_not_process</p>
+                </td>
+                <td>
+                    <p>Y, y, X, x</p>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <p>Do not load the part, in other words load it into the BOM but mark as &ldquo;Do Not Load&rdquo; into the assembly</p>
+                </td>
+                <td>
+                    <p>dnl - or -</p>
+                    <p>do_not_load</p>
+                </td>
+                <td>
+                    <p>Y, y, X, x</p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <h3>Downloading BOMs</h3>
+        <p>A BOM CSV file may be downloaded either from the Search Results page or from the Bill Of Materials page.&nbsp;</p>
+        <p>On the Search Results page, each part listed presents a menu of download choices. If the part is an assembly, then downloading the part results in its entire BOM being downloaded.&nbsp;</p>
+        <p>On the Bill of Materials page, the &ldquo;Manage&rdquo; menu on the right side of the page presents download choices.</p>
+        <p>A BOM may be downloaded as a CSV file that is either indented or flat. An indented BOM lists each part exactly as it was added to the BOM, whereas a flat BOM gathers presents only one row
+            for each part number.&nbsp;</p>
+    </div>
+{% endblock %}
