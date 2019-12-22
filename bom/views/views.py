@@ -488,14 +488,15 @@ def part_info(request, part_id, part_revision_id=None):
     extended_cost = unit_cost * int(qty)
     total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
 
-    if len(duplicate_references) > 0:
-        sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)
-        messages.warning(request, "Warning: The following BOM references are associated with multiple parts: " + str(sorted_duplicate_references))
+    # if len(duplicate_references) > 0:
+    #     sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)
+    #     messages.warning(request, "Warning: The following BOM references are associated with multiple parts: " + str(sorted_duplicate_references))
 
     try:
         where_used = part_revision.where_used()
     except AttributeError:
         where_used = []
+
     where_used_part = part.where_used()
     seller_parts = part.seller_parts()
 
@@ -515,8 +516,6 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
     profile = user.bom_profile()
     organization = profile.organization
 
-    part = None
-    part_revision = None
     if part_id is not None:
         part = get_object_or_404(Part, pk=part_id)
         part_revision = part.latest()
