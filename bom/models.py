@@ -34,6 +34,20 @@ class UserMeta(models.Model):
     organization = models.ForeignKey(Organization, blank=True, null=True, on_delete=models.PROTECT)
     role = models.CharField(max_length=1, choices=(('A', 'Admin'), ('V', 'Viewer'),))
 
+    def get_or_create_organization(self):
+        if self.organization is None:
+            if self.user.first_name == '' and self.user.last_name == '':
+                org_name = self.user.username
+            else:
+                org_name = self.user.first_name + ' ' + self.user.last_name
+
+            organization, created = Organization.objects.get_or_create(owner=self.user, defaults={'name': org_name, 'subscription': 'F'})
+
+            self.organization = organization
+            self.role = 'A'
+            self.save()
+        return self.organization
+
     def google_authenticated(self):
         try:
             self.user.social_auth.get(provider='google-oauth2')
@@ -52,7 +66,7 @@ class UserMeta(models.Model):
 class PartClass(models.Model):
     CODE_LEN = 3
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
     code = models.CharField(max_length=CODE_LEN)
     name = models.CharField(max_length=255, default=None)
     comment = models.CharField(max_length=255, default=None, blank=True)
@@ -67,7 +81,7 @@ class PartClass(models.Model):
 
 class Manufacturer(models.Model):
     name = models.CharField(max_length=128, default=None)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
 
     class Meta:
         ordering = ['name']
@@ -84,8 +98,8 @@ class Part(models.Model):
     NUMBER_ITEM_MAX_LEN = 10
     NUMBER_VARIATION_LEN = 2
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    number_class = models.ForeignKey(PartClass, default=None, related_name='number_class', on_delete=models.PROTECT)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
+    number_class = models.ForeignKey(PartClass, default=None, related_name='number_class', on_delete=models.PROTECT, db_index=True)
     number_item = models.CharField(max_length=10, default=None, blank=True, validators=[numeric])
     number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
     primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True,
@@ -94,6 +108,7 @@ class Part(models.Model):
 
     class Meta():
         unique_together = ['number_class', 'number_item', 'number_variation', 'organization', ]
+        index_together = ['organization', 'number_class']
 
     def full_part_number(self):
         return "{0}-{1}-{2}".format(self.number_class.code, self.number_item, self.number_variation)
@@ -257,7 +272,7 @@ class PartRevision(models.Model):
     configuration = models.CharField(max_length=1, choices=(('R', 'Released'), ('W', 'Working'),), default='W')
     revision = models.CharField(max_length=4, db_index=True, default='1')
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
-    searchable_synopsis = models.TextField(editable=False, default="", null=True, blank=True)
+    searchable_synopsis = models.TextField(editable=False, default="", null=True, blank=True, db_index=True)
 
     class Meta:
         unique_together = (('part', 'revision'),)
@@ -489,10 +504,8 @@ class PartRevision(models.Model):
     current_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     def synopsis(self, make_searchable=False):
-
         def verbosify(val, units=None, pre=None, pre_whitespace=True, post=None, post_whitespace=True):
             elaborated = ""
-
             if val is not None and val is not '':
                 try:
                     elaborated = strip_trailing_zeros(str(val))
@@ -677,8 +690,7 @@ class AssemblySubparts(models.Model):
 
 
 class Subpart(models.Model):
-    part_revision = models.ForeignKey('PartRevision', related_name='assembly_subpart', null=True,
-                                      on_delete=models.CASCADE)
+    part_revision = models.ForeignKey('PartRevision', related_name='assembly_subpart', null=True, on_delete=models.CASCADE)
     count = models.PositiveIntegerField(default=1)
     reference = models.TextField(default='', blank=True, null=True)
     do_not_load = models.BooleanField(default=False, verbose_name='Do Not Load')

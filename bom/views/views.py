@@ -36,23 +36,8 @@ logger = logging.getLogger(__name__)
 @login_required
 def home(request):
     profile = request.user.bom_profile()
-    organization = profile.organization
-
-    if profile.organization is None:
-        if request.user.first_name == '' and request.user.last_name == '':
-            org_name = request.user.username
-        else:
-            org_name = request.user.first_name + ' ' + request.user.last_name
-
-        organization, created = Organization.objects.get_or_create(owner=request.user, defaults={'name': org_name, 'subscription': 'F'})
-
-        profile.organization = organization
-        profile.role = 'A'
-        profile.save()
-
-    title = '{}Parts List'.format(organization.name + ' ')
-
-    delete_parts_enabled = True if request.POST.get('submit-enable-delete-parts', False) == 'True' else False
+    organization = profile.get_or_create_organization()
+    title = f'{organization.name} Parts List'
     query = request.POST.get('q', '')
 
     if request.method == 'POST':
@@ -77,14 +62,9 @@ def home(request):
         part_class = None
 
     if part_class:
-        parts = Part.objects.filter(
-            Q(organization=organization) &
-            Q(number_class__code=part_class.code)
-        ).order_by('number_item', 'number_variation')
+        parts = Part.objects.filter(Q(organization=organization) & Q(number_class__code=part_class.code))
     else:
-        parts = Part.objects.filter(
-            Q(organization=organization)
-        ).order_by('number_item', 'number_variation')
+        parts = Part.objects.filter(Q(organization=organization))
 
     part_ids = list(parts.values_list('id', flat=True))
 
@@ -98,7 +78,6 @@ def home(request):
     part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
     q = part_rev_query.format(part_list)
     part_revs = PartRevision.objects.raw(q)
-    pr1 = PartRevision.objects.first()
     manufacturer_part = ManufacturerPart.objects.filter(part__in=parts)
 
     autocomplete_dict = {}

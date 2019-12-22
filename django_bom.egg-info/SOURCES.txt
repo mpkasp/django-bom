@@ -42,6 +42,7 @@ bom/migrations/0022_auto_20190811_2140.py
 bom/migrations/0023_auto_20191205_2351.py
 bom/migrations/0024_auto_20191214_1342.py
 bom/migrations/0025_auto_20191221_1907.py
+bom/migrations/0026_auto_20191222_2248.py
 bom/migrations/__init__.py
 bom/static/bom/style.css
 bom/static/bom/treetable-theme.css

@@ -51,8 +51,13 @@ def synopsis(pr, make_searchable=False):
 def update_part_revisions(apps, schema_editor):
     PartRevision = apps.get_model('bom', 'PartRevision')
     for pr in PartRevision.objects.all():
-        pr.searchable_synopsis = synopsis(pr, True)
-        pr.save()
+        try:
+            pr.searchable_synopsis = synopsis(pr, True)
+            pr.save()
+        except ValueError:
+            pr.searchable_synopsis = pr.description
+            pr.save()
+            pass
 
 
 class Migration(migrations.Migration):
