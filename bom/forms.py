@@ -391,6 +391,9 @@ class PartCSVForm(forms.Form):
                 revision = get_from_dict(part_data, ['revision', 'rev', 'part_rev', 'part rev', 'part_revision', 'part revision'])
                 mpn = get_from_dict(part_data, ['manufacturer_part_number', 'mpn', ])
                 mfg_name = get_from_dict(part_data, ['mfg', 'manufacturer', 'mfg name', 'manufacturer name', ])
+                description = get_from_dict(part_data, ['description', 'desc', 'desc.', ])
+                value = get_from_dict(part_data, ['value', 'val', 'val.', ])
+                value_units = get_from_dict(part_data, ['value_units', 'value units', 'val. units', 'val units', ])
 
                 # Check part number for uniqueness. If part number not specified
                 # then Part.save() will create one.
@@ -418,16 +421,12 @@ class PartCSVForm(forms.Form):
                 if not revision:
                     self.add_error(None, "Missing revision in row {}. Uploading of this part skipped.", format(row_count))
                     continue
-                elif len(revision) > 2:
-                    self.add_error(None, "Revision {0} in row {1} is more than the maximum 2 characters. "
+                elif len(revision) > 4:
+                    self.add_error(None, "Revision {0} in row {1} is more than the maximum 4 characters. "
                                          "Uploading of this part skipped.".format(part_data['revision'], row_count))
                     continue
-                elif not revision.isdigit():
-                    self.add_error(None, "Revision {0} in row {1} must be a number. "
-                                         "Uploading of this part skipped.".format(part_data['revision'], row_count))
-                    continue
-                elif int(revision) < 0:
-                    self.add_error(None, "Revision {0} in row {1} cannot be negative. "
+                elif revision.isdigit() and int(revision) < 0:
+                    self.add_error(None, "Revision {0} in row {1} cannot be a negative number. "
                                          "Uploading of this part skipped.".format(part_data['revision'], row_count))
                     continue
 
@@ -444,10 +443,6 @@ class PartCSVForm(forms.Form):
                 part_revision = PartRevision()
 
                 # Required properties:
-                description = part_data['description'] if 'description' in part_data else None
-                value = part_data['value'] if 'value' in part_data else None
-                value_units = part_data['value_units'] if 'value_units' in part_data else None
-
                 if description is None:
                     if value is None and value_units is None:
                         self.add_error(None, "Missing 'description' or 'value' plus 'value_units' for part in row {}. Uploading of this part skipped.".format(row_count))
@@ -473,25 +468,22 @@ class PartCSVForm(forms.Form):
                     return False
 
                 # Optional properties with free-form values:
-                props_free_form = [
-                    'tolerance', 'pin_count', 'color', 'material', 'finish', 'attribute'
-                ]
+                props_free_form = ['tolerance', 'pin_count', 'color', 'material', 'finish', 'attribute']
                 for prop_free_form in props_free_form:
                     if prop_free_form in part_data:
                         setattr(part_revision, prop_free_form, part_data[prop_free_form])
 
                 # Optional properties with choices for values:
-                props_with_value_choices = {
-                    'package': PartRevision.PACKAGE_TYPES, 'interface': PartRevision.INTERFACE_TYPES
-                }
+                props_with_value_choices = {'package': PartRevision.PACKAGE_TYPES, 'interface': PartRevision.INTERFACE_TYPES}
                 for k, v in props_with_value_choices.items():
                     if k in part_data:
                         if is_valid_choice(part_data[k], v):
                             setattr(part_revision, k, part_data[k])
                         else:
-                            self.add_error(None, "'{0}' is an invalid choice of value for '{1}' for part in row {2} . Uploading of this part skipped.".format(part_data[k], k, row_count))
+                            self.add_warning(None, "'{0}' is an invalid choice of value for '{1}' for part in row {2} . Uploading of this property skipped. "
+                                                   "Part will still be uploaded".format(part_data[k], k, row_count))
 
-                            # Optional properties with units:
+                # Optional properties with units:
                 props_with_unit_choices = {
                     'value': PartRevision.VALUE_UNITS,
                     'supply_voltage': PartRevision.VOLTAGE_UNITS, 'power_rating': PartRevision.POWER_UNITS,
@@ -516,8 +508,8 @@ class PartCSVForm(forms.Form):
                                 setattr(part_revision, k, part_data[k])
                                 setattr(part_revision, k + '_units', part_data[k + '_units'])
                             else:
-                                self.add_error(None, "'{0}' is an invalid choice of units for '{1}' for part in row {2}. Uploading of this part skipped.".format(part_data[k + '_units'], k + '_units',
-                                                                                                                                                                 row_count))
+                                self.add_error(None, "'{0}' is an invalid choice of units for '{1}' for part in row {2}. Uploading of this part skipped."
+                                               .format(part_data[k + '_units'], k + '_units', row_count))
                                 skip = True
                                 break
 
@@ -534,7 +526,6 @@ class PartCSVForm(forms.Form):
 
                 part.save()
                 part_revision.save()
-
                 self.successes.append("Part {0} on row {1} created.".format(part.full_part_number(), row_count))
 
         except UnicodeDecodeError as e:

@@ -299,15 +299,25 @@ class TestBOM(TransactionTestCase):
         new_part_count = Part.objects.all().count()
         self.assertEqual(new_part_count, 4)
 
-        # Should fail because revision is 3 characters
+        # Should fail because class doesn't exist
         with open('bom/test_files/test_new_parts_2.csv') as test_csv:
             response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        found_error = False
+        for m in response.wsgi_request._messages:
+            if "Part class 216 in row 2 doesn&#39;t exist. Uploading of this part skipped." in str(m):
+                found_error = True
+        self.assertTrue(found_error)
 
-        # Should fail because part class doesnt exist
+        # Part should be skipped because it already exists
         with open('bom/test_files/test_new_parts_3.csv') as test_csv:
             response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        found_error = False
+        for m in response.wsgi_request._messages:
+            if "Part already exists for manufacturer part 2 in row GhostBuster2000. Uploading of this part skipped." in str(m):
+                found_error = True
+        self.assertTrue(found_error)
 
     def test_add_sellerpart(self):
         self.client.login(username='kasper', password='ghostpassword')
