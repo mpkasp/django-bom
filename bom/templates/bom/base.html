@@ -57,6 +57,7 @@
                     {% if user.is_superuser and user.is_authenticated %}<li><a title="IndaBOM | Admin" href="/admin/">Admin</a></li>{% endif %}
                     {% if user.is_authenticated %}
                     <li {% if pagename == "settings" %}class="active"{% endif %}><a title="IndaBOM | Settings" href="{% url 'bom:settings' %}">Settings</a></li>
+                        <li {% if pagename == "help" %}class="active"{% endif %}><a title="IndaBOM | Help" href="{% url 'bom:help' %}">Help</a></li>
                     <li><a title="IndaBOM | Log Out" href="{% url 'logout' %}">Logout [{{ user.username}}]</a></li>
                     {% endif %} 
                 </ul>
