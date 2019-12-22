@@ -26,7 +26,7 @@
                 <br>
                 <div class="row">
                     <h4>Your IndaBOM Info:</h4>
-                    <div clas="row">
+                    <div class="row">
                         <p>Your role is: <b>{{ user.bom_profile.get_role_display }}</b>
                         <p>
                         <p>To request a change in role please contact <a href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for assistance.</p>
@@ -45,7 +45,7 @@
                 </div>
                 <div class="row">
                     <div class="col s6">
-                        <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="refresh-edit-user">Refresh</button>
+                        <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=USER_TAB%}">Refresh</a>
                     </div>
                     <div class="col s6 right-align">
                         <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-user">Save</button>
@@ -90,7 +90,7 @@
                         </table>
                         <div class="row" style="padding-top:16px;">
                             <div class="col s6">
-                                <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="part_class_checkbox_clear_all()">Clear</button>
+                                <a type="button" class="waves-effect waves-light btn grey lighten-1" onclick="part_class_checkbox_clear_all()">Clear</a>
                                 <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-part-class-delete"
                                         onclick="return confirm('Are you sure you want to delete the selected part classes? This cannot be undone.')">Delete
                                 </button>
@@ -109,7 +109,7 @@
                     </div>
                     <div class="row">
                         <div class="col s6">
-                            <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="cancel-part-class-create">Clear</button>
+                            <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=INDABOM_TAB%}">Clear</a>
                         </div>
                         <div class="col s6 right-align">
                             <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-part-class-create">Create</button>
@@ -142,14 +142,14 @@
 
             </form>
 
-            <h3>Part Number</h3>
+            <h3 id="indabom-part-number">Part Number</h3>
             <p>You may only increase the number of digits, up to 10, in your part number item number (CC-{{ organization.number_ns }}-VV, where {{ organization.number_ns }} is the number item).</p>
             <div class="row">
                 {{ number_item_len_form.number_item_len|materializecss:'s12 m3' }}
             </div>
             <div class="row">
                 <div class="col s6">
-                    <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="refresh-number-item-len">Refresh</button>
+                    <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=INDABOM_TAB%}">Refresh</a>
                 </div>
                 <div class="col s6 right-align">
                     <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-number-item-len"
@@ -170,7 +170,7 @@
                     </div>
                     <div class="row">
                         <div class="col s6">
-                            <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="refresh-edit-organization">Refresh</button>
+                            <a class="waves-effect waves-light btn grey lighten-1" type="button" href="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}">Refresh</a>
                         </div>
                         <div class="col s6 right-align">
                             <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-organization"
@@ -204,8 +204,8 @@
                                     <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
                                     <td class="text-normal"><a href="mailto:{{ user.email }}">{{ org_user.email }}</a></td>
                                     <td>
-                                        <a class="green-text text-lighten-1" href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
-                                                class="material-icons green-text text-lighten-1">edit</i>Edit</a>
+                                        <a class="waves-effect waves-green btn-flat green-text text-lighten-1" href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
+                                                class="material-icons left green-text text-lighten-1">edit</i>Edit</a>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -213,7 +213,7 @@
                         </table>
                         <div class="row" style="padding-top: 16px;">
                             <div class="col s6">
-                                <button class="waves-effect waves-light btn grey lighten-1" type="button" onclick="user_checkbox_clear_all()">Clear</button>
+                                <a class="waves-effect waves-light btn grey lighten-1" type="button" onclick="user_checkbox_clear_all()">Clear</a>
                                 <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-remove-user"
                                         onclick="return confirm('Are you sure you want to remove the selected users from {{ organization }}?')">Remove
                                 </button>
@@ -239,7 +239,7 @@
                         <br/>
                         <div class="row">
                             <div class="col s6">
-                                <button class="waves-effect waves-light btn grey lighten-1" type="submit" name="clear-add-user">Clear</button>
+                                <a class="waves-effect waves-light btn grey lighten-1" type="button" href="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}">Clear</a>
                             </div>
                             <div class="col s6 right-align">
                                 <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-add-user">Add</button>

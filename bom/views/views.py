@@ -259,7 +259,6 @@ def bom_settings(request, tab_anchor=None):
     INDABOM_TAB = 'indabom'
 
     if request.method == 'POST':
-
         if 'submit-edit-user' in request.POST:
             tab_anchor = USER_TAB
             user_form = UserForm(request.POST, instance=user)
