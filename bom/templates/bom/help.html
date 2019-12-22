@@ -14,6 +14,48 @@
 {% block content %}
     <div style="font-size: 16px">
         <h1>IndaBOM Guide</h1>
+        <h2>Contents</h2>
+        <ul class="browser-default">
+            <li><a href="#quick-start">Quick Start</a></li>
+            <li><a href="#intro-to-indabom">Introduction to IndaBOM Concepts</a>
+                <ul class="browser-default">
+                    <li>Organizations</li>
+                    <li>Users and Roles</li>
+                    <li>Part Classes</li>
+                    <li>Part Numbers</li>
+                    <li>Part Specifications & Synopsis</li>
+                    <li>Part Revisions</li>
+                    <li>Part Release Management</li>
+                </ul>
+            </li>
+            <li><a href="#application-guide">Application Guide</a>
+                <ul class="browser-default">
+                    <li>Case Sensitivity</li>
+                    <li>Settings Page</li>
+                    <li>Home Page</li>
+                    <li>Search Results Page</li>
+                    <li>Searching</li>
+                    <li>Part Info Page</li>
+                    <li>Part Creation Page</li>
+                    <li>Uploading Parts</li>
+                    <li>CSV File Headers and Values</li>
+                    <li>Units of Measure Lists</li>
+                </ul>
+            </li>
+            <li><a href="#bill-of-materials">Bill Of Materials Page</a>
+                <ul class="browser-default">
+                    <li>BOM Reference Designators</li>
+                    <li>Editing a BOM</li>
+                    <li>Editing a Subpart</li>
+                    <li>Uploading a BOM</li>
+                    <li>CSV File Headers and Values</li>
+                    <li>Downloading BOMs</li>
+                </ul>
+            </li>
+        </ul>
+
+        <div class="divider"></div>
+        <a class="anchor" id="quick-start"></a>
         <h2>Quick Start</h2>
         <ol>
             <li>Assuming that you have the role of Admin, the first thing you want to do is go to the Settings page and select the IndaBOM tab.
@@ -49,6 +91,8 @@
             </li>
         </ol>
         <p>There are many more things you can do with IndaBOM, but these three steps will get you started.</p>
+        <div class="divider"></div>
+        <a class="anchor" id="intro-to-indabom"></a>
         <h2>Introduction to IndaBOM Concepts</h2>
         <p>IndaBOM may be used to create a catalog of parts and to organize parts into assemblies. The parts that comprise a particular assembly is referred to as a Bill of Materials, or BOM. BOMs and
             parts may be entered directly into IndaBOM or they may be uploaded as comma-separated (CSV) files. Information about an individual part, a collection of parts, or a BOM may be downloaded
@@ -142,6 +186,9 @@
             &ldquo;Working&rdquo; if it is a work-in-progress, in which case you may continue to edit the part&rsquo;s specification or create new revisions. When you are ready, you can change a part&rsquo;s
             status so that it is tagged as &ldquo;Released&rdquo;. You will not be able to edit the specification or create new revisions of the specification for a &ldquo;Released&rdquo; part.
             However, you can revert a &ldquo;Released&rdquo; part back to &ldquo;Working&rdquo;, edit the specification or create additional revisions, and then re-tag the part as &ldquo;Released&rdquo;.</p>
+
+        <div class="divider"></div>
+        <a class="anchor" id="application-guide"></a>
         <h2>Application Guide</h2>
         <h3>Case Sensitivity</h3>
         <p>Throughout the IndaBOM application you will need to enter names for part classes, organizations, and manufacturers. These names you enter are stored in with case preserved, but for
@@ -865,7 +912,10 @@
         <p>Wavelength Units = km m, cm, um, nm, A (where A means &Aring;ngstrom)</p>
         <p>Distance Units = mil, in, ft, yd, km, m, cm, um, nm</p>
         <p>Weight Units = mg, g, kb, oz, lb</p>
-        <h3>Bill Of Materials Page</h3>
+
+        <div class="divider"></div>
+        <a class="anchor" id="bill-of-materials"></a>
+        <h2>Bill Of Materials Page</h2>
         <p>The Bill Of Materials page itemizes all of the parts used in an assembly. An assembly is a part that is comprised of other parts. Assemblies may be nested, meaning that an assembly may
             include other assemblies.</p>
         <h3>BOM Reference Designators</h3>

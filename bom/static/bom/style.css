@@ -188,6 +188,12 @@ li {
     padding-bottom: 8px;
 }
 
+a.anchor {
+    display: block;
+    position: relative;
+    top: -64px;
+    visibility: hidden;
+}
 
 /* Specific Styling */
 .part-info-form input {
