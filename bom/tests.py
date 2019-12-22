@@ -258,13 +258,47 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.post(
-            reverse('bom:part-add-subpart', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id, }))
+        # Submit with no form data
+        response = self.client.post(reverse('bom:part-add-subpart', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id, }))
         self.assertEqual(response.status_code, 302)
 
-        response = self.client.post(
-            reverse('bom:part-add-subpart', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id, }))
+        # Test adding two of the same subparts that also have assemblies. Make sure quantity gets incremented, and not 2 parts that are the same added
+        form_data = {'subpart_part_number': p2.full_part_number(), 'count': 3, 'reference': '', 'do_not_load': False}
+        response = self.client.post(reverse('bom:part-add-subpart', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id, }), form_data)
         self.assertEqual(response.status_code, 302)
+
+        # Below - make sure quantity gets incremented, not that there are > 1 parts
+        repeat_part_revision = p2.latest()
+        parts_p2 = 0
+        qty_p2 = 0
+        for p in p3.latest().indented():
+            if p['part_revision'] == repeat_part_revision:
+                parts_p2 += 1
+                qty_p2 = p['quantity']
+        self.assertEqual(1, parts_p2)
+        self.assertEqual(7, qty_p2)
+
+        # Test adding a third, but make it DNL
+        form_data = {'subpart_part_number': p2.full_part_number(), 'count': 3, 'reference': '', 'do_not_load': True}
+        response = self.client.post(reverse('bom:part-add-subpart', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id, }), form_data)
+        self.assertEqual(response.status_code, 302)
+
+        # Below - make sure quantity gets incremented, not that there are > 1 parts
+        repeat_part_revision = p2.latest()
+        parts_p2 = 0
+        qty_p2_load = 0
+        qty_p2_do_not_load = 0
+        for p in p3.latest().indented():
+            if p['part_revision'] == repeat_part_revision:
+                parts_p2 += 1
+            if p['part_revision'] == repeat_part_revision and p['do_not_load']:
+                qty_p2_do_not_load += p['quantity']
+            elif p['part_revision'] == repeat_part_revision:
+                qty_p2_load += p['quantity']
+
+        self.assertEqual(2, parts_p2)
+        self.assertEqual(3, qty_p2_do_not_load)
+        self.assertEqual(7, qty_p2_load)
 
     def test_remove_subpart(self):
         self.client.login(username='kasper', password='ghostpassword')

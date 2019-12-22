@@ -100,7 +100,7 @@ def create_some_fake_parts(organization):
     pt1.primary_manufacturer_part = mp1
     pt1.save()
     assy = create_a_fake_assembly()
-    pr1 = create_a_fake_part_revision(part=pt1, assembly=assy)
+    pr1 = create_a_fake_part_revision(part=pt1, assembly=None)
 
     pt2 = Part(
         number_class=pc1,

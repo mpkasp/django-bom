@@ -50,7 +50,7 @@
                         <th>Qty</th>
                         <th>Part Class</th>
                         <th>Reference</th>
-                        <th>do_not_load</th>
+                        <th>Do Not Load</th>
                         <th>Synopsis</th>
                         <th>Rev</th>
                         <th>Manufacturer</th>
@@ -65,7 +65,7 @@
                     </thead>
                     <tbody>
                     {% for subpart in parts %}
-                        <tr data-tt-id="{{ subpart.part_revision.id }}"
+                        <tr data-tt-id="{{ subpart.id }}"
                             {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
                             <td class="text-normal">{{ subpart.indent_level }}</td>
                             <td>{{ subpart.part.full_part_number }}</td>

@@ -542,20 +542,23 @@ class PartRevision(models.Model):
         super(PartRevision, self).save(*args, **kwargs)
 
     def indented(self):
-        def indented_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None,
+        def indented_given_bom(bom, part_revision, parent_id=None, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None,
                                reference='', do_not_load=False):
             if part_revision is None:  # hopefully this never happens
                 logger.warning("Indented bom part_revision is None, this shouldn't happen, parent part_revision id: {}".format(parent.id))
                 return
 
+            bom_id = str(part_revision.id) + '-dnl' if do_not_load else str(part_revision.id)
+
             bom.append({
+                'id': bom_id,
                 'part': part_revision.part,
                 'part_revision': part_revision,
                 'quantity': qty,
                 'parent_quantity': parent_qty,
                 'total_quantity': parent_qty * qty,
                 'indent_level': indent_level,
-                'parent_id': parent.id if parent is not None else None,
+                'parent_id': parent_id,
                 'subpart': subpart,
                 'do_not_load': do_not_load,
                 'reference': reference,
@@ -569,7 +572,7 @@ class PartRevision(models.Model):
                 for sp in part_revision.assembly.subparts.all():
                     qty = sp.count
                     reference = sp.reference
-                    indented_given_bom(bom, sp.part_revision, parent=part_revision, qty=qty, parent_qty=parent_qty,
+                    indented_given_bom(bom, sp.part_revision, parent_id=bom_id, parent=part_revision, qty=qty, parent_qty=parent_qty,
                                        indent_level=indent_level, subpart=sp, reference=reference, do_not_load=sp.do_not_load)
 
         bom = []
@@ -578,14 +581,14 @@ class PartRevision(models.Model):
         # For each indent level, sort by reference, if no reference then use part number.
         # Note that need to convert part number to a list so can be compared with the 
         # list-ified string returned by prep_for_sorting_nicely.
-        def sort_by_reference(p):
-            return prep_for_sorting_nicely(p['reference']) if p['reference'] else p.__str__().split()
-
-        def sort_by_indent_level(p):
-            return p['indent_level']
-
-        bom = sorted(bom, key=sort_by_reference)
-        bom = sorted(bom, key=sort_by_indent_level)
+        # def sort_by_reference(p):
+        #     return prep_for_sorting_nicely(p['reference']) if p['reference'] else p.__str__().split()
+        #
+        # def sort_by_indent_level(p):
+        #     return p['indent_level']
+        #
+        # bom = sorted(bom, key=sort_by_reference)
+        # bom = sorted(bom, key=sort_by_indent_level)
         return bom
 
     def flat(self):

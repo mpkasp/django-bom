@@ -957,9 +957,10 @@ def manage_bom(request, part_id, part_revision_id):
 
     references_seen = set()
     duplicate_references = set()
-    for item in parts:
-        check_references_for_duplicates(item['reference'], references_seen, duplicate_references)
+    for sp in part_revision.assembly.subparts.all():
+        check_references_for_duplicates(sp.reference, references_seen, duplicate_references)
 
+    for item in parts:
         extended_quantity = int(qty) * int(item['total_quantity'])
         seller = item['part'].optimal_seller(quantity=extended_quantity)
         item['seller_price'] = seller.unit_cost if seller is not None else None
@@ -1003,22 +1004,32 @@ def add_subpart(request, part_id, part_revision_id):
         if add_subpart_form.is_valid():
             subpart_part = add_subpart_form.subpart_part
             reference = add_subpart_form.cleaned_data['reference']
+            dnl = add_subpart_form.cleaned_data['do_not_load']
+            count = add_subpart_form.cleaned_data['count']
 
-            new_part = Subpart.objects.create(
-                part_revision=subpart_part,
-                count=add_subpart_form.cleaned_data['count'],
-                reference=reference,
-                do_not_load=add_subpart_form.cleaned_data['do_not_load'])
+            first_level_bom = part_revision.assembly.subparts.filter(part_revision=subpart_part, do_not_load=dnl)
 
-            if part_revision.assembly is None:
-                part_revision.assembly = Assembly.objects.create()
-                part_revision.save()
-
-            AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
-            info_msg = "Added subpart "
-            if reference is None:
-                info_msg += ' '
+            if first_level_bom.count() > 0:
+                new_part = first_level_bom[0]
+                new_part.count += count
+                if reference:
+                    new_part.reference = new_part.reference + ', ' + reference
+                new_part.save()
             else:
+                new_part = Subpart.objects.create(
+                    part_revision=subpart_part,
+                    count=count,
+                    reference=reference,
+                    do_not_load=dnl)
+
+                if part_revision.assembly is None:
+                    part_revision.assembly = Assembly.objects.create()
+                    part_revision.save()
+
+                AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
+
+            info_msg = "Added subpart "
+            if reference:
                 info_msg += ' ' + reference
             info_msg += " {} to part {}".format(subpart_part, part_revision)
             messages.info(request, info_msg)
@@ -1026,8 +1037,7 @@ def add_subpart(request, part_id, part_revision_id):
         else:
             messages.error(request, add_subpart_form.errors)
 
-    return HttpResponseRedirect(
-        reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
 @login_required

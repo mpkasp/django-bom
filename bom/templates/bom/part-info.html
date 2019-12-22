@@ -246,12 +246,10 @@
                     </tr>
                     </thead>
                     {% for subpart in parts %}
-                        <tr data-tt-id="{{ subpart.part_revision.id }}"
+                        <tr data-tt-id="{{ subpart.id }}"
                             {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
                             <td class="text-normal">{{ subpart.indent_level }}</td>
-                            <td class="text-normal"><a
-                                    href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a>
-                            </td>
+                            <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
                             <td class="text-normal">{{ subpart.quantity }}</td>
                             <td class="text-normal">{{ subpart.reference | default:"-" }}</td>
                             <td class="text-normal">{{ subpart.do_not_load | default:"-" }}</td>
