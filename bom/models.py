@@ -273,6 +273,7 @@ class PartRevision(models.Model):
     configuration = models.CharField(max_length=1, choices=(('R', 'Released'), ('W', 'Working'),), default='W')
     revision = models.CharField(max_length=4, db_index=True, default='1')
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
+    displayable_synopsis = models.CharField(editable=False, default="", null=True, blank=True, max_length=255, db_index=True)
     searchable_synopsis = models.CharField(editable=False, default="", null=True, blank=True, max_length=255, db_index=True)
 
     class Meta:
@@ -504,7 +505,7 @@ class PartRevision(models.Model):
     current_rating_units = models.CharField(max_length=2, default=None, null=True, blank=True, choices=CURRENT_UNITS)
     current_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
-    def synopsis(self, make_searchable=False):
+    def generate_synopsis(self, make_searchable=False):
         def verbosify(val, units=None, pre=None, pre_whitespace=True, post=None, post_whitespace=True):
             elaborated = ""
             if val is not None and val is not '':
@@ -545,6 +546,9 @@ class PartRevision(models.Model):
         s += verbosify(self.weight, units=self.weight_units if make_searchable else self.get_weight_units_display())
         return s
 
+    def synopsis(self, return_displayable=True):
+        return self.displayable_synopsis if return_displayable else self.searchable_synopsis
+
     def save(self, *args, **kwargs):
         if self.tolerance:
             self.tolerance = self.tolerance.replace('%', '')
@@ -555,7 +559,8 @@ class PartRevision(models.Model):
             previous_configuration = PartRevision.objects.get(id=self.id).configuration
             if self.configuration != previous_configuration:
                 self.timestamp = timezone.now()
-        self.searchable_synopsis = self.synopsis(True)
+        self.searchable_synopsis = self.generate_synopsis(True)
+        self.displayable_synopsis = self.generate_synopsis(False)
         super(PartRevision, self).save(*args, **kwargs)
 
     def indented(self):
