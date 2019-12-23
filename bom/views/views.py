@@ -36,11 +36,11 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def home(request):
+    start = time.time()
     profile = request.user.bom_profile()
     organization = profile.get_or_create_organization()
     title = f'{organization.name} Parts List'
     query = request.POST.get('q', '')
-    start = time.time()
 
     if request.method == 'POST':
         part_class_selection_form = PartClassSelectionForm(request.POST, organization=organization)
@@ -191,7 +191,7 @@ def home(request):
         part_revs = paginator.page(1)
     except EmptyPage:
         part_revs = paginator.page(paginator.num_pages)
-    logger.log(logging.INFO, f"[home] part_rev autocomplete: {time.time() - start}")
+    logger.log(logging.INFO, f"[home] dashboard done: {time.time() - start}")
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
 
