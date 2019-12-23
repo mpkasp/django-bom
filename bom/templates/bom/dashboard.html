@@ -42,7 +42,7 @@
             </div>
             <div class="input-field col s12 m6">
                 <i class="material-icons prefix">search</i>
-                <input type="search" id="autocomplete-input" class="text" name="q" value="{% if query %}{{ query }}{% endif %}">
+                <input type="search" id="autocomplete-input" class="text autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
                 {% if part_class %}
                     <label for="autocomplete-input">Search for parts within selected part class:</label>
                 {% elif part_assembly %}
