@@ -1,7 +1,6 @@
 import csv
 import logging
 import operator
-import time
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -36,7 +35,6 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def home(request):
-    start = time.time()
     profile = request.user.bom_profile()
     organization = profile.get_or_create_organization()
     title = f'{organization.name} Parts List'
@@ -57,20 +55,16 @@ def home(request):
         # the POST, so this case is the de facto "else" clause.
     else:
         part_class_selection_form = PartClassSelectionForm(request.GET, organization=organization)
-        logger.log(logging.INFO, f"[home] PartClassSelectionForm: {time.time() - start}")
 
     if part_class_selection_form.is_valid():
-        logger.log(logging.INFO, f"[home] PartClassSelectionForm is_valid: {time.time() - start}")
         part_class = part_class_selection_form.cleaned_data['part_class']
     else:
         part_class = None
 
     if part_class:
         parts = Part.objects.filter(Q(organization=organization) & Q(number_class__code=part_class.code))
-        logger.log(logging.INFO, f"[home] part query given part_class: {time.time() - start}")
     else:
         parts = Part.objects.filter(Q(organization=organization))
-        logger.log(logging.INFO, f"[home] part query: {time.time() - start}")
 
     part_ids = list(parts.values_list('id', flat=True))
 
@@ -84,14 +78,12 @@ def home(request):
     part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
     q = part_rev_query.format(part_list)
     part_revs = PartRevision.objects.raw(q)
-    logger.log(logging.INFO, f"[home] part_rev raw query: {time.time() - start}")
     manufacturer_part = ManufacturerPart.objects.filter(part__in=parts)
 
     autocomplete_dict = {}
     for part in part_revs:
         autocomplete_dict.update({part.searchable_synopsis.replace('"', ''): None})
         # autocomplete_dict.update({ part.full_part_number(): None }) # TODO: query full part number
-    logger.log(logging.INFO, f"[home] part_rev autocomplete: {time.time() - start}")
 
     for mpn in manufacturer_part:
         if mpn.manufacturer_part_number:
@@ -191,7 +183,6 @@ def home(request):
         part_revs = paginator.page(1)
     except EmptyPage:
         part_revs = paginator.page(paginator.num_pages)
-    logger.log(logging.INFO, f"[home] dashboard done: {time.time() - start}")
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
 

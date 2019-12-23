@@ -195,7 +195,10 @@
                 data: data,
                 limit: 10, // The max amount of results that can be shown at once. Default: Infinity.
                 onAutocomplete: function (val) {
-                    document.getElementById("searchForm").submit();
+                    var form = document.getElementById("searchForm");
+                    var input = document.getElementById("autocomplete-input");
+                    input.value = `"${val}"`;
+                    form.submit();
                 },
                 minLength: 1, // The minimum length of the input for the autocomplete to start. Default: 1.
             });
