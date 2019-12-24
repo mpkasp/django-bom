@@ -13,8 +13,8 @@ from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.encoding import smart_str
-
 from django.utils.text import smart_split
+from django.views.generic.base import TemplateView
 
 from social_django.models import UserSocialAuth
 
@@ -186,11 +186,6 @@ def home(request):
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
 
-def error(request):
-    msgs = messages.get_messages(request)
-    return TemplateResponse(request, 'bom/error.html', locals())
-
-
 @login_required
 def search_help(request):
     return TemplateResponse(request, 'bom/search-help.html', locals())
@@ -216,6 +211,7 @@ def bom_settings(request, tab_anchor=None):
     title = 'Settings'
     action = reverse('bom:settings')
     owner = organization.owner
+    name = 'settings'
 
     part_classes = PartClass.objects.all().filter(organization=organization)
 
@@ -1393,3 +1389,13 @@ def part_revision_delete(request, part_id, part_revision_id):
     messages.info(request, 'Deleted {} Rev {}.'.format(part.full_part_number(), part_revision.revision))
 
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}))
+
+
+class Help(TemplateView):
+    name = 'help'
+    template_name = f'bom/{name}.html'
+
+    def get_context_data(self, *args, **kwargs):
+        context = super(Help, self).get_context_data(**kwargs)
+        context['name'] = self.name
+        return context

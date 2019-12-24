@@ -1,0 +1,9 @@
+{% extends BASE_TEMPLATE %}
+
+{% block menu %}
+    {% block bom-menu %}{% endblock %}
+    {% if user.is_authenticated %}
+    <li {% if name == "settings" %}class="active"{% endif %}><a title="IndaBOM | Settings" href="{% url 'bom:settings' tab_anchor='user' %}">Settings</a></li>
+    {% endif %}
+    <li {% if name == "help" %}class="active"{% endif %}><a title="IndaBOM | Help" href="{% url 'bom:help' %}">Help</a></li>
+{% endblock %}

@@ -1,4 +1,4 @@
-{% extends BASE_TEMPLATE %}
+{% extends 'bom/bom-base.html' %}
 
 {% load staticfiles %}
 {% load materializecss %}
@@ -9,7 +9,7 @@
     <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
 {% endblock %}
 
-{% block menu %}
+{% block bom-menu %}
     <li><a href="{% url 'bom:part-info' part_id=manufacturer_part.part.id %}">Cancel</a></li>
 {% endblock %}
 

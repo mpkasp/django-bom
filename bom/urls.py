@@ -2,7 +2,6 @@ from django.conf.urls import include
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from django.contrib import admin
-from django.views.generic import TemplateView
 
 from bom.views import views, json_views
 from bom.third_party_apis import google_drive
@@ -11,9 +10,8 @@ bom_patterns = [
     # BOM urls
     path('', views.home, name='home'),
     # path('bom/', views.home, name='home'),
-    path('help/', TemplateView.as_view(template_name='bom/help.html'), name='help'),
+    path('help/', views.Help.as_view(), name=views.Help.name),
     path('search-help/', views.search_help, name='search-help'),
-    path('error/', views.error, name='error'),
     path('signup/', views.bom_signup, name='bom-signup'),
     path('settings/', views.bom_settings, name='settings'),
     path('settings/<str:tab_anchor>/', views.bom_settings, name='settings'),

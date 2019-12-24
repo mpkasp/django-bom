@@ -1,4 +1,4 @@
-{% extends 'bom/bom-action-btn.html' %}
+{% extends 'bom/bom-base.html' %}
 
 {% load staticfiles %}
 {% load materializecss %}
@@ -9,7 +9,7 @@
     <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
 {% endblock %}
 
-{% block menu %}
+{% block bom-menu %}
     {% if profile.role == 'A' %}
         <li>
             <!-- Dropdown Trigger -->
@@ -182,9 +182,9 @@
                 </ul>
             {% endif %}
         </div>
-
     </form>
     </div>
+    {% include 'bom/bom-action-btn.html' with profile=profile %}
 {% endblock %}
 
 {% block script %}

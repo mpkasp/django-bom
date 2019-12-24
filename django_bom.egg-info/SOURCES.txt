@@ -95,6 +95,7 @@ bom/templates/bom/add-manufacturer-part.html
 bom/templates/bom/add-sellerpart.html
 bom/templates/bom/base.html
 bom/templates/bom/bom-action-btn.html
+bom/templates/bom/bom-base.html
 bom/templates/bom/bom-form.html
 bom/templates/bom/bom-signup.html
 bom/templates/bom/create-part.html
@@ -103,7 +104,6 @@ bom/templates/bom/edit-manufacturer-part.html
 bom/templates/bom/edit-part-class.html
 bom/templates/bom/edit-part.html
 bom/templates/bom/edit-user-meta.html
-bom/templates/bom/error.html
 bom/templates/bom/help.html
 bom/templates/bom/nothing-to-see.html
 bom/templates/bom/part-info.html
