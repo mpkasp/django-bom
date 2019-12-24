@@ -149,20 +149,20 @@ table.treetable tr.expanded span.indenter a {
 }
 
 /* Override Materialize container */
-.container {
+.container-app {
     margin: 0 auto;
     max-width: none;
     width: 95%;
 }
 
 @media only screen and (min-width: 601px) {
-    .container {
+    .container-app {
         width: 95%;
     }
 }
 
 @media only screen and (min-width: 993px) {
-    .container {
+    .container-app {
         width: 90%;
     }
 }

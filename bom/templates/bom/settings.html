@@ -11,7 +11,7 @@
 
 {% block content %}
 
-    <div class="row">
+    <div class="row container-app">
         <div class="col s12">
             <ul id="tabs" class="tabs tabs-fixed-width">
                 <li class="tab"><a href="#user">User</a></li>
@@ -45,7 +45,7 @@
                 </div>
                 <div class="row">
                     <div class="col s6">
-                        <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=USER_TAB%}">Refresh</a>
+                        <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=USER_TAB %}">Refresh</a>
                     </div>
                     <div class="col s6 right-align">
                         <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-user">Save</button>
@@ -109,7 +109,7 @@
                     </div>
                     <div class="row">
                         <div class="col s6">
-                            <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=INDABOM_TAB%}">Clear</a>
+                            <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}">Clear</a>
                         </div>
                         <div class="col s6 right-align">
                             <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-part-class-create">Create</button>
@@ -149,7 +149,7 @@
             </div>
             <div class="row">
                 <div class="col s6">
-                    <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=INDABOM_TAB%}">Refresh</a>
+                    <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}">Refresh</a>
                 </div>
                 <div class="col s6 right-align">
                     <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-number-item-len"
@@ -236,7 +236,7 @@
                         <div class="row">
                             <div class="col">
                                 <i>Adding users to your organization is a paid feature, but is free for a
-                            limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.</i>
+                                    limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.</i>
                             </div>
                         </div>
                         <div class="row">
@@ -244,7 +244,8 @@
                                 <a class="waves-effect waves-light btn grey lighten-1" type="button" href="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}">Clear</a>
                             </div>
                             <div class="col s6 right-align">
-                                <button class="waves-effect waves-light btn green lighten-1" type="submit" {% if organization.subscription == 'F' %}disabled{% endif %} name="submit-add-user">Add</button>
+                                <button class="waves-effect waves-light btn green lighten-1" type="submit" {% if organization.subscription == 'F' %}disabled{% endif %} name="submit-add-user">Add
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -275,15 +276,13 @@
                         {% endif %}
                     </ul>
 
-                    </div>
                 {% else %}
                     <p>Nothing to see here 🙈 because you are not the organization owner. Please contact
                         <a href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for assistance.</p>
                 {% endif %}
 
-        </form>
-    </div>
-
+            </form>
+        </div>
     </div>
 
 {% endblock %}

@@ -5,53 +5,59 @@
 
 {% block head-title %}{{ title }}{% endblock %}
 
-{% block main%}
-<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+{% block main %}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
 {% endblock %}
 
 {% block menu %}
-<li><a href="{% url 'bom:home' %}">Cancel</a></li>
-{% endblock%}
+    <li><a href="{% url 'bom:home' %}">Cancel</a></li>
+{% endblock %}
 
 {% block content %}
-{% if profile.role == 'A' %}
-<div class="row">
-    <form name="seller" action="{% url 'bom:create-part' %}" method="post" class="col s12">
-        <h2>Part Number</h2>
-        <p>Part numbers must be in the format CCC-{{ organization.number_ns }}-VV where CCC is the Part Number Class, {{ organization.number_ns }} is the part number (number item), and VV is the part variation. To change the part number length, go to your settings. To create part classes, go to the <a href="{% url 'bom:settings' tab_anchor='indabom' %}">Settings</a> page, and create them in the IndaBOM tab.</p>
-    	<div class="row">
-            {% csrf_token %}
-            {{ part_form.non_field_errors }}
-            {{ part_form|materializecss:'m4 s12' }}
-		</div>
-		<h2>Part Properties</h2>
-        <p><i>The below fields are optional.</i></p>
-        {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}
+    <div class="container-app">
+        {% if profile.role == 'A' %}
+            <div class="row">
+                <form name="seller" action="{% url 'bom:create-part' %}" method="post" class="col s12">
+                    <h2>Part Number</h2>
+                    <p>Part numbers must be in the format CCC-{{ organization.number_ns }}-VV where CCC is the Part Number Class, {{ organization.number_ns }} is the part number (number item), and VV
+                        is
+                        the part variation. To change the part number length, go to your settings. To create part classes, go to the <a
+                                href="{% url 'bom:settings' tab_anchor='indabom' %}">Settings</a>
+                        page, and create them in the IndaBOM tab.</p>
+                    <div class="row">
+                        {% csrf_token %}
+                        {{ part_form.non_field_errors }}
+                        {{ part_form|materializecss:'m4 s12' }}
+                    </div>
+                    <h2>Part Properties</h2>
+                    <p><i>The below fields are optional.</i></p>
+                    {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}
 
-        <h2>Add a Manufacturer Part</h2>
-        <p><i>The below fields are optional.</i></p>
-        <p>Skip this form if your part is a custom part. Leave the manufacturer field unselected if creating a new manufacturer.</p>
-    	<div class="row">
-            {% csrf_token %}
-            {{ manufacturer_part_form|materializecss:'m4 s12' }}
-            {{ manufacturer_form.non_field_errors }}
-            <div class="input-field col m4 s12">
-                {{ manufacturer_form.name.errors }}
-                {{ manufacturer_form.name }}
-                <label for="{{ manufacturer_form.name.id_for_label }}">OR Create A New Manufacturer:</label>
+                    <h2>Add a Manufacturer Part</h2>
+                    <p><i>The below fields are optional.</i></p>
+                    <p>Skip this form if your part is a custom part. Leave the manufacturer field unselected if creating a new manufacturer.</p>
+                    <div class="row">
+                        {% csrf_token %}
+                        {{ manufacturer_part_form|materializecss:'m4 s12' }}
+                        {{ manufacturer_form.non_field_errors }}
+                        <div class="input-field col m4 s12">
+                            {{ manufacturer_form.name.errors }}
+                            {{ manufacturer_form.name }}
+                            <label for="{{ manufacturer_form.name.id_for_label }}">OR Create A New Manufacturer:</label>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col s6">
+                            <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
+                        </div>
+                        <div class="col s6 right-align">
+                            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+                        </div>
+                    </div>
+                </form>
             </div>
-		</div>
-		<div class="row">
-	        <div class="col s6">
-                <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
-            </div>
-            <div class="col s6 right-align">
-	        	<button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
-	    	</div>
-    	</div>
-    </form>
-</div>
-{% else %}
-{% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
-{% endif %}
+        {% else %}
+            {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+        {% endif %}
+    </div>
 {% endblock %}

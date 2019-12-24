@@ -3,41 +3,46 @@
 {% load materializecss %}
 {% load staticfiles %}
 
-{% block head-title %}{{title|safe}}{% endblock %}
+{% block head-title %}{{ title|safe }}{% endblock %}
 
 {% block main %}
-<link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
 {% endblock %}
 
 {% block menu %}
-{% endblock%}
+{% endblock %}
 
 {% block content %}
-{% if profile.role == 'A' %}
-    <form name="seller" action="{{ action }}" method="post" class="col s12">
-    {% csrf_token %}
-    	<div class="row">
-        {% if subparts.count > 0 %}
-            <div class="col s12 m8 push-m2">
-                <h5><b>Warning!</b> This part has {{ subparts.count }} unreleased subparts. It is strongly recommended to release the below subparts before proceeding:</h5>
-                <div class="collection">
-                    {% for s in subparts %}
-                    <a href="{% url 'bom:part-info-history' part_id=s.part_revision.part.id part_revision_id=s.part_revision.id %}" target="_blank" class="collection-item hoverable">{{ s.part_revision.part.full_part_number }} Rev {{ s.part_revision.revision }} {{ s.part_revision.description }}</a>
-                    {% endfor %}
+    <div class="container-app">
+    {% if profile.role == 'A' %}
+        <form name="seller" action="{{ action }}" method="post" class="col s12">
+            {% csrf_token %}
+            <div class="row">
+                {% if subparts.count > 0 %}
+                    <div class="col s12 m8 push-m2">
+                        <h5><b>Warning!</b> This part has {{ subparts.count }} unreleased subparts. It is strongly recommended to release the below subparts before proceeding:</h5>
+                        <div class="collection">
+                            {% for s in subparts %}
+                                <a href="{% url 'bom:part-info-history' part_id=s.part_revision.part.id part_revision_id=s.part_revision.id %}" target="_blank"
+                                   class="collection-item hoverable">{{ s.part_revision.part.full_part_number }} Rev {{ s.part_revision.revision }} {{ s.part_revision.description }}</a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="row">
+                <div class="col s6 m4 push-m2">
+                    <a href="javascript:history.back()"
+                       class="waves-effect waves-light btn{% if not release_warning %}-flat{% endif %} {% if release_warning %}green{% else %}grey-text{% endif %} lighten-1">Cancel</a>
+                </div>
+                <div class="col s6 m4 push-m2 right-align">
+                    <button class="waves-effect waves-light btn{% if release_warning %}-flat{% endif %} {% if not release_warning %}green{% else %}grey-text{% endif %} lighten-1" type="submit"
+                            name="action">Release{% if release_warning %} Anyway{% endif %}</button>
                 </div>
             </div>
-        {% endif %}
-        </div>
-        <div class="row">
-	        <div class="col s6 m4 push-m2">
-                <a href="javascript:history.back()" class="waves-effect waves-light btn{% if not release_warning %}-flat{% endif %} {% if release_warning %}green{% else %}grey-text{% endif %} lighten-1">Cancel</a>
-            </div>
-            <div class="col s6 m4 push-m2 right-align">
-	        	<button class="waves-effect waves-light btn{% if release_warning %}-flat{% endif %} {% if not release_warning %}green{% else %}grey-text{% endif %} lighten-1" type="submit" name="action">Release{% if release_warning %} Anyway{% endif %}</button>
-	    	</div>
-    	</div>
-    </form>
-{% else %}
-{% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
-{% endif %}
+        </form>
+    {% else %}
+        {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+    {% endif %}
+    </div>
 {% endblock %}

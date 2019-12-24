@@ -12,8 +12,8 @@
 {% endblock %}
 
 {% block content %}
-    <div style="font-size: 16px;">
-        <h1>IndaBOM Guide</h1>
+    <div class="container" style="font-size: 16px;">
+        <h1 class="text-center">IndaBOM Guide</h1>
         <h2>Contents</h2>
         <ul class="browser-default">
             <li><a href="#quick-start">Quick Start</a></li>
@@ -58,7 +58,7 @@
         <a class="anchor" id="quick-start"></a>
         <h2>Quick Start</h2>
         <ol>
-            <li>Assuming that you have the role of Admin, the first thing you want to do is go to the Settings page and select the IndaBOM tab.
+            <li>Assuming that you have the role of Admin, the first thing you want to do is go to the <a href="{% url 'bom:settings' %}" target="_blank">Settings</a> page and select the IndaBOM tab.
                 <ul class="browser-default">
                     <li>Set the number of digits you want to use for your organization&rsquo;s part number item number. Keep in mind that in the future you can increase, but you cannot decrease, the
                         number of

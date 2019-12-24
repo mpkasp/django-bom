@@ -16,7 +16,7 @@
 {% endblock %}
 
 {% block content %}
-    <div class="part-info">
+    <div class="part-info container-app">
         <a href="{% url 'bom:part-info' part_id=part.id %}">Return to {{ part.full_part_number }}</a>
         <!-- <h5>{{ part.description }}</h5> -->
         <div id="bom" class="col s12">
@@ -125,7 +125,7 @@
                 <b>part_number</b> <i>or</i> <b>manufacturer_part_number</b> and <b>quantity</b>; the 'part_number' or
                 'manufacturer_part_number' column must contain part numbers that have already been created in this
                 system.</p>
-            <p>Additional fields include 'reference' or 'designator' to add a reference field to the subpart; 
+            <p>Additional fields include 'reference' or 'designator' to add a reference field to the subpart;
                'do_not_load' if you don't want the part loaded into the assembly that contains it; 'dnp' if
                 you don't want to upload the part to IndaBOM.</p>
             <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">

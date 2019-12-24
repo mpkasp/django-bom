@@ -15,456 +15,459 @@
 {% endblock %}
 
 {% block content %}
-    <div class="part-info">
-    <div class="row" style="margin-bottom: 5px;">
-        <div class="col m8 hide-on-small-and-down">
-            <h3 class="light">{{ part.full_part_number }}</h3>
-            {% if profile.role == 'A' %}
-                <p>Select latest revision to edit, add a new revision, etc., or select an earlier revision for viewing only</p>
-            {% else %}
-                <p>Select a revision for viewing</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="row">
-        {% if part_revision %}
-            <div class="col l2 m3 s5">
-                <div class="input-field">
-                    <select id="select-revision">
-                        {% for r in revisions.all %}
-                            <option {% if part_revision.id == r.id %}selected{% endif %}
-                                    value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}
-						   {% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}
-						   {% endif %}">Rev {{ r.revision }}{% if r.configuration == 'W' %} (working){% endif %}</option>
-                        {% endfor %}
-                    </select>
+    <div class="container-app">
+        <div class="part-info">
+            <div class="row" style="margin-bottom: 5px;">
+                <div class="col m8 hide-on-small-and-down">
+                    <h3 class="light">{{ part.full_part_number }}</h3>
+                    {% if profile.role == 'A' %}
+                        <p>Select latest revision to edit, add a new revision, etc., or select an earlier revision for viewing only</p>
+                    {% else %}
+                        <p>Select a revision for viewing</p>
+                    {% endif %}
                 </div>
             </div>
-        {% endif %}
-        <div class="col {% if part_revision %}m3 s1{% else %}m3 s12 center{% endif %}">
-            {% if profile.role == 'A' and part_revision and selected_rev_is_latest %}
-                <div style="margin-top: 1.5rem;">
-                    <!-- Dropdown Trigger -->
-                    <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light grey lighten-4 btn-flat'
-                            href='#' data-target='dropdown-revision'><i class="material-icons right">arrow_drop_down</i>Manage
-                    </button>
-                    <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
-                            class="material-icons green-text text-lighten-1">more_vert</i></a>
-                    <!-- Dropdown Structure -->
-                    <ul id='dropdown-revision' class='dropdown-content'>
-                        {% if part_revision.configuration == 'W' %}
-                            <li>
-                                <a class="green-text text-lighten-1"
-                                   href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">
-                                    <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
-                            </li>
-                            <li>
-                                <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                                    <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
-                            </li>
-                            <li>
-                                <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">
-                                    <i class="material-icons green-text text-lighten-1">check</i>Release</a>
-                            </li>
-                        {% elif part_revision.configuration == 'R' %}
-                            <li>
-                                <a class="green-text text-lighten-1 disabled" onclick="revertPartRevision()">
-                                    <i class="material-icons green-text text-lighten-1">undo</i>Revert to working</a>
-                            </li>
-                        {% endif %}
-                        <li class="divider" tabindex="-1"></li>
-                        <li>
-                            <a class="red-text text-lighten-1" onclick="deletePartRevision()">
-                                <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
+
+            <div class="row">
+                {% if part_revision %}
+                    <div class="col l2 m3 s5">
+                        <div class="input-field">
+                            <select id="select-revision">
+                                {% for r in revisions.all %}
+                                    <option {% if part_revision.id == r.id %}selected{% endif %}
+                                            value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}
+						   {% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}
+						   {% endif %}">Rev {{ r.revision }}{% if r.configuration == 'W' %} (working){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                {% endif %}
+                <div class="col {% if part_revision %}m3 s1{% else %}m3 s12 center{% endif %}">
+                    {% if profile.role == 'A' and part_revision and selected_rev_is_latest %}
+                        <div style="margin-top: 1.5rem;">
+                            <!-- Dropdown Trigger -->
+                            <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light grey lighten-4 btn-flat'
+                                    href='#' data-target='dropdown-revision'><i class="material-icons right">arrow_drop_down</i>Manage
+                            </button>
+                            <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
+                                    class="material-icons green-text text-lighten-1">more_vert</i></a>
+                            <!-- Dropdown Structure -->
+                            <ul id='dropdown-revision' class='dropdown-content'>
+                                {% if part_revision.configuration == 'W' %}
+                                    <li>
+                                        <a class="green-text text-lighten-1"
+                                           href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">
+                                            <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
+                                    </li>
+                                    <li>
+                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                                            <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
+                                    </li>
+                                    <li>
+                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">
+                                            <i class="material-icons green-text text-lighten-1">check</i>Release</a>
+                                    </li>
+                                {% elif part_revision.configuration == 'R' %}
+                                    <li>
+                                        <a class="green-text text-lighten-1 disabled" onclick="revertPartRevision()">
+                                            <i class="material-icons green-text text-lighten-1">undo</i>Revert to working</a>
+                                    </li>
+                                {% endif %}
+                                <li class="divider" tabindex="-1"></li>
+                                <li>
+                                    <a class="red-text text-lighten-1" onclick="deletePartRevision()">
+                                        <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
+                                </li>
+                            </ul>
+                        </div>
+                    {% elif profile.role == 'A' and not part_revision %}
+                        <a class='waves-effect waves-light grey lighten-4 btn-flat'
+                           href='{% url 'bom:part-revision-new' part_id=part.id %}'><i class="material-icons left">add</i>Create Revision</a>
+                    {% endif %}
+                </div>
+                {% if part_revision %}
+                    <div class="col m2 push-l5 push-m4 s6 right-align part-info-form">
+                        <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
+                            {% csrf_token %}
+                            <div class="hide-on-med-and-up" style="width: 100%;">
+                                {{ part_info_form }}
+                            </div>
+                            <div class="hide-on-small-and-down" style="width: 100%; margin: 0px;">
+                                {{ part_info_form }}
+                            </div>
+                            <input type="submit" style="position: absolute; visibility: hidden;">
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="row">
+                <div class="col s12">
+                    <ul id="tabs" class="tabs tabs-fixed-width">
+                        <li class="tab"><a href="#specs">Specifications</a></li>
+                        <li class="tab"><a href="#bom">Bill of Materials</a></li>
+                        <li class="tab"><a href="#used">Where Used</a></li>
+                        <li class="tab"><a href="#sourcing">Sourcing</a></li>
+                    </ul>
+                </div>
+
+                <div id="specs" class="col s12">
+                    <br>
+                    <ul class="collection with-header">
+                        <li class="collection-header"><h5>Item Details</h5></li>
+                        <li class="collection-item">
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Item Class:</div>
+                                <div class="col s8 l10">{{ part.number_class }}</div>
+                            </div>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Number:</div>
+                                <div class="col s8 l10">{{ part.full_part_number }}
+                                    {% if profile.role == 'A' %}
+                                        <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[edit]</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Synopsis:</div>
+                                <div class="col s8 l10">{{ part_revision.synopsis }}</div>
+                            </div>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Configuration:</div>
+                                <div class="col s8 l10">{{ part_revision.get_configuration_display|default:'n/a' }}&nbsp;<i>{% if part_revision %}(as of <span id="specs-revision-timestamp"></span>
+                                    ){% endif %}
+                                </i></div>
+                            </div>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;"><img title="Via Google Drive" style="width: 16px;"
+                                                                                                  src="{% static 'bom/img/google_drive_logo.svg' %}"></img> Files:
+                                </div>
+                                <div class="col s8 l10"><a href="{% url 'google-drive:add-folder' part_id=part.id %}" target="_blank">Open Folder</a></div>
+                            </div>
+                        </li>
+                        <li class="collection-header">
+                            <h5><h5 class="title">Manufacturer & Sourcing</h5></h5>
+                        </li>
+                        <li class="collection-item">
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Primary Manufacturer Part:</div>
+                                <div class="col s8 l10">{{ part.primary_manufacturer_part.manufacturer.name }} - {{ part.primary_manufacturer_part.manufacturer_part_number }}
+                                    {% if profile.role == 'A' %}
+                                        <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[change]</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
+                                <div class="col s8 l10">${{ unit_cost|floatformat:4 }}<span id="specs-revision-timestamp"></span></div>
+                            </div>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
+                                <div class="col s8 l10">${{ unit_nre|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                            </div>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Unit Out Of Pocket:</div>
+                                <div class="col s8 l10">${{ unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                            </div>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total Out Of Pocket:</div>
+                                <div class="col s8 l10">${{ total_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                            </div>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Unit Out Of Pocket:</div>
+                                <div class="col s8 l10">${{ unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                            </div>
                         </li>
                     </ul>
                 </div>
-            {% elif profile.role == 'A' and not part_revision %}
-                <a class='waves-effect waves-light grey lighten-4 btn-flat'
-                   href='{% url 'bom:part-revision-new' part_id=part.id %}'><i class="material-icons left">add</i>Create Revision</a>
-            {% endif %}
-        </div>
-        {% if part_revision %}
-            <div class="col m2 push-l5 push-m4 s6 right-align part-info-form">
-                <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
-                    {% csrf_token %}
-                    <div class="hide-on-med-and-up" style="width: 100%;">
-                        {{ part_info_form }}
-                    </div>
-                    <div class="hide-on-small-and-down" style="width: 100%; margin: 0px;">
-                        {{ part_info_form }}
-                    </div>
-                    <input type="submit" style="position: absolute; visibility: hidden;">
-                </form>
-            </div>
-        {% endif %}
-    </div>
 
-    <div class="row">
-        <div class="col s12">
-            <ul id="tabs" class="tabs tabs-fixed-width">
-                <li class="tab"><a href="#specs">Specifications</a></li>
-                <li class="tab"><a href="#bom">Bill of Materials</a></li>
-                <li class="tab"><a href="#used">Where Used</a></li>
-                <li class="tab"><a href="#sourcing">Sourcing</a></li>
-            </ul>
-        </div>
 
-        <div id="specs" class="col s12">
-            <br>
-            <ul class="collection with-header">
-                <li class="collection-header"><h5>Item Details</h5></li>
-                <li class="collection-item">
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Item Class:</div>
-                        <div class="col s8 l10">{{ part.number_class }}</div>
-                    </div>
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Number:</div>
-                        <div class="col s8 l10">{{ part.full_part_number }}
-                            {% if profile.role == 'A' %}
-                                <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[edit]</a>
-                            {% endif %}
+                <div id="bom" class="col s12">
+                    <div class="row" style="padding-top: 16px;">
+                        <div class="col s6">
+                            {% if order_by == 'indented' %}
+                                <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
+                                        onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand
+                                </button>{% endif %}
+                            {% if order_by == 'indented' %}
+                                <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
+                                        onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse
+                                </button>{% endif %}
+                        </div>
+                        <div class="col s6 right-align">
+                            <!-- Dropdown Trigger -->
+                            <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#'
+                                    data-target='manage-bom-{{ part.id }}'><i class="material-icons right">arrow_drop_down</i>Manage
+                            </button>
+                            <!-- Dropdown Structure -->
+                            <ul id='manage-bom-{{ part.id }}' class='dropdown-content'>
+                                {% if profile.role == 'A' and part_revision.configuration == 'W' %}
+                                    <li><a class="green-text text-lighten-1"
+                                           href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}"><i
+                                            class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
+                                    </li>
+                                {% endif %}
+                                {% if part_revision %}
+                                    <li><a class="green-text text-lighten-1"
+                                           href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}"><i
+                                            class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
+                                    </li>
+                                    <li><a class="green-text text-lighten-1"
+                                           href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_revision.id %}"><i
+                                            class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
+                                    </li>
+                                {% else %}
+                                    <li><a class="green-text text-lighten-1 disabled"
+                                           href=""><i
+                                            class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Synopsis:</div>
-                        <div class="col s8 l10">{{ part_revision.synopsis }}</div>
-                    </div>
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Configuration:</div>
-                        <div class="col s8 l10">{{ part_revision.get_configuration_display|default:'n/a' }}&nbsp;<i>{% if part_revision %}(as of <span id="specs-revision-timestamp"></span>){% endif %}
-                        </i></div>
-                    </div>
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;"><img title="Via Google Drive" style="width: 16px;"
-                                                                                          src="{% static 'bom/img/google_drive_logo.svg' %}"></img> Files:
-                        </div>
-                        <div class="col s8 l10"><a href="{% url 'google-drive:add-folder' part_id=part.id %}" target="_blank">Open Folder</a></div>
-                    </div>
-                </li>
-                <li class="collection-header">
-                    <h5><h5 class="title">Manufacturer & Sourcing</h5></h5>
-                </li>
-                <li class="collection-item">
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Primary Manufacturer Part:</div>
-                        <div class="col s8 l10">{{ part.primary_manufacturer_part.manufacturer.name }} - {{ part.primary_manufacturer_part.manufacturer_part_number }}
-                            {% if profile.role == 'A' %}
-                                <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[change]</a>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
-                        <div class="col s8 l10">${{ unit_cost|floatformat:4 }}<span id="specs-revision-timestamp"></span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
-                        <div class="col s8 l10">${{ unit_nre|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Unit Out Of Pocket:</div>
-                        <div class="col s8 l10">${{ unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total Out Of Pocket:</div>
-                        <div class="col s8 l10">${{ total_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
-                    </div>
-                    <div class="row">
-                        <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Unit Out Of Pocket:</div>
-                        <div class="col s8 l10">${{ unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
-                    </div>
-                </li>
-            </ul>
-        </div>
-
-
-        <div id="bom" class="col s12">
-            <div class="row" style="padding-top: 16px;">
-                <div class="col s6">
-                    {% if order_by == 'indented' %}
-                        <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
-                                onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand
-                        </button>{% endif %}
-                    {% if order_by == 'indented' %}
-                        <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
-                                onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse
-                        </button>{% endif %}
-                </div>
-                <div class="col s6 right-align">
-                    <!-- Dropdown Trigger -->
-                    <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#'
-                            data-target='manage-bom-{{ part.id }}'><i class="material-icons right">arrow_drop_down</i>Manage
-                    </button>
-                    <!-- Dropdown Structure -->
-                    <ul id='manage-bom-{{ part.id }}' class='dropdown-content'>
-                        {% if profile.role == 'A' and part_revision.configuration == 'W' %}
-                            <li><a class="green-text text-lighten-1"
-                                   href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}"><i
-                                    class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
-                            </li>
-                        {% endif %}
-                        {% if part_revision %}
-                            <li><a class="green-text text-lighten-1"
-                                   href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}"><i
-                                    class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
-                            </li>
-                            <li><a class="green-text text-lighten-1"
-                                   href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_revision.id %}"><i
-                                    class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
-                            </li>
-                        {% else %}
-                            <li><a class="green-text text-lighten-1 disabled"
-                                   href=""><i
-                                    class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </div>
-            </div>
-            <div class="responsive-table-wrapper">
-                <table id="indented-bom" class="highlight part-list tight single-line">
-                    <thead>
-                    <tr>
-                        <th class="text-normal"><a href="?order_by=indented">Level</a></th>
-                        <th class="text-normal">Part No.</th>
-                        <th class="text-normal">Qty</th>
-                        <th class="text-normal">Reference</th>
-                        <th class="text-normal">do_not_load</th>
-                        <th class="text-normal">Synopsis</th>
-                        <th class="text-normal">Rev</th>
-                        <th class="text-normal">Manufacturer</th>
-                        <th class="text-normal">MPN</th>
-                        <!-- <th class="text-normal"><i>Ext. Qty</i></th> -->
-                        <!-- <th class="text-normal"><i>Order Qty</i></th> -->
-                        <th class="text-normal">Seller</th>
-                        <th class="text-normal"><a href="?order_by=seller_price">Price</a></th>
-                        <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
-                        <th class="text-normal"><a href="?order_by=seller_nre">NRE</a></th>
-                    </tr>
-                    </thead>
-                    {% for subpart in parts %}
-                        <tr data-tt-id="{{ subpart.id }}"
-                            {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
-                            <td class="text-normal">{{ subpart.indent_level }}</td>
-                            <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
-                            <td class="text-normal">{{ subpart.quantity }}</td>
-                            <td class="text-normal">{{ subpart.reference | default:"-" }}</td>
-                            <td class="text-normal">{{ subpart.do_not_load | default:"-" }}</td>
-                            <td class="text-normal">{{ subpart.part_revision.synopsis }}</td>
-                            <td class="text-normal">{{ subpart.part_revision.revision }}</td>
-                            <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}
-                                {% if subpart.part.manufacturer_parts.count > 1 %}
-                                    <i>(+{{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
-                            <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                            <!-- <td class="text-normal">{{ subpart.extended_quantity }}</td> -->
-                            <!-- <td class="text-normal">{{ subpart.order_quantity }}</td> -->
-                            <td class="text-normal">{% if subpart.seller_part.data_source == 'octopart' %}
-                                <img title="Seller via Octopart." style="width: 16px; vertical-align: middle;"
-                                     src="{% static 'bom/img/octopart_blue.svg' %}"></img>
-                                &nbsp;{% endif %}{{ subpart.seller_part.seller.name | default:"-" }}</td>
-                            <td class="text-normal">{{ subpart.seller_price | default:"-" }}</td>
-                            <!-- <td class="text-normal">{{ subpart.extended_cost | default:"-" }}</td> -->
-                            <td class="text-normal">{{ subpart.seller_nre | default:"-" }}</td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="99" style="text-align: center; height: 20vh;"><i>This part does not contain any
-                                other parts.</i></td>
-                        </tr>
-                    {% endfor %}
-                </table>
-            </div>
-            <br>
-        </div>
-
-        <div id="used" class="col s12">
-            <br>
-            <div class="responsive-table-wrapper">
-                <ul class="collapsible" data-collapsible="expandable">
-                    <li class="active">
-                        <div class="collapsible-header"><i class="material-icons">my_location</i>Where this revision is used</div>
-                        <div class="collapsible-body">
-                            <table class="highlight tight">
-                                <thead>
-                                <tr>
-                                    <th>Part Number</th>
-                                    <th>Synopsis</th>
-                                    <th>Rev</th>
-                                    <th>Manufacturer</th>
-                                    <th>MPN</th>
+                    <div class="responsive-table-wrapper">
+                        <table id="indented-bom" class="highlight part-list tight single-line">
+                            <thead>
+                            <tr>
+                                <th class="text-normal"><a href="?order_by=indented">Level</a></th>
+                                <th class="text-normal">Part No.</th>
+                                <th class="text-normal">Qty</th>
+                                <th class="text-normal">Reference</th>
+                                <th class="text-normal">do_not_load</th>
+                                <th class="text-normal">Synopsis</th>
+                                <th class="text-normal">Rev</th>
+                                <th class="text-normal">Manufacturer</th>
+                                <th class="text-normal">MPN</th>
+                                <!-- <th class="text-normal"><i>Ext. Qty</i></th> -->
+                                <!-- <th class="text-normal"><i>Order Qty</i></th> -->
+                                <th class="text-normal">Seller</th>
+                                <th class="text-normal"><a href="?order_by=seller_price">Price</a></th>
+                                <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
+                                <th class="text-normal"><a href="?order_by=seller_nre">NRE</a></th>
+                            </tr>
+                            </thead>
+                            {% for subpart in parts %}
+                                <tr data-tt-id="{{ subpart.id }}"
+                                    {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
+                                    <td class="text-normal">{{ subpart.indent_level }}</td>
+                                    <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
+                                    <td class="text-normal">{{ subpart.quantity }}</td>
+                                    <td class="text-normal">{{ subpart.reference | default:"-" }}</td>
+                                    <td class="text-normal">{{ subpart.do_not_load | default:"-" }}</td>
+                                    <td class="text-normal">{{ subpart.part_revision.synopsis }}</td>
+                                    <td class="text-normal">{{ subpart.part_revision.revision }}</td>
+                                    <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}
+                                        {% if subpart.part.manufacturer_parts.count > 1 %}
+                                            <i>(+{{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
+                                    <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                                    <!-- <td class="text-normal">{{ subpart.extended_quantity }}</td> -->
+                                    <!-- <td class="text-normal">{{ subpart.order_quantity }}</td> -->
+                                    <td class="text-normal">{% if subpart.seller_part.data_source == 'octopart' %}
+                                        <img title="Seller via Octopart." style="width: 16px; vertical-align: middle;"
+                                             src="{% static 'bom/img/octopart_blue.svg' %}"></img>
+                                        &nbsp;{% endif %}{{ subpart.seller_part.seller.name | default:"-" }}</td>
+                                    <td class="text-normal">{{ subpart.seller_price | default:"-" }}</td>
+                                    <!-- <td class="text-normal">{{ subpart.extended_cost | default:"-" }}</td> -->
+                                    <td class="text-normal">{{ subpart.seller_nre | default:"-" }}</td>
                                 </tr>
-                                </thead>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="99" style="text-align: center; height: 20vh;"><i>This part does not contain any
+                                        other parts.</i></td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                    <br>
+                </div>
 
-                                <tbody>
-                                {% for used_part in where_used %}
-                                    <tr>
-                                        <td>
-                                            <a href="{% url 'bom:part-info-history' part_id=used_part.part.id part_revision_id=used_part.id %}">{{ used_part.part.full_part_number }}</a>
+                <div id="used" class="col s12">
+                    <br>
+                    <div class="responsive-table-wrapper">
+                        <ul class="collapsible" data-collapsible="expandable">
+                            <li class="active">
+                                <div class="collapsible-header"><i class="material-icons">my_location</i>Where this revision is used</div>
+                                <div class="collapsible-body">
+                                    <table class="highlight tight">
+                                        <thead>
+                                        <tr>
+                                            <th>Part Number</th>
+                                            <th>Synopsis</th>
+                                            <th>Rev</th>
+                                            <th>Manufacturer</th>
+                                            <th>MPN</th>
+                                        </tr>
+                                        </thead>
+
+                                        <tbody>
+                                        {% for used_part in where_used %}
+                                            <tr>
+                                                <td>
+                                                    <a href="{% url 'bom:part-info-history' part_id=used_part.part.id part_revision_id=used_part.id %}">{{ used_part.part.full_part_number }}</a>
+                                                </td>
+                                                <td>{{ used_part.synopsis }}</td>
+                                                <td>{{ used_part.revision }}</td>
+                                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer.name }}</td>
+                                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                                            </tr>
+                                        {% empty %}
+                                            <tr>
+                                                <td colspan="99" style="text-align: left; height: 20vh;"><i>This part is not currently
+                                                    used in any of your other parts. To add a part to a subassembly or assembly, go to the
+                                                    parent part's Bill of Materials, and click "Manage", then "Edit".</i></td>
+                                            </tr>
+                                        {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="collapsible-header"><i class="material-icons">location_searching</i>All part usages</div>
+                                <div class="collapsible-body">
+                                    <table class="highlight tight">
+                                        <thead>
+                                        <tr>
+                                            <th>Part Number</th>
+                                            <th>Synopsis</th>
+                                            <th>Rev</th>
+                                            <th>Manufacturer</th>
+                                            <th>MPN</th>
+                                        </tr>
+                                        </thead>
+
+                                        <tbody>
+                                        {% for used_part in where_used_part %}
+                                            <tr>
+                                                <td>
+                                                    <a href="{% url 'bom:part-info-history' part_id=used_part.part.id part_revision_id=used_part.id %}">{{ used_part.part.full_part_number }}</a>
+                                                </td>
+                                                <td>{{ used_part.synopsis }}</td>
+                                                <td>{{ used_part.revision }}</td>
+                                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer.name }}</td>
+                                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                                            </tr>
+                                        {% empty %}
+                                            <tr>
+                                                <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently
+                                                    used in any of your other parts.
+                                                    {% if profile.role == 'A' %}
+                                                        To add a part to a subassembly or assembly, go to the
+                                                        parent part's Bill of Materials, and click "Manage", then "Edit".
+                                                    {% endif %}
+                                                </i></td>
+                                            </tr>
+                                        {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="sourcing" class="col s12">
+                    {% if profile.role == 'A' %}
+                        <div class="row" style="padding-top: 16px;">
+                            <div class="col s6 push-s6 right-align">
+                                <a class="waves-effect waves-green grey lighten-4 btn-flat"
+                                   href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}" style="margin: 10px;">Add Manufacturer Part</a>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div class="responsive-table-wrapper">
+                        <table id="manufacturer-parts" class="highlight tight treetable">
+                            <thead>
+                            <tr>
+                                <th>MPN</th>
+                                <th>Manufacturer</th>
+                                <th>Seller</th>
+                                <th>MOQ</th>
+                                <th>MPQ</th>
+                                <th>Price</th>
+                                <th>Lead Time (days)</th>
+                                <th>NRE</th>
+                                <th>NCNR</th>
+                                <th></th>
+                                <th colspan=2>Manage</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for manufacturer_part in part.manufacturer_parts %}
+                                <tr data-tt-id="{{ manufacturer_part.id }}">
+                                    <td>{{ manufacturer_part.manufacturer_part_number }}</td>
+                                    <td>{{ manufacturer_part.manufacturer }}</td>
+                                    <td>{{ manufacturer_part.optimal_seller.seller.name }}</td>
+                                    <td>{{ manufacturer_part.optimal_seller.minimum_order_quantity }}</td>
+                                    <td>{{ manufacturer_part.optimal_seller.minimum_pack_quantity }}</td>
+                                    <td>{{ manufacturer_part.optimal_seller.unit_cost }}</td>
+                                    <td>{{ manufacturer_part.optimal_seller.lead_time_days }}</td>
+                                    <td>{{ manufacturer_part.optimal_seller.nre_cost }}</td>
+                                    <td>{{ manufacturer_part.optimal_seller.ncnr }}</td>
+                                    <td style="min-width: 0px;"></td>
+                                    <td colspan="2">
+                                        {% if profile.role == 'A' %}
+                                            <!-- Dropdown Trigger -->
+                                            <a class='dropdown-trigger' href='#' data-target='dropdown{{ manufacturer_part.id }}'><i
+                                                    class="material-icons right green-text lighten-1">more_horiz</i></a>
+                                            <!-- Dropdown Structure -->
+                                            <ul id='dropdown{{ manufacturer_part.id }}' class='dropdown-content'>
+                                                <li><a class="green-text text-lighten-1"
+                                                       href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}"><i
+                                                        class="material-icons green-text text-lighten-1">edit</i>edit</a></li>
+                                                <li><a class="green-text text-lighten-1"
+                                                       href="{% url 'bom:manufacturer-part-add-sellerpart' manufacturer_part_id=manufacturer_part.id %}"><i
+                                                        class="material-icons green-text text-lighten-1">add</i>add seller part</a>
+                                                </li>
+                                                <li class="divider" tabindex="-1"></li>
+                                                <li><a class="red-text text-lighten-1"
+                                                       href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}"><i
+                                                        class="material-icons red-text text-lighten-1">delete_forever</i>delete</a>
+                                                </li>
+                                            </ul>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% for seller_part in manufacturer_part.seller_parts %}
+                                    <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}">
+                                        <td></td>
+                                        <td></td>
+                                        <td>{{ seller_part.seller.name }}</td>
+                                        <td>{{ seller_part.minimum_order_quantity }}</td>
+                                        <td>{{ seller_part.minimum_pack_quantity }}</td>
+                                        <td>{{ seller_part.unit_cost }}</td>
+                                        <td>{{ seller_part.lead_time_days }}</td>
+                                        <td>{{ seller_part.nre_cost }}</td>
+                                        <td>{{ seller_part.ncnr }}</td>
+                                        <td style="min-width: 0px;">{% if seller_part.data_source == 'octopart' %}
+                                            <img title="Sourcing information via Octopart."
+                                                 style="width: 20px; vertical-align: middle;"
+                                                 src="{% static 'bom/img/octopart_blue.svg' %}"></img>{% endif %}</td>
+                                        {% if profile.role == 'A' %}
+                                            <td><a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a></td>
+                                            <td><a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
+                                        {% endif %}
                                         </td>
-                                        <td>{{ used_part.synopsis }}</td>
-                                        <td>{{ used_part.revision }}</td>
-                                        <td>{{ used_part.part.primary_manufacturer_part.manufacturer.name }}</td>
-                                        <td>{{ used_part.part.primary_manufacturer_part.manufacturer_part_number }}</td>
                                     </tr>
                                 {% empty %}
-                                    <tr>
-                                        <td colspan="99" style="text-align: left; height: 20vh;"><i>This part is not currently
-                                            used in any of your other parts. To add a part to a subassembly or assembly, go to the
-                                            parent part's Bill of Materials, and click "Manage", then "Edit".</i></td>
+                                    <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}">
+                                        <td colspan="99" style="text-align: center;"><i>This manufacturer part has no sellers
+                                            entered yet.</i></td>
                                     </tr>
                                 {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </li>
-                    <li>
-                        <div class="collapsible-header"><i class="material-icons">location_searching</i>All part usages</div>
-                        <div class="collapsible-body">
-                            <table class="highlight tight">
-                                <thead>
+                            {% empty %}
                                 <tr>
-                                    <th>Part Number</th>
-                                    <th>Synopsis</th>
-                                    <th>Rev</th>
-                                    <th>Manufacturer</th>
-                                    <th>MPN</th>
+                                    <td colspan="99" style="text-align: center; height: 20vh;"><i>This part has no manufacturer
+                                        parts.</i></td>
                                 </tr>
-                                </thead>
-
-                                <tbody>
-                                {% for used_part in where_used_part %}
-                                    <tr>
-                                        <td>
-                                            <a href="{% url 'bom:part-info-history' part_id=used_part.part.id part_revision_id=used_part.id %}">{{ used_part.part.full_part_number }}</a>
-                                        </td>
-                                        <td>{{ used_part.synopsis }}</td>
-                                        <td>{{ used_part.revision }}</td>
-                                        <td>{{ used_part.part.primary_manufacturer_part.manufacturer.name }}</td>
-                                        <td>{{ used_part.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                                    </tr>
-                                {% empty %}
-                                    <tr>
-                                        <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently
-                                            used in any of your other parts.
-                                            {% if profile.role == 'A' %}
-                                                To add a part to a subassembly or assembly, go to the
-                                                parent part's Bill of Materials, and click "Manage", then "Edit".
-                                            {% endif %}
-                                        </i></td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </li>
-                </ul>
-            </div>
-        </div>
-
-        <div id="sourcing" class="col s12">
-            {% if profile.role == 'A' %}
-                <div class="row" style="padding-top: 16px;">
-                    <div class="col s6 push-s6 right-align">
-                        <a class="waves-effect waves-green grey lighten-4 btn-flat"
-                           href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}" style="margin: 10px;">Add Manufacturer Part</a>
+                            {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            {% endif %}
-
-            <div class="responsive-table-wrapper">
-                <table id="manufacturer-parts" class="highlight tight treetable">
-                    <thead>
-                    <tr>
-                        <th>MPN</th>
-                        <th>Manufacturer</th>
-                        <th>Seller</th>
-                        <th>MOQ</th>
-                        <th>MPQ</th>
-                        <th>Price</th>
-                        <th>Lead Time (days)</th>
-                        <th>NRE</th>
-                        <th>NCNR</th>
-                        <th></th>
-                        <th colspan=2>Manage</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for manufacturer_part in part.manufacturer_parts %}
-                        <tr data-tt-id="{{ manufacturer_part.id }}">
-                            <td>{{ manufacturer_part.manufacturer_part_number }}</td>
-                            <td>{{ manufacturer_part.manufacturer }}</td>
-                            <td>{{ manufacturer_part.optimal_seller.seller.name }}</td>
-                            <td>{{ manufacturer_part.optimal_seller.minimum_order_quantity }}</td>
-                            <td>{{ manufacturer_part.optimal_seller.minimum_pack_quantity }}</td>
-                            <td>{{ manufacturer_part.optimal_seller.unit_cost }}</td>
-                            <td>{{ manufacturer_part.optimal_seller.lead_time_days }}</td>
-                            <td>{{ manufacturer_part.optimal_seller.nre_cost }}</td>
-                            <td>{{ manufacturer_part.optimal_seller.ncnr }}</td>
-                            <td style="min-width: 0px;"></td>
-                            <td colspan="2">
-                                {% if profile.role == 'A' %}
-                                    <!-- Dropdown Trigger -->
-                                    <a class='dropdown-trigger' href='#' data-target='dropdown{{ manufacturer_part.id }}'><i
-                                            class="material-icons right">menu</i></a>
-                                    <!-- Dropdown Structure -->
-                                    <ul id='dropdown{{ manufacturer_part.id }}' class='dropdown-content'>
-                                        <li><a class="green-text text-lighten-1"
-                                               href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}"><i
-                                                class="material-icons green-text text-lighten-1">edit</i>edit</a></li>
-                                        <li><a class="green-text text-lighten-1"
-                                               href="{% url 'bom:manufacturer-part-add-sellerpart' manufacturer_part_id=manufacturer_part.id %}"><i
-                                                class="material-icons green-text text-lighten-1">add</i>add seller part</a>
-                                        </li>
-                                        <li class="divider" tabindex="-1"></li>
-                                        <li><a class="red-text text-lighten-1"
-                                               href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}"><i
-                                                class="material-icons red-text text-lighten-1">delete_forever</i>delete</a>
-                                        </li>
-                                    </ul>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% for seller_part in manufacturer_part.seller_parts %}
-                            <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}">
-                                <td></td>
-                                <td></td>
-                                <td>{{ seller_part.seller.name }}</td>
-                                <td>{{ seller_part.minimum_order_quantity }}</td>
-                                <td>{{ seller_part.minimum_pack_quantity }}</td>
-                                <td>{{ seller_part.unit_cost }}</td>
-                                <td>{{ seller_part.lead_time_days }}</td>
-                                <td>{{ seller_part.nre_cost }}</td>
-                                <td>{{ seller_part.ncnr }}</td>
-                                <td style="min-width: 0px;">{% if seller_part.data_source == 'octopart' %}
-                                    <img title="Sourcing information via Octopart."
-                                         style="width: 20px; vertical-align: middle;"
-                                         src="{% static 'bom/img/octopart_blue.svg' %}"></img>{% endif %}</td>
-                                {% if profile.role == 'A' %}
-                                    <td><a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a></td>
-                                    <td><a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
-                                {% endif %}
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}">
-                                <td colspan="99" style="text-align: center;"><i>This manufacturer part has no sellers
-                                    entered yet.</i></td>
-                            </tr>
-                        {% endfor %}
-                    {% empty %}
-                        <tr>
-                            <td colspan="99" style="text-align: center; height: 20vh;"><i>This part has no manufacturer
-                                parts.</i></td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
             </div>
         </div>
-    </div>
     </div>
 {% endblock %}
 {% block script %}

@@ -30,7 +30,7 @@
 {% endblock %}
 
 {% block content %}
-
+    <div class="container-app">
 
     <form id="searchForm" name="search-form" action="{% url 'bom:home' %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
@@ -184,6 +184,7 @@
         </div>
 
     </form>
+    </div>
 {% endblock %}
 
 {% block script %}
