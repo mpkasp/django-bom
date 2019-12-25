@@ -36,7 +36,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(len(occurances), 1)
 
         response = self.client.get(reverse('bom:home'), {'q': p1.primary_manufacturer_part.manufacturer_part_number})
-        self.assertEqual(response.status_code, 200)q
+        self.assertEqual(response.status_code, 200)
 
     def test_part_info(self):
         self.client.login(username='kasper', password='ghostpassword')

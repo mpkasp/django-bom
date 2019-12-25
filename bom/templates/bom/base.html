@@ -1,5 +1,4 @@
-<!-- THIS FILE  WILL NOT BE USED IF THE BASE TEMPLATE IS OVERRIDDEN -->
-
+{# THIS FILE  WILL NOT BE USED IF THE BASE TEMPLATE IS OVERRIDDEN #}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -35,30 +34,26 @@
         <div class="nav-wrapper">
 
             {% if user.is_authenticated %}
-                <a href="{% url 'bom:home' %}" title="IndaBOM | Home" class="brand-logo left hide-on-med-and-down"><img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo"
-                                                                                                                        src="{% static 'bom/img/indabom.png' %}"/><span
-                        style="position: absolute;">BOM</span></a>
-                <a href="{% url 'bom:home' %}" title="IndaBOM | Home" class="brand-logo left hide-on-large-only" style="left: 2.5rem;"><img style="margin-top: 2px; margin-right: 6px;" width="52"
-                                                                                                                                            alt="IndaBOM Logo"
-                                                                                                                                            src="{% static 'bom/img/indabom.png' %}"/><span
-                        style="position: absolute;">BOM</span></a>
+                <a href="{% url 'bom:home' %}" title="IndaBOM | Home" class="brand-logo left hide-on-med-and-down">
+                    <img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span>
+                </a>
+                <a href="{% url 'bom:home' %}" title="IndaBOM | Home" class="brand-logo left hide-on-large-only" style="left: 2.5rem;">
+                    <img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span>
+                </a>
             {% else %}
-                <a href="/bom/login" title="IndaBOM | Home" class="brand-logo left hide-on-med-and-down"><img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo"
-                                                                                                              src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span></a>
-                <a href="/bom/login" title="IndaBOM | Home" class="brand-logo left hide-on-large-only" style="left: 2.5rem;"><img style="margin-top: 2px; margin-right: 6px;" width="52"
-                                                                                                                                  alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span
-                        style="position: absolute;">BOM</span></a>
+                <a href="{% url 'login' %}" title="IndaBOM | Home" class="brand-logo left hide-on-med-and-down">
+                    <img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span>
+                </a>
+                <a href="{% url 'login' %}" title="IndaBOM | Home" class="brand-logo left hide-on-large-only" style="left: 2.5rem;">
+                    <img style="margin-top: 2px; margin-right: 6px;" width="52" alt="IndaBOM Logo" src="{% static 'bom/img/indabom.png' %}"/><span style="position: absolute;">BOM</span>
+                </a>
             {% endif %}
 
             <a href="#" data-target="mobile-menu" class="sidenav-trigger"><i class="material-icons">menu</i></a>
 
             <ul class="right hide-on-med-and-down">
                 {% block menu %}{% endblock %}
-                {% if user.is_superuser and user.is_authenticated %}
-                    <li><a title="IndaBOM | Admin" href="/admin/">Admin</a></li>{% endif %}
-                {% if user.is_authenticated %}
-                    <li><a title="IndaBOM | Log Out" href="{% url 'logout' %}">Logout [{{ user.username }}]</a></li>
-                {% endif %}
+                {% include 'bom/base-menu.html' %}
             </ul>
 
         </div>
@@ -67,13 +62,8 @@
 
 <!-- Make sure this is not in navbar-fixed or it will be disabled -->
 <ul class="sidenav" id="mobile-menu">
-    {% block mobilemenu %}{% endblock %}
-    {% if user.is_superuser and user.is_authenticated %}
-        <li><a title="IndaBOM | Admin" href="/admin/">Admin</a></li>{% endif %}
-    {% if user.is_authenticated %}
-        <li><a title="IndaBOM | Log Out" href="{% url 'logout' %}">Logout [{{ user.first_name }} {{ user.last_name }}]</a></li>{% endif %}
-    {% if not user.is_authenticated %}
-        <li><a title="IndaBOM | Log In" href="{% url 'login' %}">Login</a></li>{% endif %}
+    {% block menu-mobile %}{% endblock %}
+    {% include 'bom/base-menu.html' %}
 </ul>
 
 <main>
@@ -110,7 +100,7 @@
             <div class="col l4 offset-l2 s12">
                 <h5 class="white-text">Links</h5>
                 <ul>
-                    <!-- <li><a class="grey-text text-lighten-3" href="#!">Link 2</a></li> -->
+                    <li><a class="grey-text text-lighten-3" title="IndaBOM | Feedback" href="https://forms.gle/4CUQuBcfBJ4eGXDW8" target="_blank">Feedback</a></li>
                 </ul>
             </div>
         </div>

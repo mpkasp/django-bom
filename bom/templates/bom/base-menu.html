@@ -1,0 +1,4 @@
+<li><a title="IndaBOM | Feedback" href="https://forms.gle/4CUQuBcfBJ4eGXDW8" target="_blank">Feedback</a></li>
+{% if user.is_superuser and user.is_authenticated %}<li><a title="IndaBOM | Admin" href="/admin/" target="_blank">Admin</a></li>{% endif %}
+{% if user.is_authenticated %}<li><a title="IndaBOM | Log Out" href="{% url 'logout' %}">Logout [{{ user.username}}]</a></li>{% endif %}
+{% if not user.is_authenticated %}<li><a title="IndaBOM | Log In" href="{% url 'login' %}">Login</a></li>{% endif %}

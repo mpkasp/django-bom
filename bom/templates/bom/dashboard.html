@@ -10,23 +10,11 @@
 {% endblock %}
 
 {% block bom-menu %}
-    {% if profile.role == 'A' %}
-        <li>
-            <!-- Dropdown Trigger -->
-            <a class="dropdown-trigger" href='#' data-target='upload-lists-menu'>Upload<i class="material-icons right">arrow_drop_down</i></a>
-            <!-- Dropdown Structure -->
-            <ul id='upload-lists-menu' class='dropdown-content'>
-                <li><a class="green-text text-lighten-1"
-                       href="{% url 'bom:upload-parts' %}"><i
-                        class="material-icons green-text text-lighten-1">cloud_upload</i>Upload Parts CSV</a>
-                </li>
-                <li><a class="green-text text-lighten-1"
-                       href="{% url 'bom:upload-bom' %}"><i
-                        class="material-icons green-text text-lighten-1">cloud_upload</i>Upload BOM CSV</a>
-                </li>
-            </ul>
-        </li>
-    {% endif %}
+    {% include 'bom/dashboard-menu.html' %}
+{% endblock %}
+
+{% block bom-menu-mobile %}
+    {% include 'bom/dashboard-menu.html' with upload_id='-mobile'%}
 {% endblock %}
 
 {% block content %}
@@ -124,8 +112,7 @@
 
                             <td class="text-normal td-med">
                                 <!-- Dropdown Trigger -->
-                                <a class="dropdown-trigger" href='#'
-                                   data-target='export-part-{{ part_rev.id }}'><i class="material-icons green-text">more_horiz</i></a>
+                                <a class="dropdown-trigger" href='#' data-target='export-part-{{ part_rev.id }}'><i class="material-icons green-text">more_horiz</i></a>
                                 <!-- Dropdown Structure -->
                                 <ul id='export-part-{{ part_rev.id }}' class='dropdown-content'>
                                     <li><a class="green-text text-lighten-1"
@@ -222,14 +209,30 @@
                     inDuration: 300,
                     outDuration: 225,
                     constrainWidth: false, // Does not change width of dropdown to that of the activator
-                    hover: false, // Activate on hover
-                    gutter: 0, // Spacing from edge
                     belowOrigin: false, // Displays dropdown below the button
                     alignment: 'left', // Displays dropdown with edge aligned to the left of button
-                    stopPropagation: false // Stops event propagation
+                    stopPropagation: false, // Stops event propagation
+                    coverTrigger: false
                 }
             );
+        });
 
+        var options = {
+            inDuration: 300,
+            outDuration: 225,
+            constrainWidth: false, // Does not change width of dropdown to that of the activator
+            belowOrigin: false, // Displays dropdown below the button
+            alignment: 'left', // Displays dropdown with edge aligned to the left of button
+            stopPropagation: false, // Stops event propagation
+            coverTrigger: false
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var elems = document.querySelectorAll('.dropdown-trigger');
+            console.log(elems);
+            for(var i = 0; i < elems.length; i++) {
+                M.Dropdown.init(elems, options);
+            }
         });
     </script>
 

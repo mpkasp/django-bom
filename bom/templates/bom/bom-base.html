@@ -1,9 +1,13 @@
 {% extends BASE_TEMPLATE %}
 
+{# This template is for anything we want in the BOM app and should not be overridden. Anything that can be overriden should be in BASE_TEMPLATE, or base.html #}
+
 {% block menu %}
     {% block bom-menu %}{% endblock %}
-    {% if user.is_authenticated %}
-    <li {% if name == "settings" %}class="active"{% endif %}><a title="IndaBOM | Settings" href="{% url 'bom:settings' tab_anchor='user' %}">Settings</a></li>
-    {% endif %}
-    <li {% if name == "help" %}class="active"{% endif %}><a title="IndaBOM | Help" href="{% url 'bom:help' %}">Help</a></li>
+    {% include 'bom/bom-base-menu.html' %}
+{% endblock %}
+
+{% block menu-mobile %}
+    {% block bom-menu-mobile %}{% endblock %}
+    {% include 'bom/bom-base-menu.html' %}
 {% endblock %}
