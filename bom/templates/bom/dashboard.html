@@ -3,7 +3,7 @@
 {% load staticfiles %}
 {% load materializecss %}
 
-{% block head-title %}{{ title }}{% endblock %}
+{% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
 
 {% block main %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
@@ -39,12 +39,12 @@
                     <label for="autocomplete-input">Search for parts in any part class:</label>
                 {% endif %}
             </div>
-            <div class="col s12 m2">
+            <div class="col s12 m2 text-center">
                 <button type="submit" class="waves-effect waves-green btn green lighten-1 input-field" name="action">Submit</button>
+            <a class="waves-effect waves-green btn-flat input-field btn-icon-round" href="{% url 'bom:search-help' %}"><i class="material-icons">help</i></a>
                 {% if part_class or query %}
                     <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
                 {% endif %}
-                <a class="waves-effect waves-green btn-flat input-field btn-icon-round" href="{% url 'bom:search-help' %}"><i class="material-icons">help</i></a>
             </div>
         </div>
 
@@ -192,6 +192,12 @@
             });
         });
     </script>
+    <!-- materialize form select -->
+    <script>
+    $(document).ready(function () {
+        $('select').formSelect();
+    });
+    </script>
 
     <!-- Floating Horizontal Scrollbar -->
     <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
@@ -215,24 +221,6 @@
                     coverTrigger: false
                 }
             );
-        });
-
-        var options = {
-            inDuration: 300,
-            outDuration: 225,
-            constrainWidth: false, // Does not change width of dropdown to that of the activator
-            belowOrigin: false, // Displays dropdown below the button
-            alignment: 'left', // Displays dropdown with edge aligned to the left of button
-            stopPropagation: false, // Stops event propagation
-            coverTrigger: false
-        };
-
-        document.addEventListener('DOMContentLoaded', function() {
-            var elems = document.querySelectorAll('.dropdown-trigger');
-            console.log(elems);
-            for(var i = 0; i < elems.length; i++) {
-                M.Dropdown.init(elems, options);
-            }
         });
     </script>
 

@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 def home(request):
     profile = request.user.bom_profile()
     organization = profile.get_or_create_organization()
-    title = f'{organization.name} Parts List'
     query = request.POST.get('q', '')
+    title = f'{organization.name}\'s'
 
     if request.method == 'POST':
         part_class_selection_form = PartClassSelectionForm(request.POST, organization=organization)
@@ -60,6 +60,11 @@ def home(request):
         part_class = part_class_selection_form.cleaned_data['part_class']
     else:
         part_class = None
+
+    if part_class or query:
+        title += f' - Search Results'
+    else:
+        title += f' Part List'
 
     if part_class:
         parts = Part.objects.filter(Q(organization=organization) & Q(number_class__code=part_class.code))

@@ -56,9 +56,7 @@ class UserMeta(models.Model):
             return False
 
     def _user_meta(self, organization=None):
-        return UserMeta.objects.get_or_create(
-            user=self, defaults={
-                'organization': organization})[0]
+        return UserMeta.objects.get_or_create(user=self, defaults={'organization': organization})[0]
 
     User.add_to_class('bom_profile', _user_meta)
 
