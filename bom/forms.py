@@ -598,7 +598,7 @@ class PartRevisionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(PartRevisionForm, self).__init__(*args, **kwargs)
 
-        self.fields['revision'].disabled = True
+        self.fields['revision'].initial = 1
         self.fields['configuration'].required = False
 
         self.fields['tolerance'].initial = '%'
@@ -619,7 +619,7 @@ class PartRevisionForm(forms.ModelForm):
         cleaned_data = super(PartRevisionForm, self).clean()
 
         if not cleaned_data.get('description') and not cleaned_data.get('value'):
-            validation_error = forms.ValidationError("Must specify a value and value units, or a description.", code='invalid')
+            validation_error = forms.ValidationError("Must specify either a description or both value and value units.", code='invalid')
             self.add_error('description', validation_error)
             self.add_error('value', validation_error)
 
@@ -629,9 +629,9 @@ class PartRevisionForm(forms.ModelForm):
                 value = cleaned_data.get(value_name)
                 units = cleaned_data.get(key)
                 if not value and units:
-                    self.add_error(key, forms.ValidationError("Cannot specify {} without an accompanying value".format(units), code='invalid'))
+                    self.add_error(key, forms.ValidationError(f"Cannot specify {units} without an accompanying value", code='invalid'))
                 elif units and not units:
-                    self.add_error(key, forms.ValidationError("Cannot specify value {} without an accompanying units".format(value), code='invalid'))
+                    self.add_error(key, forms.ValidationError(f"Cannot specify value {units} without an accompanying units", code='invalid'))
 
         return cleaned_data
 

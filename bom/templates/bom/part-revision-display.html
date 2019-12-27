@@ -11,7 +11,7 @@ all of the properties of a part revision, as follows:
 where XXX should be the name of the includee's object that represent its PartRevisionForm.
 
 {% endcomment %}
-
+<p>Must include a either a description or electronics value, and value units. The remaining fields are optional.</p>
 <div class="row">
     <div class="fieldWrapper">
         {{ part_revision_form.revision|materializecss:'m2 s12' }}
@@ -23,7 +23,7 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="col s12">
-        <span>Electronics</span>
+        <h4>Electronics</h4>
     </div>
 </div>
 
@@ -46,14 +46,14 @@ where XXX should be the name of the includee's object that represent its PartRev
     <div class="fieldWrapper">
         {{ part_revision_form.supply_voltage|materializecss:'m1 s12' }}
     </div>
-    <div class="fieldWrapper">
+     <div class="fieldWrapper">
         {{ part_revision_form.supply_voltage_units|materializecss:'m1 s12' }}
     </div>
 </div>
 
 <div class="row">
     <div class="col s12">
-        <span>Ratings</span>
+        <h4>Ratings</h4>
     </div>
 </div>
 
@@ -76,7 +76,7 @@ where XXX should be the name of the includee's object that represent its PartRev
     <div class="fieldWrapper">
         {{ part_revision_form.current_rating_units|materializecss:'m1 s12' }}
     </div>
-    <div class="fieldWrapper">
+   <div class="fieldWrapper">
         {{ part_revision_form.temperature_rating|materializecss:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
@@ -86,7 +86,7 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="col s12">
-        <span>Miscellaneous</span>
+        <h4>Miscellaneous</h4>
     </div>
 </div>
 
@@ -116,12 +116,12 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="col s12">
-        <span>Appearance</span>
+        <h4>Appearance</h4>
     </div>
 </div>
 
 <div class="row">
-    <div class="fieldWrapper">
+   <div class="fieldWrapper">
         {{ part_revision_form.color|materializecss:'m2 s12' }}
     </div>
     <div class="fieldWrapper">
@@ -134,7 +134,7 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="col s12">
-        <span>Dimensions</span>
+        <h4>Dimensions</h4>
     </div>
 </div>
 
@@ -167,7 +167,7 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="col s12">
-        <span>Other Attributes</span>
+        <h4>Other Attributes</h4>
     </div>
 </div>
 

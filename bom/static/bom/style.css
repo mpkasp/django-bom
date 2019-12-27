@@ -120,6 +120,7 @@ td, tr {
     background-color:transparent;
 }
 
+/* Alerts */
 .alert {
     padding: 5px;
     background-color: #dcedc8; /* light green lighten-4 */
@@ -137,6 +138,10 @@ td, tr {
 .alert-warning {
     background-color: #f0f4c3; /* lime lighten-4 */
     border: solid #dce775 1px; /* lime lighten-2 */
+}
+
+.messages.tags {
+    font-weight: bold;
 }
 
 /* Override treetable icon */
