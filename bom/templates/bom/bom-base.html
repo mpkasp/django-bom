@@ -11,3 +11,13 @@
     {% block bom-menu-mobile %}{% endblock %}
     {% include 'bom/bom-base-menu.html' %}
 {% endblock %}
+
+{% block script %}
+    <!-- materialize form select -->
+    <script>
+    $(document).ready(function () {
+        $('select').formSelect();
+    });
+    </script>
+    {% block bom-script %}{% endblock %}
+{% endblock script %}

@@ -49,16 +49,13 @@
         </div>
 
         <div class="row">
-            <div class="col s6">
+            <div class="col s12 m6">
                 {% if profile.role == 'A' %}
                     <span><a class="action-checkbox-show" href="#" onclick="enableActionCheckboxColumn()">Show Actions</a></span>
                     <span class="action-checkbox-hide" style="display: none;"><a href="#" onclick="disableActionCheckboxColumn()">Hide Actions</a> |</span>
                     <span class="action-checkbox-hide" style="display: none;"><a href="#" onclick="part_checkbox_select_all()">Select All</a> |</span>
                     <span class="action-checkbox-hide" style="display: none;"><a href="#" onclick="part_checkbox_clear_all()">Clear</a></span>
                 {% endif %}
-            </div>
-            <div class="col s6 right-align">
-
             </div>
         </div>
 
@@ -174,7 +171,7 @@
     {% include 'bom/bom-action-btn.html' with profile=profile %}
 {% endblock %}
 
-{% block script %}
+{% block bom-script %}
     <!-- Autocomplete -->
     <script>
         var data = JSON.parse('{{ autocomplete|safe }}');
@@ -191,12 +188,6 @@
                 minLength: 1, // The minimum length of the input for the autocomplete to start. Default: 1.
             });
         });
-    </script>
-    <!-- materialize form select -->
-    <script>
-    $(document).ready(function () {
-        $('select').formSelect();
-    });
     </script>
 
     <!-- Floating Horizontal Scrollbar -->
@@ -265,4 +256,4 @@
         }
     </script>
 
-{% endblock script %}
+{% endblock bom-script %}
