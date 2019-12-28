@@ -2,7 +2,7 @@
 
 {% load staticfiles %}
 
-{% block head-title %}{{ part.full_part_number }} {{ part.synopsis }}{% endblock %}
+{% block head-title %}{{ part.full_part_number }}{% if part_revision %}{{ part_revision.synopsis }}{% endif %}{% endblock %}
 
 {% block head %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}"/>
@@ -44,7 +44,7 @@
                     </div>
                 {% endif %}
                 <div class="col {% if part_revision %}m3 s1{% else %}m3 s12 center{% endif %}">
-                    {% if profile.role == 'A' and part_revision and selected_rev_is_latest %}
+                    {% if profile.role == 'A' and part_revision %}
                         <div style="margin-top: 1.5rem;">
                             <!-- Dropdown Trigger -->
                             <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light grey lighten-4 btn-flat'
@@ -184,102 +184,7 @@
 
 
                 <div id="bom" class="col s12">
-                    <div class="row" style="padding-top: 16px;">
-                        <div class="col s6">
-                            {% if order_by == 'indented' %}
-                                <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
-                                        onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand
-                                </button>{% endif %}
-                            {% if order_by == 'indented' %}
-                                <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
-                                        onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse
-                                </button>{% endif %}
-                        </div>
-                        <div class="col s6 right-align">
-                            <!-- Dropdown Trigger -->
-                            <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#'
-                                    data-target='manage-bom-{{ part.id }}'><i class="material-icons right">arrow_drop_down</i>Manage
-                            </button>
-                            <!-- Dropdown Structure -->
-                            <ul id='manage-bom-{{ part.id }}' class='dropdown-content'>
-                                {% if profile.role == 'A' and part_revision.configuration == 'W' %}
-                                    <li><a class="green-text text-lighten-1"
-                                           href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}"><i
-                                            class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
-                                    </li>
-                                {% endif %}
-                                {% if part_revision %}
-                                    <li><a class="green-text text-lighten-1"
-                                           href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}"><i
-                                            class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
-                                    </li>
-                                    <li><a class="green-text text-lighten-1"
-                                           href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_revision.id %}"><i
-                                            class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
-                                    </li>
-                                {% else %}
-                                    <li><a class="green-text text-lighten-1 disabled"
-                                           href=""><i
-                                            class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a>
-                                    </li>
-                                {% endif %}
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="responsive-table-wrapper">
-                        <table id="indented-bom" class="highlight part-list tight single-line">
-                            <thead>
-                            <tr>
-                                <th class="text-normal"><a href="?order_by=indented">Level</a></th>
-                                <th class="text-normal">Part No.</th>
-                                <th class="text-normal">Qty</th>
-                                <th class="text-normal">Reference</th>
-                                <th class="text-normal">do_not_load</th>
-                                <th class="text-normal">Synopsis</th>
-                                <th class="text-normal">Rev</th>
-                                <th class="text-normal">Manufacturer</th>
-                                <th class="text-normal">MPN</th>
-                                <!-- <th class="text-normal"><i>Ext. Qty</i></th> -->
-                                <!-- <th class="text-normal"><i>Order Qty</i></th> -->
-                                <th class="text-normal">Seller</th>
-                                <th class="text-normal"><a href="?order_by=seller_price">Price</a></th>
-                                <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
-                                <th class="text-normal"><a href="?order_by=seller_nre">NRE</a></th>
-                            </tr>
-                            </thead>
-                            {% for subpart in parts %}
-                                <tr data-tt-id="{{ subpart.id }}"
-                                    {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
-                                    <td class="text-normal">{{ subpart.indent_level }}</td>
-                                    <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
-                                    <td class="text-normal">{{ subpart.quantity }}</td>
-                                    <td class="text-normal">{{ subpart.reference | default:"-" }}</td>
-                                    <td class="text-normal">{{ subpart.do_not_load | default:"-" }}</td>
-                                    <td class="text-normal">{{ subpart.part_revision.synopsis }}</td>
-                                    <td class="text-normal">{{ subpart.part_revision.revision }}</td>
-                                    <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}
-                                        {% if subpart.part.manufacturer_parts.count > 1 %}
-                                            <i>(+{{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
-                                    <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                                    <!-- <td class="text-normal">{{ subpart.extended_quantity }}</td> -->
-                                    <!-- <td class="text-normal">{{ subpart.order_quantity }}</td> -->
-                                    <td class="text-normal">{% if subpart.seller_part.data_source == 'octopart' %}
-                                        <img title="Seller via Octopart." style="width: 16px; vertical-align: middle;"
-                                             src="{% static 'bom/img/octopart_blue.svg' %}"></img>
-                                        &nbsp;{% endif %}{{ subpart.seller_part.seller.name | default:"-" }}</td>
-                                    <td class="text-normal">{{ subpart.seller_price | default:"-" }}</td>
-                                    <!-- <td class="text-normal">{{ subpart.extended_cost | default:"-" }}</td> -->
-                                    <td class="text-normal">{{ subpart.seller_nre | default:"-" }}</td>
-                                </tr>
-                            {% empty %}
-                                <tr>
-                                    <td colspan="99" style="text-align: center; height: 20vh;"><i>This part does not contain any
-                                        other parts.</i></td>
-                                </tr>
-                            {% endfor %}
-                        </table>
-                    </div>
-                    <br>
+                    {% include 'bom/bom-indented.html' with order_by=order_by parts=parts part=part part_revision=part_revision profile=profile %}
                 </div>
 
                 <div id="used" class="col s12">
@@ -441,9 +346,7 @@
                                         <td>{{ seller_part.nre_cost }}</td>
                                         <td>{{ seller_part.ncnr }}</td>
                                         <td style="min-width: 0px;">{% if seller_part.data_source == 'octopart' %}
-                                            <img title="Sourcing information via Octopart."
-                                                 style="width: 20px; vertical-align: middle;"
-                                                 src="{% static 'bom/img/octopart_blue.svg' %}"></img>{% endif %}</td>
+                                            <img title="Sourcing information via Octopart." style="width: 20px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}">{% endif %}</td>
                                         {% if profile.role == 'A' %}
                                             <td><a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a></td>
                                             <td><a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
@@ -452,14 +355,12 @@
                                     </tr>
                                 {% empty %}
                                     <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}">
-                                        <td colspan="99" style="text-align: center;"><i>This manufacturer part has no sellers
-                                            entered yet.</i></td>
+                                        <td colspan="99" style="text-align: center;"><i>This manufacturer part has no sellers entered yet.</i></td>
                                     </tr>
                                 {% endfor %}
                             {% empty %}
                                 <tr>
-                                    <td colspan="99" style="text-align: center; height: 20vh;"><i>This part has no manufacturer
-                                        parts.</i></td>
+                                    <td colspan="99" style="text-align: center; height: 20vh;"><i>This part has no manufacturer parts.</i></td>
                                 </tr>
                             {% endfor %}
                             </tbody>
@@ -484,25 +385,6 @@
             accordion: false
         });
     </script>
-    {% if order_by == 'indented' %}
-        <!-- Tree Table -->
-        <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
-        <script>
-            $("#indented-bom").treetable({
-                expandable: true,
-                indent: 2,
-                initialState: 'collapsed',
-                onInitialized: function () {
-                    $("#indented-bom").treetable("reveal", {{ part_revision.id }});
-                }
-            });
-            $("#manufacturer-parts").treetable({
-                expandable: true,
-                indent: 2,
-                initialState: 'collapsed',
-            });
-        </script>
-    {% endif %}
 
     <!-- Handle if there's an anchor, select tab -->
     <script type='text/javascript'>
@@ -526,6 +408,15 @@
                 }
             );
 
+        });
+    </script>
+
+    <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
+    <script>
+        $("#manufacturer-parts").treetable({
+            expandable: true,
+            indent: 2,
+            initialState: 'collapsed',
         });
     </script>
 

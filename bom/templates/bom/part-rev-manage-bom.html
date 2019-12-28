@@ -21,90 +21,9 @@
         <!-- <h5>{{ part.description }}</h5> -->
         <div id="bom" class="col s12">
             <br><h5>Modify Subparts</h5>
-            <div class="row" style="padding-top: 16px;">
-                <div class="col s6">
-                    <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
-                            onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand
-                    </button>
-                    <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
-                            onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse
-                    </button>
-                </div>
-                <div class="col s6 right-align">
-                    {% if profile.role == 'A' %}
-                    <a class="waves-effect waves-green grey lighten-4 btn-flat red-text"
-                           href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
-                           onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts
-                    </a>
-                    {% endif %}
-                </div>
-            </div>
 
+            {% include 'bom/bom-indented.html' with order_by='indented' manage=1 parts=parts part=part part_revision=part_revision profile=profile %}
 
-            <div class="responsive-table-wrapper">
-                <table id="indented-bom" class="highlight part-list tight single-line">
-                    <thead>
-                    <tr>
-                        <th>Level</th>
-                        <th>Part No.</th>
-                        <th>Qty</th>
-                        <th>Part Class</th>
-                        <th>Reference</th>
-                        <th>Do Not Load</th>
-                        <th>Synopsis</th>
-                        <th>Rev</th>
-                        <th>Manufacturer</th>
-                        <th>MPN</th>
-
-                        <!-- <th>Seller</th> -->
-                        <!-- <th>Price</th> -->
-                        {% if profile.role == 'A' %}
-                            <th>Manage</th>
-                        {% endif %}
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for subpart in parts %}
-                        <tr data-tt-id="{{ subpart.id }}"
-                            {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
-                            <td class="text-normal">{{ subpart.indent_level }}</td>
-                            <td>{{ subpart.part.full_part_number }}</td>
-                            <td>{{ subpart.quantity }}</td>
-                            <td>{{ subpart.part.number_class.name }}</td>
-                            <td>{{ subpart.reference }}</td>
-                            <td>{% if subpart.do_not_load %}x{% endif %}</td>
-                            <td>{{ subpart.part_revision.synopsis }}</td>
-                            <td>{{ subpart.part_revision.revision }}</td>
-                            <td>{{ subpart.part.primary_manufacturer_part.manufacturer.name }}</td>
-                            <td>{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                            <!-- <td>{{ subpart.seller_part.seller.name | default:"-" }}</td> -->
-                            <!-- <td>{{ subpart.seller_price | default:"-"}}</td> -->
-                            {% if subpart.indent_level == 1 and subpart.subpart is not None %}
-                                <td>
-                                    <a class='dropdown-trigger' href='#'
-                                       data-target='dropdown{{ subpart.subpart.id }}'><i class="material-icons left green-text">more_horiz</i></a>
-                                    <!-- Dropdown Structure -->
-                                    <ul id='dropdown{{ subpart.subpart.id }}' class='dropdown-content'>
-                                        <li><a class="green-text text-lighten-1"
-                                               href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}"><i
-                                                class="material-icons green-text text-lighten-1">edit</i>Edit or Change
-                                            Rev</a>
-                                        <li class="divider" tabindex="-1"></li>
-                                        <li><a class="red-text text-lighten-1"
-                                               href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.subpart.id %}"
-                                               onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')"><i
-                                                class="material-icons red-text text-lighten-1">delete_forever</i>Remove</a>
-                                        </li>
-                                    </ul>
-                                </td>
-                            {% else %}
-                                <td></td>
-                            {% endif %}
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
             <br><h5>Add Subpart</h5>
             <div class="row">
                 <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}"

@@ -657,9 +657,8 @@ class PartRevision(models.Model):
         # it gets used by being a subpart to an assembly of a part_revision
         # so we can look up subparts, then their assemblys, then their partrevisions
         used_in_subparts = Subpart.objects.filter(part_revision=self)
-        used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly',
-                                                                                                         flat=True)
-        used_in_pr = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)
+        used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly', flat=True)
+        used_in_pr = PartRevision.objects.filter(assembly__in=used_in_assembly_ids).order_by('-revision')
         return used_in_pr
 
     def where_used_full(self):
