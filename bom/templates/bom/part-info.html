@@ -2,7 +2,7 @@
 
 {% load staticfiles %}
 
-{% block head-title %}{{ part.full_part_number }}{% if part_revision %}{{ part_revision.synopsis }}{% endif %}{% endblock %}
+{% block head-title %}{{ part.full_part_number }}{% if part_revision %} {{ part_revision.synopsis }}{% endif %}{% endblock %}
 
 {% block head %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}"/>

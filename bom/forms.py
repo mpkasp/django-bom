@@ -337,7 +337,7 @@ class PartClassCSVForm(forms.Form):
                     self.add_error(None, validation_error)
 
         except UnicodeDecodeError as e:
-            self.add_error(forms.ValidationError("CSV File Encoding error, try encoding your file as utf-8, and upload again. \
+            self.add_error(None, forms.ValidationError("CSV File Encoding error, try encoding your file as utf-8, and upload again. \
                 If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to \
                 fix your issue!", code='invalid'))
             logger.warning("UnicodeDecodeError: {}".format(e))
@@ -529,7 +529,7 @@ class PartCSVForm(forms.Form):
                 self.successes.append("Part {0} on row {1} created.".format(part.full_part_number(), row_count))
 
         except UnicodeDecodeError as e:
-            self.add_error(forms.ValidationError("CSV File Encoding error, try encoding your file as utf-8, and upload again. \
+            self.add_error(None, forms.ValidationError("CSV File Encoding error, try encoding your file as utf-8, and upload again. \
                 If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to \
                 fix your issue!", code='invalid'))
             logger.warning("UnicodeDecodeError: {}".format(e))
@@ -988,7 +988,7 @@ class BOMCSVForm(forms.Form):
                     sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)
                     self.warnings.append("The following BOM references are associated with multiple parts: " + str(sorted_duplicate_references))
         except UnicodeDecodeError as e:
-            self.add_error(forms.ValidationError("CSV File Encoding error, try encoding your file as utf-8, and upload again. \
+            self.add_error(None, forms.ValidationError("CSV File Encoding error, try encoding your file as utf-8, and upload again. \
                 If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to \
                 fix your issue!", code='invalid'))
             logger.warning("UnicodeDecodeError: {}".format(e))
