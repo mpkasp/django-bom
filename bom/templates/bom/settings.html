@@ -140,23 +140,25 @@
                     {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
                 {% endif %}
 
-            </form>
 
-            <h3 id="indabom-part-number">Part Number</h3>
-            <p>You may only increase the number of digits, up to 10, in your part number item number (CC-{{ organization.number_ns }}-VV, where {{ organization.number_ns }} is the number item).</p>
-            <div class="row">
-                {{ number_item_len_form.number_item_len|materializecss:'s12 m3' }}
-            </div>
-            <div class="row">
-                <div class="col s6">
-                    <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}">Refresh</a>
+
+                <h3 id="indabom-part-number">Part Number</h3>
+                <p>You may only increase the number of digits, up to 10, in your part number item number (CC-{{ organization.number_ns }}-VV, where {{ organization.number_ns }} is the number
+                    item).</p>
+                <div class="row">
+                    {{ number_item_len_form.number_item_len|materializecss:'s12 m3' }}
                 </div>
-                <div class="col s6 right-align">
-                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-number-item-len"
-                            onclick="return confirm('Are you sure you want to change the number of digits?')">Save
-                    </button>
+                <div class="row">
+                    <div class="col s6">
+                        <a type="button" class="waves-effect waves-light btn grey lighten-1" href="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}">Refresh</a>
+                    </div>
+                    <div class="col s6 right-align">
+                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-number-item-len"
+                                onclick="return confirm('Are you sure you want to change the number of digits?')">Save
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </form>
         </div>
 
         <div id="organization" class="col s12">
