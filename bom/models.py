@@ -611,7 +611,7 @@ class PartRevision(models.Model):
         # bom = sorted(bom, key=sort_by_indent_level)
         return bom
 
-    def flat(self):
+    def flat(self, extended_quantity=100):
         def flat_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, subpart=None, reference=''):
             if part_revision is None:  # hopefully this never happens
                 logger.warning("Flat bom part_revision is None, this shouldn't happen, parent "
@@ -625,8 +625,9 @@ class PartRevision(models.Model):
             else:
                 bom[part_revision.id] = {
                     'part': part_revision.part,
+                    'seller_part': part_revision.part.optimal_seller(quantity=extended_quantity * qty),
                     'part_revision': part_revision,
-                    'quantity': qty,
+                    'quantity': qty * parent_qty,
                     'references': reference,
                 }
 

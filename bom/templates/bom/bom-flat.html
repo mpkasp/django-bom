@@ -1,0 +1,85 @@
+{# To include this widget, make sure to pass: `parts`, `order_by`, `part`, `part_revision`, `profile` variables  - TODO Could remove part if we pass part revision #}
+{% load staticfiles %}
+<div class="row" style="padding-top: 16px;">
+    <div class="col s6">
+    </div>
+    <div class="col s6 right-align">
+        {% if manage and profile.role == 'A' %}
+            <a class="waves-effect waves-green grey lighten-4 btn-flat red-text"
+               href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
+               onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts
+            </a>
+        {% else %}
+            <!-- Dropdown Trigger -->
+            <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#' data-target='manage-bom-{{ part.id }}'>
+                <i class="material-icons right">arrow_drop_down</i>Manage
+            </button>
+            <!-- Dropdown Structure -->
+            <ul id='manage-bom-{{ part.id }}' class='dropdown-content'>
+                {% if profile.role == 'A' and part_revision.configuration == 'W' %}
+                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">
+                        <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
+                    </li>
+                {% endif %}
+                {% if part_revision %}
+                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}">
+                        <i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
+                    </li>
+                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_revision.id %}">
+                        <i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
+                    </li>
+                {% else %}
+                    <li><a class="green-text text-lighten-1 disabled" href=""><i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a></li>
+                {% endif %}
+            </ul>
+        {% endif %}
+    </div>
+</div>
+<div class="responsive-table-wrapper">
+    <table id="flat-bom" class="highlight part-list tight single-line">
+        <thead>
+        <tr>
+            <th class="text-normal">Part No.</th>
+            <th class="text-normal">Qty</th>
+            <th class="text-normal">Reference</th>
+            <th class="text-normal">Do Not Load</th>
+            <th class="text-normal">Synopsis</th>
+            <th class="text-normal">Rev</th>
+            <th class="text-normal">Manufacturer</th>
+            <th class="text-normal">MPN</th>
+            <!-- <th class="text-normal"><i>Ext. Qty</i></th> -->
+            <!-- <th class="text-normal"><i>Order Qty</i></th> -->
+            <th class="text-normal">Seller</th>
+            <th class="text-normal">Price</th>
+            <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
+            <th class="text-normal">NRE</th>
+        </tr>
+        </thead>
+        {% for subpart in parts %}
+            <tr>
+                <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
+                <td class="text-normal">{{ subpart.quantity }}</td>
+                <td class="text-normal">{{ subpart.references | default:"-" }}</td>
+                <td class="text-normal">{{ subpart.do_not_load | default:"-" }}</td>
+                <td class="text-normal">{{ subpart.part_revision.synopsis }}</td>
+                <td class="text-normal">{{ subpart.part_revision.revision }}</td>
+                <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}
+                    {% if subpart.part.manufacturer_parts.count > 1 %}
+                        <i>(+{{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
+                <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                <!-- <td class="text-normal">{{ subpart.extended_quantity }}</td> -->
+                <!-- <td class="text-normal">{{ subpart.order_quantity }}</td> -->
+                <td class="text-normal">{% if subpart.seller_part.data_source == 'octopart' %}
+                    <img title="Seller via Octopart." style="width: 16px; vertical-align: middle;"
+                         src="{% static 'bom/img/octopart_blue.svg' %}">{% endif %}{{ subpart.seller_part.seller.name | default:"-" }}</td>
+                <td class="text-normal">{{ subpart.seller_part.unit_cost | default:"-" }}</td>
+                <!-- <td class="text-normal">{{ subpart.extended_cost | default:"-" }}</td> -->
+                <td class="text-normal">{{ subpart.seller_part.nre_cost | default:"-" }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="99" style="text-align: center; height: 20vh;"><i>This part does not contain any other parts.</i></td>
+            </tr>
+        {% endfor %}
+    </table>
+</div>

@@ -184,7 +184,18 @@
 
 
                 <div id="bom" class="col s12">
-                    {% include 'bom/bom-indented.html' with order_by=order_by parts=parts part=part part_revision=part_revision profile=profile %}
+                    <div id="bom-indented">
+                        <div class="text-center" style="padding-top: 8px;">
+                            <span>Indented</span> | <a onclick="showFlatBOM()" href="#">Flat</a>
+                        </div>
+                        {% include 'bom/bom-indented.html' with order_by=order_by parts=parts part=part part_revision=part_revision profile=profile %}
+                    </div>
+                    <div id="bom-flat" style="display: none;">
+                        <div class="text-center" style="padding-top: 8px;">
+                            <a onclick="showIndentedBOM()" href="#">Indented</a> | <span>Flat</span>
+                        </div>
+                        {% include 'bom/bom-flat.html' with order_by=order_by parts=parts_flat part=part part_revision=part_revision profile=profile %}
+                    </div>
                 </div>
 
                 <div id="used" class="col s12">
@@ -494,5 +505,16 @@
                 );
             {% endif %}
         })
+    </script>
+    <script>
+        function showFlatBOM() {
+            $('#bom-indented').hide();
+            $('#bom-flat').show();
+        }
+
+        function showIndentedBOM() {
+            $('#bom-flat').hide();
+            $('#bom-indented').show();
+        }
     </script>
 {% endblock bom-script %}

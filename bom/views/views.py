@@ -414,12 +414,16 @@ def part_info(request, part_id, part_revision_id=None):
 
     try:
         parts = part_revision.indented()
-
     except RuntimeError:
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         parts = []
     except AttributeError:
         parts = []
+
+    try:
+        parts_flat = part_revision.flat(extended_quantity=qty)
+    except AttributeError:
+        parts_flat = []
 
     extended_cost_complete = True
     unit_cost = 0
