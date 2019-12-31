@@ -218,7 +218,7 @@ class Part(models.Model):
             return part_revision.indented()
 
     def optimal_seller(self, quantity=None):
-        if quantity is None:
+        if not quantity:
             qty_cache_key = str(self.id) + '_qty'
             quantity = int(cache.get(qty_cache_key, 100))
 

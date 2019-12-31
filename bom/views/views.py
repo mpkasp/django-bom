@@ -410,6 +410,11 @@ def part_info(request, part_id, part_revision_id=None):
         if part_info_form.is_valid():
             qty = request.POST.get('quantity', 100)
 
+    try:
+        qty = int(qty)
+    except ValueError:
+        qty = 100
+
     cache.set(qty_cache_key, qty, timeout=None)
 
     try:
@@ -454,8 +459,7 @@ def part_info(request, part_id, part_revision_id=None):
         item['extended_cost'] = extended_quantity * \
                                 seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
         item['out_of_pocket_cost'] = order_qty * \
-                                     float(
-                                         seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
+                                     float(seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
 
         unit_cost = (
                 unit_cost +

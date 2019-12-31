@@ -53,6 +53,14 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:part-info', kwargs={'part_id': p4.id}))
         self.assertEqual(response.status_code, 200)
 
+        # set quantity
+        response = self.client.post(reverse('bom:part-info', kwargs={'part_id': p1.id}), {'quantity': 1000})
+        self.assertEqual(response.status_code, 200)
+
+        # test cache hit - TODO: probably want to make sure cache works
+        response = self.client.post(reverse('bom:part-info', kwargs={'part_id': p1.id}))
+        self.assertEqual(response.status_code, 200)
+
     def test_part_manage_bom(self):
         self.client.login(username='kasper', password='ghostpassword')
 
