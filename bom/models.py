@@ -487,7 +487,7 @@ class PartRevision(models.Model):
     supply_voltage_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VOLTAGE_UNITS)
     supply_voltage = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
-    voltage_rating_units = models.CharField(max_length=2, default=None, null=True, blank=True, choices=VOLTAGE_UNITS)
+    voltage_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VOLTAGE_UNITS)
     voltage_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     CURRENT_UNITS = (
@@ -500,7 +500,7 @@ class PartRevision(models.Model):
         ('Other', 'Other'),
     )
 
-    current_rating_units = models.CharField(max_length=2, default=None, null=True, blank=True, choices=CURRENT_UNITS)
+    current_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=CURRENT_UNITS)
     current_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     def generate_synopsis(self, make_searchable=False):
