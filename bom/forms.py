@@ -408,6 +408,7 @@ class PartCSVForm(forms.Form):
                             organization=self.organization
                         )
                         self.add_error(None, "Part number {0} in row {1} already exists. Uploading of this part skipped.".format(part_number, row_count))
+                        continue
                     except AttributeError as e:
                         self.add_error(None, str(e) + " on row {}. Creation of this part skipped.".format(row_count))
                         continue
