@@ -367,7 +367,7 @@ class PartCSVForm(forms.Form):
             reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
             headers = [h.lower() for h in next(reader)]
 
-            if 'part_class' not in headers and 'part_number not in headers':
+            if 'part_class' not in headers and 'part_number' not in headers:
                 raise ValidationError("Missing required column named 'part_class' or column named 'part_number'", code='invalid')
 
             if 'revision' not in headers:
@@ -399,12 +399,21 @@ class PartCSVForm(forms.Form):
                 # then Part.save() will create one.
                 if part_number:
                     try:
-                        (part_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization.number_item_len)
-                        Part.objects.get(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
+                        (number_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization.number_item_len)
+                        part_class = PartClass.objects.get(code=number_class, organization=self.organization)
+                        Part.objects.get(
+                            number_class=part_class,
+                            number_item=number_item,
+                            number_variation=number_variation,
+                            organization=self.organization
+                        )
                         self.add_error(None, "Part number {0} in row {1} already exists. Uploading of this part skipped.".format(part_number, row_count))
                     except AttributeError as e:
                         self.add_error(None, str(e) + " on row {}. Creation of this part skipped.".format(row_count))
                         continue
+                    except PartClass.DoesNotExist:
+                        self.add_error(None, "No part class found for part number {0} in row {1}. Creation of this part skipped.".format(part_number, row_count))
+                        continue;
                     except Part.DoesNotExist:
                         pass
                 elif part_class:
