@@ -224,7 +224,7 @@ class Part(models.Model):
 
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
         sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)
-        return SellerPart.optimal(sellerparts, quantity)
+        return SellerPart.optimal(sellerparts, int(quantity))
 
     def assign_part_number(self):
         if self.number_item is None or self.number_item == '':

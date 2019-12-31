@@ -834,9 +834,8 @@ def create_part(request):
             if mpn:
                 if old_manufacturer and new_manufacturer_name == '':
                     manufacturer = old_manufacturer
-                elif new_manufacturer_name.lower() != '' and not old_manufacturer.lower():
-                    manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name,
-                                                                               organization=organization)
+                elif new_manufacturer_name and new_manufacturer_name != '' and not old_manufacturer:
+                    manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization)
                 else:
                     messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
                     return TemplateResponse(request, 'bom/create-part.html', locals())
@@ -1145,7 +1144,7 @@ def add_manufacturer_part(request, part_id):
                 return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
 
             if new_manufacturer_name != '' and new_manufacturer_name is not None:
-                manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization)
+                manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization, defaults={'name': new_manufacturer_name})
                 manufacturer_part_form.cleaned_data['manufacturer'] = manufacturer
 
             manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)

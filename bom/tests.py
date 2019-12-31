@@ -406,6 +406,26 @@ class TestBOM(TransactionTestCase):
 
         self.assertEqual(response.status_code, 302)
 
+    def test_add_manufacturer_part(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        # Test GET
+        response = self.client.get(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': p1.id}))
+
+        # Test POSTs
+        mfg_form_data = {'name': p1.primary_manufacturer_part.manufacturer.name,
+                         'manufacturer_part_number': p1.primary_manufacturer_part.manufacturer_part_number,
+                         'part': p2.id}
+        response = self.client.post(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': p1.id}), mfg_form_data)
+        self.assertEqual(response.status_code, 302)
+
+        mfg_form_data = {'name': "A new mfg name",
+                         'manufacturer_part_number': "a new pn",
+                         'part': p2.id}
+        response = self.client.post(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': p1.id}), mfg_form_data)
+        self.assertEqual(response.status_code, 302)
+
     def test_manufacturer_part_edit(self):
         self.client.login(username='kasper', password='ghostpassword')
 
