@@ -7,7 +7,7 @@ from re import finditer
 
 from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_revision, \
     create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers, create_some_fake_sellers
-from .models import Part, SellerPart, ManufacturerPart, Seller
+from .models import Part, SellerPart, ManufacturerPart, Seller, PartClass
 from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
 
 
@@ -348,6 +348,17 @@ class TestBOM(TransactionTestCase):
             if "Part already exists for manufacturer part 2 in row GhostBuster2000. Uploading of this part skipped." in str(m):
                 found_error = True
         self.assertTrue(found_error)
+
+    def test_upload_part_classes(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        # Should pass
+        with open('bom/test_files/test_part_classes.csv') as test_csv:
+            response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
+        self.assertEqual(response.status_code, 200)
+
+        new_part_class_count = PartClass.objects.all().count()
+        self.assertEqual(new_part_class_count, 37)
 
     def test_add_sellerpart(self):
         self.client.login(username='kasper', password='ghostpassword')
