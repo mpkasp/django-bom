@@ -94,7 +94,7 @@ def strip_trailing_zeros(num):
         elif c not in ['-', '+', '.']:
             found = False
             break
-    return ('%.15f' % float(num)).rstrip('0').rstrip('.') if found else num
+    return ('%f' % float(num)).rstrip('0').rstrip('.') if found else num
 
 
 # Input a dict with a list of key options, return the value if it exists, else None
