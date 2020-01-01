@@ -105,10 +105,10 @@
             <div class="row">
                 <div class="col s12">
                     <ul id="tabs" class="tabs tabs-fixed-width">
-                        <li class="tab"><a href="#specs">Specifications</a></li>
-                        <li class="tab"><a href="#bom">Bill of Materials</a></li>
-                        <li class="tab"><a href="#used">Where Used</a></li>
-                        <li class="tab"><a href="#sourcing">Sourcing</a></li>
+                        <li class="tab"><a href="#specs" onclick="selectAnchor('specs')">Specifications</a></li>
+                        <li class="tab"><a href="#bom" onclick="selectAnchor('bom')">Bill of Materials</a></li>
+                        <li class="tab"><a href="#used" onclick="selectAnchor('used')">Where Used</a></li>
+                        <li class="tab"><a href="#sourcing" onclick="selectAnchor('sourcing')">Sourcing</a></li>
                     </ul>
                 </div>
 
@@ -401,8 +401,20 @@
     <script type='text/javascript'>
         var tabsElem = document.querySelector('.tabs');
         var tabs = M.Tabs.init(tabsElem);
+
+        function selectAnchor(anchor) {
+            window.localStorage['part-info-last-anchor'] = anchor;
+        }
+
         {% if tab_anchor %}
             tabs.select('{{tab_anchor}}');
+        {% else %}
+            $(document).ready(function () { // Change this to happen when browser finishes going back
+                if (window.localStorage['part-info-last-anchor']) {
+                    console.log(window.localStorage['part-info-last-anchor']);
+                    tabs.select(window.localStorage['part-info-last-anchor']);
+                }
+            });
         {% endif %}
 
         // For dropdown menu
