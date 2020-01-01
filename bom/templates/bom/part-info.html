@@ -408,13 +408,6 @@
 
         {% if tab_anchor %}
             tabs.select('{{tab_anchor}}');
-        {% else %}
-            $(document).ready(function () { // Change this to happen when browser finishes going back
-                if (window.localStorage['part-info-last-anchor']) {
-                    console.log(window.localStorage['part-info-last-anchor']);
-                    tabs.select(window.localStorage['part-info-last-anchor']);
-                }
-            });
         {% endif %}
 
         // For dropdown menu
@@ -431,6 +424,12 @@
                 }
             );
 
+            {% if not tab_anchor %}
+            if (window.localStorage['part-info-last-anchor']) {
+                console.log(window.localStorage['part-info-last-anchor']);
+                tabs.select(window.localStorage['part-info-last-anchor']);
+            }
+            {% endif %}
         });
     </script>
 

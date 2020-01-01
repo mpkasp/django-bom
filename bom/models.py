@@ -9,6 +9,8 @@ from django.utils import timezone
 from django.core.validators import MaxValueValidator, MinValueValidator
 from .utils import increment_str, prep_for_sorting_nicely, listify_string, stringify_list, strip_trailing_zeros
 from .validators import alphanumeric, numeric, validate_pct
+from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
+    WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES
 
 from social_django.models import UserSocialAuth
 
@@ -17,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
-    subscription = models.CharField(max_length=1, choices=(('F', 'Free'), ('P', 'Pro'),))
+    subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     number_item_len = models.PositiveIntegerField(default=3, validators=[MinValueValidator(3), MaxValueValidator(10)])
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
@@ -32,7 +34,7 @@ class Organization(models.Model):
 class UserMeta(models.Model):
     user = models.OneToOneField(User, db_index=True, on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, blank=True, null=True, on_delete=models.PROTECT)
-    role = models.CharField(max_length=1, choices=(('A', 'Admin'), ('V', 'Viewer'),))
+    role = models.CharField(max_length=1, choices=ROLE_TYPES)
 
     def get_or_create_organization(self):
         if self.organization is None:
@@ -268,7 +270,7 @@ class Part(models.Model):
 class PartRevision(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
     timestamp = models.DateTimeField(default=timezone.now)
-    configuration = models.CharField(max_length=1, choices=(('R', 'Released'), ('W', 'Working'),), default='W')
+    configuration = models.CharField(max_length=1, choices=CONFIGURATION_TYPES, default='W')
     revision = models.CharField(max_length=4, db_index=True, default='1')
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
     displayable_synopsis = models.CharField(editable=False, default="", null=True, blank=True, max_length=255, db_index=True)
@@ -278,8 +280,6 @@ class PartRevision(models.Model):
         unique_together = (('part', 'revision'),)
         ordering = ['part']
 
-    NO_CHOICE = ('', '-----')
-
     # Part Revision Specification Properties:
 
     description = models.CharField(max_length=255, default="", null=True, blank=True)
@@ -287,219 +287,38 @@ class PartRevision(models.Model):
     # By convention for IndaBOM, for part revision properties below, if a property value has
     # an associated units of measure, and if the property value field name is 'vvv' then the
     # associated units of measure field name must be 'vvv_units'.
-
-    VALUE_UNITS = (
-        NO_CHOICE,
-        ('Ohms', '\u03A9'),
-        ('mOhms', 'm\u03A9'),
-        ('kOhms', 'k\u03A9'),
-        ('F', 'F'),
-        ('pF', 'pF'),
-        ('nF', 'nF'),
-        ('uF', '\u03BCF'),
-        ('V', 'V'),
-        ('uV', '\u03BCV'),
-        ('mV', 'mV'),
-        ('A', 'A'),
-        ('uA', '\u03BCA'),
-        ('mA', 'mA'),
-        ('C', '\u00B0C'),
-        ('F', '\u00B0F'),
-        ('Other', 'Other'),
-    )
-
     value_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VALUE_UNITS)
     value = models.CharField(max_length=255, default=None, null=True, blank=True)
-
     attribute = models.CharField(max_length=255, default=None, null=True, blank=True)
-
     pin_count = models.DecimalField(max_digits=3, decimal_places=0, default=None, null=True, blank=True)
-
     tolerance = models.CharField(max_length=6, validators=[validate_pct], default=None, null=True, blank=True)
-
-    PACKAGE_TYPES = (
-        NO_CHOICE,
-        ('0201 smd', '0201 smd'),
-        ('0402 smd', '0402 smd'),
-        ('0603 smd', '0603 smd'),
-        ('0805 smd', '0805 smd'),
-        ('1206 smd', '1206 smd'),
-        ('1210 smd', '1210 smd'),
-        ('1812 smd', '1812 smd'),
-        ('2010 smd', '2010 smd'),
-        ('2512 smd', '2512 smd'),
-        ('1/8 radial', '1/8 radial'),
-        ('1/4 radial', '1/4 radial'),
-        ('1/2 radial', '1/2 radial'),
-        ('Size A', 'Size A'),
-        ('Size B', 'Size B'),
-        ('Size C', 'Size C'),
-        ('Size D', 'Size D'),
-        ('Size E', 'Size E'),
-        ('SOT-23', 'SOT-23'),
-        ('SOT-223', 'SOT-233'),
-        ('DIL', 'DIL'),
-        ('SOP', 'SOP'),
-        ('SOIC', 'SOIC'),
-        ('QFN', 'QFN'),
-        ('QFP', 'QFP'),
-        ('QFT', 'QFT'),
-        ('PLCC', 'PLCC'),
-        ('VGA', 'VGA'),
-        ('Other', 'Other'),
-    )
-
     package = models.CharField(max_length=16, default=None, null=True, blank=True, choices=PACKAGE_TYPES)
-
     material = models.CharField(max_length=32, default=None, null=True, blank=True)
     finish = models.CharField(max_length=32, default=None, null=True, blank=True)
     color = models.CharField(max_length=32, default=None, null=True, blank=True)
-
-    DISTANCE_UNITS = (
-        NO_CHOICE,
-        ('mil', 'mil'),
-        ('in', 'in'),
-        ('ft', 'ft'),
-        ('yd', 'yd'),
-        ('km', 'km'),
-        ('m', 'm'),
-        ('cm', 'cm'),
-        ('um', '\u03BCm'),
-        ('nm', 'nm'),
-        ('Other', 'Other'),
-    )
-
     length_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=DISTANCE_UNITS)
     length = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
     width_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=DISTANCE_UNITS)
     width = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
     height_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=DISTANCE_UNITS)
     height = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
-    WEIGHT_UNITS = (
-        NO_CHOICE,
-        ('mg', 'mg'),
-        ('g', 'g'),
-        ('kg', 'kg'),
-        ('oz', 'oz'),
-        ('lb', 'lb'),
-        ('Other', 'Other'),
-    )
-
     weight_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=WEIGHT_UNITS)
     weight = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
-    TEMPERATURE_UNITS = (
-        NO_CHOICE,
-        ('C', '\u00B0C'),
-        ('F', '\u00B0F'),
-        ('Other', 'Other'),
-    )
-
     temperature_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=TEMPERATURE_UNITS)
     temperature_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
-    WAVELENGTH_UNITS = (
-        NO_CHOICE,
-        ('km', 'km'),
-        ('m', 'm'),
-        ('cm', 'cm'),
-        ('um', '\u03BCm'),
-        ('nm', 'nm'),
-        ('A', '\u212B'),
-        ('Other', 'Other'),
-    )
-
     wavelength_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=WAVELENGTH_UNITS)
     wavelength = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
-    FREQUENCY_UNITS = (
-        NO_CHOICE,
-        ('Hz', 'Hz'),
-        ('kHz', 'kHz'),
-        ('MHz', 'MHz'),
-        ('GHz', 'GHz'),
-        ('Other', 'Other'),
-    )
-
     frequency_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=FREQUENCY_UNITS)
     frequency = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
-    MEMORY_UNITS = (
-        NO_CHOICE,
-        ('KB', 'KB'),
-        ('MB', 'MB'),
-        ('GB', 'GB'),
-        ('TB', 'TB'),
-        ('Other', 'Other'),
-    )
-
     memory_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=MEMORY_UNITS)
     memory = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
-    INTERFACE_TYPES = (
-        NO_CHOICE,
-        ('I2C', 'I2C'),
-        ('SPI', 'SPI'),
-        ('CAN', 'CAN'),
-        ('One-Wire', '1-Wire'),
-        ('RS485', 'RS-485'),
-        ('RS232', 'RS-232'),
-        ('WiFi', 'Wi-Fi'),
-        ('4G', '4G'),
-        ('BT', 'Bluetooth'),
-        ('BTLE', 'Bluetooth LE'),
-        ('Z_Wave', 'Z-Wave'),
-        ('Zigbee', 'Zigbee'),
-        ('LAN', 'LAN'),
-        ('USB', 'USB'),
-        ('HDMI', 'HDMI'),
-        ('Other', 'Other'),
-    )
-
     interface = models.CharField(max_length=12, default=None, null=True, blank=True, choices=INTERFACE_TYPES)
-
-    POWER_UNITS = (
-        NO_CHOICE,
-        ('W', 'W'),
-        ('uW', '\u03BCW'),
-        ('mW', 'mW'),
-        ('kW', 'kW'),
-        ('MW', 'MW'),
-        ('Other', 'Other'),
-    )
-
     power_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=POWER_UNITS)
     power_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
-    VOLTAGE_UNITS = (
-        NO_CHOICE,
-        ('V', 'V'),
-        ('uV', '\u03BCV'),
-        ('mV', 'mV'),
-        ('kV', 'kV'),
-        ('MV', 'MV'),
-        ('Other', 'Other'),
-    )
-
     supply_voltage_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VOLTAGE_UNITS)
     supply_voltage = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
     voltage_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VOLTAGE_UNITS)
     voltage_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-
-    CURRENT_UNITS = (
-        NO_CHOICE,
-        ('A', 'A'),
-        ('uA', '\u03BCV'),
-        ('mA', 'mA'),
-        ('kA', 'kA'),
-        ('MA', 'MA'),
-        ('Other', 'Other'),
-    )
-
     current_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=CURRENT_UNITS)
     current_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
