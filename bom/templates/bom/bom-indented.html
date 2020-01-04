@@ -13,10 +13,10 @@
     </div>
     <div class="col s6 right-align">
         {% if manage and profile.role == 'A' %}
-            <a class="waves-effect waves-green grey lighten-4 btn-flat red-text"
+            <button class="waves-effect waves-green grey lighten-4 btn-flat red-text"
                href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
                onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts
-            </a>
+            </button>
         {% else %}
             <!-- Dropdown Trigger -->
             <button class="dropdown-trigger-indented waves-effect waves-green grey lighten-4 btn-flat" data-target='manage-bom-{{ part.id }}-indented'>
@@ -142,9 +142,9 @@
                 constrainWidth: false, // Does not change width of dropdown to that of the activator
                 hover: false, // Activate on hover
                 gutter: 0, // Spacing from edge
-                belowOrigin: true, // Displays dropdown below the button
                 alignment: 'left', // Displays dropdown with edge aligned to the left of button
-                stopPropagation: false // Stops event propagation
+                stopPropagation: false, // Stops event propagation
+                coverTrigger: false
             });
     });
 </script>
