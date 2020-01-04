@@ -2,11 +2,12 @@ from .base_api import BaseApi
 import json
 
 
-class MouserApi:
-    def __init__(self):
-        self.api = BaseApi(api_settings_key='mouser_api_key',
-                           root_url='https://api.mouser.com/api/v1',
-                           api_key_query='apiKey')
+class MouserApi(BaseApi):
+    def __init__(self, *args, **kwargs):
+        api_settings_key = 'mouser_api_key'
+        root_url='https://api.mouser.com/api/v1'
+        api_key_query = 'apiKey'
+        super().__init__(api_settings_key, root_url, api_key_query=api_key_query)
 
     @staticmethod
     def parse_and_check_for_errors(content):
@@ -17,7 +18,7 @@ class MouserApi:
         return data
 
     def search_keyword(self, keyword):
-        content = self.api.request('/search/keyword', data={
+        content = self.request('/search/keyword', data={
             "SearchByKeywordRequest": {
                 "keyword": keyword,
                 "records": 0,
@@ -30,12 +31,12 @@ class MouserApi:
         return data["SearchResults"]
 
     def get_manufacturer_list(self):
-        content = self.api.request('/search/manufacturerlist')
+        content = self.request('/search/manufacturerlist')
         data = self.parse_and_check_for_errors(content)
         return data["MouserManufacturerList"]
 
     def search_part(self, part_number):
-        content = self.api.request('/search/partnumber', data={
+        content = self.request('/search/partnumber', data={
             "SearchByPartRequest": {
                 "mouserPartNumber": part_number,
                 "partSearchOptions": "",
@@ -45,7 +46,7 @@ class MouserApi:
         return data["SearchResults"]
 
     def search_part_and_manufacturer(self, part_number, manufacturer_id):
-        content = self.api.request('/search/partnumberandmanufacturer', data={
+        content = self.request('/search/partnumberandmanufacturer', data={
             "SearchByPartMfrRequest": {
                 "manufacturerId": manufacturer_id,
                 "mouserPartNumber": part_number,
@@ -60,11 +61,19 @@ class Mouser:
     def __init__(self):
         self.api = MouserApi()
 
-    def search_and_match(self, manufacturer_part_number, quantity=1):
-        # manufacturer_list = self.api.get_manufacturer_list()
-        # TODO: possibly get manufacturer id from manufacturer list, do a fuzzy lookup using manufacturer name
-        #  to reduce results
-        results = self.api.search_part(part_number=manufacturer_part_number)
+    def search_and_match(self, manufacturer_part_number, manufacturer=None, quantity=1):
+        if manufacturer:
+            manufacturer_list = self.api.get_manufacturer_list()
+            # TODO: possibly get manufacturer id from manufacturer list, do a fuzzy lookup using manufacturer name
+            #  to reduce results
+            mfg_id = manufacturer_list[manufacturer] if manufacturer in manufacturer_list else None
+            if mfg_id:
+                results = self.api.search_part_and_manufacturer(part_number=manufacturer_part_number, manufacturer_id=mfg_id)
+            else:
+                results = self.api.search_part(part_number=manufacturer_part_number)
+        else:
+            results = self.api.search_part(part_number=manufacturer_part_number)
+
         seller_parts = []
         optimal_part = None
         for part in results['Parts']:

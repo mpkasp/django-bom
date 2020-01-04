@@ -430,7 +430,7 @@ class PartRevision(models.Model):
         # bom = sorted(bom, key=sort_by_indent_level)
         return bom
 
-    def flat(self, extended_quantity=100):
+    def flat(self, extended_quantity=100, sort=True):
         def flat_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, subpart=None, reference=''):
             if part_revision is None:  # hopefully this never happens
                 logger.warning("Flat bom part_revision is None, this shouldn't happen, parent "
@@ -468,8 +468,8 @@ class PartRevision(models.Model):
         # list-ified string returned by prep_for_sorting_nicely.
         def sort_by_references(p):
             return prep_for_sorting_nicely(p['references']) if p['references'] else p.__str__().split()
-
-        bom = sorted(bom.values(), key=sort_by_references)
+        if sort:
+            bom = sorted(bom.values(), key=sort_by_references)
         return bom
 
     def where_used(self):
@@ -534,17 +534,21 @@ class Assembly(models.Model):
 
 
 class ManufacturerPart(models.Model):
-    part = models.ForeignKey(Part, on_delete=models.CASCADE)
-    manufacturer_part_number = models.CharField(
-        max_length=128, default='', blank=True)
-    manufacturer = models.ForeignKey(
-        Manufacturer, default=None, blank=True, null=True, on_delete=models.PROTECT)
+    part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
+    manufacturer_part_number = models.CharField(max_length=128, default='', blank=True)
+    manufacturer = models.ForeignKey(Manufacturer, default=None, blank=True, null=True, on_delete=models.PROTECT)
+    source_mouser = models.BooleanField(default=False)
 
-    class Meta():
+    class Meta:
         unique_together = [
             'part',
             'manufacturer_part_number',
             'manufacturer']
+
+        index_together = [
+            'part',
+            'source_mouser'
+        ]
 
     def seller_parts(self):
         return SellerPart.objects.filter(manufacturer_part=self).order_by('seller', 'minimum_order_quantity')

@@ -74,8 +74,8 @@
             <h1 class="col s12 light header center">{{ title|safe }}</h1>
         </div>
     {% endif %}
+    {% if messages %}
     <div id="content" class="container">
-        {% if messages %}
             <ul class="messages">
                 {% for message in messages %}
                     <li{% if message.tags %} class="card alert alert-{{ message.tags }} alert-dismissible"{% endif %} role="alert">
@@ -83,8 +83,8 @@
                     </li>
                 {% endfor %}
             </ul>
-        {% endif %}
     </div>
+    {% endif %}
     {% block content %}{% endblock %}
     {% block action-btn %}{% endblock %}
 </main>

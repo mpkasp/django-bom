@@ -36,8 +36,8 @@
                                 {% for r in revisions.all %}
                                     <option {% if part_revision.id == r.id %}selected{% endif %}
                                             value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}
-						   {% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}
-						   {% endif %}">Rev {{ r.revision }}{% if r.configuration == 'W' %} (working){% endif %}</option>
+                                                    {% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}
+                                                    {% endif %}">Rev {{ r.revision }}{% if r.configuration == 'W' %} (working){% endif %}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -287,7 +287,7 @@
                         <div class="row" style="padding-top: 16px;">
                             <div class="col s6 push-s6 right-align">
                                 <a class="waves-effect waves-green grey lighten-4 btn-flat"
-                                   href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}" style="margin: 10px;">Add Manufacturer Part</a>
+                                   href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}" style="margin: 10px;">Add Mfg Part</a>
                             </div>
                         </div>
                     {% endif %}
@@ -403,7 +403,7 @@
         var tabs = M.Tabs.init(tabsElem);
 
         function selectAnchor(anchor) {
-            window.localStorage['part-info-last-anchor'] = anchor;
+            {#window.localStorage['part-info-last-anchor'] = anchor;#}
         }
 
         {% if tab_anchor %}
@@ -425,10 +425,9 @@
             );
 
             {% if not tab_anchor %}
-            if (window.localStorage['part-info-last-anchor']) {
-                console.log(window.localStorage['part-info-last-anchor']);
-                tabs.select(window.localStorage['part-info-last-anchor']);
-            }
+                if (window.localStorage['part-info-last-anchor']) {
+                    {#tabs.select(window.localStorage['part-info-last-anchor']);#}
+                }
             {% endif %}
         });
     </script>
@@ -502,20 +501,30 @@
         }
     </script>
 
-    <!-- -->
+    <!-- Match Seller Parts -->
     <script>
-        $(document).ready(function () {
-            {% if part_revision.id %}
-                $.get(
-                    "{% url 'json:mouser-part-match-bom' part_revision_id=part_revision.id %}",
-                    function (response) {
-                        var content = response['content'];
-                        var errors = response['errors'];
-                        console.log(content);
-                    }
-                );
-            {% endif %}
-        })
+        {% if 0 %} {# This functionality isn't ready yet... #}
+            var partMatchData = {};
+            $(document).ready(function () {
+                {% if part_revision.id %}
+                    $.get(
+                        "{% url 'json:mouser-part-match-bom' part_revision_id=part_revision.id %}",
+                        function (response) {
+                            partMatchData = response['content'];
+                            var errors = response['errors'];
+                            if (errors.length > 0) {
+                                {#  TODO: Update views  #}
+                                console.error(errors);
+                                alert('Error getting mouser data');
+                            } else {
+                                console.log(partMatchData);
+                                {#  TODO: Update views  #}
+                            }
+                        }
+                    );
+                {% endif %}
+            })
+        {% endif %}
     </script>
     <script>
         function showFlatBOM() {
