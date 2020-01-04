@@ -11,11 +11,11 @@
             </a>
         {% else %}
             <!-- Dropdown Trigger -->
-            <button class="dropdown-trigger waves-effect waves-green grey lighten-4 btn-flat" href='#' data-target='manage-bom-{{ part.id }}'>
+            <button class="dropdown-trigger-flat waves-effect waves-green grey lighten-4 btn-flat" href='#' data-target='manage-bom-{{ part.id }}-flat'>
                 <i class="material-icons right">arrow_drop_down</i>Manage
             </button>
             <!-- Dropdown Structure -->
-            <ul id='manage-bom-{{ part.id }}' class='dropdown-content'>
+            <ul id='manage-bom-{{ part.id }}-flat' class='dropdown-content'>
                 {% if profile.role == 'A' and part_revision.configuration == 'W' %}
                     <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">
                         <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
@@ -83,3 +83,18 @@
         {% endfor %}
     </table>
 </div>
+
+<script>
+    $(document).ready(function () {
+        $('.dropdown-trigger-flat').dropdown({
+                inDuration: 200,
+                outDuration: 225,
+                constrainWidth: false, // Does not change width of dropdown to that of the activator
+                hover: false, // Activate on hover
+                gutter: 0, // Spacing from edge
+                belowOrigin: true, // Displays dropdown below the button
+                alignment: 'left', // Displays dropdown with edge aligned to the left of button
+                stopPropagation: false // Stops event propagation
+            });
+    });
+</script>
