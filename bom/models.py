@@ -152,7 +152,7 @@ class Part(models.Model):
         number_class = None
         number_item = None
         number_variation = None
-        parse_partial_part_number(part_number, number_item_len)
+        (number_class, number_item, number_variation) = Part.parse_partial_part_number(part_number, number_item_len)
 
         if number_class is None:
             raise AttributeError("Missing part number part class")
@@ -171,12 +171,12 @@ class Part(models.Model):
         number_variation = None
 
         if len(elements) == 3:
-            number_class = verify_format_number_class(elements[0])
-            number_item = verify_format_number_item(elements[1], number_item_len)
-            number_variation = verify_format_number_variation(elements[2])
+            number_class = Part.verify_format_number_class(elements[0])
+            number_item = Part.verify_format_number_item(elements[1], number_item_len)
+            number_variation = Part.verify_format_number_variation(elements[2])
         elif len(elements) == 2:
-            number_class = verify_format_number_class(elements[0])
-            number_item = verify_format_number_item(elements[1], number_item_len)
+            number_class = Part.verify_format_number_class(elements[0])
+            number_item = Part.verify_format_number_item(elements[1], number_item_len)
 
         return number_class, number_item, number_variation
 
