@@ -115,63 +115,68 @@ class Part(models.Model):
         return "{0}-{1}-{2}".format(self.number_class.code, self.number_item, self.number_variation)
 
     @staticmethod
-    def parse_part_number(part_number, number_item_len):
-        if not part_number is None:
-            for c in part_number:
-                if not c.isdigit() and c != '-':
-                    raise AttributeError("{} is not a proper character for a part number string".format(c))
-        else:
-            raise AttributeError("Cannot parse empty part number".format(part_number))
+    def verify_format_number_class(number_class):
+        if len(number_class) != PartClass.CODE_LEN:
+            raise AttributeError("Expect " + str(PartClass.CODE_LEN) + " digits for number class")
+        elif number_class is not None:
+            for c in number_class:
+                if not c.isdigit():
+                    raise AttributeError("{} is not a proper character for a number class".format(c))
+        return number_class
 
-        elements = part_number.split('-')
-        if len(elements) != 3: raise AttributeError("Ill-formed part number")
-        number_class = elements[0]
-        if len(number_class) != PartClass.CODE_LEN or not number_class.isdigit(): raise AttributeError("Expect " + str(PartClass.CODE_LEN) + " digits for part class")
-        number_item = elements[1]
-        if len(number_item) != number_item_len or not number_item.isdigit(): raise AttributeError("Expect " + str(number_item_len) + " digits for item number")
-        number_variation = elements[2]
-        if len(number_variation) != Part.NUMBER_VARIATION_LEN: raise AttributeError("Expect " + str(Part.NUMBER_VARIATION_LEN) + " digits for number variation")
+    @staticmethod
+    def verify_format_number_item(number_item, number_item_len):
+        if len(number_item) != number_item_len:
+            raise AttributeError("Expect {} digits for number item".format(number_item_len))
+        elif number_item is not None:
+            for c in number_item:
+                if not c.isdigit():
+                    raise AttributeError("{} is not a proper character for a number item".format(c))
+        return number_item
+
+    @staticmethod
+    def verify_format_number_variation(number_variation):
+        if len(number_variation) != Part.NUMBER_VARIATION_LEN:
+            raise AttributeError("Expect " + str(Part.NUMBER_VARIATION_LEN) + " characters for number variation")
+        elif number_variation is not None:
+            for c in number_variation:
+                if not c.isalnum():
+                    raise AttributeError("{} is not a proper character for a number variation".format(c))
+        return number_variation
+
+    @staticmethod
+    def parse_part_number(part_number, number_item_len):
+        if part_number is None:
+            raise AttributeError("Cannot parse empty part number")
+
+        number_class = None
+        number_item = None
+        number_variation = None
+        parse_partial_part_number(part_number, number_item_len)
+
+        if number_class is None:
+            raise AttributeError("Missing part number part class")
+        if number_item is None:
+            raise AttributeError("Missing part number item number")
+        if number_variation is None:
+            raise AttributeError("Missing part number part item variation")
+
         return number_class, number_item, number_variation
 
     @staticmethod
     def parse_partial_part_number(part_number, number_item_len):
-        if part_number is not None:
-            for c in part_number:
-                if not c.isdigit() and c != '-':
-                    raise AttributeError("{} is not a proper character for a part number string".format(c))
-        else:
-            return None, None, None
-
         elements = part_number.split('-')
         number_class = None
         number_item = None
         number_variation = None
 
-        def verify_format_number_class(number_class):
-            if len(number_class) != PartClass.CODE_LEN or not number_class.isdigit():
-                raise AttributeError("Expect " + str(PartClass.CODE_LEN) + " digits for part class")
-            else:
-                return number_class
-
-        def verify_format_number_item(number_item):
-            if len(number_item) != number_item_len or not number_item.isdigit():
-                raise AttributeError("Expect " + number_item_len + " digits for item number")
-            else:
-                return number_item
-
-        def verify_format_number_variation(number_variation):
-            if len(number_variation) != Part.NUMBER_VARIATION_LEN:
-                raise AttributeError("Expect " + str(Part.NUMBER_VARIATION_LEN) + " digits for number variation")
-            else:
-                return number_variation
-
         if len(elements) == 3:
             number_class = verify_format_number_class(elements[0])
-            number_item = verify_format_number_item(elements[1])
+            number_item = verify_format_number_item(elements[1], number_item_len)
             number_variation = verify_format_number_variation(elements[2])
         elif len(elements) == 2:
             number_class = verify_format_number_class(elements[0])
-            number_item = verify_format_number_item(elements[1])
+            number_item = verify_format_number_item(elements[1], number_item_len)
 
         return number_class, number_item, number_variation
 
@@ -250,7 +255,7 @@ class Part(models.Model):
                 number_item=self.number_item).order_by('number_variation').last()
 
             if not last_number_variation:
-                self.number_variation = '01'
+                self.number_variation = '00'
             else:
                 try:
                     self.number_variation = "{0:0=2d}".format(int(last_number_variation.number_variation) + 1)

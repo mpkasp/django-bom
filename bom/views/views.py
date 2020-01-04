@@ -839,7 +839,7 @@ def create_part(request):
                 if old_manufacturer and new_manufacturer_name == '':
                     manufacturer = old_manufacturer
                 elif new_manufacturer_name and new_manufacturer_name != '' and not old_manufacturer:
-                    manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization)
+                    manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization, defaults={'name': new_manufacturer_name})
                 else:
                     messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
                     return TemplateResponse(request, 'bom/create-part.html', locals())

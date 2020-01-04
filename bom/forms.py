@@ -492,8 +492,8 @@ class PartCSVForm(forms.Form):
                         if is_valid_choice(part_data[k], v):
                             setattr(part_revision, k, part_data[k])
                         else:
-                            self.add_warning(None, "'{0}' is an invalid choice of value for '{1}' for part in row {2} . Uploading of this property skipped. "
-                                                   "Part will still be uploaded".format(part_data[k], k, row_count))
+                            self.self.warnings.append("'{0}' is an invalid choice of value for '{1}' for part in row {2} . Uploading of this property skipped. "
+                                                       "Part will still be uploaded".format(part_data[k], k, row_count))
 
                 # Optional properties with units:
                 props_with_unit_choices = {
@@ -579,6 +579,27 @@ class PartForm(forms.ModelForm):
         number_class = cleaned_data.get('number_class')
         number_item = cleaned_data.get('number_item')
         number_variation = cleaned_data.get('number_variation')
+
+        try:
+            if number_class.code is not None:
+                Part.verify_format_number_class(number_class.code)
+        except AttributeError as e:
+            validation_error = forms.ValidationError(str(e), code='invalid')
+            self.add_error('number_class', validation_error)
+
+        try:
+            if number_item is not None:
+                Part.verify_format_number_item(number_item, self.organization.number_item_len)
+        except AttributeError as e:
+            validation_error = forms.ValidationError(str(e), code='invalid')
+            self.add_error('number_item', validation_error)
+
+        try:
+            if number_variation is not None:
+                Part.verify_format_number_variation(number_variation)
+        except AttributeError as e:
+            validation_error = forms.ValidationError(str(e), code='invalid')
+            self.add_error('number_variation', validation_error)
 
         try:
             Part.objects.get(
@@ -770,9 +791,9 @@ class AddSubpartForm(forms.Form):
                 number_variation=number_variation,
                 organization=self.organization
             ).latest()
-        except AttributeError:
+        except AttributeError as e:
             validation_error = forms.ValidationError(
-                ("Ill-formed part number {}.".format(subpart_part_number)),
+                "Ill-formed subpart part number... " + str(e) + ".",
                 code='invalid')
             self.add_error('subpart_part_number', validation_error)
         except PartClass.DoesNotExist:
@@ -825,9 +846,9 @@ class UploadBOMForm(forms.Form):
                 number_variation=number_variation,
                 organization=self.organization
             )
-        except AttributeError:
+        except AttributeError as e:
             validation_error = forms.ValidationError(
-                ("Ill-formed parent part number {}.".format(parent_part_number)),
+                "Ill-formed parent part number... " + str(e) + ".",
                 code='invalid')
             self.add_error('parent_part_number', validation_error)
         except PartClass.DoesNotExist:
@@ -982,7 +1003,7 @@ class BOMCSVForm(forms.Form):
                 AssemblySubparts.objects.get_or_create(assembly=parent_part_revision.assembly, subpart=new_subpart)
 
                 if not created:
-                    self.add_warning(None, f"Already created part on row {row_count}, {part_number}, rev {revision}, qty {count}, ref: {reference}. Did not create it again.")
+                    self.warnings.append(f"Already created part on row {row_count}, {part_number}, rev {revision}, qty {count}, ref: {reference}. Did not create it again.")
                 else:
                     info_msg = "Added subpart "
                     if reference:
