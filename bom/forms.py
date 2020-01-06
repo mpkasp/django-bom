@@ -492,7 +492,7 @@ class PartCSVForm(forms.Form):
                         if is_valid_choice(part_data[k], v):
                             setattr(part_revision, k, part_data[k])
                         else:
-                            self.self.warnings.append("'{0}' is an invalid choice of value for '{1}' for part in row {2} . Uploading of this property skipped. "
+                            self.warnings.append("'{0}' is an invalid choice of value for '{1}' for part in row {2} . Uploading of this property skipped. "
                                                        "Part will still be uploaded".format(part_data[k], k, row_count))
 
                 # Optional properties with units:
@@ -581,21 +581,21 @@ class PartForm(forms.ModelForm):
         number_variation = cleaned_data.get('number_variation')
 
         try:
-            if number_class.code is not None:
+            if number_class is not None and number_class.code is not '':
                 Part.verify_format_number_class(number_class.code)
         except AttributeError as e:
             validation_error = forms.ValidationError(str(e), code='invalid')
             self.add_error('number_class', validation_error)
 
         try:
-            if number_item is not None:
+            if number_item is not '':
                 Part.verify_format_number_item(number_item, self.organization.number_item_len)
         except AttributeError as e:
             validation_error = forms.ValidationError(str(e), code='invalid')
             self.add_error('number_item', validation_error)
 
         try:
-            if number_variation is not None:
+            if number_variation is not '':
                 Part.verify_format_number_variation(number_variation)
         except AttributeError as e:
             validation_error = forms.ValidationError(str(e), code='invalid')
