@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: django-bom
-Version: 1.129
+Version: 1.130
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian
@@ -12,7 +12,7 @@ Description: # BOM
         
         BOM can be added to an existing (or new) Django project, or stand alone on its own, which can be more convenient if you're interested in tweaking the tool. 
         
-        An example of the app in use can be seen [here](https://www.indabom.com).
+        As an example, a live running version of the app in use can be seen [here](https://www.indabom.com).
         
         If you already have a django project, you can skip to [Add Django Bom To Your App](#add-django-bom-to-your-app), otherwise [Start From Scratch: Add to new Django project](#start-from-scratch) to add it to a new django project, or [Start From Scratch: Use as standalone Django project](#start-from-scratch-standalone).
         
