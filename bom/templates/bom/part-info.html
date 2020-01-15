@@ -88,10 +88,7 @@
                     <div class="col m2 push-l5 push-m4 s6 right-align part-info-form">
                         <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
                             {% csrf_token %}
-                            <div class="hide-on-med-and-up" style="width: 100%;">
-                                {{ part_info_form }}
-                            </div>
-                            <div class="hide-on-small-and-down" style="width: 100%; margin: 0px;">
+                            <div style="width: 100%;">
                                 {{ part_info_form }}
                             </div>
                             <input type="submit" style="position: absolute; visibility: hidden; display: none;">
