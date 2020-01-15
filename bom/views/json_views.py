@@ -22,7 +22,10 @@ class MouserPartMatchBOM(BomJsonResponse):
         subparts = part_revision.assembly.subparts.all()
         part_revision_ids = list(subparts.values_list('part_revision', flat=True))
         part_ids = list(subparts.values_list('part_revision__part', flat=True))
+
         part_revision_ids.append(part_revision_id)
+        part_ids.append(part_revision.part_id)
+
         part_revisions = PartRevision.objects.filter(id__in=part_revision_ids)
         manufacturer_parts = ManufacturerPart.objects.filter(part__in=part_ids, source_mouser=True)
         part = part_revision.part
@@ -41,7 +44,8 @@ class MouserPartMatchBOM(BomJsonResponse):
                 bom_dict[pr.id] = {
                     'part_revision': part_revision,
                     'manufacturer_part': mp_lookup[pr.part_id],
-                    'quantity': flat_bom[pr.id]['quantity'] * assy_quantity,
+                    'quantity_extended': flat_bom[pr.id]['quantity'] * assy_quantity,
+                    'quantity': flat_bom[pr.id]['quantity'],
                 }
             except KeyError:  # No manufacturer part to care about
                 continue
@@ -52,8 +56,12 @@ class MouserPartMatchBOM(BomJsonResponse):
         for part_revision_id, bd in bom_dict.items():
             try:
                 print('attempting to match: {} {}'.format(bd['manufacturer_part'].manufacturer_part_number, bd['quantity']))
-                part_seller_info = mouser.search_and_match(bd['manufacturer_part'].manufacturer_part_number, quantity=bd['quantity'])
-                bd['part_seller_info'] = part_seller_info
+                part_seller_info = mouser.search_and_match(bd['manufacturer_part'].manufacturer_part_number, quantity=bd['quantity_extended'])
+                # bd['part_seller_info'] = part_seller_info
+                part_seller_info.update({
+                    'quantity': bd['quantity'],
+                    'quantity_extended': bd['quantity_extended'],
+                })
                 seller_parts[part_revision_id] = part_seller_info
             except IOError as e:
                 self.response['errors'].append("Error communicating: {}".format(e))

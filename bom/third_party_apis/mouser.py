@@ -14,7 +14,7 @@ class MouserApi(BaseApi):
         data = json.loads(content)
         errors = data['Errors']
         if len(errors) > 0:
-            raise "Error(s): {}".format(errors)
+            raise Exception("Error(s): {}".format(errors))
         return data
 
     def search_keyword(self, keyword):

@@ -58,14 +58,15 @@
                                             <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
                                     </li>
                                     <li>
-                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                                            <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
-                                    </li>
-                                    <li>
                                         <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">
                                             <i class="material-icons green-text text-lighten-1">check</i>Release</a>
                                     </li>
-                                {% elif part_revision.configuration == 'R' %}
+                                {% endif %}
+                                <li>
+                                    <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                                        <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
+                                </li>
+                                {% if part_revision.configuration == 'R' %}
                                     <li>
                                         <a class="green-text text-lighten-1 disabled" onclick="revertPartRevision()">
                                             <i class="material-icons green-text text-lighten-1">undo</i>Revert to working</a>
@@ -157,7 +158,7 @@
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
-                                <div class="col s8 l10">${{ unit_cost|floatformat:4 }}<span id="specs-revision-timestamp"></span></div>
+                                <div id="specs-unit-cost" class="col s8 l10">${{ unit_cost|floatformat:4 }}<span id="specs-revision-timestamp"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
@@ -500,26 +501,54 @@
     <!-- Match Seller Parts -->
     <script>
         {% if 0 %} {# This functionality isn't ready yet... #}
-            var partMatchData = {};
+            let partMatchData = {};
+            let specsUnitCost = {{ unit_cost|default:0 }};
+            let partMatchCost = 0;
             $(document).ready(function () {
                 {% if part_revision.id %}
-                    $.get(
-                        "{% url 'json:mouser-part-match-bom' part_revision_id=part_revision.id %}",
+                    $.get("{% url 'json:mouser-part-match-bom' part_revision_id=part_revision.id %}",
                         function (response) {
                             partMatchData = response['content'];
-                            var errors = response['errors'];
+                            const errors = response['errors'];
                             if (errors.length > 0) {
                                 {#  TODO: Update views  #}
                                 console.error(errors);
-                                alert('Error getting mouser data');
+                                {#alert('Error getting mouser data');#}
                             } else {
-                                console.log(partMatchData);
-                                {#  TODO: Update views  #}
+                                const partRevDict = partMatchData['seller_parts'];
+                                for(const partRevId in partRevDict) {
+                                    if(partRevDict.hasOwnProperty(partRevId)) {
+                                        console.log(partRevDict[partRevId]);
+                                        const optimalPrice = partRevDict[partRevId]['optimal_seller_part']['price'];
+                                        const quantity = partRevDict[partRevId]['quantity'];
+                                        partMatchCost += optimalPrice * quantity;
+                                    }
+                                }
                             }
+                            updateSpecs(specsUnitCost, partMatchCost);
                         }
                     );
                 {% endif %}
-            })
+            });
+
+            function updateSourcing(sellerParts) {
+
+            }
+
+            function updateSpecs(specsUnitCost, partMatchCost) {
+                {# TODO: Need to handle if the user manually added sourcing information - should probably just recalculate everything in the json view #}
+                const specsUnitCostElement = $("#specs-unit-cost");
+                specsUnitCostElement.text(`$${specsUnitCost} + $${partMatchCost} (via mouser) = $${partMatchCost + specsUnitCost}`);
+                {#console.log(`specsUnitCost: ${specsUnitCost}, partUnitCost: ${partMatchCost}, total: ${partMatchCost + specsUnitCost}`);#}
+            }
+
+            function updateIndented(sellerParts) {
+
+            }
+
+            function updateFlat(sellerParts) {
+
+            }
         {% endif %}
     </script>
     <script>

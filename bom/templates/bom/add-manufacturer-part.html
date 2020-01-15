@@ -1,7 +1,7 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load staticfiles %}
-
+{% load materializecss %}
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
@@ -45,6 +45,11 @@
                         <label for="{{ manufacturer_part_form.manufacturer_part_number.id_for_label }}"><b>Manufacturer Part Number</b></label>
                         {{ manufacturer_part_form.manufacturer_part_number.errors }}
                         {{ manufacturer_part_form.manufacturer_part_number }}
+                    </div>
+                    <div class="fieldWrapper col s6">
+                        <label for="{{ manufacturer_part_form.source_mouser.id_for_label }}"><b>Pull sourcing info from Mouser</b></label>
+                        {{ manufacturer_part_form.source_mouser.errors }}
+                        {{ manufacturer_part_form.source_mouser|materializecss }}
                     </div>
                 </div>
                 <div class="row">
