@@ -12,6 +12,7 @@ from .validators import alphanumeric, numeric, validate_pct
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
     WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES
 
+from math import ceil
 from social_django.models import UserSocialAuth
 
 logger = logging.getLogger(__name__)
@@ -386,8 +387,7 @@ class PartRevision(models.Model):
         super(PartRevision, self).save(*args, **kwargs)
 
     def indented(self):
-        def indented_given_bom(bom, part_revision, parent_id=None, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None,
-                               reference='', do_not_load=False):
+        def indented_given_bom(bom, part_revision, parent_id=None, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None, reference='', do_not_load=False):
             if part_revision is None:  # hopefully this never happens
                 logger.warning("Indented bom part_revision is None, this shouldn't happen, parent part_revision id: {}".format(parent.id))
                 return
@@ -422,17 +422,6 @@ class PartRevision(models.Model):
         bom = []
         indented_given_bom(bom, self)
 
-        # For each indent level, sort by reference, if no reference then use part number.
-        # Note that need to convert part number to a list so can be compared with the 
-        # list-ified string returned by prep_for_sorting_nicely.
-        # def sort_by_reference(p):
-        #     return prep_for_sorting_nicely(p['reference']) if p['reference'] else p.__str__().split()
-        #
-        # def sort_by_indent_level(p):
-        #     return p['indent_level']
-        #
-        # bom = sorted(bom, key=sort_by_reference)
-        # bom = sorted(bom, key=sort_by_indent_level)
         return bom
 
     def flat(self, extended_quantity=100, sort=True):
@@ -476,6 +465,45 @@ class PartRevision(models.Model):
         if sort:
             bom = sorted(bom.values(), key=sort_by_references)
         return bom
+
+    def bom_summary(self, qty, indented_bom=None):
+        if indented_bom is None:
+            indented_bom = self.indented()
+
+        extended_cost_complete = True
+        unit_cost = 0
+        unit_nre = 0
+        unit_out_of_pocket_cost = 0
+        for item in indented_bom:
+            subpart = item['part']
+
+            extended_quantity = int(qty) * item['total_quantity']
+            seller_part = subpart.optimal_seller(quantity=extended_quantity)
+
+            item['extended_quantity'] = extended_quantity
+            item['seller_part'] = seller_part
+            if seller_part:
+                order_qty = seller_part.order_quantity(extended_quantity)
+                item['order_quantity'] = order_qty
+                item['extended_cost'] = extended_quantity * seller_part.unit_cost if seller_part is not None and seller_part.unit_cost is not None and extended_quantity is not None else None
+                item['out_of_pocket_cost'] = order_qty * float(seller_part.unit_cost) if seller_part is not None and seller_part.unit_cost is not None else 0
+                unit_cost = (unit_cost + seller_part.unit_cost * item['quantity']) if seller_part is not None and seller_part.unit_cost is not None else unit_cost
+                unit_out_of_pocket_cost = unit_out_of_pocket_cost + item['out_of_pocket_cost']
+                unit_nre = (unit_nre + seller_part.nre_cost) if seller_part.nre_cost is not None else unit_nre
+            else:
+                extended_cost_complete = False
+
+        extended_cost = unit_cost * int(qty)
+        total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
+        bom_summary = {
+            'extended_cost': extended_cost,
+            'extended_cost_complete': extended_cost_complete,
+            'unit_cost': unit_cost,
+            'unit_nre': unit_nre,
+            'unit_out_of_pocket_cost': unit_out_of_pocket_cost,
+            'total_out_of_pocket_cost': total_out_of_pocket_cost,
+        }
+        return indented_bom, bom_summary
 
     def where_used(self):
         # Where is a part_revision used???
@@ -609,6 +637,22 @@ class SellerPart(models.Model):
                 if new_total_cost < old_total_cost:
                     seller = sellerpart
         return seller
+
+    def order_quantity(self, extended_quantity):
+        order_qty = extended_quantity
+        if self.minimum_order_quantity is not None and extended_quantity > self.minimum_order_quantity:
+            order_qty = ceil(extended_quantity / float(self.minimum_order_quantity)) * self.minimum_order_quantity
+        return order_qty
+
+    def as_dict(self):
+        return {
+            'seller_price': self.unit_cost,
+            'seller_nre': self.nre_cost,
+            'seller_part': self,
+            'seller_moq': self.minimum_order_quantity,
+        }
+
+
 
     def __str__(self):
         return u'%s' % (self.manufacturer_part.part.full_part_number() + ' ' + self.seller.name)

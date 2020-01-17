@@ -21,7 +21,6 @@ from social_django.models import UserSocialAuth
 from functools import reduce
 
 from json import loads, dumps
-from math import ceil
 
 from bom.models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, \
     UserMeta, PartRevision, Assembly, AssemblySubparts
@@ -418,7 +417,7 @@ def part_info(request, part_id, part_revision_id=None):
     cache.set(qty_cache_key, qty, timeout=None)
 
     try:
-        parts = part_revision.indented()
+        parts, bom_summary = part_revision.bom_summary(qty)
     except RuntimeError:
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         parts = []
@@ -430,58 +429,6 @@ def part_info(request, part_id, part_revision_id=None):
     except AttributeError:
         parts_flat = []
 
-    extended_cost_complete = True
-    unit_cost = 0
-    unit_nre = 0
-    unit_out_of_pocket_cost = 0
-    references_seen = set()
-    duplicate_references = set()
-    for item in parts:
-        check_references_for_duplicates(item['reference'], references_seen, duplicate_references)
-
-        extended_quantity = int(qty) * item['total_quantity']
-        item['extended_quantity'] = extended_quantity
-
-        subpart = item['part']
-
-        seller = subpart.optimal_seller(quantity=extended_quantity)
-        order_qty = extended_quantity
-        if seller is not None and seller.minimum_order_quantity is not None and extended_quantity > seller.minimum_order_quantity:
-            order_qty = ceil(extended_quantity / float(seller.minimum_order_quantity)) * seller.minimum_order_quantity
-
-        item['seller_price'] = seller.unit_cost if seller is not None else 0
-        item['seller_nre'] = seller.nre_cost if seller is not None else 0
-        item['seller_part'] = seller
-        item['seller_moq'] = seller.minimum_order_quantity if seller is not None else 0
-        item['order_quantity'] = order_qty
-
-        # then extend that price
-        item['extended_cost'] = extended_quantity * \
-                                seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
-        item['out_of_pocket_cost'] = order_qty * \
-                                     float(seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
-
-        unit_cost = (
-                unit_cost +
-                seller.unit_cost *
-                item['quantity']) if seller is not None and seller.unit_cost is not None else unit_cost
-        unit_out_of_pocket_cost = unit_out_of_pocket_cost + \
-                                  item['out_of_pocket_cost']
-        unit_nre = (
-                unit_nre +
-                item['seller_nre']) if item['seller_nre'] is not None else unit_nre
-        if seller is None:
-            extended_cost_complete = False
-
-    # seller_price, seller_nre
-
-    extended_cost = unit_cost * int(qty)
-    total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
-
-    # if len(duplicate_references) > 0:
-    #     sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)
-    #     messages.warning(request, "Warning: The following BOM references are associated with multiple parts: " + str(sorted_duplicate_references))
-
     try:
         where_used = part_revision.where_used()
     except AttributeError:
@@ -491,11 +438,7 @@ def part_info(request, part_id, part_revision_id=None):
     seller_parts = part.seller_parts()
 
     if order_by != 'defaultOrderField' and order_by != 'indented':
-        # tab_anchor = 'bom'
         parts = sorted(parts, key=lambda k: k[order_by], reverse=True)
-    # elif order_by == 'indented':
-    #     # anchor = 'bom'
-    #     tab_anchor = None
 
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
@@ -557,24 +500,16 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
         item['extended_quantity'] = extended_quantity
 
         subpart = item['part']
-        seller = subpart.optimal_seller(quantity=extended_quantity)
-        order_qty = extended_quantity
-        if seller is not None and seller.minimum_order_quantity is not None and extended_quantity > seller.minimum_order_quantity:
-            order_qty = ceil(extended_quantity / float(seller.minimum_order_quantity)) * seller.minimum_order_quantity
+        seller_part = subpart.optimal_seller(quantity=extended_quantity)
+        order_qty = seller_part.order_quantity(extended_quantity)
 
-        item['seller_price'] = seller.unit_cost if seller is not None else 0
-        item['seller_nre'] = seller.nre_cost if seller is not None else 0
-        item['seller_part'] = seller
-        item['seller_moq'] = seller.minimum_order_quantity if seller is not None else 0
+        item.update(seller_part.as_dict())
         item['order_quantity'] = order_qty
-        item['seller_lead_time_days'] = seller.lead_time_days if seller is not None else 0
+        item['seller_lead_time_days'] = seller_part.lead_time_days if seller_part is not None else 0
 
         # then extend that price
-        item['extended_cost'] = extended_quantity * \
-                                seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
-        item['out_of_pocket_cost'] = order_qty * \
-                                     float(
-                                         seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
+        item['extended_cost'] = extended_quantity * seller_part.unit_cost if seller_part is not None and seller_part.unit_cost is not None and extended_quantity is not None else None
+        item['out_of_pocket_cost'] = order_qty * float(seller_part.unit_cost) if seller_part is not None and seller_part.unit_cost is not None else 0
 
         row = {
             'level': item['indent_level'],
@@ -585,12 +520,9 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
             'do_not_load': item['do_not_load'],
             'part_synopsis': item['part_revision'].synopsis(),
             'part_revision': item['part_revision'].revision,
-            'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item[
-                                                                                                 'part'].primary_manufacturer_part is not None and
-                                                                                             item[
-                                                                                                 'part'].primary_manufacturer_part.manufacturer is not None else '',
-            'part_manufacturer_part_number': item['part'].primary_manufacturer_part.manufacturer_part_number if item[
-                                                                                                                    'part'].primary_manufacturer_part is not None else '',
+            'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item['part'].primary_manufacturer_part is not None and
+                                                                                             item['part'].primary_manufacturer_part.manufacturer is not None else '',
+            'part_manufacturer_part_number': item['part'].primary_manufacturer_part.manufacturer_part_number if item['part'].primary_manufacturer_part is not None else '',
             'part_ext_qty': item['extended_quantity'],
             'part_order_qty': item['order_quantity'],
             'part_seller': item['seller_part'].seller.name if item['seller_part'] is not None else '',
@@ -653,22 +585,17 @@ def part_export_bom_flat(request, part_revision_id):
     for item in bom:
         extended_quantity = int(qty) * item['quantity']
         subpart = item['part']
-        seller = subpart.optimal_seller(quantity=extended_quantity)
-        order_qty = extended_quantity
-        if seller is not None and seller.minimum_order_quantity is not None and extended_quantity > seller.minimum_order_quantity:
-            order_qty = ceil(extended_quantity / float(seller.minimum_order_quantity)) * seller.minimum_order_quantity
+        seller_part = subpart.optimal_seller(quantity=extended_quantity)
+        order_qty = seller_part.order_quantity(extended_quantity)
 
-        item['seller_price'] = seller.unit_cost if seller is not None else 0
-        item['seller_nre'] = seller.nre_cost if seller is not None else 0
-        item['seller_part'] = seller
-        item['seller_moq'] = seller.minimum_order_quantity if seller is not None else 0
+        item.update(seller_part.as_dict())
         item['order_quantity'] = order_qty
-        item['seller_lead_time_days'] = seller.lead_time_days if seller is not None else 0
+        item['seller_lead_time_days'] = seller_part.lead_time_days if seller_part is not None else 0
 
         # then extend that price
-        item['extended_cost'] = extended_quantity * seller.unit_cost if seller is not None and seller.unit_cost is not None and extended_quantity is not None else None
+        item['extended_cost'] = extended_quantity * seller_part.unit_cost if seller_part is not None and seller_part.unit_cost is not None and extended_quantity is not None else None
         item['out_of_pocket_cost'] = order_qty * float(
-            seller.unit_cost) if seller is not None and seller.unit_cost is not None else 0
+            seller_part.unit_cost) if seller_part is not None and seller_part.unit_cost is not None else 0
 
         row = {
             'part_number': item['part'].full_part_number(),

@@ -155,28 +155,23 @@
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
-                                <div id="specs-unit-cost" class="col s8 l10">${{ unit_cost|floatformat:4 }}<span id="specs-revision-timestamp"></span></div>
+                                <div id="specs-unit-cost" class="col s8 l10">${{ bom_summary.unit_cost|floatformat:4 }}<span id="specs-revision-timestamp"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
-                                <div class="col s8 l10">${{ unit_nre|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                                <div class="col s8 l10">${{ bom_summary.unit_nre|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Unit Out Of Pocket:</div>
-                                <div class="col s8 l10">${{ unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                                <div class="col s8 l10">${{ bom_summary.unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total Out Of Pocket:</div>
-                                <div class="col s8 l10">${{ total_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
-                            </div>
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Unit Out Of Pocket:</div>
-                                <div class="col s8 l10">${{ unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                                <div class="col s8 l10">${{ bom_summary.total_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
                             </div>
                         </li>
                     </ul>
                 </div>
-
 
                 <div id="bom" class="col s12">
                     <div id="bom-indented">
