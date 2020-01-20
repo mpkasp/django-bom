@@ -275,10 +275,11 @@ class TestBOM(TransactionTestCase):
         repeat_part_revision = p2.latest()
         parts_p2 = 0
         qty_p2 = 0
-        for p in p3.latest().indented():
-            if p['part_revision'] == repeat_part_revision:
+        indented_bom = p3.latest().indented()
+        for _, p in indented_bom.items.items():
+            if p.part_revision == repeat_part_revision:
                 parts_p2 += 1
-                qty_p2 = p['quantity']
+                qty_p2 = p.quantity
         self.assertEqual(1, parts_p2)
         self.assertEqual(7, qty_p2)
 
@@ -292,13 +293,14 @@ class TestBOM(TransactionTestCase):
         parts_p2 = 0
         qty_p2_load = 0
         qty_p2_do_not_load = 0
-        for p in p3.latest().indented():
-            if p['part_revision'] == repeat_part_revision:
+        indented_bom = p3.latest().indented()
+        for _, p in indented_bom.items.items():
+            if p.part_revision == repeat_part_revision:
                 parts_p2 += 1
-            if p['part_revision'] == repeat_part_revision and p['do_not_load']:
-                qty_p2_do_not_load += p['quantity']
-            elif p['part_revision'] == repeat_part_revision:
-                qty_p2_load += p['quantity']
+            if p.part_revision == repeat_part_revision and p.do_not_load:
+                qty_p2_do_not_load += p.quantity
+            elif p.part_revision == repeat_part_revision:
+                qty_p2_load += p.quantity
 
         self.assertEqual(2, parts_p2)
         self.assertEqual(3, qty_p2_do_not_load)

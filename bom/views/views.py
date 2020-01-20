@@ -417,17 +417,19 @@ def part_info(request, part_id, part_revision_id=None):
     cache.set(qty_cache_key, qty, timeout=None)
 
     try:
-        parts, bom_summary = part_revision.bom_summary(qty)
+        indented_bom = part_revision.indented(top_level_quantity=qty)
     except RuntimeError:
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
-        parts = []
-    except AttributeError:
-        parts = []
+        indented_bom = []
+    except AttributeError as err:
+        messages.error(request, err)
+        indented_bom = []
 
     try:
-        parts_flat = part_revision.flat(extended_quantity=qty)
-    except AttributeError:
-        parts_flat = []
+        flat_bom = part_revision.flat(top_level_quantity=qty)
+    except AttributeError as err:
+        messages.error(request, err)
+        flat_bom = []
 
     try:
         where_used = part_revision.where_used()
@@ -438,7 +440,7 @@ def part_info(request, part_id, part_revision_id=None):
     seller_parts = part.seller_parts()
 
     if order_by != 'defaultOrderField' and order_by != 'indented':
-        parts = sorted(parts, key=lambda k: k[order_by], reverse=True)
+        indented_bom = sorted(indented_bom, key=lambda k: k[order_by], reverse=True)
 
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
@@ -467,73 +469,15 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_indented.csv"'.format(
         part.full_part_number())
 
-    bom = part_revision.indented()
-
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 1000)
 
-    fieldnames = [
-        'level',
-        'part_number',
-        'quantity',
-        'part_class',
-        'reference',
-        'do_not_load',
-        'part_synopsis',
-        'part_revision',
-        'part_manufacturer',
-        'part_manufacturer_part_number',
-        'part_ext_qty',
-        'part_order_qty',
-        'part_seller',
-        'part_cost',
-        'part_moq',
-        'part_ext_cost',
-        'part_out_of_pocket_cost',
-        'part_nre',
-        'part_lead_time_days', ]
-
-    writer = csv.DictWriter(response, fieldnames=fieldnames)
+    bom = part_revision.indented(top_level_quantity=qty)
+    headers = list(bom.items.items())[0][1].as_dict_for_export().keys()
+    writer = csv.DictWriter(response, fieldnames=headers)
     writer.writeheader()
-    for item in bom:
-        extended_quantity = int(qty) * item['total_quantity']
-        item['extended_quantity'] = extended_quantity
-
-        subpart = item['part']
-        seller_part = subpart.optimal_seller(quantity=extended_quantity)
-        order_qty = seller_part.order_quantity(extended_quantity)
-
-        item.update(seller_part.as_dict())
-        item['order_quantity'] = order_qty
-        item['seller_lead_time_days'] = seller_part.lead_time_days if seller_part is not None else 0
-
-        # then extend that price
-        item['extended_cost'] = extended_quantity * seller_part.unit_cost if seller_part is not None and seller_part.unit_cost is not None and extended_quantity is not None else None
-        item['out_of_pocket_cost'] = order_qty * float(seller_part.unit_cost) if seller_part is not None and seller_part.unit_cost is not None else 0
-
-        row = {
-            'level': item['indent_level'],
-            'part_number': item['part'].full_part_number(),
-            'quantity': item['quantity'],
-            'part_class': item['part'].number_class.name,
-            'reference': item['reference'],
-            'do_not_load': item['do_not_load'],
-            'part_synopsis': item['part_revision'].synopsis(),
-            'part_revision': item['part_revision'].revision,
-            'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item['part'].primary_manufacturer_part is not None and
-                                                                                             item['part'].primary_manufacturer_part.manufacturer is not None else '',
-            'part_manufacturer_part_number': item['part'].primary_manufacturer_part.manufacturer_part_number if item['part'].primary_manufacturer_part is not None else '',
-            'part_ext_qty': item['extended_quantity'],
-            'part_order_qty': item['order_quantity'],
-            'part_seller': item['seller_part'].seller.name if item['seller_part'] is not None else '',
-            'part_cost': item['seller_price'] if item['seller_price'] is not None else 0,
-            'part_moq': item['seller_moq'] if item['seller_moq'] is not None else 0,
-            'part_ext_cost': item['extended_cost'] if item['extended_cost'] is not None else 0,
-            'part_out_of_pocket_cost': item['out_of_pocket_cost'],
-            'part_nre': item['seller_nre'] if item['seller_nre'] is not None else 0,
-            'part_lead_time_days': item['seller_lead_time_days'],
-        }
-        writer.writerow({k: smart_str(v) for k, v in row.items()})
+    for _, item in bom.items.items():
+        writer.writerow({k: smart_str(v) for k, v in item.as_dict_for_export().items()})
     return response
 
 
@@ -553,70 +497,18 @@ def part_export_bom_flat(request, part_revision_id):
     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_flat.csv"'.format(
         part_revision.part.full_part_number())
 
-    bom = part_revision.flat()
-
     # As compared to indented bom, show all references for a subpart as a single item and
     # don't show do_not_load status at all because it won't be clear as to which subpart reference
     # the do_not_load refers to.
-    fieldnames = [
-        'part_number',
-        'quantity',
-        'part_class',
-        'references',
-        'part_synopsis',
-        'part_revision',
-        'part_manufacturer',
-        'part_manufacturer_part_number',
-        'part_ext_qty',
-        'part_order_qty',
-        'part_seller',
-        'part_cost',
-        'part_moq',
-        'part_ext_cost',
-        'part_out_of_pocket_cost',
-        'part_nre',
-        'part_lead_time_days', ]
-
     qty_cache_key = str(part_revision.part.id) + '_qty'
     qty = cache.get(qty_cache_key, 1000)
 
-    writer = csv.DictWriter(response, fieldnames=fieldnames)
+    bom = part_revision.flat(top_level_quantity=qty)
+    headers = list(bom.items.items())[0][1].as_dict_for_export().keys()
+    writer = csv.DictWriter(response, fieldnames=headers)
     writer.writeheader()
-    for item in bom:
-        extended_quantity = int(qty) * item['quantity']
-        subpart = item['part']
-        seller_part = subpart.optimal_seller(quantity=extended_quantity)
-        order_qty = seller_part.order_quantity(extended_quantity)
-
-        item.update(seller_part.as_dict())
-        item['order_quantity'] = order_qty
-        item['seller_lead_time_days'] = seller_part.lead_time_days if seller_part is not None else 0
-
-        # then extend that price
-        item['extended_cost'] = extended_quantity * seller_part.unit_cost if seller_part is not None and seller_part.unit_cost is not None and extended_quantity is not None else None
-        item['out_of_pocket_cost'] = order_qty * float(
-            seller_part.unit_cost) if seller_part is not None and seller_part.unit_cost is not None else 0
-
-        row = {
-            'part_number': item['part'].full_part_number(),
-            'quantity': item['quantity'],
-            'part_class': item['part'].number_class.name,
-            'references': item['references'],
-            'part_synopsis': item['part_revision'].synopsis(),
-            'part_revision': item['part_revision'].revision,
-            'part_manufacturer': item['part'].primary_manufacturer_part.manufacturer.name if item['part'].primary_manufacturer_part is not None and
-                                                                                             item['part'].primary_manufacturer_part.manufacturer is not None else '',
-            'part_manufacturer_part_number': item['part'].primary_manufacturer_part.manufacturer_part_number if item['part'].primary_manufacturer_part is not None else '',
-            'part_order_qty': item['order_quantity'],
-            'part_seller': item['seller_part'].seller.name if item['seller_part'] is not None else '',
-            'part_cost': item['seller_price'] if item['seller_price'] is not None else 0,
-            'part_moq': item['seller_moq'] if item['seller_moq'] is not None else 0,
-            'part_ext_cost': item['extended_cost'] if item['extended_cost'] is not None else 0,
-            'part_out_of_pocket_cost': item['out_of_pocket_cost'],
-            'part_nre': item['seller_nre'] if item['seller_nre'] is not None else 0,
-            'part_lead_time_days': item['seller_lead_time_days'],
-        }
-        writer.writerow({k: smart_str(v) for k, v in row.items()})
+    for _, item in bom.items.items():
+        writer.writerow({k: smart_str(v) for k, v in item.as_dict_for_export().items()})
     return response
 
 
@@ -866,21 +758,15 @@ def manage_bom(request, part_id, part_revision_id):
     add_subpart_form = AddSubpartForm(initial={'count': 1, }, organization=organization, part_id=part_id)
     upload_subparts_csv_form = FileForm()
 
-    parts = part_revision.indented()
-
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 100)
+
+    indented_bom = part_revision.indented(top_level_quantity=qty)
 
     references_seen = set()
     duplicate_references = set()
     for sp in part_revision.assembly.subparts.all():
         check_references_for_duplicates(sp.reference, references_seen, duplicate_references)
-
-    for item in parts:
-        extended_quantity = int(qty) * int(item['total_quantity'])
-        seller = item['part'].optimal_seller(quantity=extended_quantity)
-        item['seller_price'] = seller.unit_cost if seller is not None else None
-        item['seller_part'] = seller
 
     if len(duplicate_references) > 0:
         sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)

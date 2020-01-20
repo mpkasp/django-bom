@@ -155,19 +155,19 @@
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
-                                <div id="specs-unit-cost" class="col s8 l10">${{ bom_summary.unit_cost|floatformat:4 }}<span id="specs-revision-timestamp"></span></div>
+                                <div id="specs-unit-cost" class="col s8 l10">${{ indented_bom.unit_cost|floatformat:4 }}<span id="specs-revision-timestamp"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
-                                <div class="col s8 l10">${{ bom_summary.unit_nre|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                                <div class="col s8 l10">${{ indented_bom.nre|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Unit Out Of Pocket:</div>
-                                <div class="col s8 l10">${{ bom_summary.unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                                <div class="col s8 l10">${{ indented_bom.unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total Out Of Pocket:</div>
-                                <div class="col s8 l10">${{ bom_summary.total_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                                <div class="col s8 l10">${{ indented_bom.total_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
                             </div>
                         </li>
                     </ul>
@@ -178,13 +178,13 @@
                         <div class="text-center" style="padding-top: 8px;">
                             <span>Indented</span> | <a onclick="showFlatBOM()" href="#">Flat</a>
                         </div>
-                        {% include 'bom/bom-indented.html' with order_by=order_by parts=parts part=part part_revision=part_revision profile=profile %}
+                        {% include 'bom/bom-indented.html' with order_by=order_by bom_items=indented_bom.items part=part part_revision=part_revision profile=profile %}
                     </div>
                     <div id="bom-flat" style="display: none;">
                         <div class="text-center" style="padding-top: 8px;">
                             <a onclick="showIndentedBOM()" href="#">Indented</a> | <span>Flat</span>
                         </div>
-                        {% include 'bom/bom-flat.html' with order_by=order_by parts=parts_flat part=part part_revision=part_revision profile=profile %}
+                        {% include 'bom/bom-flat.html' with order_by=order_by bom_items=flat_bom.items part=part part_revision=part_revision profile=profile %}
                     </div>
                 </div>
 

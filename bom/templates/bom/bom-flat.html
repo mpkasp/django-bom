@@ -55,10 +55,10 @@
             <th class="text-normal">NRE</th>
         </tr>
         </thead>
-        {% for subpart in parts %}
+        {% for bom_id, subpart in bom_items.items %}
             <tr>
                 <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
-                <td class="text-normal">{{ subpart.quantity }}</td>
+                <td class="text-normal">{{ subpart.extended_quantity }}</td>
                 <td class="text-normal">{{ subpart.references | default:"-" }}</td>
                 <td class="text-normal">{{ subpart.do_not_load | default:"-" }}</td>
                 <td class="text-normal">{{ subpart.part_revision.synopsis }}</td>

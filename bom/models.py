@@ -7,6 +7,7 @@ from django.db import models
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
 from django.core.validators import MaxValueValidator, MinValueValidator
+from .part_bom import PartIndentedBomItem, PartBomItem, PartBom
 from .utils import increment_str, prep_for_sorting_nicely, listify_string, stringify_list, strip_trailing_zeros
 from .validators import alphanumeric, numeric, validate_pct
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
@@ -386,27 +387,31 @@ class PartRevision(models.Model):
         self.displayable_synopsis = self.generate_synopsis(False)
         super(PartRevision, self).save(*args, **kwargs)
 
-    def indented(self):
+    def indented(self, top_level_quantity=100):
         def indented_given_bom(bom, part_revision, parent_id=None, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None, reference='', do_not_load=False):
-            if part_revision is None:  # hopefully this never happens
-                logger.warning("Indented bom part_revision is None, this shouldn't happen, parent part_revision id: {}".format(parent.id))
-                return
+            bom_item_id = (parent_id or '') + (str(part_revision.id) + '-dnl' if do_not_load else str(part_revision.id))
+            extended_quantity = parent_qty * qty
+            total_extended_quantity = top_level_quantity * extended_quantity
 
-            bom_id = str(part_revision.id) + '-dnl' if do_not_load else str(part_revision.id)
+            try:
+                seller_part = part_revision.part.optimal_seller(quantity=total_extended_quantity)
+            except AttributeError:
+                seller_part = None
 
-            bom.append({
-                'id': bom_id,
-                'part': part_revision.part,
-                'part_revision': part_revision,
-                'quantity': qty,
-                'parent_quantity': parent_qty,
-                'total_quantity': parent_qty * qty,
-                'indent_level': indent_level,
-                'parent_id': parent_id,
-                'subpart': subpart,
-                'do_not_load': do_not_load,
-                'reference': reference,
-            })
+            bom.append_item_and_update(PartIndentedBomItem(
+                bom_id=bom_item_id,
+                part=part_revision.part,
+                part_revision=part_revision,
+                do_not_load=do_not_load,
+                references=reference,
+                quantity=qty,
+                extended_quantity=extended_quantity,
+                parent_quantity=parent_qty,  # Do we need this?
+                indent_level=indent_level,
+                parent_id=parent_id,
+                subpart=subpart,
+                seller_part=seller_part,
+            ))
 
             indent_level = indent_level + 1
             if part_revision is None or part_revision.assembly is None or part_revision.assembly.subparts.count() == 0:
@@ -416,33 +421,40 @@ class PartRevision(models.Model):
                 for sp in part_revision.assembly.subparts.all():
                     qty = sp.count
                     reference = sp.reference
-                    indented_given_bom(bom, sp.part_revision, parent_id=bom_id, parent=part_revision, qty=qty, parent_qty=parent_qty,
+                    indented_given_bom(bom, sp.part_revision, parent_id=bom_item_id, parent=part_revision, qty=qty, parent_qty=parent_qty,
                                        indent_level=indent_level, subpart=sp, reference=reference, do_not_load=sp.do_not_load)
 
-        bom = []
+        bom = PartBom(part_revision=self, quantity=top_level_quantity)
         indented_given_bom(bom, self)
 
         return bom
 
-    def flat(self, extended_quantity=100, sort=True):
+    def flat(self, top_level_quantity=100, sort=False):
         def flat_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, subpart=None, reference=''):
-            if part_revision is None:  # hopefully this never happens
-                logger.warning("Flat bom part_revision is None, this shouldn't happen, parent "
-                               "part_revision id: {}".format(parent.id))
-                return
+            extended_quantity = parent_qty * qty
+            total_extended_quantity = top_level_quantity * extended_quantity
 
-            if part_revision.id in bom:
-                bom[part_revision.id]['quantity'] += parent_qty * qty
-                ref = ', ' + reference if reference != '' else ''
-                bom[part_revision.id]['references'] += ref
-            else:
-                bom[part_revision.id] = {
-                    'part': part_revision.part,
-                    'seller_part': part_revision.part.optimal_seller(quantity=extended_quantity * qty),
-                    'part_revision': part_revision,
-                    'quantity': qty * parent_qty,
-                    'references': reference,
-                }
+            try:
+                seller_part = part_revision.part.optimal_seller(quantity=total_extended_quantity)
+            except AttributeError:
+                seller_part = None
+
+            try:
+                do_not_load = subpart.do_not_load
+            except AttributeError:
+                do_not_load = False
+
+            bom_item_id = str(part_revision.id) + '-dnl' if do_not_load else str(part_revision.id)
+            bom.append_item_and_update(PartBomItem(
+                bom_id=bom_item_id,
+                part=part_revision.part,
+                part_revision=part_revision,
+                do_not_load=do_not_load,
+                references=reference,
+                quantity=qty,
+                extended_quantity=extended_quantity,
+                seller_part=seller_part,
+            ))
 
             if part_revision is None or part_revision.assembly is None or part_revision.assembly.subparts.count() == 0:
                 return
@@ -451,59 +463,19 @@ class PartRevision(models.Model):
                 for sp in part_revision.assembly.subparts.all():
                     qty = sp.count
                     reference = sp.reference
-                    flat_given_bom(bom, sp.part_revision, parent=part_revision, qty=qty, parent_qty=parent_qty,
-                                   subpart=sp, reference=reference)
+                    flat_given_bom(bom, sp.part_revision, parent=part_revision, qty=qty, parent_qty=parent_qty, subpart=sp, reference=reference)
 
-        bom = {}
-        flat_given_bom(bom, self)
+        flat_bom = PartBom(part_revision=self, quantity=top_level_quantity)
+        flat_given_bom(flat_bom, self)
 
         # Sort by references, if no references then use part number.
         # Note that need to convert part number to a list so can be compared with the 
         # list-ified string returned by prep_for_sorting_nicely.
         def sort_by_references(p):
-            return prep_for_sorting_nicely(p['references']) if p['references'] else p.__str__().split()
+            return prep_for_sorting_nicely(p.references) if p.references else p.__str__().split()
         if sort:
-            bom = sorted(bom.values(), key=sort_by_references)
-        return bom
-
-    def bom_summary(self, qty, indented_bom=None):
-        if indented_bom is None:
-            indented_bom = self.indented()
-
-        extended_cost_complete = True
-        unit_cost = 0
-        unit_nre = 0
-        unit_out_of_pocket_cost = 0
-        for item in indented_bom:
-            subpart = item['part']
-
-            extended_quantity = int(qty) * item['total_quantity']
-            seller_part = subpart.optimal_seller(quantity=extended_quantity)
-
-            item['extended_quantity'] = extended_quantity
-            item['seller_part'] = seller_part
-            if seller_part:
-                order_qty = seller_part.order_quantity(extended_quantity)
-                item['order_quantity'] = order_qty
-                item['extended_cost'] = extended_quantity * seller_part.unit_cost if seller_part is not None and seller_part.unit_cost is not None and extended_quantity is not None else None
-                item['out_of_pocket_cost'] = order_qty * float(seller_part.unit_cost) if seller_part is not None and seller_part.unit_cost is not None else 0
-                unit_cost = (unit_cost + seller_part.unit_cost * item['quantity']) if seller_part is not None and seller_part.unit_cost is not None else unit_cost
-                unit_out_of_pocket_cost = unit_out_of_pocket_cost + item['out_of_pocket_cost']
-                unit_nre = (unit_nre + seller_part.nre_cost) if seller_part.nre_cost is not None else unit_nre
-            else:
-                extended_cost_complete = False
-
-        extended_cost = unit_cost * int(qty)
-        total_out_of_pocket_cost = unit_out_of_pocket_cost + float(unit_nre)
-        bom_summary = {
-            'extended_cost': extended_cost,
-            'extended_cost_complete': extended_cost_complete,
-            'unit_cost': unit_cost,
-            'unit_nre': unit_nre,
-            'unit_out_of_pocket_cost': unit_out_of_pocket_cost,
-            'total_out_of_pocket_cost': total_out_of_pocket_cost,
-        }
-        return indented_bom, bom_summary
+            flat_bom.items = sorted(flat_bom.items.values(), key=sort_by_references)
+        return flat_bom
 
     def where_used(self):
         # Where is a part_revision used???
