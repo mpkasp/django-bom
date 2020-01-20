@@ -5,6 +5,7 @@ setup.py
 bom/__init__.py
 bom/admin.py
 bom/apps.py
+bom/base_classes.py
 bom/constants.py
 bom/context_processors.py
 bom/decorators.py
@@ -12,6 +13,7 @@ bom/forms.py
 bom/helpers.py
 bom/local_settings.py
 bom/models.py
+bom/part_bom.py
 bom/settings.py
 bom/tests.py
 bom/urls.py
