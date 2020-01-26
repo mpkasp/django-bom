@@ -155,19 +155,19 @@
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
-                                <div id="specs-unit-cost" class="col s8 l10">${{ indented_bom.unit_cost|floatformat:4 }}&nbsp;<span id="mouser-est-cost"></span></div>
+                                <div id="specs-unit-cost" class="col s8 l10"><span id="mouser-est-cost"></span><span>${{ indented_bom.unit_cost|floatformat:4 }}</span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Subparts without costs:</div>
-                                <div class="col s8 l10">{{ indented_bom.missing_item_costs }}&nbsp;<span id="mouser-missing-item-costs"></span></div>
+                                <div class="col s8 l10"><span id="mouser-missing-item-costs"></span><span>{{ indented_bom.missing_item_costs }}</span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
-                                <div class="col s8 l10">${{ indented_bom.nre|floatformat:2 }}&nbsp;<span id="mouser-est-nre"></span></div>
+                                <div class="col s8 l10"><span id="mouser-est-nre"></span><span>${{ indented_bom.nre|floatformat:2 }}</span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost per {{ qty }} Unit Order (Including MOQs):</div>
-                                <div class="col s8 l10">${{ indented_bom.out_of_pocket_cost|floatformat:2 }}&nbsp;<span id="mouser-est-cost-per-order"></span></div>
+                                <div class="col s8 l10"><span id="mouser-est-cost-per-order"></span><span>${{ indented_bom.out_of_pocket_cost|floatformat:2 }}</span></div>
                             </div>
                         </li>
                     </ul>
@@ -486,9 +486,9 @@
     </script>
 
     <!-- Match Seller Parts -->
-    {# TODO: in updateSourcing() need to update the optimal row #}
     <script>
         let partMatchData = {};
+        const mouserImage = '<img height="18" style="padding: 4px 4px 0 4px;" alt="Mouser" title="Via Mouser.com" src="{% static 'bom/img/mouser.png' %}">';
         let specsUnitCost;
         let specsEstCostPerOrder;
         let specsMissingParts;
@@ -522,8 +522,10 @@
 
         function updateSourcing(sellerParts, optimalSellerPart, stock) {
             let lastRowDict = {};
+            let mouserOptimizations = 0;
             if(sellerParts) {
                 sellerParts.forEach((sellerPart, index) => {
+                    if (sellerPart['data_source'] === 'Mouser') mouserOptimizations += 1;
                     const manufacturerPartId = parseInt(sellerPart['manufacturer_part']);
                     if (!(manufacturerPartId in lastRowDict)) {
                         const lastRow = $(`#sourcing-${manufacturerPartId}-last`);
@@ -540,8 +542,8 @@
                         const leadTime = `${sellerPart['lead_time_days']}`;
                         const nre = parseFloat(sellerPart['nre_cost']).toFixed(4);
                         const ncnr = "True";
-                        lastRowDict[manufacturerPartId].after(`<tr data-tt-id="${index + 1}" data-tt-parent-id="${manufacturerPartId}"><td></td><td></td><td>Mouser</td><td>${moq}</td><td>${mpq}</td><td>${price}</td><td>${leadTime}</td><td>${nre}</td><td>${ncnr}</td><td>(${stock} in stock)</td></tr>`)
-                        const lastRow = lastRowDict[manufacturerPartId].closest('tr').next('tr')
+                        lastRowDict[manufacturerPartId].after(`<tr data-tt-id="${index + 1}" data-tt-parent-id="${manufacturerPartId}"><td></td><td></td><td>${mouserImage} Mouser</td><td>${moq}</td><td>${mpq}</td><td>${price}</td><td>${leadTime}</td><td>${nre}</td><td>${ncnr}</td><td>(${stock} in stock)</td></tr>`)
+                        const lastRow = lastRowDict[manufacturerPartId].closest('tr').next('tr');
                         lastRowDict[manufacturerPartId] = lastRow;
                         const parentNode = $("#manufacturer-parts").treetable("node", manufacturerPartId);
                         $("#manufacturer-parts").treetable("loadBranch", parentNode, lastRow);
@@ -552,7 +554,7 @@
             if (optimalSellerPart && optimalSellerPart !== "None" ) {
                 const mpBaseId = `#sourcing-mp-${optimalSellerPart['manufacturer_part']}`;
                 if(optimalSellerPart['seller'] === null) { // TODO need to fix this to get the seller name via the API
-                    $(`${mpBaseId}-name`).text(optimalSellerPart['data_source']);
+                    $(`${mpBaseId}-name`).text(optimalSellerPart['data_source']).prepend(mouserImage);
                 }
                 $(`${mpBaseId}-moq`).text(optimalSellerPart['minimum_order_quantity']);
                 $(`${mpBaseId}-mpq`).text(optimalSellerPart['minimum_pack_quantity']);
@@ -567,9 +569,13 @@
             const mouserEstCost = $("#mouser-est-cost");
             const mouserEstCostPerOrder = $("#mouser-est-cost-per-order");
             const mouserMissingCosts = $("#mouser-missing-item-costs");
-            if (unitCost) mouserEstCost.text(`or $${unitCost} (with Mouser)`);
-            if (estCostPerOrder) mouserEstCostPerOrder.text(`or $${estCostPerOrder} (with Mouser)`);
-            if (specsMissingParts) mouserMissingCosts.text(`or ${specsMissingParts} (with Mouser)`);
+            updateSpecElement(mouserEstCost, unitCost, `$${unitCost}`);
+            updateSpecElement(mouserEstCostPerOrder, estCostPerOrder, `$${estCostPerOrder}`);
+            updateSpecElement(mouserMissingCosts, specsMissingParts, `${specsMissingParts}`);
+        }
+
+        function updateSpecElement(element, property, text) {
+            if (property != null) element.text(text + ' ').prepend(mouserImage).next().css('color', '#bdbdbd').prepend('(').append(' without Mouser)');
         }
 
         function updateIndented(indentedBomParts) {
@@ -589,7 +595,8 @@
                     const sourcingInfo = bomParts[partRevId]['api_info'] !== 'None';
                     const unitCostId = `${baseUnitCostId}${partRevId}`;
                     const unitCostElement = $(unitCostId);
-                    if(unitCost && sourcingInfo) unitCostElement.text(`${unitCost.toFixed(4)} w/ Mouser`);
+                    if(unitCost && sourcingInfo) unitCostElement.text(`${unitCost.toFixed(4)}`);
+                    if(unitCost && sourcingInfo && bomParts[partRevId]['seller_part']['data_source'] === 'Mouser') unitCostElement.append(mouserImage);
                 }
             }
         }
