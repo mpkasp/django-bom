@@ -155,19 +155,19 @@
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
-                                <div id="specs-unit-cost" class="col s8 l10">${{ indented_bom.unit_cost|floatformat:4 }}<span id="specs-revision-timestamp"></span></div>
+                                <div id="specs-unit-cost" class="col s8 l10">${{ indented_bom.unit_cost|floatformat:4 }}&nbsp;<span id="mouser-est-cost"></span></div>
+                            </div>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Subparts without costs:</div>
+                                <div class="col s8 l10">{{ indented_bom.missing_item_costs }}&nbsp;<span id="mouser-missing-item-costs"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
-                                <div class="col s8 l10">${{ indented_bom.nre|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                                <div class="col s8 l10">${{ indented_bom.nre|floatformat:2 }}&nbsp;<span id="mouser-est-nre"></span></div>
                             </div>
                             <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Unit Out Of Pocket:</div>
-                                <div class="col s8 l10">${{ indented_bom.unit_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
-                            </div>
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total Out Of Pocket:</div>
-                                <div class="col s8 l10">${{ indented_bom.total_out_of_pocket_cost|floatformat:2 }}<span id="specs-revision-timestamp"></span></div>
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost per {{ qty }} Unit Order (Including MOQs):</div>
+                                <div class="col s8 l10">${{ indented_bom.out_of_pocket_cost|floatformat:2 }}&nbsp;<span id="mouser-est-cost-per-order"></span></div>
                             </div>
                         </li>
                     </ul>
@@ -178,13 +178,13 @@
                         <div class="text-center" style="padding-top: 8px;">
                             <span>Indented</span> | <a onclick="showFlatBOM()" href="#">Flat</a>
                         </div>
-                        {% include 'bom/bom-indented.html' with order_by=order_by bom_items=indented_bom.items part=part part_revision=part_revision profile=profile %}
+                        {% include 'bom/bom-indented.html' with order_by=order_by bom_items=indented_bom.parts part=part part_revision=part_revision profile=profile %}
                     </div>
                     <div id="bom-flat" style="display: none;">
                         <div class="text-center" style="padding-top: 8px;">
                             <a onclick="showIndentedBOM()" href="#">Indented</a> | <span>Flat</span>
                         </div>
-                        {% include 'bom/bom-flat.html' with order_by=order_by bom_items=flat_bom.items part=part part_revision=part_revision profile=profile %}
+                        {% include 'bom/bom-flat.html' with order_by=order_by bom_items=flat_bom.parts part=part part_revision=part_revision profile=profile %}
                     </div>
                 </div>
 
@@ -295,13 +295,12 @@
                                 <th>Lead Time (days)</th>
                                 <th>NRE</th>
                                 <th>NCNR</th>
-                                <th></th>
-                                <th colspan=2>Manage</th>
+                                <th colspan="2">Manage</th>
                             </tr>
                             </thead>
                             <tbody>
                             {% for manufacturer_part in part.manufacturer_parts %}
-                                <tr data-tt-id="{{ manufacturer_part.id }}">
+                                <tr id="sourcing-mp-{{ manufacturer_part.id }}" data-tt-id="{{ manufacturer_part.id }}">
                                     <td>{{ manufacturer_part.manufacturer_part_number }}</td>
                                     <td>{{ manufacturer_part.manufacturer }}</td>
                                     <td>{{ manufacturer_part.optimal_seller.seller.name }}</td>
@@ -311,8 +310,8 @@
                                     <td>{{ manufacturer_part.optimal_seller.lead_time_days }}</td>
                                     <td>{{ manufacturer_part.optimal_seller.nre_cost }}</td>
                                     <td>{{ manufacturer_part.optimal_seller.ncnr }}</td>
-                                    <td style="min-width: 0px;"></td>
-                                    <td colspan="2">
+{#                                    <td style="min-width: 0px;"></td>#}
+                                    <td>
                                         {% if profile.role == 'A' %}
                                             <!-- Dropdown Trigger -->
                                             <a class='dropdown-trigger' href='#' data-target='dropdown{{ manufacturer_part.id }}'><i
@@ -336,7 +335,7 @@
                                     </td>
                                 </tr>
                                 {% for seller_part in manufacturer_part.seller_parts %}
-                                    <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}">
+                                    <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}" {% if forloop.last %}id="sourcing-{{ manufacturer_part.id }}-last"{% endif %}>
                                         <td></td>
                                         <td></td>
                                         <td>{{ seller_part.seller.name }}</td>
@@ -346,13 +345,9 @@
                                         <td>{{ seller_part.lead_time_days }}</td>
                                         <td>{{ seller_part.nre_cost }}</td>
                                         <td>{{ seller_part.ncnr }}</td>
-                                        <td style="min-width: 0px;">{% if seller_part.data_source == 'octopart' %}
-                                            <img title="Sourcing information via Octopart." style="width: 20px; vertical-align: middle;" src="{% static 'bom/img/octopart_blue.svg' %}">{% endif %}</td>
-                                        {% if profile.role == 'A' %}
-                                            <td><a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a></td>
-                                            <td><a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
-                                        {% endif %}
-                                        </td>
+                                        <td>{% if profile.role == 'A' %}
+                                            <a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a> | <a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
+                                        {% endif %}</td>
                                     </tr>
                                 {% empty %}
                                     <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}">
@@ -491,57 +486,96 @@
     </script>
 
     <!-- Match Seller Parts -->
+    {# TODO: in updateSourcing() need to update the optimal row #}
     <script>
-        {% if 0 %} {# This functionality isn't ready yet... #}
-            let partMatchData = {};
-            let specsUnitCost = {{ unit_cost|default:0 }};
-            let partMatchCost = 0;
-            $(document).ready(function () {
-                {% if part_revision.id %}
-                    $.get("{% url 'json:mouser-part-match-bom' part_revision_id=part_revision.id %}",
-                        function (response) {
-                            partMatchData = response['content'];
-                            const errors = response['errors'];
-                            if (errors.length > 0) {
-                                {#  TODO: Update views  #}
-                                console.error(errors);
-                                {#alert('Error getting mouser data');#}
-                            } else {
-                                const partRevDict = partMatchData['seller_parts'];
-                                for(const partRevId in partRevDict) {
-                                    if(partRevDict.hasOwnProperty(partRevId)) {
-                                        console.log(partRevDict[partRevId]);
-                                        const optimalPrice = partRevDict[partRevId]['optimal_seller_part']['price'];
-                                        const quantity = partRevDict[partRevId]['quantity'];
-                                        partMatchCost += optimalPrice * quantity;
-                                    }
-                                }
-                            }
-                            updateSpecs(specsUnitCost, partMatchCost);
+        let partMatchData = {};
+        let specsUnitCost;
+        let specsEstCostPerOrder;
+        let specsMissingParts;
+        $(document).ready(function () {
+            {% if part_revision.id %}
+                $.get("{% url 'json:mouser-part-match-bom' part_revision_id=part_revision.id %}",
+                    function (response) {
+                        console.log(response);
+                        partMatchData = response['content'];
+                        const errors = response['errors'];
+                        if (errors.length > 0) {
+                            console.error(errors);
+                        } else {
+                            const flatBom = partMatchData['flat_bom'];
+                            const bomParts = flatBom['parts'];
+                            const mouserInfo = flatBom['parts']['{{ part_revision.id }}']['api_info'];
+                            const sourcingParts = mouserInfo['seller_parts'];
+                            const stockParsed = mouserInfo['stock_parsed'];
+                            specsUnitCost = parseFloat(flatBom['unit_cost']).toFixed(4);
+                            specsEstCostPerOrder = parseFloat(flatBom['out_of_pocket_cost']).toFixed(2);
+                            specsMissingParts = flatBom['missing_item_costs'];
+                            updateSpecs(specsUnitCost, specsEstCostPerOrder, specsMissingParts);
+                            updateFlat(bomParts);
+                            updateIndented(bomParts);
+                            updateSourcing(sourcingParts, stockParsed);
                         }
-                    );
-                {% endif %}
+                    }
+                );
+            {% endif %}
+        });
+
+        function updateSourcing(sellerParts, stock) {
+            {# TODO: need to update the optimal row #}
+            let lastRowDict = {};
+            sellerParts.forEach((sellerPart, index) => {
+                const manufacturerPartId = parseInt(sellerPart['manufacturer_part']);
+                if (!(manufacturerPartId in lastRowDict)) {
+                    const lastRowId = `#sourcing-${manufacturerPartId}-last`;
+                    lastRowDict[manufacturerPartId] = $(lastRowId);
+                }
+                if (lastRowDict[manufacturerPartId]) {
+                    const moq = sellerPart['minimum_order_quantity'];
+                    const mpq = sellerPart['minimum_pack_quantity'];
+                    const price = parseFloat(sellerPart['unit_cost']).toFixed(4);
+                    const leadTime = `${sellerPart['lead_time_days']}`;
+                    const nre = parseFloat(sellerPart['nre_cost']).toFixed(4);
+                    const ncnr = "True";
+                    lastRowDict[manufacturerPartId].after(`<tr data-tt-id="${index + 1}" data-tt-parent-id="${manufacturerPartId}"><td></td><td></td><td>Mouser</td><td>${moq}</td><td>${mpq}</td><td>${price}</td><td>${leadTime}</td><td>${nre}</td><td>${ncnr}</td><td>(${stock} in stock)</td></tr>`)
+                    const lastRow = lastRowDict[manufacturerPartId].closest('tr').next('tr')
+                    lastRowDict[manufacturerPartId] = lastRow;
+                    const parentNode = $("#manufacturer-parts").treetable("node", manufacturerPartId);;
+                    $("#manufacturer-parts").treetable("loadBranch", parentNode, lastRow);
+                    $("#manufacturer-parts").treetable("collapseAll");
+                }
             });
+        }
 
-            function updateSourcing(sellerParts) {
+        function updateSpecs(unitCost, estCostPerOrder, specsMissingParts) {
+            const mouserEstCost = $("#mouser-est-cost");
+            const mouserEstCostPerOrder = $("#mouser-est-cost-per-order");
+            const mouserMissingCosts = $("#mouser-missing-item-costs");
+            if (unitCost) mouserEstCost.text(`or $${unitCost} (with Mouser)`);
+            if (estCostPerOrder) mouserEstCostPerOrder.text(`or $${estCostPerOrder} (with Mouser)`);
+            if (specsMissingParts) mouserMissingCosts.text(`or ${specsMissingParts} (with Mouser)`);
+        }
 
+        function updateIndented(indentedBomParts) {
+            const baseUnitCostId = "#bom-indented-unit-cost-";
+            updateBom(indentedBomParts, baseUnitCostId);
+        }
+
+        function updateFlat(flatBomParts) {
+            const baseUnitCostId = "#bom-flat-unit-cost-";
+            updateBom(flatBomParts, baseUnitCostId);
+        }
+
+        function updateBom(bomParts, baseUnitCostId) {
+            for(const partRevId in bomParts) {
+                if(bomParts.hasOwnProperty(partRevId)) {
+                    const unitCost = parseFloat(bomParts[partRevId]['seller_part']['unit_cost']);
+                    const sourcingInfo = bomParts[partRevId]['api_info'] !== 'None';
+                    const unitCostId = `${baseUnitCostId}${partRevId}`;
+                    const unitCostElement = $(unitCostId);
+                    if(unitCost && sourcingInfo) unitCostElement.text(`${unitCost.toFixed(4)} w/ Mouser`);
+                }
             }
-
-            function updateSpecs(specsUnitCost, partMatchCost) {
-                {# TODO: Need to handle if the user manually added sourcing information - should probably just recalculate everything in the json view #}
-                const specsUnitCostElement = $("#specs-unit-cost");
-                specsUnitCostElement.text(`$${specsUnitCost} + $${partMatchCost} (via mouser) = $${partMatchCost + specsUnitCost}`);
-                {#console.log(`specsUnitCost: ${specsUnitCost}, partUnitCost: ${partMatchCost}, total: ${partMatchCost + specsUnitCost}`);#}
-            }
-
-            function updateIndented(sellerParts) {
-
-            }
-
-            function updateFlat(sellerParts) {
-
-            }
-        {% endif %}
+        }
     </script>
     <script>
         function showFlatBOM() {

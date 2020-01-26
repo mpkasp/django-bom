@@ -6,44 +6,74 @@ logger = logging.getLogger(__name__)
 
 
 class PartBom(AsDictModel):
-    def __init__(self, part_revision, quantity, unit_cost=0, missing_item_costs=0, nre=0, unit_out_of_pocket_cost=0):
+    def __init__(self, part_revision, quantity, unit_cost=0, missing_item_costs=0, nre=0, out_of_pocket_cost=0):
         self.part_revision = part_revision
-        self.items = OrderedDict()
+        self.parts = OrderedDict()
         self.quantity = quantity
 
         self.unit_cost = unit_cost
         self.missing_item_costs = missing_item_costs  # count of items that have no cost
         self.nre = nre
-        self.unit_out_of_pocket_cost = unit_out_of_pocket_cost  # cost of buying self.quantity with MOQs
+        self.out_of_pocket_cost = out_of_pocket_cost  # cost of buying self.quantity with MOQs
 
     def cost(self):
         return float(self.unit_cost) * self.quantity
 
     def total_out_of_pocket_cost(self):
-        return float(self.unit_out_of_pocket_cost) + float(self.nre)
+        return float(self.out_of_pocket_cost) + float(self.nre)
 
     def append_item_and_update(self, item):
-        if item.bom_id in self.items:
-            self.items[item.bom_id].extended_quantity += item.extended_quantity
+        if item.bom_id in self.parts:
+            self.parts[item.bom_id].extended_quantity += item.extended_quantity
             ref = ', ' + item.references
-            self.items[item.bom_id].references += ref
+            self.parts[item.bom_id].references += ref
         else:
-            self.items[item.bom_id] = item
+            self.parts[item.bom_id] = item
 
             item.total_extended_quantity = int(self.quantity) * item.extended_quantity
-            seller_part = item.seller_part
-            if seller_part:
-                try:
-                    item.order_quantity = seller_part.order_quantity(item.total_extended_quantity)
-                    item.order_cost = item.total_extended_quantity * seller_part.unit_cost
-                except AttributeError:
-                    pass
+            self.update_bom_for_part(item)
 
-                self.unit_cost = (self.unit_cost + seller_part.unit_cost * item.extended_quantity) if seller_part.unit_cost is not None else self.unit_cost
-                self.unit_out_of_pocket_cost = self.unit_out_of_pocket_cost + item.out_of_pocket_cost()
-                self.nre = (self.nre + seller_part.nre_cost) if seller_part.nre_cost is not None else self.nre
-            else:
-                self.missing_item_costs += 1
+    def update_bom_for_part(self, bom_part):
+        if bom_part.seller_part:
+            try:
+                bom_part.order_quantity = bom_part.seller_part.order_quantity(bom_part.total_extended_quantity)
+                bom_part.order_cost = bom_part.total_extended_quantity * bom_part.seller_part.unit_cost
+            except AttributeError:
+                pass
+
+            self.unit_cost = (self.unit_cost + float(bom_part.seller_part.unit_cost) * bom_part.extended_quantity) if bom_part.seller_part.unit_cost is not None else self.unit_cost
+            self.out_of_pocket_cost = self.out_of_pocket_cost + bom_part.out_of_pocket_cost()
+            self.nre = (self.nre + bom_part.seller_part.nre_cost) if bom_part.seller_part.nre_cost is not None else self.nre
+        else:
+            self.missing_item_costs += 1
+
+    def update(self):
+        self.missing_item_costs = 0
+        self.unit_cost = 0
+        self.out_of_pocket_cost = 0
+        self.nre = 0
+        for _, bom_part in self.parts.items():
+            self.update_bom_for_part(bom_part)
+
+
+    def mouser_parts(self):
+        mouser_items = {}
+        for bom_id, item in self.parts.items():
+            if item.part.id not in mouser_items:
+                for manufacturer_part in item.part.manufacturer_parts():
+                    if manufacturer_part.source_mouser:
+                        mouser_items.update({bom_id: manufacturer_part})
+        return mouser_items
+
+    def manufacturer_parts(self, source_mouser=False):
+        # TODO: optimize this query to not hit the DB in a for loop
+        if source_mouser:
+            mps = []
+            for item in self.parts:
+                if item.part.manufacturer_part.source_mouser:
+                    mps.append(item.part.manufacturer_part)
+            return mps
+        return [item.part.manufacturer_part for item in self.parts]
 
 
 class PartBomItem(AsDictModel):
@@ -63,6 +93,8 @@ class PartBomItem(AsDictModel):
 
         self.order_cost = 0  # order_cost is updated similar to above order_quantity - Set when appending to PartBom
         self.seller_part = seller_part
+
+        self.api_info = None
 
     def extended_cost(self):
         try:

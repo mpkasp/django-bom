@@ -43,7 +43,7 @@
         {% endif %}
     </div>
 </div>
-<div class="responsive-table-wrapper" style="padding-bottom: 25px;">
+<div class="responsive-table-wrapper">
     <table id="indented-bom" class="highlight part-list tight single-line">
         <thead>
         <tr>
@@ -84,7 +84,7 @@
                 <td class="text-normal">{% if subpart.seller_part.data_source == 'octopart' %}
                     <img title="Seller via Octopart." style="width: 16px; vertical-align: middle;"
                          src="{% static 'bom/img/octopart_blue.svg' %}">{% endif %}{{ subpart.seller_part.seller.name | default:"-" }}</td>
-                <td class="text-normal">{{ subpart.seller_part.unit_cost | default:"-" }}</td>
+                <td class="text-normal" id="bom-indented-unit-cost-{{ subpart.part_revision.id }}">{{ subpart.seller_part.unit_cost | default:"-" }}</td>
                 <td class="text-normal">{{ subpart.seller_part.nre_cost | default:"-" }}</td>
                 {% if subpart.indent_level == 1 and subpart.subpart is not None and manage %}
                     <td>

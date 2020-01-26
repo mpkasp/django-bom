@@ -12,6 +12,7 @@ from .utils import increment_str, prep_for_sorting_nicely, listify_string, strin
 from .validators import alphanumeric, numeric, validate_pct
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
     WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES
+from .base_classes import AsDictModel
 
 from math import ceil
 from social_django.models import UserSocialAuth
@@ -82,7 +83,7 @@ class PartClass(models.Model):
         return u'%s' % (self.code + ': ' + self.name)
 
 
-class Manufacturer(models.Model):
+class Manufacturer(models.Model, AsDictModel):
     name = models.CharField(max_length=128, default=None)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
 
@@ -474,7 +475,7 @@ class PartRevision(models.Model):
         def sort_by_references(p):
             return prep_for_sorting_nicely(p.references) if p.references else p.__str__().split()
         if sort:
-            flat_bom.items = sorted(flat_bom.items.values(), key=sort_by_references)
+            flat_bom.parts = sorted(flat_bom.parts.values(), key=sort_by_references)
         return flat_bom
 
     def where_used(self):
@@ -538,7 +539,7 @@ class Assembly(models.Model):
     subparts = models.ManyToManyField(Subpart, related_name='assemblies', through='AssemblySubparts')
 
 
-class ManufacturerPart(models.Model):
+class ManufacturerPart(models.Model, AsDictModel):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
     manufacturer_part_number = models.CharField(max_length=128, default='', blank=True)
     manufacturer = models.ForeignKey(Manufacturer, default=None, blank=True, null=True, on_delete=models.PROTECT)
@@ -569,7 +570,7 @@ class ManufacturerPart(models.Model):
         return u'%s' % (self.manufacturer_part_number)
 
 
-class Seller(models.Model):
+class Seller(models.Model, AsDictModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     name = models.CharField(max_length=128, default=None)
 
@@ -577,7 +578,7 @@ class Seller(models.Model):
         return u'%s' % (self.name)
 
 
-class SellerPart(models.Model):
+class SellerPart(models.Model, AsDictModel):
     seller = models.ForeignKey(Seller, on_delete=models.CASCADE)
     manufacturer_part = models.ForeignKey(ManufacturerPart, on_delete=models.CASCADE)
     minimum_order_quantity = models.PositiveIntegerField(default=1)
@@ -615,16 +616,6 @@ class SellerPart(models.Model):
         if self.minimum_order_quantity is not None and extended_quantity > self.minimum_order_quantity:
             order_qty = ceil(extended_quantity / float(self.minimum_order_quantity)) * self.minimum_order_quantity
         return order_qty
-
-    def as_dict(self):
-        return {
-            'seller_price': self.unit_cost,
-            'seller_nre': self.nre_cost,
-            'seller_part': self,
-            'seller_moq': self.minimum_order_quantity,
-        }
-
-
 
     def __str__(self):
         return u'%s' % (self.manufacturer_part.part.full_part_number() + ' ' + self.seller.name)

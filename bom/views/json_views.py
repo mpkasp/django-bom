@@ -16,58 +16,35 @@ class BomJsonResponse(View):
 @method_decorator(login_required, name='dispatch')
 class MouserPartMatchBOM(BomJsonResponse):
     def get(self, request, part_revision_id):
-        # TODO: instead of matching to BOM, match to all parts in the part-info view (including itsself) that are
-        #  flagged to use Mouser
         part_revision = get_object_or_404(PartRevision, pk=part_revision_id)  # get all of the pricing for manufacturer parts, marked with mouser in this part
-        subparts = part_revision.assembly.subparts.all()
-        part_revision_ids = list(subparts.values_list('part_revision', flat=True))
-        part_ids = list(subparts.values_list('part_revision__part', flat=True))
 
-        part_revision_ids.append(part_revision_id)
-        part_ids.append(part_revision.part_id)
-
-        part_revisions = PartRevision.objects.filter(id__in=part_revision_ids)
-        manufacturer_parts = ManufacturerPart.objects.filter(part__in=part_ids, source_mouser=True)
+        # Goal is to search mouser for anything that we want from mouser, then update the part revision in the bom with that
+        # To do that we can just get the manufacturer parts in this BOM
         part = part_revision.part
         qty_cache_key = str(part.id) + '_qty'
         assy_quantity = cache.get(qty_cache_key, 100)
 
-        flat_bom = part_revision.flat(assy_quantity, sort=False)
-
-        mp_lookup = {}
-        for mp in manufacturer_parts:
-            mp_lookup[mp.part_id] = mp
-
-        bom_dict = {}
-        for pr in part_revisions:
-            try:
-                bom_dict[pr.id] = {
-                    'part_revision': part_revision,
-                    'manufacturer_part': mp_lookup[pr.part_id],
-                    'quantity_extended': flat_bom[pr.id]['quantity'] * assy_quantity,
-                    'quantity': flat_bom[pr.id]['quantity'],
-                }
-            except KeyError:  # No manufacturer part to care about
-                continue
+        # TODO: For both flat_bom and indented_bom we will need to update each bom item's sourcing info
+        # TODO: We will also need to udpate the bom summary info
+        # TODO: We will also need to update the sourcing tab if the main part_revision is sourced from mouser
+        flat_bom = part_revision.flat(assy_quantity)
+        indented_bom = part_revision.indented(assy_quantity)
 
         mouser = Mouser()
+        manufacturer_parts = flat_bom.mouser_parts()
+        # Quantity is the same on flat and indented bom WRT sourcing, so we should only need to look up by part revision, or even part
+        for bom_id, mp in manufacturer_parts.items():
+            print('Updating a manufacturer part', mp)
+            bom_part = flat_bom.parts[bom_id]
+            bom_part_quantity = bom_part.total_extended_quantity
+            part_seller_info = mouser.search_and_match(mp, quantity=bom_part_quantity)
+            bom_part.seller_part = part_seller_info['optimal_seller_part']
+            bom_part.api_info = part_seller_info['mouser_parts'][0]
+            # TODO: add all seller parts
 
-        seller_parts = {}
-        for part_revision_id, bd in bom_dict.items():
-            try:
-                print('attempting to match: {} {}'.format(bd['manufacturer_part'].manufacturer_part_number, bd['quantity']))
-                part_seller_info = mouser.search_and_match(bd['manufacturer_part'].manufacturer_part_number, quantity=bd['quantity_extended'])
-                # bd['part_seller_info'] = part_seller_info
-                part_seller_info.update({
-                    'quantity': bd['quantity'],
-                    'quantity_extended': bd['quantity_extended'],
-                })
-                seller_parts[part_revision_id] = part_seller_info
-            except IOError as e:
-                self.response['errors'].append("Error communicating: {}".format(e))
-                continue
-            except Exception as e:
-                self.response['errors'].append("Error matching part {}: {}".format(bd['manufacturer_part'].manufacturer_part_number, e))
-                continue
-        self.response['content'].update({'seller_parts': seller_parts})
+        # TODO: update indented BOM
+        # for bom_id, bom_part in indented_bom.parts.items():
+
+        flat_bom.update()
+        self.response['content'].update({'flat_bom': flat_bom.as_dict()})
         return JsonResponse(self.response)
