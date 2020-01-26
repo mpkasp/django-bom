@@ -51,6 +51,7 @@ bom/migrations/0028_partrevision_displayable_synopsis.py
 bom/migrations/0029_auto_20191231_1630.py
 bom/migrations/0030_auto_20200101_2253.py
 bom/migrations/0031_auto_20200104_1352.py
+bom/migrations/0032_auto_20200126_1806.py
 bom/migrations/__init__.py
 bom/static/bom/.DS_Store
 bom/static/bom/style.css

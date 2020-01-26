@@ -328,7 +328,9 @@ def bom_settings(request, tab_anchor=None):
             else:
                 messages.error(request, part_class_csv_form.errors)
         elif 'part-class-action' in request.POST and part_class_action is not None:
-            if part_class_action == 'submit-part-class-enable-mouser':
+            if len(part_class_action_ids) <= 0:
+                messages.warning(request, "No action was taken because no part classes were selected. Select part classes by checking the checkboxes below.")
+            elif part_class_action == 'submit-part-class-enable-mouser':
                 tab_anchor = INDABOM_TAB
                 PartClass.objects.filter(id__in=part_class_action_ids).update(mouser_enabled=True)
             elif part_class_action == 'submit-part-class-disable-mouser':

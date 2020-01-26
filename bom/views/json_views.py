@@ -24,11 +24,7 @@ class MouserPartMatchBOM(BomJsonResponse):
         qty_cache_key = str(part.id) + '_qty'
         assy_quantity = cache.get(qty_cache_key, 100)
 
-        # TODO: For both flat_bom and indented_bom we will need to update each bom item's sourcing info
-        # TODO: We will also need to udpate the bom summary info
-        # TODO: We will also need to update the sourcing tab if the main part_revision is sourced from mouser
         flat_bom = part_revision.flat(assy_quantity)
-        indented_bom = part_revision.indented(assy_quantity)
 
         mouser = Mouser()
         manufacturer_parts = flat_bom.mouser_parts()
@@ -42,9 +38,6 @@ class MouserPartMatchBOM(BomJsonResponse):
                 bom_part.api_info = part_seller_info['mouser_parts'][0]
             except (KeyError, IndexError):
                 continue
-
-        # TODO: update indented BOM
-        # for bom_id, bom_part in indented_bom.parts.items():
 
         flat_bom.update()
         self.response['content'].update({'flat_bom': flat_bom.as_dict()})

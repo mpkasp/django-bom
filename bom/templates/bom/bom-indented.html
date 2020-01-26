@@ -24,9 +24,13 @@
             </button>
             <!-- Dropdown Structure -->
             <ul id='manage-bom-{{ part.id }}-indented' class='dropdown-content'>
-                {% if profile.role == 'A' and part_revision.configuration == 'W' %}
-                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">
+                {% if profile.role == 'A' %}
+                    <li>{% if part_revision.configuration == 'W' %}
+                        <a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">
                         <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
+                        {% else %}
+                        <a class="grey-text text-lighten-1" onclick="alert('Can\'t edit a released part!')"><i class="material-icons grey-text text-lighten-1">edit</i>Edit BOM</a>
+                        {% endif %}
                     </li>
                 {% endif %}
                 {% if part_revision %}

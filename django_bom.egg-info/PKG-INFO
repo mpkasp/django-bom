@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: django-bom
-Version: 1.137
+Version: 1.138
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian

@@ -21,22 +21,15 @@
         </div>
 
         <div id="user" class="col s12">
-            <form name="seller" action="{{ action }}" method="post" class="col s12">
+            <h3>Your IndaBOM User Info:</h3>
+            <form name="seller" action="{% url 'bom:settings' tab_anchor=USER_TAB %}" method="post" class="col s12">
                 {% csrf_token %}
-                <br>
                 <div class="row">
-                    <h4>Your IndaBOM Info:</h4>
-                    <div class="row">
-                        <p>Your role is: <b>{{ user.bom_profile.get_role_display }}</b>
-                        <p>
+                    <div class="col s12">
+                        <p>Your role is: <b>{{ user.bom_profile.get_role_display }}</b></p>
+                        <p>Your username is: <b>{{ user.username }}</b></p>
                         <p>To request a change in role please contact <a href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for assistance.</p>
                     </div>
-                    <div class="row">
-                        {{ user_form.username|materializecss:'s12 m6' }}
-                    </div>
-                </div>
-                <div class="row">
-                    <h4>Your contact info:</h4>
                 </div>
                 <div class="row">
                     {{ user_form.first_name|materializecss:'s12 m4' }}
@@ -56,9 +49,8 @@
 
         <div id="indabom" class="col s12">
             {% if profile.role == 'A' %}
-                <br/>
                 <h3>Edit Part Classes</h3>
-                <form name="seller" action="{% url 'bom:settings' %}" method="post" enctype="multipart/form-data">
+                <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="row" style="margin-bottom: 0;">
                         <div class="input-field col s10 m4">
@@ -84,7 +76,8 @@
                                 <th class="text-normal">Code</th>
                                 <th class="text-normal">Name</th>
                                 <th class="text-normal">Description</th>
-                                <th class="text-normal">Mouser Sourcing</th>
+                                <th class="text-normal"><img height="18" style="padding: 4px 4px 0 4px;" alt="Mouser" title="Via Mouser.com" src="{% static 'bom/img/mouser.png' %}">Mouser Sourcing
+                                </th>
                                 <th class="text-normal">Options</th>
                             </tr>
                             </thead>
@@ -97,7 +90,8 @@
                                     <td class="text-normal">{{ part_class.code }}</td>
                                     <td class="text-normal">{{ part_class.name }}</td>
                                     <td class="text-normal">{{ part_class.comment }}</td>
-                                    <td class="text-normal">{% if part_class.mouser_enabled %}<i class="material-icons green-text text-lighten-1">check</i>{% endif %}</td>
+                                    <td class="text-normal">{% if part_class.mouser_enabled %}
+                                        <img height="24" style="padding: 4px 4px 0 4px;" alt="Mouser" title="Via Mouser.com" src="{% static 'bom/img/mouser.png' %}">{% endif %}</td>
                                     <td>
                                         <a class="waves-effect waves-green btn-flat green-text text-lighten-1" href="{% url 'bom:part-class-edit' part_class_id=part_class.id %}"><i
                                                 class="material-icons left green-text text-lighten-1">edit</i>Edit</a>
@@ -112,7 +106,7 @@
                 </form>
 
                 <h3>Create Part Class</h3>
-                <form name="seller" action="{% url 'bom:settings' %}" method="post" enctype="multipart/form-data">
+                <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="row">
                         {{ part_class_form.non_field_errors }}
@@ -131,7 +125,7 @@
                 </form>
 
                 <h3>Upload Part Classes</h3>
-                <form name="seller" action="{% url 'bom:settings' %}" method="post" enctype="multipart/form-data">
+                <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     <p>To batch define {% if part_classes.count > 0 %} additional {% endif %}part classes, upload a csv that contains columns with the headers
                         <b>'name'</b> and <b>'code'</b>. You may optionally specify a description or comment by including
@@ -160,7 +154,7 @@
 
 
             <h3 id="indabom-part-number">Part Number</h3>
-            <form name="seller" action="{% url 'bom:settings' %}" method="post" enctype="multipart/form-data">
+            <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <p>You may only increase the number of digits, up to 10, in your part number item number (CC-{{ organization.number_ns }}-VV, where {{ organization.number_ns }} is the number
                     item).</p>
@@ -181,10 +175,10 @@
         </div>
 
         <div id="organization" class="col s12">
-            <form name="seller" action="{{ action }}" method="post" class="col s12" enctype="multipart/form-data">
-                {% csrf_token %}
-                {% if organization.owner == user %}
-                    <h3>Organization</h3>
+            {% if organization.owner == user %}
+                <h3>Organization</h3>
+                <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
+                    {% csrf_token %}
                     <div class="row">
                         {{ organization_form.name|materializecss:'s12 m6' }}
                         {{ organization_form.owner|materializecss:'s12 m6' }}
@@ -199,10 +193,12 @@
                             </button>
                         </div>
                     </div>
-                    <br/>
-                    <br/>
-                    <h3>Users</h3>
-                    {% if users_in_organization.count > 0 %}
+                </form>
+                <br/>
+                <h3>Users</h3>
+                {% if users_in_organization.count > 0 %}
+                    <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
+                        {% csrf_token %}
                         <table>
                             <thead>
                             <tr>
@@ -240,69 +236,70 @@
                                 </button>
                             </div>
                         </div>
-                    {% else %}
-                        <span>No additional users in this organization: {{ organization }}.</span>
-                    {% endif %}
-
-                    <br/>
-                    <br/>
-                    <div>
-                        <h3>Add User</h3>
-                        <div class="row">
-                            {{ user_add_form.username|materializecss:'s12 m8' }}
-                            {{ user_add_form.role|materializecss:'s12 m4' }}
-                            {{ user_add_form.file.errors }}
-                        </div>
-                        <br/>
-                        <div class="row">
-                            <div class="col">
-                                <i>Adding users to your organization is a paid feature, but is free for a
-                                    limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.</i>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col s6">
-                                <a class="waves-effect waves-light btn grey lighten-1" type="button" href="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}">Clear</a>
-                            </div>
-                            <div class="col s6 right-align">
-                                <button class="waves-effect waves-light btn green lighten-1" type="submit" {% if organization.subscription == 'F' %}disabled{% endif %} name="submit-add-user">Add
-                                </button>
-                            </div>
+                    </form>
+                {% else %}
+                    <div class="row" style="padding-left: .75rem;">
+                        <div class="col s12">
+                            <p>There are no additional users in this organization: {{ organization }}.</p>
                         </div>
                     </div>
-
-                    <br/>
-                    <br/>
-                    <br/>
-                    <h3>Part File Storage with Google Drive <img title="Via Google Drive" style="height: 1em; vertical-align: middle;" src="{% static 'bom/img/google_drive_logo.svg' %}"></img></h3>
-                    <p>Connect your Google account. Organization owners can enable file storage using Google Drive. {% if organization.owner == user %} Since you are the owner, you are able to enable
-                        file storage!{% else %}Contact your organization owner to enable.{% endif %}<p>
-                    <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root of Google drive (and can be moved anywhere in your drive). To add files to a part,
-                        navigate to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img title="Via Google Drive" style="width: 16px; vertical-align: middle;"
-                                                                                                                     src="{% static 'bom/img/google_drive_logo.svg' %}"></img>&nbsp;Google Drive link.
-                        This will create a folder for your part in your root IndaBOM directory, or take you there if it already exists.<p>
-                    <p>You'll be able to access the files directly through Google Drive, and through IndaBOM.</p>
-                    <h3>Google Connections</h3>
-                    <ul>
-                        {% if google_authentication %}
-                            <p>Logged in to Google as: {{ google_authentication.uid }}
-                            <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
-                                {% csrf_token %}
-                                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-organization">Disconnect</button>
-                            </form>
-                        {% else %}
-                            <a href="{% url "social:begin" "google-oauth2" %}">
-                                <img title="Google sign-in." src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}"></img>
-                            </a>
-                        {% endif %}
-                    </ul>
-
-                {% else %}
-                    <p>Nothing to see here 🙈 because you are not the organization owner. Please contact
-                        <a href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for assistance.</p>
                 {% endif %}
+                <h3>Add User</h3>
+                <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row">
+                        {{ user_add_form.username|materializecss:'s12 m8' }}
+                        {{ user_add_form.role|materializecss:'s12 m4' }}
+                        {{ user_add_form.file.errors }}
+                    </div>
+                    <div class="row">
+                        <div class="col s12">
+                            <i>Adding users to your organization is a paid feature, but is free for a
+                                limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.</i>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col s6">
+                            <a class="waves-effect waves-light btn grey lighten-1" type="button" href="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}">Clear</a>
+                        </div>
+                        <div class="col s6 right-align">
+                            <button class="waves-effect waves-light btn green lighten-1" type="submit" {% if organization.subscription == 'F' %}disabled{% endif %} name="submit-add-user">Add
+                            </button>
+                        </div>
+                    </div>
+                </form>
 
-            </form>
+                <h3>Part File Storage with Google Drive <img title="Via Google Drive" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;"
+                                                             src="{% static 'bom/img/google_drive_logo.svg' %}"></h3>
+                <p>Connect your Google account. Organization owners can enable file storage using Google Drive. {% if organization.owner == user %} Since you are the owner, you are able to enable
+                    file storage!{% else %}Contact your organization owner to enable.{% endif %}<p>
+                <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root of Google drive (and can be moved anywhere in your drive). To add files to a part,
+                    navigate to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img title="Via Google Drive" style="width: 16px; vertical-align: middle;"
+                                                                                                                 src="{% static 'bom/img/google_drive_logo.svg' %}">&nbsp;Google Drive link.
+                    This will create a folder for your part in your root IndaBOM directory, or take you there if it already exists.<p>
+                <p>You'll be able to access the files directly through Google Drive, and through IndaBOM.</p>
+                <h4>Google Connections</h4>
+                <ul>
+                    {% if google_authentication %}
+                        <p>Logged in to Google as: {{ google_authentication.uid }}
+                        <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
+                            {% csrf_token %}
+                            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-organization">Disconnect</button>
+                        </form>
+                    {% else %}
+                        <a href="{% url "social:begin" "google-oauth2" %}">
+                            <img title="Google sign-in." src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}">
+                        </a>
+                    {% endif %}
+                </ul>
+                <h3>Automagic Sourcing via Mouser <img title="Sourcing via Mouser.com" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;" src="{% static 'bom/img/mouser.png' %}">
+                </h3>
+                <p>No connection required. To enable sourcing via mouser, select which part classes you'd like enabled on the Settings INDABOM tab. Once enabled, sourcing information will appear on
+                    part detail pages in which there are parts sourced via Mouser.</p>
+            {% else %}
+                <p>Nothing to see here 🙈 because you are not the organization owner. Please contact
+                    <a href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for assistance.</p>
+            {% endif %}
         </div>
     </div>
 
