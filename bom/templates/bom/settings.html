@@ -284,12 +284,15 @@
                         <p>Logged in to Google as: {{ google_authentication.uid }}
                         <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
                             {% csrf_token %}
-                            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-organization">Disconnect</button>
+                            <button class="waves-effect waves-light btn green lighten-1" type="submit">Disconnect</button>
                         </form>
                     {% else %}
                         <a href="{% url "social:begin" "google-oauth2" %}">
                             <img title="Google sign-in." src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}">
                         </a>
+                        <p>Note! You may get a warning from Google saying: "This app isn't verified".</p>
+                        <p>This is because we're a small project and have not yet gotten verified as an app by Google. Since the project is open source, feel free to review the code if you have
+                            security concerns, or proceed through the warning if you are comfortable.</p>
                     {% endif %}
                 </ul>
                 <h3>Automagic Sourcing via Mouser <img title="Sourcing via Mouser.com" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;" src="{% static 'bom/img/mouser.png' %}">
