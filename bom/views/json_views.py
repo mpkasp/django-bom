@@ -37,9 +37,11 @@ class MouserPartMatchBOM(BomJsonResponse):
             bom_part = flat_bom.parts[bom_id]
             bom_part_quantity = bom_part.total_extended_quantity
             part_seller_info = mouser.search_and_match(mp, quantity=bom_part_quantity)
-            bom_part.seller_part = part_seller_info['optimal_seller_part']
-            bom_part.api_info = part_seller_info['mouser_parts'][0]
-            # TODO: add all seller parts
+            try:
+                bom_part.seller_part = part_seller_info['optimal_seller_part']
+                bom_part.api_info = part_seller_info['mouser_parts'][0]
+            except (KeyError, IndexError):
+                continue
 
         # TODO: update indented BOM
         # for bom_id, bom_part in indented_bom.parts.items():

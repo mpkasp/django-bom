@@ -82,36 +82,39 @@ class Mouser:
         seller_parts = []
         for part in results['Parts']:
             seller = Seller(name='Mouser')
-            quantity_available = [int(s) for s in part['Availability'].split() if s.isdigit()][0]
-            mouser_part = {
-                'part_number': part['ManufacturerPartNumber'],
-                'manufacturer': part['Manufacturer'],
-                'description': part['Description'],
-                'data_sheet': part['DataSheetUrl'],
-                'stock': part['Availability'],
-                'stock_parsed': quantity_available,
-                'lead_time': part['LeadTime'],
-                'seller_parts': [],
-            }
+            try:
+                quantity_available = [int(s) for s in part['Availability'].split() if s.isdigit()][0]
+                mouser_part = {
+                    'part_number': part['ManufacturerPartNumber'],
+                    'manufacturer': part['Manufacturer'],
+                    'description': part['Description'],
+                    'data_sheet': part['DataSheetUrl'],
+                    'stock': part['Availability'],
+                    'stock_parsed': quantity_available,
+                    'lead_time': part['LeadTime'],
+                    'seller_parts': [],
+                }
 
-            lead_time_days = [int(s) for s in part['LeadTime'].split() if s.isdigit()][0]  # TODO: Make sure it's actually days
-            for pb in part['PriceBreaks']:
-                moq = int(pb['Quantity'])
-                price = float(pb['Price'].strip('$'))
-                currency = pb['Currency']
-                seller_part = SellerPart(
-                    seller=seller,
-                    manufacturer_part=manufacturer_part,
-                    minimum_order_quantity=moq,
-                    minimum_pack_quantity=1,
-                    data_source='Mouser',
-                    unit_cost=price,
-                    lead_time_days=lead_time_days,
-                    nre_cost=0,
-                    ncnr=True)
-                mouser_part['seller_parts'].append(seller_part.as_dict())
-                seller_parts.append(seller_part)
-            mouser_parts.append(mouser_part)
+                lead_time_days = [int(s) for s in part['LeadTime'].split() if s.isdigit()][0]  # TODO: Make sure it's actually days
+                for pb in part['PriceBreaks']:
+                    moq = int(pb['Quantity'])
+                    price = float(pb['Price'].strip('$'))
+                    currency = pb['Currency']
+                    seller_part = SellerPart(
+                        seller=seller,
+                        manufacturer_part=manufacturer_part,
+                        minimum_order_quantity=moq,
+                        minimum_pack_quantity=1,
+                        data_source='Mouser',
+                        unit_cost=price,
+                        lead_time_days=lead_time_days,
+                        nre_cost=0,
+                        ncnr=True)
+                    mouser_part['seller_parts'].append(seller_part.as_dict())
+                    seller_parts.append(seller_part)
+                mouser_parts.append(mouser_part)
+            except (KeyError, AttributeError, IndexError):
+                continue
         local_seller_parts = list(manufacturer_part.seller_parts())
         seller_parts.extend(local_seller_parts)
         return {

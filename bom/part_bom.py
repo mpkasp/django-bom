@@ -55,14 +55,14 @@ class PartBom(AsDictModel):
         for _, bom_part in self.parts.items():
             self.update_bom_for_part(bom_part)
 
-
     def mouser_parts(self):
         mouser_items = {}
         for bom_id, item in self.parts.items():
             if item.part.id not in mouser_items:
                 for manufacturer_part in item.part.manufacturer_parts():
-                    if manufacturer_part.source_mouser:
-                        mouser_items.update({bom_id: manufacturer_part})
+                    mouser_items.update({bom_id: manufacturer_part})
+                    # if manufacturer_part.source_mouser:
+                    #     mouser_items.update({bom_id: manufacturer_part})
         return mouser_items
 
     def manufacturer_parts(self, source_mouser=False):

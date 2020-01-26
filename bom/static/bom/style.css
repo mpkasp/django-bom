@@ -36,7 +36,7 @@ h5 {
 td, tr {
     padding-right: 1px;
     padding-left: 1px;
-    min-width: 120px;
+    min-width: 40px;
 }
 
 .help-block {
