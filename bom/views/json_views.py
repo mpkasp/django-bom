@@ -34,7 +34,6 @@ class MouserPartMatchBOM(BomJsonResponse):
         manufacturer_parts = flat_bom.mouser_parts()
         # Quantity is the same on flat and indented bom WRT sourcing, so we should only need to look up by part revision, or even part
         for bom_id, mp in manufacturer_parts.items():
-            print('Updating a manufacturer part', mp)
             bom_part = flat_bom.parts[bom_id]
             bom_part_quantity = bom_part.total_extended_quantity
             part_seller_info = mouser.search_and_match(mp, quantity=bom_part_quantity)

@@ -24,7 +24,7 @@ class BaseApi:
             cache_key += '-{}'.format(data_md5)
         cached_data = cache.get(cache_key)
         if cached_data is not None:
-            print('Found cached data!')
+            # print('Found cached data!')
             return cached_data
 
         url = self.root_url + suburl

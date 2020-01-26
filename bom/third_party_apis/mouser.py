@@ -114,7 +114,6 @@ class Mouser:
             mouser_parts.append(mouser_part)
         local_seller_parts = list(manufacturer_part.seller_parts())
         seller_parts.extend(local_seller_parts)
-        print([sp.as_dict() for sp in seller_parts])
         return {
             'mouser_parts': mouser_parts,
             'optimal_seller_part': SellerPart.optimal(seller_parts, quantity),

@@ -436,6 +436,11 @@ def part_info(request, part_id, part_revision_id=None):
     except AttributeError:
         where_used = []
 
+    try:
+        mouser_parts = len(flat_bom.mouser_parts().keys()) > 0
+    except AttributeError:
+        mouser_parts = False
+
     where_used_part = part.where_used()
     seller_parts = part.seller_parts()
 

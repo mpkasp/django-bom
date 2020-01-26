@@ -303,13 +303,13 @@
                                 <tr id="sourcing-mp-{{ manufacturer_part.id }}" data-tt-id="{{ manufacturer_part.id }}">
                                     <td>{{ manufacturer_part.manufacturer_part_number }}</td>
                                     <td>{{ manufacturer_part.manufacturer }}</td>
-                                    <td>{{ manufacturer_part.optimal_seller.seller.name }}</td>
-                                    <td>{{ manufacturer_part.optimal_seller.minimum_order_quantity }}</td>
-                                    <td>{{ manufacturer_part.optimal_seller.minimum_pack_quantity }}</td>
-                                    <td>{{ manufacturer_part.optimal_seller.unit_cost }}</td>
-                                    <td>{{ manufacturer_part.optimal_seller.lead_time_days }}</td>
-                                    <td>{{ manufacturer_part.optimal_seller.nre_cost }}</td>
-                                    <td>{{ manufacturer_part.optimal_seller.ncnr }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-name">{{ manufacturer_part.optimal_seller.seller.name }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-moq">{{ manufacturer_part.optimal_seller.minimum_order_quantity }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-mpq">{{ manufacturer_part.optimal_seller.minimum_pack_quantity }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-cost">{{ manufacturer_part.optimal_seller.unit_cost }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-lt">{{ manufacturer_part.optimal_seller.lead_time_days }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-nre">{{ manufacturer_part.optimal_seller.nre_cost }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-ncnr">{{ manufacturer_part.optimal_seller.ncnr }}</td>
 {#                                    <td style="min-width: 0px;"></td>#}
                                     <td>
                                         {% if profile.role == 'A' %}
@@ -493,10 +493,9 @@
         let specsEstCostPerOrder;
         let specsMissingParts;
         $(document).ready(function () {
-            {% if part_revision.id %}
+            {% if part_revision.id and mouser_parts %}
                 $.get("{% url 'json:mouser-part-match-bom' part_revision_id=part_revision.id %}",
                     function (response) {
-                        console.log(response);
                         partMatchData = response['content'];
                         const errors = response['errors'];
                         if (errors.length > 0) {
@@ -507,43 +506,61 @@
                             const mouserInfo = flatBom['parts']['{{ part_revision.id }}']['api_info'];
                             const sourcingParts = mouserInfo['seller_parts'];
                             const stockParsed = mouserInfo['stock_parsed'];
+                            const optimalSellerPart = flatBom['parts']['{{ part_revision.id }}']['seller_part'];
                             specsUnitCost = parseFloat(flatBom['unit_cost']).toFixed(4);
                             specsEstCostPerOrder = parseFloat(flatBom['out_of_pocket_cost']).toFixed(2);
                             specsMissingParts = flatBom['missing_item_costs'];
                             updateSpecs(specsUnitCost, specsEstCostPerOrder, specsMissingParts);
                             updateFlat(bomParts);
                             updateIndented(bomParts);
-                            updateSourcing(sourcingParts, stockParsed);
+                            updateSourcing(sourcingParts, optimalSellerPart, stockParsed);
                         }
                     }
                 );
             {% endif %}
         });
 
-        function updateSourcing(sellerParts, stock) {
-            {# TODO: need to update the optimal row #}
+        function updateSourcing(sellerParts, optimalSellerPart, stock) {
             let lastRowDict = {};
-            sellerParts.forEach((sellerPart, index) => {
-                const manufacturerPartId = parseInt(sellerPart['manufacturer_part']);
-                if (!(manufacturerPartId in lastRowDict)) {
-                    const lastRowId = `#sourcing-${manufacturerPartId}-last`;
-                    lastRowDict[manufacturerPartId] = $(lastRowId);
+            if(sellerParts) {
+                sellerParts.forEach((sellerPart, index) => {
+                    const manufacturerPartId = parseInt(sellerPart['manufacturer_part']);
+                    if (!(manufacturerPartId in lastRowDict)) {
+                        const lastRow = $(`#sourcing-${manufacturerPartId}-last`);
+                        if(lastRow.length === 0) {
+                            lastRowDict[manufacturerPartId] = $(`#sourcing-mp-${manufacturerPartId}`);
+                        } else {
+                            lastRowDict[manufacturerPartId] = lastRow;
+                        }
+                    }
+                    if (lastRowDict[manufacturerPartId]) {
+                        const moq = sellerPart['minimum_order_quantity'];
+                        const mpq = sellerPart['minimum_pack_quantity'];
+                        const price = parseFloat(sellerPart['unit_cost']).toFixed(4);
+                        const leadTime = `${sellerPart['lead_time_days']}`;
+                        const nre = parseFloat(sellerPart['nre_cost']).toFixed(4);
+                        const ncnr = "True";
+                        lastRowDict[manufacturerPartId].after(`<tr data-tt-id="${index + 1}" data-tt-parent-id="${manufacturerPartId}"><td></td><td></td><td>Mouser</td><td>${moq}</td><td>${mpq}</td><td>${price}</td><td>${leadTime}</td><td>${nre}</td><td>${ncnr}</td><td>(${stock} in stock)</td></tr>`)
+                        const lastRow = lastRowDict[manufacturerPartId].closest('tr').next('tr')
+                        lastRowDict[manufacturerPartId] = lastRow;
+                        const parentNode = $("#manufacturer-parts").treetable("node", manufacturerPartId);
+                        $("#manufacturer-parts").treetable("loadBranch", parentNode, lastRow);
+                        $("#manufacturer-parts").treetable("collapseAll");
+                    }
+                });
+            }
+            if (optimalSellerPart && optimalSellerPart !== "None" ) {
+                const mpBaseId = `#sourcing-mp-${optimalSellerPart['manufacturer_part']}`;
+                if(optimalSellerPart['seller'] === null) { // TODO need to fix this to get the seller name via the API
+                    $(`${mpBaseId}-name`).text(optimalSellerPart['data_source']);
                 }
-                if (lastRowDict[manufacturerPartId]) {
-                    const moq = sellerPart['minimum_order_quantity'];
-                    const mpq = sellerPart['minimum_pack_quantity'];
-                    const price = parseFloat(sellerPart['unit_cost']).toFixed(4);
-                    const leadTime = `${sellerPart['lead_time_days']}`;
-                    const nre = parseFloat(sellerPart['nre_cost']).toFixed(4);
-                    const ncnr = "True";
-                    lastRowDict[manufacturerPartId].after(`<tr data-tt-id="${index + 1}" data-tt-parent-id="${manufacturerPartId}"><td></td><td></td><td>Mouser</td><td>${moq}</td><td>${mpq}</td><td>${price}</td><td>${leadTime}</td><td>${nre}</td><td>${ncnr}</td><td>(${stock} in stock)</td></tr>`)
-                    const lastRow = lastRowDict[manufacturerPartId].closest('tr').next('tr')
-                    lastRowDict[manufacturerPartId] = lastRow;
-                    const parentNode = $("#manufacturer-parts").treetable("node", manufacturerPartId);;
-                    $("#manufacturer-parts").treetable("loadBranch", parentNode, lastRow);
-                    $("#manufacturer-parts").treetable("collapseAll");
-                }
-            });
+                $(`${mpBaseId}-moq`).text(optimalSellerPart['minimum_order_quantity']);
+                $(`${mpBaseId}-mpq`).text(optimalSellerPart['minimum_pack_quantity']);
+                $(`${mpBaseId}-cost`).text(optimalSellerPart['unit_cost']);
+                $(`${mpBaseId}-lt`).text(optimalSellerPart['lead_time_days']);
+                $(`${mpBaseId}-nre`).text(optimalSellerPart['nre_cost']);
+                $(`${mpBaseId}-ncnr`).text(optimalSellerPart['ncnr']);
+            }
         }
 
         function updateSpecs(unitCost, estCostPerOrder, specsMissingParts) {
