@@ -317,7 +317,7 @@ def bom_settings(request, tab_anchor=None):
             tab_anchor = INDABOM_TAB
             part_class_form = PartClassForm()
 
-        elif 'submit-part-class-upload' in request.POST and request.FILES['file'] is not None:
+        elif 'submit-part-class-upload' in request.POST and request.FILES.get('file') is not None:
             tab_anchor = INDABOM_TAB
             part_class_csv_form = PartClassCSVForm(request.POST, request.FILES, organization=organization)
             if part_class_csv_form.is_valid():

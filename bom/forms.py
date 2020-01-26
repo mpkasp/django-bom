@@ -302,7 +302,7 @@ class PartClassCSVForm(forms.Form):
                     validation_error = forms.ValidationError("Missing required column named '{}'.".format(hdr), code='invalid')
                     self.add_error(None, validation_error)
 
-            if 'comment' in hdr and 'description' in hdr:
+            if 'comment' in headers and 'description' in headers:
                 validation_error = forms.ValidationError("Can only have a column named 'comment' or a column named 'description'.".format(hdr), code='invalid')
                 self.add_error(None, validation_error)
 
@@ -311,12 +311,16 @@ class PartClassCSVForm(forms.Form):
                 row_count += 1
                 part_class_data = {}
                 for idx, item in enumerate(row):
-                    part_class_data[headers[idx]] = item
+                    try:
+                        part_class_data[headers[idx]] = item
+                    except IndexError:
+                        continue
 
                 if 'name' in part_class_data and 'code' in part_class_data:
+                    name = part_class_data['name']
+                    code = part_class_data['code']
                     try:
-                        name = part_class_data['name']
-                        code = part_class_data['code']
+                        description_or_comment = ''
                         if not code.isdigit() or int(code) < 0:
                             validation_error = forms.ValidationError(
                                 "Part class 'code' in row {} must be a positive number. Uploading of this part class skipped.".format(row_count),

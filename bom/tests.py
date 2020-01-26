@@ -370,6 +370,24 @@ class TestBOM(TransactionTestCase):
         new_part_class_count = PartClass.objects.all().count()
         self.assertEqual(new_part_class_count, 37)
 
+        # Should not hit 500 errors on anything below
+        # Submit with no file
+        response = self.client.post(reverse('bom:settings'), {'submit-part-class-upload': ''})
+        self.assertEqual(response.status_code, 200)
+
+        # Submit with blank header and comments
+        with open('bom/test_files/test_part_classes_no_comment.csv') as test_csv:
+            response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('Part class 102 Resistor on row 3 is already defined. Uploading of this part class skipped.' in str(response.content))
+
+        # Submit with a weird csv file that sort of works
+        with open('bom/test_files/test_part_classes_blank_rows.csv') as test_csv:
+            response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('Part class &#39;code&#39; in row 3 must be a positive number. Uploading of this part class skipped.' in str(response.content))
+        self.assertTrue('Part class &#39;code&#39; in row 4 must be a positive number. Uploading of this part class skipped.' in str(response.content))
+
     def test_add_sellerpart(self):
         self.client.login(username='kasper', password='ghostpassword')
 
