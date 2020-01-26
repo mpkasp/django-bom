@@ -402,7 +402,7 @@ def part_info(request, part_id, part_revision_id=None):
 
     if part.organization != organization:
         messages.error(request, "Can't access a part that is not yours!")
-        return HttpResponseRedirect(reverse('bom:error'))
+        return HttpResponseRedirect(reverse('bom:home'))
 
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 100)
@@ -469,11 +469,11 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
         part = part_revision.part
     else:
         messages.error(request, "View requires part or part revision.")
-        return HttpResponseRedirect(reverse('bom:error'))
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
     if part.organization != organization:
         messages.error(request, "Cant export a part that is not yours!")
-        return HttpResponseRedirect(reverse('bom:error'))
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_indented.csv"'.format(
@@ -501,7 +501,7 @@ def part_export_bom_flat(request, part_revision_id):
 
     if part_revision.part.organization != organization:
         messages.error(request, "Cant export a part that is not yours!")
-        return HttpResponseRedirect(reverse('bom:error'))
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_flat.csv"'.format(
@@ -558,7 +558,7 @@ def part_upload_bom(request, part_id):
         parent_part = Part.objects.get(id=part_id)
     except Part.DoesNotExist:
         messages.error(request, "No part found with given part_id {}.".format(part_id))
-        return HttpResponseRedirect(reverse('bom:error'))
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
     if request.method == 'POST' and request.FILES['file'] is not None:
         bom_csv_form = BOMCSVForm(request.POST, request.FILES, parent_part=parent_part, organization=organization)
@@ -763,7 +763,7 @@ def manage_bom(request, part_id, part_revision_id):
 
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
-        return HttpResponseRedirect(reverse('bom:error'))
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
     add_subpart_form = AddSubpartForm(initial={'count': 1, }, organization=organization, part_id=part_id)
     upload_subparts_csv_form = FileForm()
@@ -795,7 +795,7 @@ def part_delete(request, part_id):
         part = Part.objects.get(id=part_id)
     except Part.DoesNotExist:
         messages.error(request, "No part found with given part_id {}.".format(part_id))
-        return HttpResponseRedirect(reverse('bom:error'))
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
     part.delete()
 
