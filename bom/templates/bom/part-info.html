@@ -580,23 +580,30 @@
 
         function updateIndented(indentedBomParts) {
             const baseUnitCostId = "#bom-indented-unit-cost-";
-            updateBom(indentedBomParts, baseUnitCostId);
+            const baseSellerNameId = "#bom-indented-seller-name-";
+            updateBom(indentedBomParts, baseUnitCostId, baseSellerNameId);
         }
 
         function updateFlat(flatBomParts) {
             const baseUnitCostId = "#bom-flat-unit-cost-";
-            updateBom(flatBomParts, baseUnitCostId);
+            const baseSellerNameId = "#bom-flat-seller-name-";
+            updateBom(flatBomParts, baseUnitCostId, baseSellerNameId);
         }
 
-        function updateBom(bomParts, baseUnitCostId) {
+        function updateBom(bomParts, baseUnitCostId, baseSellerNameId) {
             for(const partRevId in bomParts) {
-                if(bomParts.hasOwnProperty(partRevId)) {
+                if(bomParts.hasOwnProperty(partRevId) && bomParts[partRevId].hasOwnProperty('seller_part') && bomParts[partRevId].hasOwnProperty('api_info')) {
                     const unitCost = parseFloat(bomParts[partRevId]['seller_part']['unit_cost']);
+                    const sellerName = bomParts[partRevId]['seller_part']['data_source'];
+                    const isMouser = bomParts[partRevId]['seller_part']['seller'] === 'None';
                     const sourcingInfo = bomParts[partRevId]['api_info'] !== 'None';
                     const unitCostId = `${baseUnitCostId}${partRevId}`;
                     const unitCostElement = $(unitCostId);
+                    const sellerNameId = `${baseSellerNameId}${partRevId}`;
+                    const sellerNameElement = $(sellerNameId);
                     if(unitCost && sourcingInfo) unitCostElement.text(`${unitCost.toFixed(4)}`);
                     if(unitCost && sourcingInfo && bomParts[partRevId]['seller_part']['data_source'] === 'Mouser') unitCostElement.append(mouserImage);
+                    if(isMouser && sellerName) sellerNameElement.text(`${sellerName}`);
                 }
             }
         }

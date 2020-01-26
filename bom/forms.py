@@ -265,6 +265,9 @@ class PartClassForm(forms.ModelForm):
         return self.instance
 
 
+PartClassFormSet = forms.formset_factory(PartClassForm, extra=2, can_delete=True)
+
+
 class PartClassSelectionForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)

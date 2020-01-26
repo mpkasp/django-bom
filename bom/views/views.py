@@ -26,7 +26,7 @@ from bom.models import Part, PartClass, Subpart, SellerPart, Organization, Manuf
     UserMeta, PartRevision, Assembly, AssemblySubparts
 from bom.forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
     ManufacturerPartForm, SellerPartForm, UserForm, UserMetaForm, UserAddForm, OrganizationForm, NumberItemLenForm, PartRevisionForm, \
-    PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm
+    PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm, PartClassFormSet
 from bom.utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely
 
 logger = logging.getLogger(__name__)
@@ -213,7 +213,6 @@ def bom_settings(request, tab_anchor=None):
     profile = user.bom_profile()
     organization = profile.organization
     title = 'Settings'
-    action = reverse('bom:settings')
     owner = organization.owner
     name = 'settings'
 
@@ -237,6 +236,8 @@ def bom_settings(request, tab_anchor=None):
     INDABOM_TAB = 'indabom'
 
     if request.method == 'POST':
+        part_class_action_ids = request.POST.getlist('actions')
+        part_class_action = request.POST.get('part-class-action')
         if 'submit-edit-user' in request.POST:
             tab_anchor = USER_TAB
             user_form = UserForm(request.POST, instance=user)
@@ -326,19 +327,21 @@ def bom_settings(request, tab_anchor=None):
                     messages.warning(request, warning)
             else:
                 messages.error(request, part_class_csv_form.errors)
-
-        elif 'submit-part-class-delete' in request.POST:
-            tab_anchor = INDABOM_TAB
-            for item in request.POST:
-                if 'delete_part_class_id_' in item:
-                    part_class_id = item.partition('delete_part_class_id_')[2]
-                    try:
-                        part_class = PartClass.objects.get(id=part_class_id, organization=organization)
-                        part_class.delete()
-                    except PartClass.DoesNotExist:
-                        messages.error(request, "No part class found with given id {}.".format(part_class_id))
-                    except ProtectedError:
-                        messages.error(request, "Cannot delete part class {} because it has parts. You must delete those parts first.".format(part_class))
+        elif 'part-class-action' in request.POST and part_class_action is not None:
+            if part_class_action == 'submit-part-class-enable-mouser':
+                tab_anchor = INDABOM_TAB
+                PartClass.objects.filter(id__in=part_class_action_ids).update(mouser_enabled=True)
+            elif part_class_action == 'submit-part-class-disable-mouser':
+                tab_anchor = INDABOM_TAB
+                PartClass.objects.filter(id__in=part_class_action_ids).update(mouser_enabled=False)
+            elif part_class_action == 'submit-part-class-delete':
+                tab_anchor = INDABOM_TAB
+                try:
+                    PartClass.objects.filter(id__in=part_class_action_ids).delete()
+                except PartClass.DoesNotExist as err:
+                    messages.error(request, f"No part class found: {err}")
+                except ProtectedError as err:
+                    messages.error(request, f"Cannot delete a part class because it has parts. You must delete those parts first. {err}")
 
     return TemplateResponse(request, 'bom/settings.html', locals())
 

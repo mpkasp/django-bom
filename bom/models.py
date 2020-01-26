@@ -73,6 +73,7 @@ class PartClass(models.Model):
     code = models.CharField(max_length=CODE_LEN)
     name = models.CharField(max_length=255, default=None)
     comment = models.CharField(max_length=255, default=None, blank=True)
+    mouser_enabled = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ['code', 'name', 'organization', ]
@@ -543,18 +544,13 @@ class ManufacturerPart(models.Model, AsDictModel):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
     manufacturer_part_number = models.CharField(max_length=128, default='', blank=True)
     manufacturer = models.ForeignKey(Manufacturer, default=None, blank=True, null=True, on_delete=models.PROTECT)
-    source_mouser = models.BooleanField(default=False)
+    mouser_disable = models.BooleanField(default=False)
 
     class Meta:
         unique_together = [
             'part',
             'manufacturer_part_number',
             'manufacturer']
-
-        index_together = [
-            'part',
-            'source_mouser'
-        ]
 
     def seller_parts(self):
         return SellerPart.objects.filter(manufacturer_part=self).order_by('seller', 'minimum_order_quantity')

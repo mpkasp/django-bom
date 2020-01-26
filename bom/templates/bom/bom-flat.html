@@ -66,7 +66,7 @@
                 <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}
                     {% if subpart.part.manufacturer_parts.count > 1 %}<i>(+{{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
                 <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                <td class="text-normal">{{ subpart.seller_part.seller.name | default:"-" }}</td>
+                <td class="text-normal" id="bom-flat-seller-name-{{ subpart.part_revision.id }}">{{ subpart.seller_part.seller.name | default:"-" }}</td>
                 <td class="text-normal" id="bom-flat-unit-cost-{{ subpart.part_revision.id }}">{{ subpart.seller_part.unit_cost | default:"-" }}</td>
                 <td class="text-normal">{{ subpart.seller_part.nre_cost | default:"-" }}</td>
             </tr>
