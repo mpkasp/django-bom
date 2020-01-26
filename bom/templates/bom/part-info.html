@@ -135,10 +135,18 @@
                                 </i></div>
                             </div>
                             <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;"><img title="Via Google Drive" style="width: 16px;"
-                                                                                                  src="{% static 'bom/img/google_drive_logo.svg' %}"></img> Files:
+                                <div class="col s4 l2 text-right" style="padding-left: 0;">
+                                    <img title="Via Google Drive" style="width: 16px;" src="{% static 'bom/img/google_drive_logo.svg' %}">&nbsp;Files:
                                 </div>
                                 <div class="col s8 l10"><a href="{% url 'google-drive:add-folder' part_id=part.id %}" target="_blank">Open Folder</a></div>
+                            </div>
+                            <div class="row">
+                                <div id="mouser-data-sheet-wrapper" style="display: none; min-height: 22px;">
+                                    <div class="col s4 l2 text-right" style="padding-left: 0;">
+                                        <img title="Via Mouser.com" style="width: 16px;" src="{% static 'bom/img/mouser.png' %}">&nbsp;Datasheets
+                                    </div>
+                                    <div class="col s8 l10"><a id="mouser-data-sheet" target="_blank">View datasheet</a></div>
+                                </div>
                             </div>
                         </li>
                         <li class="collection-header">
@@ -168,6 +176,10 @@
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost per {{ qty }} Unit Order (Including MOQs):</div>
                                 <div class="col s8 l10"><span id="mouser-est-cost-per-order"></span><span>${{ indented_bom.out_of_pocket_cost|floatformat:2 }}</span></div>
+                            </div>
+                            <div class="row" id="mouser-stock-wrapper">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Mouser stock:</div>
+                                <div class="col s8 l10"><span id="mouser-stock"></span></div>
                             </div>
                         </li>
                     </ul>
@@ -310,7 +322,7 @@
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-lt">{{ manufacturer_part.optimal_seller.lead_time_days }}</td>
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-nre">{{ manufacturer_part.optimal_seller.nre_cost }}</td>
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-ncnr">{{ manufacturer_part.optimal_seller.ncnr }}</td>
-{#                                    <td style="min-width: 0px;"></td>#}
+                                    {#                                    <td style="min-width: 0px;"></td>#}
                                     <td>
                                         {% if profile.role == 'A' %}
                                             <!-- Dropdown Trigger -->
@@ -346,7 +358,8 @@
                                         <td>{{ seller_part.nre_cost }}</td>
                                         <td>{{ seller_part.ncnr }}</td>
                                         <td>{% if profile.role == 'A' %}
-                                            <a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a> | <a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
+                                            <a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a> |
+                                            <a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
                                         {% endif %}</td>
                                     </tr>
                                 {% empty %}
@@ -492,6 +505,7 @@
         let specsUnitCost;
         let specsEstCostPerOrder;
         let specsMissingParts;
+        let dataSheet;
         $(document).ready(function () {
             {% if part_revision.id and mouser_parts %}
                 $.get("{% url 'json:mouser-part-match-bom' part_revision_id=part_revision.id %}",
@@ -510,7 +524,9 @@
                             specsUnitCost = parseFloat(flatBom['unit_cost']).toFixed(4);
                             specsEstCostPerOrder = parseFloat(flatBom['out_of_pocket_cost']).toFixed(2);
                             specsMissingParts = flatBom['missing_item_costs'];
-                            updateSpecs(specsUnitCost, specsEstCostPerOrder, specsMissingParts);
+                            dataSheet = mouserInfo['data_sheet'];
+                            mouserStock = mouserInfo['stock'];
+                            updateSpecs(specsUnitCost, specsEstCostPerOrder, specsMissingParts, dataSheet, mouserStock);
                             updateFlat(bomParts);
                             updateIndented(bomParts);
                             updateSourcing(sourcingParts, optimalSellerPart, stockParsed);
@@ -523,13 +539,13 @@
         function updateSourcing(sellerParts, optimalSellerPart, stock) {
             let lastRowDict = {};
             let mouserOptimizations = 0;
-            if(sellerParts) {
+            if (sellerParts) {
                 sellerParts.forEach((sellerPart, index) => {
                     if (sellerPart['data_source'] === 'Mouser') mouserOptimizations += 1;
                     const manufacturerPartId = parseInt(sellerPart['manufacturer_part']);
                     if (!(manufacturerPartId in lastRowDict)) {
                         const lastRow = $(`#sourcing-${manufacturerPartId}-last`);
-                        if(lastRow.length === 0) {
+                        if (lastRow.length === 0) {
                             lastRowDict[manufacturerPartId] = $(`#sourcing-mp-${manufacturerPartId}`);
                         } else {
                             lastRowDict[manufacturerPartId] = lastRow;
@@ -551,9 +567,9 @@
                     }
                 });
             }
-            if (optimalSellerPart && optimalSellerPart !== "None" ) {
+            if (optimalSellerPart && optimalSellerPart !== "None") {
                 const mpBaseId = `#sourcing-mp-${optimalSellerPart['manufacturer_part']}`;
-                if(optimalSellerPart['seller'] === null) { // TODO need to fix this to get the seller name via the API
+                if (optimalSellerPart['seller'] === null) { // TODO need to fix this to get the seller name via the API
                     $(`${mpBaseId}-name`).text(optimalSellerPart['data_source']).prepend(mouserImage);
                 }
                 $(`${mpBaseId}-moq`).text(optimalSellerPart['minimum_order_quantity']);
@@ -565,17 +581,36 @@
             }
         }
 
-        function updateSpecs(unitCost, estCostPerOrder, specsMissingParts) {
+        function updateSpecs(unitCost, estCostPerOrder, specsMissingParts, dataSheet, mouserStock) {
             const mouserEstCost = $("#mouser-est-cost");
             const mouserEstCostPerOrder = $("#mouser-est-cost-per-order");
             const mouserMissingCosts = $("#mouser-missing-item-costs");
+            const mouserDataSheetWrapperElement = $("#mouser-data-sheet-wrapper");
+            const mouserDataSheetElement = $("#mouser-data-sheet");
+            const mouserStockWrapperElement = $("#mouser-stock-wrapper");
+            const mouserStockElement = $("#mouser-stock");
             updateSpecElement(mouserEstCost, unitCost, `$${unitCost}`);
             updateSpecElement(mouserEstCostPerOrder, estCostPerOrder, `$${estCostPerOrder}`);
             updateSpecElement(mouserMissingCosts, specsMissingParts, `${specsMissingParts}`);
+            updateSpecElement(mouserStockElement, mouserStock, `${mouserStock}`, mouserStockWrapperElement, false);
+
+            if (dataSheet) {
+                mouserDataSheetElement.attr("href", `${dataSheet}`);
+                mouserDataSheetWrapperElement.show();
+            }
         }
 
-        function updateSpecElement(element, property, text) {
-            if (property != null) element.text(text + ' ').prepend(mouserImage).next().css('color', '#bdbdbd').prepend('(').append(' without Mouser)');
+        function updateSpecElement(element, property, text, wrapper = null, hasDefault = true) {
+            if (property != null) {
+                if (hasDefault) {
+                    element.text(text + ' ').prepend(mouserImage).next().css('color', '#bdbdbd').prepend('(').append(' without Mouser)');
+                } else {
+                    element.text(text).prepend(mouserImage);
+                    if (wrapper) {
+                        wrapper.show();
+                    }
+                }
+            }
         }
 
         function updateIndented(indentedBomParts) {
@@ -591,8 +626,8 @@
         }
 
         function updateBom(bomParts, baseUnitCostId, baseSellerNameId) {
-            for(const partRevId in bomParts) {
-                if(bomParts.hasOwnProperty(partRevId) && bomParts[partRevId].hasOwnProperty('seller_part') && bomParts[partRevId].hasOwnProperty('api_info')) {
+            for (const partRevId in bomParts) {
+                if (bomParts.hasOwnProperty(partRevId) && bomParts[partRevId].hasOwnProperty('seller_part') && bomParts[partRevId].hasOwnProperty('api_info')) {
                     const unitCost = parseFloat(bomParts[partRevId]['seller_part']['unit_cost']);
                     const sellerName = bomParts[partRevId]['seller_part']['data_source'];
                     const isMouser = bomParts[partRevId]['seller_part']['seller'] === 'None';
@@ -601,9 +636,9 @@
                     const unitCostElement = $(unitCostId);
                     const sellerNameId = `${baseSellerNameId}${partRevId}`;
                     const sellerNameElement = $(sellerNameId);
-                    if(unitCost && sourcingInfo) unitCostElement.text(`${unitCost.toFixed(4)}`);
-                    if(unitCost && sourcingInfo && bomParts[partRevId]['seller_part']['data_source'] === 'Mouser') unitCostElement.append(mouserImage);
-                    if(isMouser && sellerName) sellerNameElement.text(`${sellerName}`);
+                    if (unitCost && sourcingInfo) unitCostElement.text(`${unitCost.toFixed(4)}`);
+                    if (unitCost && sourcingInfo && bomParts[partRevId]['seller_part']['data_source'] === 'Mouser') unitCostElement.append(mouserImage);
+                    if (isMouser && sellerName) sellerNameElement.text(`${sellerName}`);
                 }
             }
         }
