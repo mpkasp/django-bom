@@ -473,10 +473,10 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
     qty = cache.get(qty_cache_key, 1000)
 
     bom = part_revision.indented(top_level_quantity=qty)
-    headers = list(bom.items.items())[0][1].as_dict_for_export().keys()
+    headers = list(bom.parts.items())[0][1].as_dict_for_export().keys()
     writer = csv.DictWriter(response, fieldnames=headers)
     writer.writeheader()
-    for _, item in bom.items.items():
+    for _, item in bom.parts.items():
         writer.writerow({k: smart_str(v) for k, v in item.as_dict_for_export().items()})
     return response
 
@@ -504,10 +504,10 @@ def part_export_bom_flat(request, part_revision_id):
     qty = cache.get(qty_cache_key, 1000)
 
     bom = part_revision.flat(top_level_quantity=qty)
-    headers = list(bom.items.items())[0][1].as_dict_for_export().keys()
+    headers = list(bom.parts.items())[0][1].as_dict_for_export().keys()
     writer = csv.DictWriter(response, fieldnames=headers)
     writer.writeheader()
-    for _, item in bom.items.items():
+    for _, item in bom.parts.items():
         writer.writerow({k: smart_str(v) for k, v in item.as_dict_for_export().items()})
     return response
 

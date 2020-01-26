@@ -276,7 +276,7 @@ class TestBOM(TransactionTestCase):
         parts_p2 = 0
         qty_p2 = 0
         indented_bom = p3.latest().indented()
-        for _, p in indented_bom.items.items():
+        for _, p in indented_bom.parts.items():
             if p.part_revision == repeat_part_revision:
                 parts_p2 += 1
                 qty_p2 = p.quantity
@@ -294,7 +294,7 @@ class TestBOM(TransactionTestCase):
         qty_p2_load = 0
         qty_p2_do_not_load = 0
         indented_bom = p3.latest().indented()
-        for _, p in indented_bom.items.items():
+        for _, p in indented_bom.parts.items():
             if p.part_revision == repeat_part_revision:
                 parts_p2 += 1
             if p.part_revision == repeat_part_revision and p.do_not_load:
