@@ -17,19 +17,16 @@
                     {% csrf_token %}
                     {{ user_meta_form.non_field_errors }}
                     <div class="row">
+                        {{ user_meta_user_form.first_name|materializecss:'s12 m6' }}
+                        {{ user_meta_user_form.last_name|materializecss:'s12 m6' }}
+                    </div>
+                    <div class="row">
+                        {{ user_meta_user_form.email|materializecss:'s12 m6' }}
                         {{ user_meta_form.role|materializecss:'s12 m6' }}
                     </div>
                     <div class="row">
-                        {{ user_meta_user_form.username|materializecss:'s12 m4' }}
-                    </div>
-                    <div class="row">
-                        {{ user_meta_user_form.first_name|materializecss:'s12 m4' }}
-                        {{ user_meta_user_form.last_name|materializecss:'s12 m4' }}
-                        {{ user_meta_user_form.email|materializecss:'s12 m4' }}
-                    </div>
-                    <div class="row">
                         <div class="col s6">
-                            <a href="{% url 'bom:settings' %}organization" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
+                            <a href="{% url 'bom:settings' tab_anchor='organization' %}" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
                         </div>
                         <div class="col s6 right-align">
                             <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>

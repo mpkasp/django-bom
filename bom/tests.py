@@ -19,6 +19,8 @@ class TestBOM(TransactionTestCase):
             'kasper', 'kasper@McFadden.com', 'ghostpassword')
         self.organization = create_a_fake_organization(self.user)
         self.profile = self.user.bom_profile(organization=self.organization)
+        self.profile.role = 'A'
+        self.profile.save()
 
     def test_home(self):
         self.client.login(username='kasper', password='ghostpassword')
@@ -387,6 +389,11 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue('Part class &#39;code&#39; in row 3 must be a positive number. Uploading of this part class skipped.' in str(response.content))
         self.assertTrue('Part class &#39;code&#39; in row 4 must be a positive number. Uploading of this part class skipped.' in str(response.content))
+
+    def test_edit_user_meta(self):
+        self.client.login(username='kasper', password='ghostpassword')
+        response = self.client.post(reverse('bom:user-meta-edit', kwargs={'user_meta_id': self.user.bom_profile().id}))
+        self.assertEqual(response.status_code, 200)
 
     def test_add_sellerpart(self):
         self.client.login(username='kasper', password='ghostpassword')

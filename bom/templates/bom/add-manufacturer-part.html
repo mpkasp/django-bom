@@ -46,11 +46,11 @@
                         {{ manufacturer_part_form.manufacturer_part_number.errors }}
                         {{ manufacturer_part_form.manufacturer_part_number }}
                     </div>
-                    <div class="fieldWrapper col s6">
-                        <label for="{{ manufacturer_part_form.source_mouser.id_for_label }}"><b>Pull sourcing info from Mouser</b></label>
-                        {{ manufacturer_part_form.source_mouser.errors }}
-                        {{ manufacturer_part_form.source_mouser|materializecss }}
-                    </div>
+                    {% if part.number_class.mouser_enabled %}
+                        <label for="{{ manufacturer_part_form.mouser_disable.id_for_label }}"><b>Pull sourcing info from Mouser</b></label>
+                        {{ manufacturer_part_form.mouser_disable.errors }}
+                        {{ manufacturer_part_form.mouser_disable|materializecss:'col s6 input-field' }}
+                    {% endif %}
                 </div>
                 <div class="row">
                     <div class="col s6">

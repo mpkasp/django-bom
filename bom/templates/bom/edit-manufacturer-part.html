@@ -48,11 +48,9 @@
                         {{ manufacturer_part_form.manufacturer_part_number }}
                     </div>
                     {% if part.number_class.mouser_enabled %}
-                    <div class="fieldWrapper col s6">
-                        <label for="{{ manufacturer_part_form.source_mouser.id_for_label }}"><b>Disable sourcing info from Mouser</b></label>
-                        {{ manufacturer_part_form.mouser_disable.errors }}
-                        {{ manufacturer_part_form.mouser_disable|materializecss }}
-                    </div>
+                    <label for="{{ manufacturer_part_form.source_mouser.id_for_label }}"><b>Disable sourcing info from Mouser</b></label>
+                    {{ manufacturer_part_form.mouser_disable.errors }}
+                    {{ manufacturer_part_form.mouser_disable|materializecss:'col s6 input-field' }}
                     {% endif %}
                 </div>
                 <div class="row">
