@@ -234,6 +234,62 @@ class TestBOM(TransactionTestCase):
         occurances = [m.start() for m in finditer(p1.full_part_number(), response.content.decode('utf-8'))]
         self.assertEqual(len(occurances), 1)
 
+    def test_create_part_variation(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        new_part_mpn = 'STM32F401-NEW-PART'
+        new_part_form_data = {
+            'manufacturer_part_number': new_part_mpn,
+            'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
+            'number_class': p1.number_class.id,
+            'number_item': '2000',
+            'number_variation': '01',
+            'configuration': 'W',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+            'attribute': '',
+            'value': ''
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        new_part_form_data['number_variation'] = '02'
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        # Part should be created because the variation is different, redirect means part was created
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        # Part should NOT be created because the variation is the same, 200 means error
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('error' in str(response.content))
+        self.assertTrue('already in use' in str(response.content))
+
+    def test_create_part_no_manufacturer_part(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        new_part_mpn = 'STM32F401-NEW-PART'
+        new_part_form_data = {
+            'manufacturer_part_number': '',
+            'manufacturer': '',
+            'number_class': p1.number_class.id,
+            'number_item': '2000',
+            'number_variation': '01',
+            'configuration': 'W',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+            'attribute': '',
+            'value': ''
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        part = Part.objects.filter(number_class=p1.number_class.id, number_item='2000', number_variation='01').first()
+        self.assertEqual(len(part.manufacturer_parts()), 0)
+
+
     def test_part_edit(self):
         self.client.login(username='kasper', password='ghostpassword')
 

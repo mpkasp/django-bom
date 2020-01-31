@@ -658,6 +658,7 @@ def create_part(request):
         manufacturer_form = ManufacturerForm(request.POST)
         manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
         part_revision_form = PartRevisionForm(request.POST)
+        # Checking if part form is valid checks for number uniqueness
         if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
             mpn = manufacturer_part_form.cleaned_data['manufacturer_part_number']
             old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
@@ -676,16 +677,7 @@ def create_part(request):
                 messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
             new_part = part_form.save(commit=False)
             new_part.organization = organization
-            try:
-                new_part.assign_part_number()
-                # Check uniqueness of part number NOT including the number revision. Want 
-                # to make sure that the part does not exist at all, as such, whether or not
-                # is has revisions is not relevant.
-                Part.objects.get(number_class=new_part.number_class, number_item=new_part.number_item)
-                messages.error(request, "Error! Already created a part with part number {0}-{1}-VV".format(new_part.number_class.code, new_part.number_item))
-                return TemplateResponse(request, 'bom/create-part.html', locals())
-            except Part.DoesNotExist:
-                pass
+
             if part_revision_form.is_valid():
                 # Save the Part before the PartRevision, as this will again check for part
                 # number uniqueness. This way if someone else(s) working concurrently is also 
@@ -695,28 +687,24 @@ def create_part(request):
                     pr = part_revision_form.save(commit=False)
                     pr.part = new_part  # Associate PartRevision with Part
                     pr.save()
-                except IntegrityError:
-                    messages.error(request, "Error! Already created a part with part number {0}-{1}-VV".format(new_part.number_class.code, new_part.number_item))
+                except IntegrityError as err:
+                    messages.error(request, "Error! Already created a part with part number {0}-{1}-{3}}".format(new_part.number_class.code, new_part.number_item, new_part.number_variation))
                     return TemplateResponse(request, 'bom/create-part.html', locals())
             else:
                 messages.error(request, part_revision_form.errors)
                 return TemplateResponse(request, 'bom/create-part.html', locals())
 
             manufacturer_part = None
-            if manufacturer is None:
-                manufacturer, created = Manufacturer.objects.get_or_create(organization=organization, name='')
+            if manufacturer is not None:
+                manufacturer_part, created = ManufacturerPart.objects.get_or_create(
+                    part=new_part,
+                    manufacturer_part_number='' if mpn == '' else mpn,
+                    manufacturer=manufacturer)
 
-            manufacturer_part, created = ManufacturerPart.objects.get_or_create(
-                part=new_part,
-                manufacturer_part_number='' if mpn == '' else mpn,
-                manufacturer=manufacturer)
-
-            new_part.primary_manufacturer_part = manufacturer_part
-            new_part.save()
+                new_part.primary_manufacturer_part = manufacturer_part
+                new_part.save()
 
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': str(new_part.id)}))
-        else:
-            part_revision_form = PartRevisionForm(request.POST)
     else:
         # Initialize organization in the form's model and in the form itself:
         part_form = PartForm(initial={'organization': organization}, organization=organization)
