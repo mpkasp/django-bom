@@ -765,7 +765,7 @@ def manage_bom(request, part_id, part_revision_id):
         sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)
         messages.warning(request, "Warning: The following BOM references are associated with multiple parts: " + str(sorted_duplicate_references))
 
-    return TemplateResponse(request, 'bom/part-rev-manage-bom.html', locals())
+    return TemplateResponse(request, 'bom/part-revision-manage-bom.html', locals())
 
 
 @login_required
