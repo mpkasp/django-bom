@@ -201,3 +201,7 @@ a.anchor {
 .part-info-form input {
     text-align: right;
 }
+
+.materialize-checkbox-padding div {
+    padding: 10.5px 0;
+}

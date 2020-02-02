@@ -3,6 +3,7 @@ NO_CHOICE = ('', '-----')
 SUBSCRIPTION_TYPES = (('F', 'Free'), ('P', 'Pro'),)
 ROLE_TYPES = (('A', 'Admin'), ('V', 'Viewer'),)
 CONFIGURATION_TYPES = (('R', 'Released'), ('W', 'Working'),)
+NUMBER_SCHEMES = (('I', 'Intelligent'), ('S', 'Semi-Intelligent'),)
 
 DATA_SOURCES = (
     NO_CHOICE,

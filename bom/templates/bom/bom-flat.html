@@ -1,7 +1,11 @@
 {# To include this widget, make sure to pass: `parts`, `order_by`, `part`, `part_revision`, `profile` variables  - TODO Could remove part if we pass part revision #}
 {% load staticfiles %}
+
 <div class="row" style="padding-top: 16px;">
     <div class="col s6">
+        <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
+                onclick="jQuery('#flat-bom').trigger('sortReset'); return false;">Clear Sort
+        </button>
     </div>
     <div class="col s6 right-align">
         {% if manage and profile.role == 'A' %}
@@ -82,6 +86,18 @@
     </table>
 </div>
 
+<!-- Table Sorter -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.2/js/jquery.tablesorter.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.2/js/jquery.tablesorter.widgets.min.js"></script>
+<script>
+    $(function () {
+        $("#flat-bom").on('update', function() {
+            $("#flat-bom").tablesorter({theme : "materialize"});
+        });
+        $("#flat-bom").tablesorter({theme : "materialize"});
+    });
+</script>
+
 <script>
     $(document).ready(function () {
         $('.dropdown-trigger-flat').dropdown({
@@ -96,3 +112,4 @@
             });
     });
 </script>
+

@@ -378,7 +378,6 @@ def user_meta_edit(request, user_meta_id):
 
 @login_required
 def part_info(request, part_id, part_revision_id=None):
-    order_by = request.GET.get('order_by', 'indented')
     tab_anchor = request.GET.get('tab_anchor', None)
 
     user = request.user
@@ -448,10 +447,6 @@ def part_info(request, part_id, part_revision_id=None):
 
     where_used_part = part.where_used()
     seller_parts = part.seller_parts()
-
-    if order_by != 'defaultOrderField' and order_by != 'indented':
-        indented_bom = sorted(indented_bom, key=lambda k: k[order_by], reverse=True)
-
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
 

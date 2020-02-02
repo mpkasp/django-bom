@@ -289,7 +289,6 @@ class TestBOM(TransactionTestCase):
         part = Part.objects.filter(number_class=p1.number_class.id, number_item='2000', number_variation='01').first()
         self.assertEqual(len(part.manufacturer_parts()), 0)
 
-
     def test_part_edit(self):
         self.client.login(username='kasper', password='ghostpassword')
 

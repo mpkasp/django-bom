@@ -6,7 +6,7 @@
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/style.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}"/>
     <link rel="stylesheet" type="text/css" href="{% static 'bom/treetable-theme.css' %}"/>
     {{ add_subpart_form.media }}
@@ -31,7 +31,7 @@
                     {% csrf_token %}
                     {{ add_subpart_form.subpart_part_number|materializecss:'m4 s12' }}
                     {{ add_subpart_form.count|materializecss:'m1 s12' }}
-                    {{ add_subpart_form.do_not_load|materializecss:'m2 s12 input-field' }}
+                    {{ add_subpart_form.do_not_load|materializecss:'m2 s12 input-field materialize-checkbox-padding' }}
                     {{ add_subpart_form.reference|materializecss:'m4 s12' }}
                     <div class="fieldWrapper">
                         <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">add

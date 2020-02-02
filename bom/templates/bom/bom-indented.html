@@ -1,21 +1,29 @@
 {# To include this widget, make sure to pass: `parts`, `order_by`, `part`, `part_revision`, `profile` variables  - TODO Could remove part if we pass part revision #}
 {% load staticfiles %}
+
+{% block head %}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/treetable-theme.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/tablesorter-theme.materialize.css' %}"/>
+{% endblock %}
+
 <div class="row" style="padding-top: 16px;">
     <div class="col s6">
-        {% if order_by == 'indented' %}
-            <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
-                    onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand
-            </button>{% endif %}
-        {% if order_by == 'indented' %}
-            <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
-                    onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse
-            </button>{% endif %}
+        <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
+                onclick="jQuery('#indented-bom').treetable('expandAll'); return false;">Expand
+        </button>
+        <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
+                onclick="jQuery('#indented-bom').treetable('collapseAll'); return false;">Collapse
+        </button>
+        <button href="#" class="waves-effect waves-green grey lighten-4 btn-flat"
+                onclick="jQuery('#indented-bom').trigger('sortReset'); return false;">Clear Sort
+        </button>
     </div>
     <div class="col s6 right-align">
         {% if manage and profile.role == 'A' %}
             <button class="waves-effect waves-green grey lighten-4 btn-flat red-text"
-               href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
-               onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts
+                    href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
+                    onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts
             </button>
         {% else %}
             <!-- Dropdown Trigger -->
@@ -27,10 +35,10 @@
                 {% if profile.role == 'A' %}
                     <li>{% if part_revision.configuration == 'W' %}
                         <a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">
-                        <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
-                        {% else %}
+                            <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
+                    {% else %}
                         <a class="grey-text text-lighten-1" onclick="alert('Can\'t edit a released part!')"><i class="material-icons grey-text text-lighten-1">edit</i>Edit BOM</a>
-                        {% endif %}
+                    {% endif %}
                     </li>
                 {% endif %}
                 {% if part_revision %}
@@ -51,7 +59,7 @@
     <table id="indented-bom" class="highlight part-list tight single-line">
         <thead>
         <tr>
-            <th class="text-normal"><a href="?order_by=indented">Level</a></th>
+            <th class="text-normal">Level</th>
             <th class="text-normal">Part No.</th>
             <th class="text-normal">Qty</th>
             <th class="text-normal">Reference</th>
@@ -63,11 +71,11 @@
             <!-- <th class="text-normal"><i>Ext. Qty</i></th> -->
             <!-- <th class="text-normal"><i>Order Qty</i></th> -->
             <th class="text-normal">Seller</th>
-            <th class="text-normal"><a href="?order_by=seller_price">Price</a></th>
+            <th class="text-normal">Price</th>
             <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
-            <th class="text-normal"><a href="?order_by=seller_nre">NRE</a></th>
+            <th class="text-normal">NRE</th>
             {% if profile.role == 'A' and manage %}
-                <th>Manage</th>
+                <th class="sorter-false" data-sorter="false">Manage</th>
             {% endif %}
         </tr>
         </thead>
@@ -106,7 +114,7 @@
                             </li>
                         </ul>
                     </td>
-                {% else %}
+                {% elif manage %}
                     <td></td>
                 {% endif %}
             </tr>
@@ -118,32 +126,51 @@
     </table>
 </div>
 
-{% if order_by == 'indented' %}
-    <!-- Tree Table -->
-    <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
-    <script>
-        $("#indented-bom").treetable({
-            expandable: true,
-            indent: 2,
-            initialState: 'collapsed',
-            onInitialized: function () {
-                $("#indented-bom").treetable("reveal", {{ part_revision.id }});
+<!-- Tree Table -->
+<script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
+<script>
+    $("#indented-bom").treetable({
+        expandable: true,
+        indent: 2,
+        initialState: 'collapsed',
+        onInitialized: function () {
+            $("#indented-bom").treetable("reveal", {{ part_revision.id }});
+        }
+    });
+</script>
+
+<!-- Table Sorter -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.2/js/jquery.tablesorter.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.2/js/jquery.tablesorter.widgets.min.js"></script>
+<script>
+    $(function () {
+        initTableSorter();
+        $("#indented-bom").on('update', initTableSorter);
+    });
+
+    function initTableSorter() {
+        $("#indented-bom").tablesorter({
+            theme: "materialize",
+            headers: {
+                '.manage': {
+                    sorter: false
+                }
             }
         });
-    </script>
-{% endif %}
+    }
+</script>
 
 <script>
     $(document).ready(function () {
         $('.dropdown-trigger-indented').dropdown({
-                inDuration: 200,
-                outDuration: 225,
-                constrainWidth: false, // Does not change width of dropdown to that of the activator
-                hover: false, // Activate on hover
-                gutter: 0, // Spacing from edge
-                alignment: 'left', // Displays dropdown with edge aligned to the left of button
-                stopPropagation: false, // Stops event propagation
-                coverTrigger: false
-            });
+            inDuration: 200,
+            outDuration: 225,
+            constrainWidth: false, // Does not change width of dropdown to that of the activator
+            hover: false, // Activate on hover
+            gutter: 0, // Spacing from edge
+            alignment: 'left', // Displays dropdown with edge aligned to the left of button
+            stopPropagation: false, // Stops event propagation
+            coverTrigger: false
+        });
     });
 </script>
