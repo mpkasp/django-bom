@@ -96,26 +96,38 @@ class UserMetaForm(forms.ModelForm):
         return self.instance
 
 
-class OrganizationForm(forms.Form):
+class OrganizationCreateForm(forms.ModelForm):
+    class Meta:
+        model = Organization
+        exclude = ['owner', 'subscription', 'google_drive_parent']
+        labels = {
+            "name": "Organization Name",
+            "number_item_len": "Part Number Length"
+        }
+
+
+class OrganizationForm(forms.ModelForm):
+    class Meta:
+        model = Organization
+        exclude = ['owner', 'subscription', 'google_drive_parent', 'number_scheme', ]
+        labels = {
+            "name": "Organization Name",
+            "number_item_len": "Part Number Length"
+        }
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
-        super(OrganizationForm, self).__init__(*args, **kwargs)
-        user_queryset = User.objects.filter(
-            id__in=UserMeta.objects.filter(organization=self.organization, role='A').values_list('user', flat=True)).order_by(
-            'first_name', 'last_name', 'email')
-        self.fields['owner'] = UserModelChoiceField(queryset=user_queryset, label='Owner', initial=self.organization.owner, required=True)
-        self.fields['name'] = forms.CharField(label="Name", initial=self.organization.name, required=True)
 
-    def save(self):
-        self.organization.owner = self.cleaned_data.get('owner')
-        self.organization.name = self.cleaned_data.get('name')
-        self.organization.save()
-        return self.organization
+        super(OrganizationForm, self).__init__(*args, **kwargs)
+        if self.organization:
+            user_queryset = User.objects.filter(
+                id__in=UserMeta.objects.filter(organization=self.organization, role='A').values_list('user', flat=True)).order_by(
+                'first_name', 'last_name', 'email')
+            self.fields['owner'] = UserModelChoiceField(queryset=user_queryset, label='Owner', initial=self.organization.owner, required=True)
+            # self.fields['name'] = forms.CharField(label="Name", initial=self.organization.name, required=True)
 
 
 class NumberItemLenForm(forms.Form):
-
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super(NumberItemLenForm, self).__init__(*args, **kwargs)

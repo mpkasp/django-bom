@@ -25,7 +25,7 @@ class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
     subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
-    # number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES)
+    number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES)
     number_item_len = models.PositiveIntegerField(default=3, validators=[MinValueValidator(3), MaxValueValidator(10)])
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
 

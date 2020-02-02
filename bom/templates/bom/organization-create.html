@@ -1,0 +1,67 @@
+{% extends 'bom/bom-base.html' %}
+
+{% load materializecss %}
+{% load staticfiles %}
+
+{% block head-title %}Create Your Organization{% endblock %}
+
+{% block main %}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h1 class="light header center">Welcome to IndaBOM!</h1>
+        <h3 class="center">Let's create your organization.</h3>
+
+        <p class="center"><a class="modal-trigger" href="#modal1">Join an existing organization.</a></p>
+        <div id="modal1" class="modal">
+            <div class="modal-content">
+                <h4>Join an existing organization</h4>
+                <p>To join a an existing organization, you must provide the e-mail address you signed up with to your IndaBOM organization owner. <br><br>Your e-mail address is {{ user.email }}, click
+                    <a href="mailto:?subject=Add me to your IndaBOM Organization&body=Hi,%0D%0A%0D%0APlease add me to your IndaBOM organization. To do so, log in, go to Settings > Organization and add me via my e-mail address {{ user.email }}">here</a>
+                    to send an email.</p>
+            </div>
+            <div class="modal-footer">
+                <a href="#!" class="modal-close waves-effect waves-green btn-flat">Ok</a>
+            </div>
+        </div>
+
+        <div style="padding-top: 24px">
+            <form name="seller" action="{% url 'bom:organization-create' %}" method="post" class="col s12">
+                <div class="row">
+                    {% csrf_token %}
+                    <div class="col s12" style="padding: 16px;">
+                        <h4>1) Type a name for your organization.</h4>
+                        <p>You can always change this later.</p>
+                        {{ form.name|materializecss }}
+                    </div>
+                    <div class="col s12" style="padding: 16px;">
+                        <h4>2) What type of numbering scheme do you want your organization to use?</h4>
+                        <p>We recommend using "Semi-intelligent" numbering systems to take advantage of all of the IndaBOM features. You can read more about the options <a href="#todo">here</a>. Some times the "intelligent" way isn't the best way 😉.</p>
+                        {{ form.number_scheme|materializecss }}
+                    </div>
+                    <div class="col s12" style="padding: 16px;">
+                        <h4>3) How long do you want your part numbers to be?</h4>
+                        <p>You can always <i>increase</i> this number, but you can't decrease it. We recommend starting with 4 or 5 for Semi-intelligent numbering systems, and 6-10 for intelligent numbering systems.</p>
+                        {{ form.number_item_len|materializecss }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s6">
+                        <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
+                    </div>
+                    <div class="col s6 right-align">
+                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $('.modal').modal();
+        });
+    </script>
+{% endblock %}

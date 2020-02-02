@@ -26,7 +26,8 @@ from bom.models import Part, PartClass, Subpart, SellerPart, Organization, Manuf
     UserMeta, PartRevision, Assembly, AssemblySubparts
 from bom.forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
     ManufacturerPartForm, SellerPartForm, UserForm, UserMetaForm, UserAddForm, OrganizationForm, NumberItemLenForm, PartRevisionForm, \
-    PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm, PartClassFormSet
+    PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm, PartClassFormSet, \
+    OrganizationCreateForm
 from bom.utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,11 @@ logger = logging.getLogger(__name__)
 @login_required
 def home(request):
     profile = request.user.bom_profile()
-    organization = profile.get_or_create_organization()
+    organization = profile.organization
+    print(profile, organization)
+    if not organization:
+        return HttpResponseRedirect(reverse('bom:organization-create'))
+
     query = request.POST.get('q', '')
     title = f'{organization.name}\'s'
 
@@ -188,6 +193,30 @@ def home(request):
     except EmptyPage:
         part_revs = paginator.page(paginator.num_pages)
     return TemplateResponse(request, 'bom/dashboard.html', locals())
+
+
+@login_required()
+def organization_create(request):
+    user = request.user
+    profile = user.bom_profile()
+
+    if user.first_name == '' and user.last_name == '':
+        org_name = user.username
+    else:
+        org_name = user.first_name + ' ' + user.last_name
+
+    form = OrganizationCreateForm(initial={'name': org_name})
+    if request.method == 'POST':
+        form = OrganizationCreateForm(request.POST)
+        if form.is_valid():
+            organization = form.save(commit=False)
+            organization.owner = user
+            organization.subscription = 'F'
+            organization.save()
+            profile.organization = organization
+            profile.save()
+            return HttpResponseRedirect(reverse('bom:home'))
+    return TemplateResponse(request, 'bom/organization-create.html', locals())
 
 
 @login_required
