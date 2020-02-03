@@ -208,6 +208,12 @@ def organization_create(request):
     form = OrganizationCreateForm(initial={'name': org_name})
     if request.method == 'POST':
         form = OrganizationCreateForm(request.POST)
+        form.is_valid()
+        print(form.cleaned_data)
+        if form.cleaned_data['number_scheme'] == 'I':
+            form.cleaned_data['number_item_len'] = 128
+            print('updated cleaned data')
+        print(form.cleaned_data)
         if form.is_valid():
             organization = form.save(commit=False)
             organization.owner = user

@@ -25,8 +25,8 @@ class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
     subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
-    number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES)
-    number_item_len = models.PositiveIntegerField(default=3, validators=[MinValueValidator(3), MaxValueValidator(10)])
+    number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES, default='S')
+    number_item_len = models.PositiveIntegerField(default=3, validators=[MinValueValidator(3), MaxValueValidator(128)])
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
 
     def number_ns(self):
@@ -102,12 +102,12 @@ class Manufacturer(models.Model, AsDictModel):
 # that should be done often.
 class Part(models.Model):
     NUMBER_ITEM_MIN_LEN = 3
-    NUMBER_ITEM_MAX_LEN = 10
+    NUMBER_ITEM_MAX_LEN = 128
     NUMBER_VARIATION_LEN = 2
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
     number_class = models.ForeignKey(PartClass, default=None, related_name='number_class', on_delete=models.PROTECT, db_index=True)
-    number_item = models.CharField(max_length=10, default=None, blank=True, validators=[numeric])
+    number_item = models.CharField(max_length=NUMBER_ITEM_MAX_LEN, default=None, blank=True, validators=[numeric])
     number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
     primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True,
                                                   on_delete=models.SET_NULL, related_name='primary_manufacturer_part')

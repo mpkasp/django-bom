@@ -52,6 +52,7 @@
                 <h3>Edit Part Classes</h3>
                 <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
                     {% csrf_token %}
+                    {% if part_classes.count > 0 %}
                     <div class="row" style="margin-bottom: 0;">
                         <div class="input-field col s10 m4">
                             <select name="part-class-action">
@@ -68,7 +69,6 @@
                             </div>
                         </div>
                     </div>
-                    {% if part_classes.count > 0 %}
                         <table class="striped tight">
                             <thead>
                             <tr>
