@@ -600,21 +600,21 @@ class PartForm(forms.ModelForm):
         number_variation = cleaned_data.get('number_variation')
 
         try:
-            if number_class is not None and number_class.code is not '':
+            if number_class is not None and number_class.code != '':
                 Part.verify_format_number_class(number_class.code)
         except AttributeError as e:
             validation_error = forms.ValidationError(str(e), code='invalid')
             self.add_error('number_class', validation_error)
 
         try:
-            if number_item is not '':
+            if number_item != '':
                 Part.verify_format_number_item(number_item, self.organization.number_item_len)
         except AttributeError as e:
             validation_error = forms.ValidationError(str(e), code='invalid')
             self.add_error('number_item', validation_error)
 
         try:
-            if number_variation is not '':
+            if number_variation != '':
                 Part.verify_format_number_variation(number_variation)
         except AttributeError as e:
             validation_error = forms.ValidationError(str(e), code='invalid')
