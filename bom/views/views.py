@@ -37,7 +37,6 @@ logger = logging.getLogger(__name__)
 def home(request):
     profile = request.user.bom_profile()
     organization = profile.organization
-    print(profile, organization)
     if not organization:
         return HttpResponseRedirect(reverse('bom:organization-create'))
 
@@ -513,11 +512,11 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
     qty = cache.get(qty_cache_key, 1000)
 
     bom = part_revision.indented(top_level_quantity=qty)
-    headers = list(bom.parts.items())[0][1].as_dict_for_export().keys()
+    headers = list(bom.parts.items())[0][1].as_dict().keys()
     writer = csv.DictWriter(response, fieldnames=headers)
     writer.writeheader()
     for _, item in bom.parts.items():
-        writer.writerow({k: smart_str(v) for k, v in item.as_dict_for_export().items()})
+        writer.writerow({k: smart_str(v) for k, v in item.as_dict().items()})
     return response
 
 
@@ -603,7 +602,7 @@ def part_upload_bom(request, part_id):
         upload_bom_form = UploadBOMForm(initial={'organization': organization})
         bom_csv_form = BOMCSVForm()
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')), locals())
 
 
 @login_required

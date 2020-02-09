@@ -982,6 +982,10 @@ class BOMCSVForm(forms.Form):
                     continue
 
                 subpart_revision = subpart_part.latest()
+                if not subpart_revision:
+                    self.add_error(None, f"Part {part_number} has no revisions. Cannot add it to a BOM.")
+                    continue
+
                 if revision:
                     revs = subpart_part.revisions().filter(revision=revision).order_by('-timestamp')
                     if revs.count() > 0:
@@ -992,8 +996,9 @@ class BOMCSVForm(forms.Form):
                         continue
 
                 contains_parent = False
-                for sp in subpart_revision.indented(): # Make sure the subpart does not contain the parent - infinite recursion!
-                    if sp['part_revision'] == parent_part_revision:
+                indented_bom = subpart_revision.indented()
+                for _, sp in indented_bom.parts.items():  # Make sure the subpart does not contain the parent - infinite recursion!
+                    if sp.part_revision == parent_part_revision:
                         contains_parent = True
                 if contains_parent:
                     self.add_error(None, f"Uploaded part {part_number} contains parent part in it's assembly. Cannot add {part_number} as it would cause infinite recursion.")
@@ -1033,8 +1038,8 @@ class BOMCSVForm(forms.Form):
                 references_seen = set()
                 duplicate_references = set()
                 bom = parent_part_revision.indented()
-                for item in bom:
-                    check_references_for_duplicates(item['reference'], references_seen, duplicate_references)
+                for _, item in bom.parts.items():
+                    check_references_for_duplicates(item.references, references_seen, duplicate_references)
 
                 if len(duplicate_references) > 0:
                     sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)

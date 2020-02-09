@@ -7,7 +7,7 @@ from re import finditer
 
 from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_revision, \
     create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers, create_some_fake_sellers
-from .models import Part, SellerPart, ManufacturerPart, Seller, PartClass
+from .models import Part, SellerPart, ManufacturerPart, Seller, PartClass, Subpart
 from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
 
 
@@ -105,17 +105,44 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_part_upload_bom(self):
-        # TODO: Why is this so slow?
         self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
         with open('bom/test_files/test_parts.csv') as test_csv:
-            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertNotEqual(msg.tags, "error")
+            self.assertEqual(msg.tags, "info")
 
         with open('bom/test_files/test_parts_2.csv') as test_csv:
-            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertEqual(msg.tags, "error")
+            self.assertTrue("does not exist" in str(msg.message))
+
+        with open('bom/test_files/test_parts_3_recursion.csv') as test_csv:
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertEqual(msg.tags, "error")
+            self.assertTrue("recursion" in str(msg.message))
+
+        with open('bom/test_files/test_parts_4_no_part_rev.csv') as test_csv:
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertEqual(msg.tags, "error")
+            self.assertTrue("revision" in str(msg.message))
 
     def test_export_part_list(self):
         self.client.login(username='kasper', password='ghostpassword')
@@ -379,9 +406,19 @@ class TestBOM(TransactionTestCase):
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
+        part = p3
+        part_revision = part.latest()
+
+        subparts = part_revision.assembly.subparts.all()
+        subpart_ids = list(subparts.values_list('id', flat=True))
+
         response = self.client.post(
-            reverse('bom:part-remove-all-subparts', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id}))
+            reverse('bom:part-remove-all-subparts', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id}))
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(0, len(part_revision.assembly.subparts.all()))
+
+        subparts = Subpart.objects.filter(id__in=subpart_ids)
+        self.assertEqual(0, len(subparts))
 
     def test_upload_parts(self):
         self.client.login(username='kasper', password='ghostpassword')
