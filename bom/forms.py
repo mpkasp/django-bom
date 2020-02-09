@@ -925,7 +925,7 @@ class BOMCSVForm(forms.Form):
                     part_dict[headers[idx]] = item
 
                 dnp = get_from_dict(part_dict, ['dnp', 'dnl', 'do_not_populate', 'do_not_load', 'do_not_process', 'do not load', 'do not populate'])
-                do_not_load = dnp in ['y', 'x', ]
+                do_not_load = dnp in ['y', 'x', 'dnp', 'dnl', 'yes', 'true', ]
 
                 part_number = get_from_dict(part_dict, ['part_number', 'part number', 'part no', ])
                 revision = get_from_dict(part_dict, ['rev', 'revision', 'part_revision', ])

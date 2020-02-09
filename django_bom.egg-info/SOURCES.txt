@@ -52,6 +52,7 @@ bom/migrations/0029_auto_20191231_1630.py
 bom/migrations/0030_auto_20200101_2253.py
 bom/migrations/0031_auto_20200104_1352.py
 bom/migrations/0032_auto_20200126_1806.py
+bom/migrations/0033_auto_20200203_0618.py
 bom/migrations/__init__.py
 bom/static/.DS_Store
 bom/static/bom/.DS_Store
@@ -125,9 +126,9 @@ bom/templates/bom/help.html
 bom/templates/bom/nothing-to-see.html
 bom/templates/bom/organization-create.html
 bom/templates/bom/part-info.html
-bom/templates/bom/part-rev-manage-bom.html
 bom/templates/bom/part-revision-display.html
 bom/templates/bom/part-revision-edit.html
+bom/templates/bom/part-revision-manage-bom.html
 bom/templates/bom/part-revision-new.html
 bom/templates/bom/part-revision-release.html
 bom/templates/bom/search-help.html
