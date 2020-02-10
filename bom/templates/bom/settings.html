@@ -14,9 +14,9 @@
     <div class="row container-app">
         <div class="col s12">
             <ul id="tabs" class="tabs tabs-fixed-width">
-                <li class="tab"><a href="#user">User</a></li>
-                <li class="tab"><a href="#indabom">IndaBOM</a></li>
-                <li class="tab"><a href="#organization">Organization</a></li>
+                <li class="tab"><a id="user-tab" href="#user">User</a></li>
+                <li class="tab"><a id="indabom-tab" href="#indabom">IndaBOM</a></li>
+                <li class="tab"><a id="organization-tab" href="#organization">Organization</a></li>
             </ul>
         </div>
 
@@ -310,10 +310,12 @@
     <!-- Handle if there's an anchor, select tab -->
     <script type='text/javascript'>
         var tabsElem = document.querySelector('.tabs');
-        var tabs = M.Tabs.init(tabsElem);
+
         {% if tab_anchor %}
-            tabs.select('{{tab_anchor}}');
+            $('#{{ tab_anchor }}-tab').addClass('active');
         {% endif %}
+
+        var tabs = M.Tabs.init(tabsElem);
     </script>
 
     <script type='text/javascript'>

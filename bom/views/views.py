@@ -959,7 +959,7 @@ def add_sellerpart(request, manufacturer_part_id):
         if form.is_valid():
             form.save()
             return HttpResponseRedirect(
-                reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '#sourcing')
+                reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '?tab_anchor=sourcing')
     else:
         form = SellerPartForm(organization=organization)
 
