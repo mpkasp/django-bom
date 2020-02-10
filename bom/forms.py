@@ -127,6 +127,15 @@ class OrganizationForm(forms.ModelForm):
             # self.fields['name'] = forms.CharField(label="Name", initial=self.organization.name, required=True)
 
 
+class OrganizationFormEditSettings(OrganizationForm):
+    class Meta:
+        model = Organization
+        exclude = ['subscription', 'google_drive_parent', 'number_scheme', 'number_item_len', ]
+        labels = {
+            "name": "Organization Name",
+        }
+
+
 class NumberItemLenForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)

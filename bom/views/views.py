@@ -27,7 +27,7 @@ from bom.models import Part, PartClass, Subpart, SellerPart, Organization, Manuf
 from bom.forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
     ManufacturerPartForm, SellerPartForm, UserForm, UserMetaForm, UserAddForm, OrganizationForm, NumberItemLenForm, PartRevisionForm, \
     PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm, PartClassFormSet, \
-    OrganizationCreateForm
+    OrganizationCreateForm, OrganizationFormEditSettings
 from bom.utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely
 
 logger = logging.getLogger(__name__)
@@ -260,7 +260,7 @@ def bom_settings(request, tab_anchor=None):
     user_add_form = UserAddForm()
     user_meta_form = UserMetaForm()
 
-    organization_form = OrganizationForm(organization=organization)
+    organization_form = OrganizationFormEditSettings(instance=organization)
     number_item_len_form = NumberItemLenForm(organization=organization)
     part_class_form = PartClassForm()
     part_class_csv_form = PartClassCSVForm(organization=organization)
@@ -317,7 +317,7 @@ def bom_settings(request, tab_anchor=None):
 
         elif 'submit-edit-organization' in request.POST:
             tab_anchor = ORGANIZATION_TAB
-            organization_form = OrganizationForm(request.POST, organization=organization)
+            organization_form = OrganizationFormEditSettings(request.POST, instance=organization)
             if organization_form.is_valid():
                 organization_form.save()
             else:
@@ -325,8 +325,7 @@ def bom_settings(request, tab_anchor=None):
 
         elif 'refresh-edit-organization' in request.POST:
             tab_anchor = ORGANIZATION_TAB
-            organization_form = OrganizationForm(organization=organization)
-
+            organization_form = OrganizationFormEditSettings(instance=organization)
         elif 'submit-number-item-len' in request.POST:
             tab_anchor = INDABOM_TAB
             number_item_len_form = NumberItemLenForm(request.POST, organization=organization)
