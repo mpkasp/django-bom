@@ -1,0 +1,40 @@
+code,name,description
+101,Capacitor,All types of capacitors
+102,Resistor,All types of resistors
+103,LED,All types of LEDs
+104,Transistor,All types of transistor
+105,IC General,All types of general integrated circuits
+106,Microcontroller,All types of microcontrollers
+107,Microprocessor,All types of microprocessors
+108,IC Memory,All types of memory storage
+109,Sensor,All types of analog and digital sensors
+110,Audio / Video IC,All types of audio and video integrated circuits
+111,Screens,All types of display screens incl. touch
+112,User Input Misc,Miscellaneous user input devices
+113,Inductor,All types of inductors
+114,Choke,All types of chokes
+115,Diode,All types of diodes
+116,Fuse,All types of fuses
+117,Crystal,All types of crystals
+118,Switch / Button,All types of switches and buttons
+119,Connector,All types of connectors
+200,Fastener Misc,Miscellaneous fasteners
+201,Screw,All types of screws
+202,Nut,All types of nuts
+203,Washer,All types of washers
+300,Cable Misc,Miscellaneous cables
+310,Cable Assy,All types of cable assemblies
+400,Molded Part,All types of molded parts
+410,Printed Part,All types of printed parts
+420,Machined Part,All types of machined parts
+450,Mechanical Assy,All types of mechanical assembles
+550,Packaging,All types of shippingand handling packaging
+560,Label,All types of applied labels
+600,PC Board Bare,All types of bare PC boards
+602,PC Board Bare (Prototype),All types of prototype bare PC boards
+650,PC Board Assy,All types of soldered PC boards
+652,PC Board Assy (Prototype),All types of prototype soldered PC boards
+700,Internal Documentation,All types of documents for internal audiences
+710,External Documentation,All types of documents for external audiences
+800,Product Subassembly,All types of product subassemblies
+850,Product,All types of products

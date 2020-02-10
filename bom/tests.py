@@ -108,7 +108,7 @@ class TestBOM(TransactionTestCase):
         self.client.login(username='kasper', password='ghostpassword')
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        with open('bom/test_files/test_parts.csv') as test_csv:
+        with open('bom/test_files/test_bom.csv') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
@@ -127,7 +127,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(subparts[3].do_not_load, True)
         self.assertEqual(subparts[5].count, 99)
 
-        with open('bom/test_files/test_parts_2.csv') as test_csv:
+        with open('bom/test_files/test_bom_2.csv') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
@@ -136,7 +136,7 @@ class TestBOM(TransactionTestCase):
             self.assertEqual(msg.tags, "error")
             self.assertTrue("does not exist" in str(msg.message))
 
-        with open('bom/test_files/test_parts_3_recursion.csv') as test_csv:
+        with open('bom/test_files/test_bom_3_recursion.csv') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
@@ -145,7 +145,7 @@ class TestBOM(TransactionTestCase):
             self.assertEqual(msg.tags, "error")
             self.assertTrue("recursion" in str(msg.message))
 
-        with open('bom/test_files/test_parts_4_no_part_rev.csv') as test_csv:
+        with open('bom/test_files/test_bom_4_no_part_rev.csv') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
@@ -491,6 +491,63 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue('Part class &#39;code&#39; in row 3 must be a positive number. Uploading of this part class skipped.' in str(response.content))
         self.assertTrue('Part class &#39;code&#39; in row 4 must be a positive number. Uploading of this part class skipped.' in str(response.content))
+
+    def test_upload_part_classes_parts_and_boms(self):
+        self.client.login(username='kasper', password='ghostpassword')
+        self.organization.number_item_len = 5
+        self.organization.save()
+
+        with open('bom/test_files/test_part_classes_4.csv') as test_csv:
+            response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
+        self.assertEqual(response.status_code, 200)
+
+        new_part_class_count = PartClass.objects.all().count()
+        self.assertEqual(new_part_class_count, 39)
+
+        with open('bom/test_files/test_new_parts_4.csv') as test_csv:
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertEqual(msg.tags, 'info')
+
+        self.assertEqual(response.status_code, 200)
+        new_part_count = Part.objects.all().count()
+        self.assertEqual(new_part_count, 88)
+
+        pcba_class = PartClass.objects.filter(code=652).first()
+        pcba = Part.objects.filter(number_class=pcba_class, number_item='00003', number_variation='0A').first()
+
+        with open('bom/test_files/test_bom_652-00003-0A.csv') as test_csv:
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertNotEqual(msg.tags, "error")
+            self.assertEqual(msg.tags, "info")
+
+        subparts = pcba.latest().assembly.subparts.all().order_by('id')
+        self.assertEqual(subparts[0].reference, 'C1')
+        self.assertEqual(subparts[1].reference, 'C2')
+        self.assertEqual(subparts[2].reference, 'C21')
+        pcba = Part.objects.filter(number_class=pcba_class, number_item='00004', number_variation='0A').first()
+
+        with open('bom/test_files/test_bom_652-00004-0A.csv') as test_csv:
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for idx, msg in enumerate(messages):
+            self.assertNotEqual(msg.tags, "error")
+            self.assertEqual(msg.tags, "info")
+
+        self.assertTrue("Already created part" in str(messages[37].message))
+
+        subparts = pcba.latest().assembly.subparts.all().order_by('id')
+        self.assertEqual(subparts[0].reference, 'C1')
+        self.assertEqual(subparts[1].reference, 'C2')
+        self.assertEqual(subparts[2].reference, 'C3')
+        self.assertEqual(subparts[36].reference, 'Y1')
 
     def test_edit_user_meta(self):
         self.client.login(username='kasper', password='ghostpassword')

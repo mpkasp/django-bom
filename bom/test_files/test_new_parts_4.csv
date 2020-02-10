@@ -1,0 +1,89 @@
+part_number,part_category,description,revision,part_manufacturer,part_manufacturer_part_number
+101-00001-00,Capacitor,0.1uF 0402 smd ,1,,
+101-00002-00,Capacitor,10uF 0402 smd 10V rating ,1,,
+101-00003-00,Capacitor,10nF 0402 smd ,1,Kemet,C0603C103M3RACTU
+101-00004-00,Capacitor,15pF 0402 smd 25V rating ,1,,
+101-00005-00,Capacitor,1uF 0603 smd ,1,,
+101-00006-00,Capacitor,2.2uF 0402 smd ,1,TDK,C1005X5R1A225K050BC
+101-00007-00,Capacitor,22uF 0805 smd ,1,TDK,C2012X5R1C226M
+101-00008-00,Capacitor,4.7uF 0603 smd ,1,Yageo,CC0603KRX5R6BB475
+101-00009-00,Capacitor,47pF 0603 smd ,1,,
+101-00010-00,Capacitor,3.3nF 0402 smd ,1,,
+101-00011-00,Capacitor,0.22uF 0402 smd ,1,,
+101-00012-00,Capacitor,220pF 0402 smd ,1,,
+101-00013-00,Capacitor,100nF 0402 smd 5V supply ,1,,
+101-00014-00,Capacitor,0.1uF Ceramic X7R 0603 smd 25V rating ,1,TDK,CGA3E2X7R1E104K080AA
+101-00015-00,Capacitor,10uF Ceramic X5R 20% 0603 smd 25V rating ,1,TDK,C1608X5R1E106M080AC
+101-00016-00,Capacitor,47uF Ceramic X5R 20% 0805 smd 6.3V rating ,1,TDK,C2012X5R0J476M125AC
+102-00001-00,Resistor,100kOhms 0402 smd ,1,Panasonic,ERJ-2RKF1003X
+102-00002-00,Resistor,10kOhms 0402 smd ,1,Panasonic,ERJ-2RKF1002X
+102-00003-00,Resistor,10Ohms 0402 smd ,1,,
+102-00004-00,Resistor,180Ohms 0402 smd ,1,Panasonic,ERJ-2RKF1800X
+102-00005-00,Resistor,2.2kOhms 0402 smd ,1,Yageo,RC0402FR-072K2L
+102-00006-00,Resistor,270Ohms 0402 smd ,1,Yageo,RC0402FR-07270RL
+102-00007-00,Resistor,10Ohms 0402 smd ,1,Panasonic,ERJ-2RKF10R0X
+102-00008-00,Resistor,49.9kOhms 0402 smd ,1,Panasonic,ERJ-2RKF4992X
+102-00009-00,Resistor,499kOhms 1% 0402 smd ,1,,
+102-00010-00,Resistor,510kOhms 0402 smd ,1,Panasonic,ERJ-2RKF5103X
+102-00011-00,Resistor,100Ohms 0603 smd ,1,,
+102-00012-00,Resistor,10kOhms 0.1% 0603 smd ,1,Bourns,CRT0603-BY-1002ELF
+102-00013-00,Resistor,15kOhms 1206 smd ,1,,
+102-00014-00,Resistor,1kOhms 0402 smd ,1,,
+102-00015-00,Resistor,0Ohms 0402 smd ,1,,
+102-00016-00,Resistor,499Ohms 0402 smd ,1,,
+102-00017-00,Resistor,4.7kOhms 0402 smd ,1,,
+102-00018-00,Resistor,470Ohms 0402 smd ,1,,
+102-00019-00,Resistor,5.1kOhms 0402 smd ,1,,
+102-00020-00,Resistor,27kOhms 0402 smd ,1,,
+102-00021-00,Resistor,68kOhms 0402 smd ,1,,
+102-00022-00,Resistor,39Ohms 0402 smd ,1,,
+102-00023-00,Resistor,33.2kOhms 0402 smd ,1,,
+102-00024-00,Resistor,45.3kOhms 0402 smd ,1,,
+102-00025-00,Resistor,6.8kOhms 0402 smd ,1,,
+102-00026-00,Resistor,110kOhms 0402 smd ,1,,
+102-00027-00,Resistor,20kOhms 0402 smd ,1,,
+103-00001-00,LED,RGB rectangle flat top white lens 0606 smd ,1,Lite-On,LTST-C19HE1WT
+103-00002-00,LED,2V Green 35 mcd 130 deg viewing angle 0603 smd 571nm 20mA rating ,1,Lite-On,LTST-C191KGKT
+103-00003-00,LED,2V Red 54 mcd 130 deg viewing angle 0603 smd 631nm 20mA rating ,1,Lite-On,LTST-C191KRKT
+104-00002-00,Transistor,450mOhms N-Channel MOSFET SOT-23 3 pins 150°C rating 350mW rating 25V rating 680mA rating ,1,ON Semiconductor,FDV303N
+104-00003-00,Transistor,190mOhms P-Channel MOSFET SOT-23 3 pins 150°C rating 1.56W rating 60V rating 3.1A rating ,1,Taiwan Semiconductor,TSM2309CX RFG
+104-00004-00,Transistor,14Ohms N-channel MOSFET SOT-23 3 pins 360mW rating 250V rating 100mA rating ,1,Infineon,BSS139H6327XTSA1
+105-00004-00,IC General,RS485 transceiver 500 Mbps SOIC 8 pins 125°C rating ,1,Texas Instruments,THVD1450D
+105-00006-00,IC General,3.3V Linear regulator SOT-23 5 pins 16V supply 125°C rating 250mA rating ,1,Texas Instruments,LP2992IM5-3.3/NOPB
+105-00007-00,IC General,Supervisor reset/power-on reset 100ms timeout SOT-23 3 pins ,1,STMicroelectronics,STM1818TWX7F
+105-00008-00,IC General,Synchronous step-down buck converter SOT563 6 pins 850kHz 14V supply 150°C rating 7V rating 2A rating ,1,Texas Instruments,TPS562231
+105-00009-00,IC General,Single comparator with internal vref SC70 smd 5 pins 5.5V supply 85°C rating ,1,Microchip Technology,MIC842HYC5-TR
+106-00001-00,Microcontroller,"LPC55S66JBD100K 32-bit ARM Cortex-M33, crypto engine, secure boot QFP 100 pins 100MHz 320KB I2C 3.3V supply ",1,,
+109-00001-00,Sensor,Barometric pressure sensor 10 to 1200 mbar 8 pins I2C 3.6V supply 85°C rating L 5mm W 3mm H 1mm ,1,TE Connectivity,MS5607-02BA03
+113-00002-00,Inductor,4.7uH 400mA 340mOhms ,1,TDK,MLZ2012M4R7HT000
+113-00003-00,Inductor,3.3μH Shielded multilayer 2012 0805 smd 900mA rating ,1,TDK,MLP2012S3R3MT0S1
+114-00001-00,Choke,600Ohms Ferrite bead 0603 smd 100MHz 125°C rating ,1,Laird-Signal Integrity Products,MI0603J601R-10
+114-00002-00,Choke,100μH Common mode SMD 135°C rating 80V rating 500mA rating L 0.287in W 0.213in H 0.197in ,1,Bourns,DR331-104AE
+115-00001-00,Diode,TVS 5.5V reverse 8.5V clamping SOT-23 3 pins ,1,Littlefuse,SP0502BA
+115-00003-00,Diode,Dual TVS 7V/12V reverse 7.5V/13.3V breakdown SOT-23 3 pins 400W rating 17A rating ,1,Bourns,CDSOT23-SM712
+115-00004-00,Diode,TVS 3.3V reverse 6V breakdown SOT-363 6 pins 1A rating ,1,Diodes Inc.,D1213A-04S-7
+115-00005-00,Diode,10V Zener 5% SOT-23 3 pins 150°C rating 250mW rating ,1,ON Semiconductor,MMBZ5240B
+115-00006-00,Diode,5.1V Zener SOT-23 3 pins 150°C rating 350mW rating ,1,ON Semiconductor,MMBZ5231B
+117-00001-00,Crystal,16 MHz +-50ppm  8pF 100 Ohms 3.2X2.5 2-SMD ,1,Kyocera,CX3225GA16000D0PTVCC
+117-00002-00,Crystal,16 MHz 8pF 80 Ohm 3.2X2.5 4-SMD ,1,IQD,LFXTAL071744
+117-00003-00,Crystal,12 MHz 15pF 120 Ohm 3.2X2.5 4-SMD ,1,IQD,LFXTAL069944
+117-00004-00,Crystal,26.0MHz 8pF smd AEC-Q200 4 pins 125°C rating ,1,IQD Frequency Products,LFXTAL071788REEL
+119-00004-00,Connector,"JMC 0.5mm pitch smd R/A receptacle gold plated, has boss 20 pins 85°C rating 50V rating 0.5A rating ",1,JST,20PS-JMCS-G-1B-TF-(R/A)
+119-00007-00,Connector,"Male header thru-hole R/A 0.100"" pitch gold plated 6 pins 105°C rating 3A rating ",1,Harwin,M20-9950345
+119-00009-00,Connector,"Male vert thru-hole header 0.100"" pitch gold plated 3 pins 105°C rating 3A rating ",1,Wurth,61300311121
+119-00010-00,Connector,"JMC 0.5mm pitch smd plug 3mm stacking height gold plated, has boss 20 pins 85°C rating 50V rating 0.5A rating ",1,JST,JST-20P3.0-JMCS-G-B-TF(N)
+119-00011-00,Connector,MCU serial debug 10 pins ,1,CNC,CNC-3220-10-0100-00
+119-00012-00,Connector,Screw terminal block side ent 2.54 mm pitch thru hole 4 pins Green ,1,On Shore Technology,OSTVN04A150
+400-00001-00,Molded Part,Digital Light Switch Paddle Housing ABS ,1,,
+400-00002-00,Molded Part,Digital Light Switch Lower Enclosure ABS ,1,,
+400-00003-00,Molded Part,Digital Light Switch Upper Enclosure ABS ,1,,
+420-00001-00,Machined Part,Digital Light Switch Mounting Yoke 6061 Aluminum ,1,,
+600-00002-0A,PC Board Bare,Sensor Pak / Flex Pak / Wall Pak MCU ,1,,
+602-00001-0B,PC Board Bare (Prototype),Eval BMP280 & LPS22HH pressure sensors 2-layer ,2,,
+602-00002-0A,PC Board Bare (Prototype),LPC55S MCU sister board prototype ,1,,
+602-00003-0A,PC Board Bare (Prototype),LPC55S MCU mother board ,1,,
+650-00002-0A,PC Board Assy,Sensor Pak / Flex Pak / Wall Pak MCU ,1,,
+652-00001-0A,PC Board Assy (Prototype),Eval MS5607-02BA03 w/two in-duct sensors ,1,,
+652-00002-0A,PC Board Assy (Prototype),"Eval MS5607-02BA03 w/sensor in-duct, sensor outside duct ",1,,
+652-00003-0A,PC Board Assy (Prototype),LPC55S MCU mother board ,1,,
+652-00004-0A,PC Board Assy (Prototype),LPC55S MCU mother board ,1,,

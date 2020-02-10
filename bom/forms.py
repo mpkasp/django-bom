@@ -906,6 +906,11 @@ class BOMCSVForm(forms.Form):
             reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
             headers = [h.lower() for h in next(reader)]
 
+            # Handle utf-8-sig encoding
+            if "\ufeff" in headers[0]:
+                reader = csv.reader(codecs.iterdecode(file, 'utf-8-sig'), dialect)
+                headers = [h.lower() for h in next(reader)]
+
             if 'part_number' not in headers and 'manufacturer_part_number' not in headers:
                 raise ValidationError("Missing required column named 'part_number' or column named 'manufacturer_part_number'.", code='invalid')
             if 'quantity' not in headers:
@@ -1017,23 +1022,30 @@ class BOMCSVForm(forms.Form):
                     continue
                 reference = stringify_list(reference_list)
 
-                new_subpart, created = Subpart.objects.get_or_create(
+                subpart_exists = parent_part_revision.assembly.subparts.filter(
                     part_revision=subpart_revision,
                     count=count,
                     reference=reference,
                     do_not_load=do_not_load
-                )
+                ).count() > 0
 
-                AssemblySubparts.objects.get_or_create(assembly=parent_part_revision.assembly, subpart=new_subpart)
+                if not subpart_exists:
+                    new_subpart = Subpart.objects.create(
+                        part_revision=subpart_revision,
+                        count=count,
+                        reference=reference,
+                        do_not_load=do_not_load
+                    )
 
-                if not created:
-                    self.warnings.append(f"Already created part on row {row_count}, {part_number}, rev {revision}, qty {count}, ref: {reference}. Did not create it again.")
-                else:
+                    AssemblySubparts.objects.get_or_create(assembly=parent_part_revision.assembly, subpart=new_subpart)
+
                     info_msg = "Added subpart "
                     if reference:
-                        info_msg += ' ' + reference
-                    info_msg += " {} to parent part {}.".format(part_number, self.parent_part)
+                        info_msg += f' {reference}'
+                    info_msg += f" {part_number} to parent part {self.parent_part}."
                     self.successes.append(info_msg)
+                else:
+                    self.warnings.append(f"Already created part on row {row_count}, {part_number}, rev {revision}, qty {count}, ref: {reference}. Did not create it again.")
 
                 references_seen = set()
                 duplicate_references = set()
