@@ -326,7 +326,7 @@ class PartClassCSVForm(forms.Form):
                 # Finally, convert whatever header synonym names were used to default header names.
                 csv_headers.validate_header_names(headers)
                 hdr_assertions = [
-                    ('comment', 'description', 'eor'),  # EITHER part_class OR part_number
+                    ('comment', 'description', 'me'),  # MUTUALLY EXCLUSIVE part_class or part_number but not both
                     ('code', 'in'),  # CONTAINS revision
                     ('name', 'in'),  # CONTAINS name
                 ]
@@ -969,6 +969,15 @@ class BOMCSVForm(forms.Form):
                 mpn = csv_headers.get_val_from_row(part_dict, 'mpn')
                 count = csv_headers.get_val_from_row(part_dict, 'count')
                 reference = csv_headers.get_val_from_row(part_dict, 'reference')
+                reference_list = listify_string(reference) if reference else []
+
+                if not count.isdigit() or int(count) < 1:
+                    self.add_error(None,
+                                   "Quantity for subpart {0} on row {1} must be a number > 0. Uploading of this subpart skipped.".format(
+                                       subpart_part.__str__(), row_count))
+                    continue
+                else:
+                    count = int(count)
 
                 # First try to add the subpart_part based on the part number
                 subpart_part = None
@@ -1040,30 +1049,11 @@ class BOMCSVForm(forms.Form):
                     self.add_error(None, f"Uploaded part {part_number} contains parent part in it's assembly. Cannot add {part_number} as it would cause infinite recursion.")
                     continue
 
-                reference_list = listify_string(reference) if reference else []
+                existing_subpart_qs = parent_part_revision.assembly.subparts.filter(
+                    part_revision=subpart_revision
+                )
 
-                if not count:
-                    count = len(reference_list) if len(reference_list) > 0 else '1'
-                elif not count.isdigit() or int(count) < 1:
-                    self.add_error(None, "Quantity for subpart {0} on row {1} must be a number > 0. Uploading of this subpart skipped.".format(subpart_part.__str__(), row_count))
-                    continue
-                else:
-                    count = int(count)
-
-                if len(reference_list) > 0 and len(reference_list) != count:
-                    self.add_error(None, "The number of reference designators ({0}) for subpart {1} on row {2} does not match the subpart quantity ({3}). "
-                                         "Quantity automatically adjusted.".format(len(reference_list), subpart_part.__str__(), row_count, count))
-                    count = len(reference_list)
-                reference = stringify_list(reference_list)
-
-                subpart_exists = parent_part_revision.assembly.subparts.filter(
-                    part_revision=subpart_revision,
-                    count=count,
-                    reference=reference,
-                    do_not_load=do_not_load
-                ).count() > 0
-
-                if not subpart_exists:
+                if len(existing_subpart_qs) == 0:
                     new_subpart = Subpart.objects.create(
                         part_revision=subpart_revision,
                         count=count,
@@ -1078,8 +1068,33 @@ class BOMCSVForm(forms.Form):
                         info_msg += f' {reference}'
                     info_msg += f" {part_number} to parent part {self.parent_part}."
                     self.successes.append(info_msg)
+
                 else:
-                    self.warnings.append(f"Already created part on row {row_count}, {part_number}, rev {revision}, qty {count}, ref: {reference}. Did not create it again.")
+                    existing_subpart = existing_subpart_qs[0]
+                    duplicate = False
+                    existing_subpart_reference_list = listify_string(existing_subpart.reference)
+                    for ref in reference_list:
+                        if ref in existing_subpart_reference_list:
+                            duplicate = True
+
+                    if duplicate:
+                        self.warnings.append(
+                            f"Already created part on row {row_count}, {part_number}, rev {revision}, qty {count}, ref: {reference}. Did not create it again.")
+                    else:
+                        existing_subpart_reference_list = existing_subpart_reference_list + reference_list
+                        existing_subpart.reference = stringify_list(existing_subpart_reference_list)
+                        existing_subpart.count = len(existing_subpart_reference_list) if len(existing_subpart_reference_list) > 0 else '1'
+                        existing_subpart.save()
+                        reference_list = existing_subpart_reference_list
+
+                if len(reference_list) > 0 and len(reference_list) != count:
+                    self.add_error(None,
+                                   "The number of reference designators ({0}) for subpart {1} on row {2} does not match the subpart quantity ({3}). "
+                                   "Quantity automatically adjusted.".format(len(reference_list),
+                                                                             subpart_part.__str__(), row_count, count))
+
+                count = len(reference_list) if len(reference_list) > 0 else '1'
+                reference = stringify_list(reference_list)
 
                 references_seen = set()
                 duplicate_references = set()

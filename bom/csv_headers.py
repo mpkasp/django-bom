@@ -70,6 +70,7 @@ class CSVHeaders:
     #   'in' means contains
     #   'and' means logical AND
     #   'or' means logical OR
+    #   'me' means mutually exclusive (one or the other but not both)
     #
     # For example:
     #   'up', 'down', 'and', 'left', 'or'
@@ -95,7 +96,7 @@ class CSVHeaders:
                 c = self.count_matches(headers, operand)
                 if c == 0 and prev_count == 0:
                     raise CSVHeaderError(("Missing column named \'{}\'").format(self.get_default(operand)))
-            elif operator == 'eor':
+            elif operator == 'me':
                 c = self.count_matches(headers, operand)
                 if c > 1 and prev_count > 1:
                     raise CSVHeaderError(("Conflicting column named \'{}\'").format(self.get_default(operand)))
