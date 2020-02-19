@@ -16,6 +16,7 @@ class CSVHeaders:
     def __init__(self):
         self.all_header_defns = []
 
+    # Returns a list of synonyms or None if there are no synonyms.
     def get_synoynms(self, hdr_name):
         for defn in self.all_headers_defns:
             if hdr_name in defn:
@@ -27,17 +28,22 @@ class CSVHeaders:
                             k = list(defn.keys())[0]
                             return [k] + list(defn.values())[0]
 
+    # If header name does not have a default (i.e., it is not a valid header name) then
+    # returns None.
     def get_default(self, hdr_name):
         synonyms = self.get_synoynms(hdr_name)
         return self.get_synoynms(hdr_name)[0] if synonyms is not None else None
 
-    # Preserves order of definiyions as listed in all_header_defns:
+    # Preserves order of definitions as listed in all_header_defns:
     def get_default_all(self):
         all_defaults = []
         for defn in self.all_headers_defns:
             all_defaults.append(list(defn.keys())[0])
         return all_defaults
 
+    # Given a list of header names returns the default name for each. The return list
+    # matches the order of the input list. If a name is not recognized, then returns
+    # None as its default:
     def get_defaults_list(self, hdr_names):
         defaults_list = []
         for hdr_name in hdr_names:
@@ -70,7 +76,7 @@ class CSVHeaders:
     #   'in' means contains
     #   'and' means logical AND
     #   'or' means logical OR
-    #   'me' means mutually exclusive (one or the other but not both)
+    #   'mex' means mutually exclusive (one or the other but not both)
     #
     # For example:
     #   'up', 'down', 'and', 'left', 'or'
@@ -78,44 +84,45 @@ class CSVHeaders:
     # All assertions in list must be true or will raise an exception.
     def validate_header_assertions(self, headers, assertion_list):
 
-        def evaluate(headers, operand, operator, prev_count):
+        def evaluate(headers, operand, operator, prev_count, report):
             c = 0
             if operator == '____count____':
                 return self.count_matches(headers, operand)
             elif operator == 'in':
                 c = self.count_matches(headers, operand)
                 if c == 0:
-                    raise CSVHeaderError(("Missing column named \'{}\'").format(operand))
+                    if report: raise CSVHeaderError(("Missing column named \'{}\'").format(operand))
                 elif c > 1:
-                    raise CSVHeaderError(("Multiple columns with same or synonymous name \'{}\'").format(operand))
+                    if report: raise CSVHeaderError(("Multiple columns with same or synonymous name \'{}\'").format(operand))
             elif operator == 'and':
                 c = self.count_matches(headers, operand)
                 if c == 0 or prev_count == 0:
-                    raise CSVHeaderError(("Missing column named \'{}\'").format(self.get_default(operand)))
+                    if report: raise CSVHeaderError(("Missing column named \'{}\'").format(self.get_default(operand)))
             elif operator == 'or':
                 c = self.count_matches(headers, operand)
                 if c == 0 and prev_count == 0:
-                    raise CSVHeaderError(("Missing column named \'{}\'").format(self.get_default(operand)))
+                    if report: raise CSVHeaderError(("Missing column named \'{}\'").format(self.get_default(operand)))
             elif operator == 'me':
                 c = self.count_matches(headers, operand)
                 if c > 1 and prev_count > 1:
-                    raise CSVHeaderError(("Conflicting column named \'{}\'").format(self.get_default(operand)))
+                    if report: raise CSVHeaderError(("Conflicting column named \'{}\'").format(self.get_default(operand)))
             return c
 
         c = 0
         for assertion in assertion_list:
             if (len(assertion) > 1):
                 i = 0
-                while (i < len(assertion)):
+                num_asserts = len(assertion)
+                while (i < num_asserts):
                     operand = assertion[i]
                     operand_or_operator = assertion[i + 1]
-                    if operand_or_operator not in ['in', 'and', 'or', 'eor']:
+                    if operand_or_operator not in ['in', 'and', 'or', 'mex']:
                         operator = '____count____'
-                        c = evaluate(headers, operand, operator, c)
+                        c = evaluate(headers, operand, operator, c, i + 1 == num_asserts)
                         i += 1
                     else:
                         operator = operand_or_operator
-                        c = evaluate(headers, operand, operator, c)
+                        c = evaluate(headers, operand, operator, c, i + 1 == num_asserts)
                         i += 2
 
 

@@ -489,8 +489,8 @@ class TestBOM(TransactionTestCase):
         with open('bom/test_files/test_part_classes_blank_rows.csv') as test_csv:
             response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
         self.assertEqual(response.status_code, 200)
-        self.assertTrue('Part class &#39;code&#39; in row 3 must be a positive number. Uploading of this part class skipped.' in str(response.content))
-        self.assertTrue('Part class &#39;code&#39; in row 4 must be a positive number. Uploading of this part class skipped.' in str(response.content))
+        self.assertTrue('Part class &#39;code&#39; in row 3 does not have a value. Uploading of this part class skipped.' in str(response.content))
+        self.assertTrue('Part class &#39;code&#39; in row 4 does not have a value. Uploading of this part class skipped.' in str(response.content))
 
     def test_upload_part_classes_parts_and_boms(self):
         self.client.login(username='kasper', password='ghostpassword')
@@ -522,14 +522,15 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
         messages = list(response.context.get('messages'))
+
         for msg in messages:
             self.assertNotEqual(msg.tags, "error")
             self.assertEqual(msg.tags, "info")
 
         subparts = pcba.latest().assembly.subparts.all().order_by('id')
         self.assertEqual(subparts[0].reference, 'C1')
-        self.assertEqual(subparts[1].reference, 'C2')
-        self.assertEqual(subparts[2].reference, 'C21')
+        self.assertEqual(subparts[1].reference, 'C2, C21')
+        self.assertEqual(subparts[2].reference, 'C23')
         pcba = Part.objects.filter(number_class=pcba_class, number_item='00004', number_variation='0A').first()
 
         with open('bom/test_files/test_bom_652-00004-0A.csv') as test_csv:
@@ -541,13 +542,17 @@ class TestBOM(TransactionTestCase):
             self.assertNotEqual(msg.tags, "error")
             self.assertEqual(msg.tags, "info")
 
-        self.assertTrue("Already created part" in str(messages[37].message))
-
+        # Check that that rows that have a part number already used but which denote a distinct designator are
+        # consolidated into one subpart with one part number but multiple designators and matching quantity counts.
         subparts = pcba.latest().assembly.subparts.all().order_by('id')
-        self.assertEqual(subparts[0].reference, 'C1')
-        self.assertEqual(subparts[1].reference, 'C2')
-        self.assertEqual(subparts[2].reference, 'C3')
-        self.assertEqual(subparts[36].reference, 'Y1')
+        self.assertEqual(subparts[0].reference, 'C1, C2')
+        self.assertEqual(subparts[0].count, 2)
+        self.assertEqual(subparts[1].reference, 'C3, C4, C5, C6, C11')
+        self.assertEqual(subparts[1].count, 5)
+        self.assertEqual(subparts[2].reference, 'C7, C8, C9, C10, C14, C18, C22, C33')
+        self.assertEqual(subparts[2].count, 8)
+        self.assertEqual(subparts[16].reference, 'Y1')
+        self.assertEqual(subparts[16].count, 1)
 
     def test_edit_user_meta(self):
         self.client.login(username='kasper', password='ghostpassword')

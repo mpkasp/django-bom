@@ -326,7 +326,7 @@ class PartClassCSVForm(forms.Form):
                 # Finally, convert whatever header synonym names were used to default header names.
                 csv_headers.validate_header_names(headers)
                 hdr_assertions = [
-                    ('comment', 'description', 'me'),  # MUTUALLY EXCLUSIVE part_class or part_number but not both
+                    ('comment', 'description', 'mex'),  # MUTUALLY EXCLUSIVE part_class or part_number but not both
                     ('code', 'in'),  # CONTAINS revision
                     ('name', 'in'),  # CONTAINS name
                 ]
@@ -339,8 +339,10 @@ class PartClassCSVForm(forms.Form):
             for row in reader:
                 row_count += 1
                 part_class_data = {}
-                for idx, item in enumerate(row):
-                    part_class_data[headers[idx]] = item
+
+                for idx, hdr in enumerate(headers):
+                    if idx == len(row): break
+                    part_class_data[hdr] = row[idx]
 
                 name = csv_headers.get_val_from_row(part_class_data, 'name')
                 code = csv_headers.get_val_from_row(part_class_data, 'code')
@@ -348,13 +350,20 @@ class PartClassCSVForm(forms.Form):
                 comment = csv_headers.get_val_from_row(part_class_data, 'comment')
 
                 try:
-                    description_or_comment = ''
-                    if not code.isdigit() or int(code) < 0:
+                    if code is None:
+                        validation_error = forms.ValidationError(
+                            "Part class 'code' in row {} does not have a value. Uploading of this part class skipped.".format(row_count),
+                            code='invalid')
+                        self.add_error(None, validation_error)
+                        continue
+                    elif not code.isdigit() or int(code) < 0:
                         validation_error = forms.ValidationError(
                             "Part class 'code' in row {} must be a positive number. Uploading of this part class skipped.".format(row_count),
                             code='invalid')
                         self.add_error(None, validation_error)
                         continue
+
+                    description_or_comment = ''
                     if 'description' is not None:
                         description_or_comment = description
                     elif 'comment' is not None:
@@ -409,7 +418,7 @@ class PartCSVForm(forms.Form):
                 hdr_assertions = [
                     ('part_class', 'part_number', 'or'), # part_class OR part_number
                     ('revision', 'in'), # CONTAINS revision
-                    ('value', 'value_units', 'and', 'decription', 'or'), # (value AND value units) OR description
+                    ('value', 'value_units', 'and', 'description', 'or'), # (value AND value units) OR description
                 ]
                 csv_headers.validate_header_assertions(headers, hdr_assertions)
                 headers = csv_headers.get_defaults_list(headers)
@@ -419,10 +428,11 @@ class PartCSVForm(forms.Form):
             row_count = 1  # Skip over header row
             for row in reader:
                 row_count += 1
-
                 part_data = {}
-                for idx, item in enumerate(row):
-                    part_data[headers[idx]] = item
+
+                for idx, hdr in enumerate(headers):
+                    if idx == len(row): break
+                    part_data[hdr] = row[idx]
 
                 part_number = csv_headers.get_val_from_row(part_data, 'part_number')
                 part_class = csv_headers.get_val_from_row(part_data, 'part_class')
@@ -959,8 +969,9 @@ class BOMCSVForm(forms.Form):
                 row_count += 1
                 part_dict = {}
 
-                for idx, item in enumerate(row):
-                    part_dict[headers[idx]] = item
+                for idx, hdr in enumerate(headers):
+                    if idx == len(row): break
+                    part_dict[hdr] = row[idx]
 
                 dnp = csv_headers.get_val_from_row(part_dict, 'dnp')
                 do_not_load = dnp in ['y', 'x', 'dnp', 'dnl', 'yes', 'true', ]
@@ -971,7 +982,9 @@ class BOMCSVForm(forms.Form):
                 reference = csv_headers.get_val_from_row(part_dict, 'reference')
                 reference_list = listify_string(reference) if reference else []
 
-                if not count.isdigit() or int(count) < 1:
+                if count is None:
+                    count = 1
+                elif not count.isdigit() or int(count) < 1:
                     self.add_error(None,
                                    "Quantity for subpart {0} on row {1} must be a number > 0. Uploading of this subpart skipped.".format(
                                        subpart_part.__str__(), row_count))
@@ -1087,11 +1100,9 @@ class BOMCSVForm(forms.Form):
                         existing_subpart.save()
                         reference_list = existing_subpart_reference_list
 
-                if len(reference_list) > 0 and len(reference_list) != count:
-                    self.add_error(None,
-                                   "The number of reference designators ({0}) for subpart {1} on row {2} does not match the subpart quantity ({3}). "
-                                   "Quantity automatically adjusted.".format(len(reference_list),
-                                                                             subpart_part.__str__(), row_count, count))
+                if len(reference_list) > 0 and len(reference_list) != count and count > 1:
+                    self.warnings.append(
+                        f"The number of reference designators ({len(reference_list)}) for subpart {subpart_part.__str__()} on row {row_count} does not match the subpart quantity ({count}). Quantity automatically adjusted.")
 
                 count = len(reference_list) if len(reference_list) > 0 else '1'
                 reference = stringify_list(reference_list)

@@ -700,7 +700,7 @@ def export_part_list(request):
                 if field_name not in csv_headers.get_defaults_list(
                         ['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer',
                          'part_manufacturer_part_number', ]):
-                    attr = getattr(part_rev, field_name)
+                    attr = getattr(item, field_name)
                     row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
             writer.writerow({k: smart_str(v) for k, v in row.items()})
 
