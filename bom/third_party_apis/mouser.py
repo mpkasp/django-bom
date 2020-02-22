@@ -98,7 +98,7 @@ class Mouser:
                 lead_time_days = [int(s) for s in part['LeadTime'].split() if s.isdigit()][0]  # TODO: Make sure it's actually days
                 for pb in part['PriceBreaks']:
                     moq = int(pb['Quantity'])
-                    price = float(pb['Price'].strip('$'))
+                    price = float(pb['Price'].replace(',', '').strip('$'))
                     currency = pb['Currency']
                     seller_part = SellerPart(
                         seller=seller,

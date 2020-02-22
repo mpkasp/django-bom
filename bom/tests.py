@@ -12,11 +12,9 @@ from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
 
 
 class TestBOM(TransactionTestCase):
-
     def setUp(self):
         self.client = Client()
-        self.user = User.objects.create_user(
-            'kasper', 'kasper@McFadden.com', 'ghostpassword')
+        self.user = User.objects.create_user('kasper', 'kasper@McFadden.com', 'ghostpassword')
         self.organization = create_a_fake_organization(self.user)
         self.profile = self.user.bom_profile(organization=self.organization)
         self.profile.role = 'A'
