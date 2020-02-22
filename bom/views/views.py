@@ -287,7 +287,8 @@ def bom_settings(request, tab_anchor=None):
             else:
                 user_add_form = UserAddForm(request.POST, organization=organization)
                 if user_add_form.is_valid():
-                    user_add_form.save()
+                    user = user_add_form.save(commit=False)
+                    print(user)
                 else:
                     messages.error(request, user_add_form.errors)
 

@@ -8,7 +8,8 @@ from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
-    WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, NUMBER_SCHEME_SEMI_INTELLIGENT
+    WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, NUMBER_SCHEME_SEMI_INTELLIGENT, \
+    ROLE_TYPE_VIEWER
 from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
     Organization, PartRevision, AssemblySubparts, Assembly
 from .validators import decimal, numeric
@@ -45,6 +46,7 @@ class UserAddForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super(UserAddForm, self).__init__(*args, **kwargs)
+        self.fields['role'].required = False
 
     def clean_username(self):
         cleaned_data = super(UserAddForm, self).clean()
@@ -70,9 +72,9 @@ class UserAddForm(forms.ModelForm):
 
         return username
 
-    def save(self):
+    def save(self, *args, **kwargs):
         username = self.cleaned_data.get('username')
-        role = self.cleaned_data.get('role')
+        role = self.cleaned_data.get('role', ROLE_TYPE_VIEWER)
         user = User.objects.get(username=username)
         user_meta = UserMeta.objects.get(user=user)
         user_meta.organization = self.organization
