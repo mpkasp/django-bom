@@ -591,8 +591,13 @@ class PartForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super(PartForm, self).__init__(*args, **kwargs)
-        self.fields['number_class'] = forms.ModelChoiceField(queryset=PartClass.objects.filter(organization=self.organization),
-                                                             empty_label="- Select Part Number Class -", label='Part Number Class*', required=True)
+        if self.organization.number_scheme == 'S':
+            self.fields['number_class'] = forms.ModelChoiceField(queryset=PartClass.objects.filter(organization=self.organization),
+                                                                 empty_label="- Select Part Number Class -", label='Part Number Class*', required=True)
+        else:
+            self.fields['number_item'].help_text = 'Enter any unique number.'
+            del self.fields['number_class']
+            del self.fields['number_variation']
         if self.instance and self.instance.id:
             self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(
                 part__id=self.instance.id).order_by('manufacturer_part_number')
@@ -604,45 +609,45 @@ class PartForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super(PartForm, self).clean()
-        number_class = cleaned_data.get('number_class')
         number_item = cleaned_data.get('number_item')
-        number_variation = cleaned_data.get('number_variation')
+        if self.organization.number_scheme == 'S':
+            number_class = cleaned_data.get('number_class')
+            number_variation = cleaned_data.get('number_variation')
 
-        try:
-            if number_class is not None and number_class.code != '':
-                Part.verify_format_number_class(number_class.code)
-        except AttributeError as e:
-            validation_error = forms.ValidationError(str(e), code='invalid')
-            self.add_error('number_class', validation_error)
+            try:
+                if number_class is not None and number_class.code != '':
+                    Part.verify_format_number_class(number_class.code)
+            except AttributeError as e:
+                validation_error = forms.ValidationError(str(e), code='invalid')
+                self.add_error('number_class', validation_error)
 
-        try:
-            if number_item != '':
-                Part.verify_format_number_item(number_item, self.organization.number_item_len)
-        except AttributeError as e:
-            validation_error = forms.ValidationError(str(e), code='invalid')
-            self.add_error('number_item', validation_error)
+            try:
+                if number_item != '':
+                    Part.verify_format_number_item(number_item, self.organization.number_item_len)
+            except AttributeError as e:
+                validation_error = forms.ValidationError(str(e), code='invalid')
+                self.add_error('number_item', validation_error)
 
-        try:
-            if number_variation != '':
-                Part.verify_format_number_variation(number_variation)
-        except AttributeError as e:
-            validation_error = forms.ValidationError(str(e), code='invalid')
-            self.add_error('number_variation', validation_error)
+            try:
+                if number_variation != '':
+                    Part.verify_format_number_variation(number_variation)
+            except AttributeError as e:
+                validation_error = forms.ValidationError(str(e), code='invalid')
+                self.add_error('number_variation', validation_error)
 
-        try:
-            Part.objects.get(
-                number_class=number_class,
-                number_item=number_item,
-                number_variation=number_variation,
-                organization=self.organization
-            )
-            validation_error = forms.ValidationError(
-                ("Part number {0}-{1}-{2} already in use.".format(number_class, number_item, number_variation)),
-                code='invalid')
-            self.add_error(None, validation_error)
-        except Part.DoesNotExist:
-            pass
-
+            try:
+                Part.objects.get(
+                    number_class=number_class,
+                    number_item=number_item,
+                    number_variation=number_variation,
+                    organization=self.organization
+                )
+                validation_error = forms.ValidationError(
+                    ("Part number {0}-{1}-{2} already in use.".format(number_class, number_item, number_variation)),
+                    code='invalid')
+                self.add_error(None, validation_error)
+            except Part.DoesNotExist:
+                pass
         return cleaned_data
 
 

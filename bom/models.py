@@ -12,7 +12,7 @@ from .utils import increment_str, prep_for_sorting_nicely, listify_string, strin
 from .validators import alphanumeric, numeric, validate_pct
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
     WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, \
-    NUMBER_SCHEMES
+    NUMBER_SCHEMES, NUMBER_SCHEME_SEMI_INTELLIGENT
 from .base_classes import AsDictModel
 
 from math import ceil
@@ -25,7 +25,7 @@ class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
     subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
-    number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES, default='S')
+    number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES, default=NUMBER_SCHEME_SEMI_INTELLIGENT)
     number_item_len = models.PositiveIntegerField(default=3, validators=[MinValueValidator(3), MaxValueValidator(128)])
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
 
@@ -106,9 +106,9 @@ class Part(models.Model):
     NUMBER_VARIATION_LEN = 2
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
-    number_class = models.ForeignKey(PartClass, default=None, related_name='number_class', on_delete=models.PROTECT, db_index=True)
-    number_item = models.CharField(max_length=NUMBER_ITEM_MAX_LEN, default=None, blank=True, validators=[numeric])
-    number_variation = models.CharField(max_length=2, default=None, blank=True, validators=[alphanumeric])
+    number_class = models.ForeignKey(PartClass, default=None, blank=True, null=True, related_name='number_class', on_delete=models.PROTECT, db_index=True)
+    number_item = models.CharField(max_length=NUMBER_ITEM_MAX_LEN, default=None, blank=True, validators=[alphanumeric])
+    number_variation = models.CharField(max_length=2, default=None, blank=True, null=True, validators=[alphanumeric])
     primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True,
                                                   on_delete=models.SET_NULL, related_name='primary_manufacturer_part')
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
@@ -118,7 +118,10 @@ class Part(models.Model):
         index_together = ['organization', 'number_class']
 
     def full_part_number(self):
-        return "{0}-{1}-{2}".format(self.number_class.code, self.number_item, self.number_variation)
+        if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+            return "{0}-{1}-{2}".format(self.number_class.code, self.number_item, self.number_variation)
+        else:
+            return self.number_item
 
     @staticmethod
     def verify_format_number_class(number_class):
@@ -269,8 +272,8 @@ class Part(models.Model):
                     self.number_variation = "{}".format(increment_str(last_number_variation.number_variation))
 
     def save(self, *args, **kwargs):
-        no_part_revision = kwargs.pop('no_part_revision', False)
-        self.assign_part_number()
+        if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+            self.assign_part_number()
         super(Part, self).save(*args, **kwargs)
 
     def __str__(self):

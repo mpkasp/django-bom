@@ -23,12 +23,14 @@
     <form id="searchForm" name="search-form" action="{% url 'bom:home' %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="row">
+            {% if organization.number_scheme == 'S' %}
             <div class="col s12 m4">
                 {{ part_class_selection_form|materializecss }}
                 <!-- Implicit submit when select an item from form via jscript function below.
                      Note then when submit a selection a widget name is not included in the post. -->
             </div>
-            <div class="input-field col s12 m6">
+            {% endif %}
+            <div class="input-field col s12 {% if organization.number_scheme == 'S' %}m6{% else %}m10{% endif %}">
                 <i class="material-icons prefix">search</i>
                 <input type="search" id="autocomplete-input" class="text autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
                 {% if part_class %}
@@ -36,7 +38,7 @@
                 {% elif part_assembly %}
                     <label for="autocomplete-input">Search for parts within selected part assembly:</label>
                 {% else %}
-                    <label for="autocomplete-input">Search for parts in any part class:</label>
+                    <label for="autocomplete-input">Search for parts:</label>
                 {% endif %}
             </div>
             <div class="col s12 m2 text-center">
@@ -70,7 +72,9 @@
 
                         <th class="text-normal td-med">Part Number</th>
 
+                        {% if organization.number_scheme == 'S' %}
                         <th class="text-normal td-small">Category</th>
+                        {% endif %}
 
                         <th class="text-normal td-large">Synopsis</th>
 
@@ -97,7 +101,9 @@
 
                             <td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part_rev.part.id %}">{{ part_rev.part.full_part_number }}</a></td>
 
+                            {% if organization.number_scheme == 'S' %}
                             <td class="text-normal td-small">{{ part_rev.part.number_class.name }}</td>
+                            {% endif %}
 
                             <td class="text-normal td-large">{{ part_rev.synopsis }}</td>
 
