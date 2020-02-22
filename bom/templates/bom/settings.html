@@ -272,7 +272,7 @@
                     </div>
                 {% endif %}
                 <h3>Add User</h3>
-                <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
+                <form name="add-user" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="row">
                         {{ user_add_form.username|materializecss:'s12 m8' }}
@@ -323,9 +323,17 @@
                 </h3>
                 <p>No connection required. To enable sourcing via mouser, select which part classes you'd like enabled on the Settings INDABOM tab. Once enabled, sourcing information will appear on
                     part detail pages in which there are parts sourced via Mouser.</p>
+            {% endif %}
+            {% if profile.organization %}
+            <h3>Leave Your Organization</h3>
+            <p>Warning, the only way back in to {{ organization.name }} is if you are invited by an organization administrator.</p>
+            <form name="leave-organization" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
+                {% csrf_token %}
+                <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-leave-organization">Leave Organization</button>
+            </form>
             {% else %}
-                <p>Nothing to see here 🙈 because you are not the organization owner. Please contact
-                    <a href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for assistance.</p>
+                <h3>You're not part of any organization!</h3>
+                <p>To create your organization, start <a href="{% url 'bom:home' %}">here</a>.</p>
             {% endif %}
         </div>
     </div>

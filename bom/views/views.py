@@ -245,6 +245,9 @@ def bom_settings(request, tab_anchor=None):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
+    if organization is None:
+        return HttpResponseRedirect(reverse('bom:home'))
+
     title = 'Settings'
     owner = organization.owner
     name = 'settings'
@@ -382,6 +385,11 @@ def bom_settings(request, tab_anchor=None):
                     organization.number_scheme = constants.NUMBER_SCHEME_SEMI_INTELLIGENT
                     organization.number_item_len = 3
                 organization.save()
+        elif 'submit-leave-organization' in request.POST:
+            profile.organization = None
+            profile.save()
+            if users_in_organization == 0:
+                organization.delete()
 
     user_form = UserForm(instance=user)
     user_add_form = UserAddForm()
