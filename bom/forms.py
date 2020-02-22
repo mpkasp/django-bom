@@ -869,34 +869,37 @@ class UploadBOMForm(forms.Form):
         parent_part_number = self.cleaned_data['parent_part_number']
 
         if not parent_part_number:
-            validation_error = forms.ValidationError(
-                ("Must specify a parent part number."),
-                code='invalid')
+            validation_error = forms.ValidationError(("Must specify a parent part number."), code='invalid')
             self.add_error('parent_part_number', validation_error)
-
-        try:
-            (number_class, number_item, number_variation) = Part.parse_part_number(parent_part_number, self.organization.number_item_len)
-            self.parent_part = Part.objects.get(
-                number_class=PartClass.objects.get(code=number_class, organization=self.organization),
-                number_item=number_item,
-                number_variation=number_variation,
-                organization=self.organization
-            )
-        except AttributeError as e:
-            validation_error = forms.ValidationError(
-                "Ill-formed parent part number... " + str(e) + ".",
-                code='invalid')
-            self.add_error('parent_part_number', validation_error)
-        except PartClass.DoesNotExist:
-            validation_error = forms.ValidationError(
-                ("No part class found for given parent part number {}.".format(parent_part_number)),
-                code='invalid')
-            self.add_error('parent_part_number', validation_error)
-        except Part.DoesNotExist:
-            validation_error = forms.ValidationError(
-                ("No part found with given parent part number {}.".format(parent_part_number)),
-                code='invalid')
-            self.add_error('parent_part_number', validation_error)
+        if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+            try:
+                (number_class, number_item, number_variation) = Part.parse_part_number(parent_part_number, self.organization.number_item_len)
+                self.parent_part = Part.objects.get(
+                    number_class=PartClass.objects.get(code=number_class, organization=self.organization),
+                    number_item=number_item,
+                    number_variation=number_variation,
+                    organization=self.organization
+                )
+            except AttributeError as e:
+                validation_error = forms.ValidationError("Ill-formed parent part number... " + str(e) + ".", code='invalid')
+                self.add_error('parent_part_number', validation_error)
+            except PartClass.DoesNotExist:
+                validation_error = forms.ValidationError(("No part class found for given parent part number {}.".format(parent_part_number)), code='invalid')
+                self.add_error('parent_part_number', validation_error)
+            except Part.DoesNotExist:
+                validation_error = forms.ValidationError(("No part found with given parent part number {}.".format(parent_part_number)), code='invalid')
+                self.add_error('parent_part_number', validation_error)
+        else:
+            try:
+                self.parent_part = Part.objects.get(
+                    number_class=None,
+                    number_item=parent_part_number,
+                    number_variation=None,
+                    organization=self.organization
+                )
+            except Part.DoesNotExist:
+                validation_error = forms.ValidationError(("No part found with given parent part number {}.".format(parent_part_number)), code='invalid')
+                self.add_error('parent_part_number', validation_error)
 
         return parent_part_number
 
@@ -958,16 +961,19 @@ class BOMCSVForm(forms.Form):
                 # First try to add the subpart_part based on the part number
                 subpart_part = None
                 if part_number:
-                    try:
-                        (number_class, number_item, number_variation) = Part.parse_part_number(part_dict['part_number'], self.organization.number_item_len)
-                        subparts = Part.objects.filter(
-                            number_class__code=number_class,
-                            number_item=number_item,
-                            number_variation=number_variation,
-                            organization=self.organization)
-                    except AttributeError as e:
-                        self.add_error(None, str(e) + " on row {}. Uploading of this subpart skipped. Couldn't parse part number.".format(row_count))
-                        continue
+                    if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+                        try:
+                            (number_class, number_item, number_variation) = Part.parse_part_number(part_dict['part_number'], self.organization.number_item_len)
+                            subparts = Part.objects.filter(
+                                number_class__code=number_class,
+                                number_item=number_item,
+                                number_variation=number_variation,
+                                organization=self.organization)
+                        except AttributeError as e:
+                            self.add_error(None, str(e) + " on row {}. Uploading of this subpart skipped. Couldn't parse part number.".format(row_count))
+                            continue
+                    else:
+                        subparts = Part.objects.filter(number_class=None, number_item=part_dict['part_number'], number_variation=None, organization=self.organization)
 
                     if len(subparts) == 0:
                         self.add_error(None,
