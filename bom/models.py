@@ -528,8 +528,7 @@ class Subpart(models.Model):
     do_not_load = models.BooleanField(default=False, verbose_name='Do Not Load')
 
     def save(self, *args, **kwargs):
-        # Make sure reference designators are formated as a string with comma-separated
-        # fields.
+        # Make sure reference designators are formated as a string with comma-separated fields.
         reference = stringify_list(listify_string(self.reference))
         self.reference = reference
         super(Subpart, self).save(*args, **kwargs)

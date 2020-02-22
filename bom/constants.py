@@ -1,14 +1,27 @@
 NO_CHOICE = ('', '-----')
 
-SUBSCRIPTION_TYPES = (('F', 'Free'), ('P', 'Pro'),)
-ROLE_TYPES = (('A', 'Admin'), ('V', 'Viewer'),)
-CONFIGURATION_TYPES = (('R', 'Released'), ('W', 'Working'),)
-NUMBER_SCHEMES = (('I', 'Intelligent'), ('S', 'Semi-Intelligent'),)
+SUBSCRIPTION_TYPE_FREE = 'F'
+SUBSCRIPTION_TYPE_PRO = 'P'
+SUBSCRIPTION_TYPES = ((SUBSCRIPTION_TYPE_FREE, 'Free'), (SUBSCRIPTION_TYPE_PRO, 'Pro'),)
 
+ROLE_TYPE_ADMIN = 'A'
+ROLE_TYPE_VIEWER = 'V'
+ROLE_TYPES = ((ROLE_TYPE_ADMIN, 'Admin'), (ROLE_TYPE_VIEWER, 'Viewer'),)
+
+CONFIGURATION_TYPE_RELEASED = 'R'
+CONFIGURATION_TYPE_WORKING = 'W'
+CONFIGURATION_TYPES = ((CONFIGURATION_TYPE_RELEASED, 'Released'), (CONFIGURATION_TYPE_WORKING, 'Working'),)
+
+NUMBER_SCHEME_INTELLIGENT = 'I'
+NUMBER_SCHEME_SEMI_INTELLIGENT = 'S'
+NUMBER_SCHEMES = ((NUMBER_SCHEME_INTELLIGENT, 'Intelligent'), (NUMBER_SCHEME_SEMI_INTELLIGENT, 'Semi-Intelligent'),)
+
+DATA_SOURCE_OCTOPART = 'octopart'
+DATA_SOURCE_MOUSER = 'mouser'
 DATA_SOURCES = (
     NO_CHOICE,
-    ('octopart', 'octopart'),
-    ('mouser', 'mouser'),
+    (DATA_SOURCE_OCTOPART, 'octopart'),
+    (DATA_SOURCE_MOUSER, 'mouser'),
 )
 
 VALUE_UNITS = (

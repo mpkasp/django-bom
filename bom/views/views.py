@@ -1,6 +1,7 @@
 import csv
 import logging
 import operator
+import bom.constants as constants
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -204,21 +205,19 @@ def organization_create(request):
     else:
         org_name = user.first_name + ' ' + user.last_name
 
-    form = OrganizationCreateForm(initial={'name': org_name})
+    form = OrganizationCreateForm(initial={'name': org_name, 'number_item_len': 4})
     if request.method == 'POST':
         form = OrganizationCreateForm(request.POST)
         form.is_valid()
-        print(form.cleaned_data)
-        if form.cleaned_data['number_scheme'] == 'I':
+        if form.cleaned_data['number_scheme'] == constants.NUMBER_SCHEME_INTELLIGENT:
             form.cleaned_data['number_item_len'] = 128
-            print('updated cleaned data')
-        print(form.cleaned_data)
         if form.is_valid():
             organization = form.save(commit=False)
             organization.owner = user
-            organization.subscription = 'F'
+            organization.subscription = constants.SUBSCRIPTION_TYPE_FREE
             organization.save()
             profile.organization = organization
+            profile.role = constants.ROLE_TYPE_ADMIN
             profile.save()
             return HttpResponseRedirect(reverse('bom:home'))
     return TemplateResponse(request, 'bom/organization-create.html', locals())
