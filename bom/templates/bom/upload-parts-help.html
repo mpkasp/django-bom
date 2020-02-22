@@ -18,10 +18,10 @@
 
         <h5>Help For Uploading Parts</h5>
         <p>To batch create parts, upload a csv that contains columns with the headers
-            <b>'part_class'</b> or <b>'part_number'</b>, <b>'description'</b> or <b>'value'</b>
-            along with <b>'value_units'</b>, and <b>'revision'</b>. If you specify a part number
+            {% if organization.number_scheme == 'S' %}<b>'part_class'</b> or {% endif %}<b>'part_number'</b>, <b>'description'</b> or <b>'value'</b>
+            along with <b>'value_units'</b>, and <b>'revision'</b>.{% if organization.number_scheme == 'S' %} If you specify a part number
             then it must be one that is not already being used. If you don't specify a part number
-            then IndaBOM will create one for you.</p>
+            then IndaBOM will create one for you.{% endif %}</p>
 
         <p>If you specify <b>'value_units'</b> then valid choices are:
             Ohms, mOhms, kOhms, F, pF, nF, uF, V, uV, mV, A, uA, mA, C, F, Other
@@ -30,8 +30,8 @@
             columns with the headers <b>'manufacturer'</b> and a <b>'manufacturer_part_number'</b>.
         <p>
             If you specify a part number that is already in use then the part will not be uploaded.
-            Similarly, other errors may prevent a part from being uploaded, for example, an improperly
-            formatted IndaBOM part number or the use of an unknown IndaBOM part class. The
+            Similarly, other errors may prevent a part from being uploaded{% if organization.number_scheme == 'S' %}, for example, an improperly
+            formatted IndaBOM part number or the use of an unknown IndaBOM part class{% endif %}. The
             uploading will continue with the next valid part in the file.
         </p>
         <p>

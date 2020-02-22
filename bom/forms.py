@@ -8,7 +8,7 @@ from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
-    WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES
+    WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, NUMBER_SCHEME_SEMI_INTELLIGENT
 from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
     Organization, PartRevision, AssemblySubparts, Assembly
 from .validators import decimal, numeric
@@ -428,25 +428,28 @@ class PartCSVForm(forms.Form):
                 # Check part number for uniqueness. If part number not specified
                 # then Part.save() will create one.
                 if part_number:
-                    try:
-                        (number_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization.number_item_len)
-                        part_class = PartClass.objects.get(code=number_class, organization=self.organization)
-                        Part.objects.get(
-                            number_class=part_class,
-                            number_item=number_item,
-                            number_variation=number_variation,
-                            organization=self.organization
-                        )
-                        self.add_error(None, "Part number {0} in row {1} already exists. Uploading of this part skipped.".format(part_number, row_count))
-                        continue
-                    except AttributeError as e:
-                        self.add_error(None, str(e) + " on row {}. Creation of this part skipped.".format(row_count))
-                        continue
-                    except PartClass.DoesNotExist:
-                        self.add_error(None, "No part class found for part number {0} in row {1}. Creation of this part skipped.".format(part_number, row_count))
-                        continue;
-                    except Part.DoesNotExist:
-                        pass
+                    if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+                        try:
+                            (number_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization.number_item_len)
+                            part_class = PartClass.objects.get(code=number_class, organization=self.organization)
+                            Part.objects.get(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
+                            self.add_error(None, "Part number {0} in row {1} already exists. Uploading of this part skipped.".format(part_number, row_count))
+                            continue
+                        except AttributeError as e:
+                            self.add_error(None, str(e) + " on row {}. Creation of this part skipped.".format(row_count))
+                            continue
+                        except PartClass.DoesNotExist:
+                            self.add_error(None, "No part class found for part number {0} in row {1}. Creation of this part skipped.".format(part_number, row_count))
+                            continue
+                        except Part.DoesNotExist:
+                            pass
+                    else:
+                        try:
+                            number_item = part_number
+                            Part.objects.get(number_class=None, number_item=number_item, number_variation=None, organization=self.organization)
+                            self.add_error(None, f"Part number {part_number} in row {row_count} already exists. Uploading of this part skipped.")
+                        except Part.DoesNotExist:
+                            pass
                 elif part_class:
                     try:
                         part_class = PartClass.objects.get(code=part_data['part_class'], organization=self.organization)

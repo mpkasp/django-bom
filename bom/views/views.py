@@ -255,14 +255,8 @@ def bom_settings(request, tab_anchor=None):
         id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).exclude(id__in=[organization.owner.id]).order_by(
         'first_name', 'last_name', 'email')
     google_authentication = UserSocialAuth.objects.filter(user=user).first()
-    user_form = UserForm(instance=user)
-    user_add_form = UserAddForm()
-    user_meta_form = UserMetaForm()
 
-    organization_form = OrganizationFormEditSettings(instance=organization)
-    number_item_len_form = NumberItemLenForm(organization=organization)
-    part_class_form = PartClassForm()
-    part_class_csv_form = PartClassCSVForm(organization=organization)
+    organization_parts_count = Part.objects.filter(organization=organization).count()
 
     USER_TAB = 'user'
     ORGANIZATION_TAB = 'organization'
@@ -376,6 +370,27 @@ def bom_settings(request, tab_anchor=None):
                     messages.error(request, f"No part class found: {err}")
                 except ProtectedError as err:
                     messages.error(request, f"Cannot delete a part class because it has parts. You must delete those parts first. {err}")
+        elif 'change-number-scheme' in request.POST:
+            tab_anchor = INDABOM_TAB
+            if organization_parts_count > 0:
+                messages.error(request, f"Please export, then delete all of your {organization_parts_count} parts before changing your organization's number scheme.")
+            else:
+                if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+                    organization.number_scheme = constants.NUMBER_SCHEME_INTELLIGENT
+                    organization.number_item_len = 128
+                else:
+                    organization.number_scheme = constants.NUMBER_SCHEME_SEMI_INTELLIGENT
+                    organization.number_item_len = 3
+                organization.save()
+
+    user_form = UserForm(instance=user)
+    user_add_form = UserAddForm()
+    user_meta_form = UserMetaForm()
+
+    organization_form = OrganizationFormEditSettings(instance=organization)
+    number_item_len_form = NumberItemLenForm(organization=organization)
+    part_class_form = PartClassForm()
+    part_class_csv_form = PartClassCSVForm(organization=organization)
 
     return TemplateResponse(request, 'bom/settings.html', locals())
 

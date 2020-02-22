@@ -18,10 +18,10 @@
         {% if profile.role == 'A' %}
             <h5>Upload Parts</h5>
             <p>To batch create parts, upload a csv that contains columns with the headers
-                <b>'part_class'</b> or <b>'part_number'</b>, <b>'description'</b> or <b>'value'</b>
-                along with <b>'value_units'</b>, and <b>'revision'</b>. If you specify a part number
+                {% if organization.number_scheme == 'S' %}<b>'part_class'</b> or {% endif %}<b>'part_number'</b>, <b>'description'</b> or <b>'value'</b>
+                along with <b>'value_units'</b>, and <b>'revision'</b>. {% if organization.number_scheme == 'S' %}If you specify a part number
                 then it must be one that is not already being used. If you don't specify a part number
-                then IndaBOM will create one for you.
+                then IndaBOM will create one for you.{% endif %}
             </p>
             </p>
             You may optionally specify a manufacturer and manufacturer's part number using
@@ -31,7 +31,7 @@
             <form action="{% url 'bom:upload-parts' %}" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="row">
-                    <div class="col s8 file-field input-field">
+                    <div class="col m10 s12 file-field input-field">
                         <div class="green lighten-1 btn">
                             <span>File</span>
                             {{ form.file }}
@@ -41,7 +41,7 @@
                             {{ form.file.errors }}
                         </div>
                     </div>
-                    <div class="col s1 input-field">
+                    <div class="col m2 s12 text-center input-field">
                         <input class="green lighten-1 btn" type="submit" value="Upload"/>
                     </div>
                 </div>
