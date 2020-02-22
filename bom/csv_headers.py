@@ -66,9 +66,14 @@ class CSVHeaders:
         return c
 
     def validate_header_names(self, headers):
+        unrecognized_list = []
         for hdr in headers:
             if not self.is_valid(hdr):
-                raise CSVHeaderError(("Unrecognized column header \'{}\'").format(hdr))
+                unrecognized_list.append(hdr)
+        if len(unrecognized_list) == 1:
+            raise CSVHeaderError(("Unrecognized column header \'{}\'").format(unrecognized_list[0]))
+        elif len(unrecognized_list) > 1:
+            raise CSVHeaderError(("Unrecognized column headers \'{}\'").format(unrecognized_list))
 
     # Each assertion is expressed in reverse-polish notation with no precendence in order of evaluation.  Operands are
     # header names, operators are:

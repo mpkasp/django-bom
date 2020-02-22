@@ -114,18 +114,21 @@ class TestBOM(TransactionTestCase):
 
         messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertNotEqual(msg.tags, "error")
-            self.assertEqual(msg.tags, "info")
+            self.assertEqual(msg.tags, "error") # Error loading 200-3333-00 via CSV because already in parent's BOM and has empty ref designators
 
         subparts = p2.latest().assembly.subparts.all()
+
+        self.assertEqual(subparts[0].part_revision.part.full_part_number(), '200-3333-00')
+        self.assertEqual(subparts[0].count, 4)
+        self.assertEqual(subparts[1].part_revision.part.full_part_number(), '500-5555-00')
+        self.assertEqual(subparts[1].reference, 'U3, IC2, IC3')
+        self.assertEqual(subparts[1].count, 3)
+        self.assertEqual(subparts[1].do_not_load, False)
         self.assertEqual(subparts[2].part_revision.part.full_part_number(), '500-5555-00')
-        self.assertEqual(subparts[2].reference, 'IC2, IC3')
-        self.assertEqual(subparts[3].count, 2)
-        self.assertEqual(subparts[3].part_revision.part.full_part_number(), '500-5555-00')
-        self.assertEqual(subparts[3].reference, 'R1, R2')
-        self.assertEqual(subparts[3].count, 2)
-        self.assertEqual(subparts[3].do_not_load, True)
-        self.assertEqual(subparts[5].count, 99)
+        self.assertEqual(subparts[2].reference, 'R1, R2')
+        self.assertEqual(subparts[2].count, 2)
+        self.assertEqual(subparts[2].do_not_load, True)
+
 
         with open('bom/test_files/test_bom_2.csv') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)

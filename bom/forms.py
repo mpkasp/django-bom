@@ -321,10 +321,14 @@ class PartClassCSVForm(forms.Form):
             csv_headers = PartClassesCSVHeaders()
 
             try:
-                # Make sure that only valid column header names appear in file.
-                # Make sure that whatever required mixes columns appear in the file.
-                # Finally, convert whatever header synonym names were used to default header names.
+                # Issue warning if unrecognized column header names appear in file.
                 csv_headers.validate_header_names(headers)
+            except CSVHeaderError as e:
+                self.warnings.append(e.__str__() + ". Column(s) ignored.")
+
+            try:
+                # Make sure that required columns appear in the file, then convert whatever
+                # header synonym names were used to default header names.
                 hdr_assertions = [
                     ('comment', 'description', 'mex'),  # MUTUALLY EXCLUSIVE part_class or part_number but not both
                     ('code', 'in'),  # CONTAINS revision
@@ -411,10 +415,14 @@ class PartCSVForm(forms.Form):
             csv_headers = PartsListCSVHeaders()
 
             try:
-                # Make sure that only valid column header names appear in file.
-                # Make sure that whatever required mixes columns appear in the file.
-                # Finally, convert whatever header synonym names were used to default header names.
+                # Issue warning if unrecognized column header names appear in file.
                 csv_headers.validate_header_names(headers)
+            except CSVHeaderError as e:
+                self.warnings.append(e.__str__() + ". Columns ignored.")
+
+            try:
+                # Make sure that required columns appear in the file, then convert whatever
+                # header synonym names were used to default header names.
                 hdr_assertions = [
                     ('part_class', 'part_number', 'or'), # part_class OR part_number
                     ('revision', 'in'), # CONTAINS revision
@@ -946,10 +954,14 @@ class BOMCSVForm(forms.Form):
             csv_headers = BOMIndentedCSVHeaders()
 
             try:
-                # Make sure that only valid column header names appear in file.
-                # Make sure that whatever required mixes columns appear in the file.
-                # Finally, convert whatever header synonym names were used to default header names.
+                # Issue warning if unrecognized column header names appear in file.
                 csv_headers.validate_header_names(headers)
+            except CSVHeaderError as e:
+                self.warnings.append(e.__str__() + ". Columns ignored.")
+
+            try:
+                # Make sure that required columns appear in the file, then convert whatever
+                # header synonym names were used to default header names.
                 hdr_assertions = [
                     ('part_number', 'manufacturer_part_number', 'or'),  # part_class OR part_number
                     ('quantity', 'in'),  # CONTAINS quantity
@@ -982,12 +994,14 @@ class BOMCSVForm(forms.Form):
                 reference = csv_headers.get_val_from_row(part_dict, 'reference')
                 reference_list = listify_string(reference) if reference else []
 
+                if len(reference_list) != len(set(reference_list)):
+                    self.add_error(None, f"Duplicate reference designators '{reference}' for subpart on row {row_count}. Uploading of this subpart skipped.")
+                    continue
+
                 if count is None:
                     count = 1
                 elif not count.isdigit() or int(count) < 1:
-                    self.add_error(None,
-                                   "Quantity for subpart {0} on row {1} must be a number > 0. Uploading of this subpart skipped.".format(
-                                       subpart_part.__str__(), row_count))
+                    self.add_error(None, f"Quantity for subpart on row {row_count} must be a number > 0. Uploading of this subpart skipped.")
                     continue
                 else:
                     count = int(count)
@@ -996,7 +1010,7 @@ class BOMCSVForm(forms.Form):
                 subpart_part = None
                 if part_number:
                     try:
-                        (number_class, number_item, number_variation) = Part.parse_part_number(part_dict['part_number'], self.organization.number_item_len)
+                        (number_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization.number_item_len)
                         subparts = Part.objects.filter(
                             number_class__code=number_class,
                             number_item=number_item,
@@ -1031,7 +1045,7 @@ class BOMCSVForm(forms.Form):
 
                     subpart_part = manufacturer_parts[0].part
                 else:
-                    self.add_error(None, "Couldn't parse part on row {} with data: {}".format(row_count, row))
+                    self.add_error(None, f"Couldn't parse part on row {row_count} with data: {row}.")
                     continue
 
                 # We have the subpart_part at this point, make sure we don't have infinite recursion
@@ -1041,7 +1055,7 @@ class BOMCSVForm(forms.Form):
 
                 subpart_revision = subpart_part.latest()
                 if not subpart_revision:
-                    self.add_error(None, f"Part {part_number} has no revisions. Cannot add it to a BOM.")
+                    self.add_error(None, f"Part {part_number} has no revisions. Cannot add it to a BOM. Uploading of this subpart skipped.")
                     continue
 
                 if revision:
@@ -1050,7 +1064,7 @@ class BOMCSVForm(forms.Form):
                         subpart_revision = revs[0]
                     else:
                         rev_options = revs.values_list('revision', flat=True)
-                        self.add_error(None, f"Found part {part_number}, but couldn't match revision {revision}. Options are: {rev_options}")
+                        self.add_error(None, f"Found part {part_number}, but could not match revision {revision}. Options are: {rev_options}. Uploading of this subpart skipped.")
                         continue
 
                 contains_parent = False
@@ -1059,14 +1073,39 @@ class BOMCSVForm(forms.Form):
                     if sp.part_revision == parent_part_revision:
                         contains_parent = True
                 if contains_parent:
-                    self.add_error(None, f"Uploaded part {part_number} contains parent part in it's assembly. Cannot add {part_number} as it would cause infinite recursion.")
+                    self.add_error(None, f"Uploaded part {part_number} contains parent part in its assembly. Cannot add {part_number} as it would cause infinite recursion. Uploading of this subpart skipped.")
                     continue
 
+                # Decide if the current subpart (i.e., for current row) should:
+                # a. Be combined with a previously seen subpart
+                # b. Rejected because it is a duplicate of a previously seen subpart
+                # c. Be imported as a new subpart
+                #
+                # Do (a) if current subpart's part matches a previous subpart's part except for their designators. Combine if
+                # current subpart's designators either don't overlap or both subparts do not have designators. As
+                # part of the combing, adjust subpart count to represent the total number of combined subparts. Reject
+                # current subpart if it has a designator but the previous subpart does not (or vice versa).
+                #
+                # Do (b) if current subpart's part matches a previous subpart's part - AND - their designators match (this
+                # includes the case where the current and previous subpart do not have any designators.
+                #
+                # Do (c) if the current subpart's part does not match any previous subpart's part - OR - if there is a
+                # match except for their DNL flags. Want to have separate entries in the BOM for the to-be-loaded and
+                # the do-not-load versions of these subparts.
+                #
+
                 existing_subpart_qs = parent_part_revision.assembly.subparts.filter(
-                    part_revision=subpart_revision
+                    part_revision=subpart_revision,
+                    do_not_load=do_not_load # Include DNL flag in filter per (c) above
                 )
 
                 if len(existing_subpart_qs) == 0:
+
+                    if len(reference_list) != count:
+                        self.warnings.append(
+                            f"The number of reference designators ({len(reference_list)}) for subpart {subpart_part} on row {row_count} does not match the subpart quantity ({count}). Quantity automatically adjusted.")
+                        count = len(reference_list)
+
                     new_subpart = Subpart.objects.create(
                         part_revision=subpart_revision,
                         count=count,
@@ -1076,46 +1115,34 @@ class BOMCSVForm(forms.Form):
 
                     AssemblySubparts.objects.get_or_create(assembly=parent_part_revision.assembly, subpart=new_subpart)
 
-                    info_msg = "Added subpart "
+                    info_msg = f"Added subpart {part_number} on row {row_count} "
                     if reference:
-                        info_msg += f' {reference}'
-                    info_msg += f" {part_number} to parent part {self.parent_part}."
+                        info_msg += f"with reference designators {reference} "
+                    info_msg += f"to parent part {self.parent_part}."
                     self.successes.append(info_msg)
 
                 else:
                     existing_subpart = existing_subpart_qs[0]
-                    duplicate = False
                     existing_subpart_reference_list = listify_string(existing_subpart.reference)
-                    for ref in reference_list:
-                        if ref in existing_subpart_reference_list:
-                            duplicate = True
-
-                    if duplicate:
-                        self.warnings.append(
-                            f"Already created part on row {row_count}, {part_number}, rev {revision}, qty {count}, ref: {reference}. Did not create it again.")
+                    if len(reference_list) == 0 or len(existing_subpart_reference_list) == 0:
+                        self.add_error(None,
+                            f"Cannot combine subpart {part_number} on row {row_count} with existing matching subpart because one or both subparts have empty reference designators. Subpart combining skipped.")
                     else:
-                        existing_subpart_reference_list = existing_subpart_reference_list + reference_list
-                        existing_subpart.reference = stringify_list(existing_subpart_reference_list)
-                        existing_subpart.count = len(existing_subpart_reference_list) if len(existing_subpart_reference_list) > 0 else '1'
-                        existing_subpart.save()
-                        reference_list = existing_subpart_reference_list
+                        combine = True
+                        for ref in reference_list:
+                            if ref in existing_subpart_reference_list:
+                                combine = False
+                                self.warnings.append(
+                                    f"Cannot combine subpart subpart {part_number} on row {row_count} with existing subpart because one or more reference designators are the same. Subpart combining skipped.")
+                                break
+                        if combine:
+                            info_msg = f"Combined reference designators {stringify_list(reference_list)} for subpart on row {row_count} with existing subpart {part_number}."
+                            existing_subpart_reference_list = existing_subpart_reference_list + reference_list
+                            existing_subpart.reference = stringify_list(existing_subpart_reference_list)
+                            existing_subpart.count = len(existing_subpart_reference_list) if len(existing_subpart_reference_list) > 0 else '1'
+                            existing_subpart.save()
+                            self.successes.append(info_msg)
 
-                if len(reference_list) > 0 and len(reference_list) != count and count > 1:
-                    self.warnings.append(
-                        f"The number of reference designators ({len(reference_list)}) for subpart {subpart_part.__str__()} on row {row_count} does not match the subpart quantity ({count}). Quantity automatically adjusted.")
-
-                count = len(reference_list) if len(reference_list) > 0 else '1'
-                reference = stringify_list(reference_list)
-
-                references_seen = set()
-                duplicate_references = set()
-                bom = parent_part_revision.indented()
-                for _, item in bom.parts.items():
-                    check_references_for_duplicates(item.references, references_seen, duplicate_references)
-
-                if len(duplicate_references) > 0:
-                    sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)
-                    self.warnings.append("The following BOM references are associated with multiple parts: " + str(sorted_duplicate_references))
         except UnicodeDecodeError as e:
             self.add_error(None, forms.ValidationError("CSV File Encoding error, try encoding your file as utf-8, and upload again. \
                 If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to \
