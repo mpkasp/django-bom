@@ -1,4 +1,4 @@
-from .base_api import BaseApi
+from .base_api import BaseApi, BaseApiError
 from ..models import SellerPart, Seller
 import json
 
@@ -15,7 +15,7 @@ class MouserApi(BaseApi):
         data = json.loads(content)
         errors = data['Errors']
         if len(errors) > 0:
-            raise Exception("Error(s): {}".format(errors))
+            raise BaseApiError("Error(s): {}".format(errors))
         return data
 
     def search_keyword(self, keyword):

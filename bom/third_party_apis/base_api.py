@@ -45,3 +45,7 @@ class BaseApi:
 
         cache.set(cache_key, r.content, self.cache_timeout)
         return r.content
+
+
+class BaseApiError(Exception):
+    pass

@@ -7,6 +7,7 @@ from django.views import View
 
 from bom.models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, UserMeta, PartRevision, Assembly, AssemblySubparts
 from bom.third_party_apis.mouser import Mouser
+from bom.third_party_apis.base_api import BaseApiError
 
 
 class BomJsonResponse(View):
@@ -32,7 +33,12 @@ class MouserPartMatchBOM(BomJsonResponse):
         for bom_id, mp in manufacturer_parts.items():
             bom_part = flat_bom.parts[bom_id]
             bom_part_quantity = bom_part.total_extended_quantity
-            part_seller_info = mouser.search_and_match(mp, quantity=bom_part_quantity)
+
+            try:
+                part_seller_info = mouser.search_and_match(mp, quantity=bom_part_quantity)
+            except BaseApiError as err:
+                self.response['errors'].append(err)
+
             try:
                 bom_part.seller_part = part_seller_info['optimal_seller_part']
                 bom_part.api_info = part_seller_info['mouser_parts'][0]
