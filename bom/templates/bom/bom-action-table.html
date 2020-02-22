@@ -1,0 +1,57 @@
+{# If you're using a form / want actions: form_name, form_action, form_select_name, form_select_actions (dict: {select_value: title}),  #}
+<form name="{{ form_name }}" action="{{ form_action }}" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+        <div class="row" style="margin-bottom: 0;">
+            <div class="input-field col s10 m4">
+                <select name="{{form_select_name}}">
+                    <option value="" disabled selected>Choose your action</option>
+                    {% for val, title in form_select_actions.items %}
+                    <option value="{{ val }}">{{title}}</option>
+                    {% endfor %}
+                </select>
+                <label>Action</label>
+            </div>
+            <div class="col s2 m2">
+                <div class="input-field">
+                    <button class="waves-effect waves-light btn green lighten-1" type="submit">Go</button>
+                </div>
+            </div>
+        </div>
+        <table class="striped tight">
+            <thead>
+            <tr>
+                <th class="text-normal"><label><input type="checkbox" id="{{ form_select_name }}-select-all"><span></span></label></th>
+
+{# CAN YOU HAVE BLOCKS ON INCLUDES? #}
+                {% block bom-table-headers %}{% endblock %}
+{#                <th class="text-normal">Code</th>#}
+{#                <th class="text-normal">Name</th>#}
+{#                <th class="text-normal">Description</th>#}
+{#                <th class="text-normal"><img height="18" style="padding: 4px 4px 0 4px;" alt="Mouser" title="Via Mouser.com" src="{% static 'bom/img/mouser.png' %}">Mouser Sourcing</th>#}
+{#                <th class="text-normal">Options</th>#}
+            </tr>
+            </thead>
+            <tbody>
+            {% block bom-table-items %}{% endblock %}
+
+
+{#            {% for item in items %}#}
+{#                <tr>#}
+{#                    {% if form_name %}#}
+{#                    <td><label><input type="checkbox" class="filled-in checkbox-array" name="actions" value="{{ part_class.id }}"><span></span></label></td>#}
+{#                    {% endif %}#}
+{##}
+{#                    <td class="text-normal">{{ part_class.code }}</td>#}
+{#                    <td class="text-normal">{{ part_class.name }}</td>#}
+{#                    <td class="text-normal">{{ part_class.comment }}</td>#}
+{#                    <td class="text-normal">{% if part_class.mouser_enabled %}#}
+{#                        <img height="24" style="padding: 4px 4px 0 4px;" alt="Mouser" title="Via Mouser.com" src="{% static 'bom/img/mouser.png' %}">{% endif %}</td>#}
+{#                    <td>#}
+{#                        <a class="waves-effect waves-green btn-flat green-text text-lighten-1" href="{% url 'bom:part-class-edit' part_class_id=part_class.id %}"><i#}
+{#                                class="material-icons left green-text text-lighten-1">edit</i>Edit</a>#}
+{#                    </td>#}
+{#                </tr>#}
+{#            {% endfor %}#}
+            </tbody>
+        </table>
+</form>

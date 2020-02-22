@@ -240,6 +240,7 @@ class Part(models.Model):
 
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
         sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)
+        # sellerparts = SellerPart.objects.filter(manufacturer_part__part=self)
         return SellerPart.optimal(sellerparts, int(quantity))
 
     def assign_part_number(self):
@@ -274,7 +275,7 @@ class Part(models.Model):
     def save(self, *args, **kwargs):
         if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
             self.assign_part_number()
-        super(Part, self).save(*args, **kwargs)
+        super(Part, self).save()
 
     def __str__(self):
         return u'%s' % (self.full_part_number())
@@ -425,6 +426,7 @@ class PartRevision(models.Model):
                 return
             else:
                 parent_qty *= qty
+                # TODO: Cache Me!
                 for sp in part_revision.assembly.subparts.all():
                     qty = sp.count
                     reference = sp.reference

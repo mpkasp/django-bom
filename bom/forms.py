@@ -634,7 +634,7 @@ class PartForm(forms.ModelForm):
                 self.add_error('number_item', validation_error)
 
             try:
-                if number_variation != '':
+                if number_variation:
                     Part.verify_format_number_variation(number_variation)
             except AttributeError as e:
                 validation_error = forms.ValidationError(str(e), code='invalid')
