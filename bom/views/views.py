@@ -402,10 +402,14 @@ def bom_settings(request, tab_anchor=None):
                     organization.number_item_len = 3
                 organization.save()
         elif 'submit-leave-organization' in request.POST:
-            profile.organization = None
-            profile.save()
-            if users_in_organization == 0:
-                organization.delete()
+            if organization.owner == user:
+                messages.error(request, "You are the owner of the organization. For now we're not letting owners leave their organization. This will change in the future. Contact info@indabom.com "
+                                        "if you want us to manually remove you from your organization.")
+            else:
+                profile.organization = None
+                profile.save()
+                if users_in_organization == 0:
+                    organization.delete()
 
     user_form = UserForm(instance=user)
     user_add_form = UserAddForm()
