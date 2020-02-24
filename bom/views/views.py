@@ -30,6 +30,7 @@ from bom.forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileF
     PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm, PartClassFormSet, \
     OrganizationCreateForm, OrganizationFormEditSettings
 from bom.utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely
+from bom.csv_headers import PartsListCSVHeaders, PartClassesCSVHeaders, BOMFlatCSVHeaders, BOMIndentedCSVHeaders
 
 logger = logging.getLogger(__name__)
 
@@ -161,25 +162,22 @@ def home(request):
     if 'download' in request.POST:
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="indabom_parts_search.csv"'
-        fieldnames = [
-            'part_number',
-            'part_category',
-            'part_synopsis',
-            'part_revision',
-            'part_manufacturer',
-            'part_manufacturer_part_number', ]
-        writer = csv.DictWriter(response, fieldnames=fieldnames)
+        csv_headers = PartsListCSVHeaders()
+        writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
         writer.writeheader()
         for part_rev in part_revs:
             row = {
-                'part_number': part_rev.part.full_part_number(),
-                'part_category': part_rev.part.number_class.name,
-                'part_synopsis': part_rev.synopsis(),
-                'part_revision': part_rev.revision,
-                'part_manufacturer': part_rev.part.primary_manufacturer_part.manufacturer.name if part_rev.part.primary_manufacturer_part is not None and
+                csv_headers.get_default('part_number'): part_rev.part.full_part_number(),
+                csv_headers.get_default('part_category'): part_rev.part.number_class.name,
+                csv_headers.get_default('part_revision'): part_rev.revision,
+                csv_headers.get_default('part_manufacturer'): part_rev.part.primary_manufacturer_part.manufacturer.name if part_rev.part.primary_manufacturer_part is not None and
                                                                                                   part_rev.part.primary_manufacturer_part.manufacturer is not None else '',
-                'part_manufacturer_part_number': part_rev.part.primary_manufacturer_part.manufacturer_part_number if part_rev.part.primary_manufacturer_part is not None else '',
+                csv_headers.get_default('part_manufacturer_part_number'): part_rev.part.primary_manufacturer_part.manufacturer_part_number if part_rev.part.primary_manufacturer_part is not None else '',
             }
+            for field_name in csv_headers.get_default_all():
+                if field_name not in csv_headers.get_defaults_list(['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer', 'part_manufacturer_part_number', ]):
+                    attr = getattr(part_rev, field_name)
+                    row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
             writer.writerow({k: smart_str(v) for k, v in row.items()})
         return response
 
@@ -323,6 +321,7 @@ def bom_settings(request, tab_anchor=None):
         elif 'refresh-edit-organization' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             organization_form = OrganizationFormEditSettings(instance=organization)
+
         elif 'submit-number-item-len' in request.POST:
             tab_anchor = INDABOM_TAB
             number_item_len_form = NumberItemLenForm(request.POST, organization=organization)
@@ -357,6 +356,22 @@ def bom_settings(request, tab_anchor=None):
                     messages.warning(request, warning)
             else:
                 messages.error(request, part_class_csv_form.errors)
+
+        elif 'submit-part-class-export' in request.POST:
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="indabom_parts_search.csv"'
+            csv_headers = PartClassesCSVHeaders()
+            writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
+            writer.writeheader()
+            part_classes = PartClass.objects.filter(organization=organization)
+            for part_class in part_classes:
+                row = {}
+                for field_name in csv_headers.get_default_all():
+                    attr = getattr(part_class, field_name)
+                    row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
+                writer.writerow({k: smart_str(v) for k, v in row.items()})
+            return response
+
         elif 'part-class-action' in request.POST and part_class_action is not None:
             if len(part_class_action_ids) <= 0:
                 messages.warning(request, "No action was taken because no part classes were selected. Select part classes by checking the checkboxes below.")
@@ -534,11 +549,18 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
     qty = cache.get(qty_cache_key, 1000)
 
     bom = part_revision.indented(top_level_quantity=qty)
-    headers = list(bom.parts.items())[0][1].as_dict().keys()
-    writer = csv.DictWriter(response, fieldnames=headers)
+    csv_headers = BOMIndentedCSVHeaders()
+    writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
     writer.writeheader()
+
     for _, item in bom.parts.items():
-        writer.writerow({k: smart_str(v) for k, v in item.as_dict().items()})
+        mapped_row = {}
+        raw_row = {k: smart_str(v) for k, v in item.as_dict_for_export().items()}
+        for kx, vx in raw_row.items():
+            if csv_headers.get_default(kx) is None: print ("NONE", kx)
+            mapped_row.update({csv_headers.get_default(kx): vx})
+        writer.writerow({k: smart_str(v) for k, v in mapped_row.items()})
+
     return response
 
 
@@ -565,11 +587,18 @@ def part_export_bom_flat(request, part_revision_id):
     qty = cache.get(qty_cache_key, 1000)
 
     bom = part_revision.flat(top_level_quantity=qty)
-    headers = list(bom.parts.items())[0][1].as_dict_for_export().keys()
-    writer = csv.DictWriter(response, fieldnames=headers)
+    csv_headers = BOMFlatCSVHeaders()
+    writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
     writer.writeheader()
+
     for _, item in bom.parts.items():
-        writer.writerow({k: smart_str(v) for k, v in item.as_dict_for_export().items()})
+        mapped_row = {}
+        raw_row = {k: smart_str(v) for k, v in item.as_dict_for_export().items()}
+        for kx, vx in raw_row.items():
+            if csv_headers.get_default(kx) is None: print ("NONE", kx)
+            mapped_row.update({csv_headers.get_default(kx): vx})
+        writer.writerow({k: smart_str(v) for k, v in mapped_row.items()})
+
     return response
 
 
@@ -678,18 +707,26 @@ def export_part_list(request):
         'part_manufacturer_part_number',
     ]
 
+    csv_headers = PartsListCSVHeaders()
+
     writer = csv.DictWriter(response, fieldnames=fieldnames)
     writer.writeheader()
     for item in parts:
         try:
             row = {
-                'part_number': item.full_part_number(),
-                'part_synopsis': item.latest().synopsis(),
-                'part_revision': item.latest().revision,
-                'part_manufacturer': item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
-                'part_manufacturer_part_number': item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
+                csv_headers.get_default('part_number'): item.full_part_number(),
+                csv_headers.get_default('part_revision'): item.latest().revision,
+                csv_headers.get_default('part_manufacturer'): item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
+                csv_headers.get_default('part_manufacturer_part_number'): item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
             }
+            for field_name in csv_headers.get_default_all():
+                if field_name not in csv_headers.get_defaults_list(
+                        ['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer',
+                         'part_manufacturer_part_number', ]):
+                    attr = getattr(item, field_name)
+                    row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
             writer.writerow({k: smart_str(v) for k, v in row.items()})
+
         except AttributeError as e:
             messages.warning(request, "No change history for part: {}. Can't export.".format(item.full_part_number()))
 

@@ -55,7 +55,7 @@ def listify_string(st):
 # Convert a list of items into a comma-separated string without any surrounding brackets, 
 # for example:
 #
-# list = [1, 2, 3 4]
+# list = [1, 2, 3, 4]
 #
 # becomes '1, 2, 3, 4'
 #

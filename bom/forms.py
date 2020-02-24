@@ -14,6 +14,7 @@ from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Se
     Organization, PartRevision, AssemblySubparts, Assembly
 from .validators import decimal, numeric
 from .utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely, get_from_dict
+from .csv_headers import PartsListCSVHeaders, PartClassesCSVHeaders, BOMFlatCSVHeaders, BOMIndentedCSVHeaders, CSVHeaderError
 
 logger = logging.getLogger(__name__)
 
@@ -319,53 +320,67 @@ class PartClassCSVForm(forms.Form):
             reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
             headers = [h.lower() for h in next(reader)]
 
-            must_headers = ('code', 'name')
-            for hdr in must_headers:
-                if hdr not in headers:
-                    validation_error = forms.ValidationError("Missing required column named '{}'.".format(hdr), code='invalid')
-                    self.add_error(None, validation_error)
+            csv_headers = PartClassesCSVHeaders()
 
-            if 'comment' in headers and 'description' in headers:
-                validation_error = forms.ValidationError("Can only have a column named 'comment' or a column named 'description'.".format(hdr), code='invalid')
-                self.add_error(None, validation_error)
+            try:
+                # Issue warning if unrecognized column header names appear in file.
+                csv_headers.validate_header_names(headers)
+            except CSVHeaderError as e:
+                self.warnings.append(e.__str__() + ". Column(s) ignored.")
+
+            try:
+                # Make sure that required columns appear in the file, then convert whatever
+                # header synonym names were used to default header names.
+                hdr_assertions = [
+                    ('comment', 'description', 'mex'),  # MUTUALLY EXCLUSIVE part_class or part_number but not both
+                    ('code', 'in'),  # CONTAINS revision
+                    ('name', 'in'),  # CONTAINS name
+                ]
+                csv_headers.validate_header_assertions(headers, hdr_assertions)
+                headers = csv_headers.get_defaults_list(headers)
+            except CSVHeaderError as e:
+                raise ValidationError(e.__str__() + ". Uploading stopped. No part classes uploaded.", code='invalid')
 
             row_count = 1  # Skip over header row
             for row in reader:
                 row_count += 1
                 part_class_data = {}
-                for idx, item in enumerate(row):
-                    try:
-                        part_class_data[headers[idx]] = item
-                    except IndexError:
-                        continue
 
-                if 'name' in part_class_data and 'code' in part_class_data:
-                    name = part_class_data['name']
-                    code = part_class_data['code']
-                    try:
-                        description_or_comment = ''
-                        if not code.isdigit() or int(code) < 0:
-                            validation_error = forms.ValidationError(
-                                "Part class 'code' in row {} must be a positive number. Uploading of this part class skipped.".format(row_count),
-                                code='invalid')
-                            self.add_error(None, validation_error)
-                            continue
-                        if 'description' in part_class_data:
-                            description_or_comment = part_class_data['description'] if 'description' in part_class_data else ''
-                        elif 'comment' in part_class_data:
-                            description_or_comment = part_class_data['comment'] if 'comment' in part_class_data else ''
-                        PartClass.objects.create(code=code, name=name, comment=description_or_comment, organization=self.organization)
-                        self.successes.append("Part class {0} {1} on row {2} created.".format(code, name, row_count))
+                for idx, hdr in enumerate(headers):
+                    if idx == len(row): break
+                    part_class_data[hdr] = row[idx]
 
-                    except IntegrityError:
+                name = csv_headers.get_val_from_row(part_class_data, 'name')
+                code = csv_headers.get_val_from_row(part_class_data, 'code')
+                description = csv_headers.get_val_from_row(part_class_data, 'description')
+                comment = csv_headers.get_val_from_row(part_class_data, 'comment')
+
+                try:
+                    if code is None:
                         validation_error = forms.ValidationError(
-                            "Part class {0} {1} on row {2} is already defined. Uploading of this part class skipped.".format(code, name, row_count),
+                            "Part class 'code' in row {} does not have a value. Uploading of this part class skipped.".format(row_count),
                             code='invalid')
                         self.add_error(None, validation_error)
+                        continue
+                    elif not code.isdigit() or int(code) < 0:
+                        validation_error = forms.ValidationError(
+                            "Part class 'code' in row {} must be a positive number. Uploading of this part class skipped.".format(row_count),
+                            code='invalid')
+                        self.add_error(None, validation_error)
+                        continue
 
-                else:
+                    description_or_comment = ''
+                    if 'description' is not None:
+                        description_or_comment = description
+                    elif 'comment' is not None:
+                        description_or_comment = comment
+                    PartClass.objects.create(code=code, name=name, comment=description_or_comment, organization=self.organization)
+                    self.successes.append("Part class {0} {1} on row {2} created.".format(code, name, row_count))
+
+                except IntegrityError:
                     validation_error = forms.ValidationError(
-                        "In row {} must specify both 'code' and 'name'. Uploading of this part class skipped.".format(row_count), code='invalid')
+                        "Part class {0} {1} on row {2} is already defined. Uploading of this part class skipped.".format(code, name, row_count),
+                        code='invalid')
                     self.add_error(None, validation_error)
 
         except UnicodeDecodeError as e:
@@ -399,33 +414,46 @@ class PartCSVForm(forms.Form):
             reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
             headers = [h.lower() for h in next(reader)]
 
-            if 'part_class' not in headers and 'part_number' not in headers:
-                raise ValidationError("Missing required column named 'part_class' or column named 'part_number'", code='invalid')
+            csv_headers = PartsListCSVHeaders()
 
-            if 'revision' not in headers:
-                raise ValidationError("Missing required column named 'revision'", code='invalid')
+            try:
+                # Issue warning if unrecognized column header names appear in file.
+                csv_headers.validate_header_names(headers)
+            except CSVHeaderError as e:
+                self.warnings.append(e.__str__() + ". Columns ignored.")
 
-            if 'description' not in headers:
-                if 'value' not in headers or 'value_units' not in headers:
-                    raise ValidationError("Missing required column named 'description' or columns named 'value' and 'value_units'",
-                                          code='invalid')
+            try:
+                # Make sure that required columns appear in the file, then convert whatever
+                # header synonym names were used to default header names.
+                hdr_assertions = [
+                    ('part_class', 'part_number', 'or'), # part_class OR part_number
+                    ('revision', 'in'), # CONTAINS revision
+                    ('value', 'value_units', 'and', 'description', 'or'), # (value AND value units) OR description
+                ]
+                csv_headers.validate_header_assertions(headers, hdr_assertions)
+                headers = csv_headers.get_defaults_list(headers)
+            except CSVHeaderError as e:
+                raise ValidationError(e.__str__() + ". Uploading stopped. No parts uploaded.", code='invalid')
 
             row_count = 1  # Skip over header row
             for row in reader:
                 row_count += 1
                 part_data = {}
-                for idx, item in enumerate(row):
-                    part_data[headers[idx]] = item
-                part_number = get_from_dict(part_data, ['part_number', 'pn', 'part no', 'part number', 'part_no', ])
-                part_class = get_from_dict(part_data, ['part_class', 'part class', 'class', ])
+
+                for idx, hdr in enumerate(headers):
+                    if idx == len(row): break
+                    part_data[hdr] = row[idx]
+
+                part_number = csv_headers.get_val_from_row(part_data, 'part_number')
+                part_class = csv_headers.get_val_from_row(part_data, 'part_class')
                 number_item = None
                 number_variation = None
-                revision = get_from_dict(part_data, ['revision', 'rev', 'part_rev', 'part rev', 'part_revision', 'part revision'])
-                mpn = get_from_dict(part_data, ['manufacturer_part_number', 'mpn', ])
-                mfg_name = get_from_dict(part_data, ['mfg', 'manufacturer', 'mfg name', 'manufacturer name', ])
-                description = get_from_dict(part_data, ['description', 'desc', 'desc.', ])
-                value = get_from_dict(part_data, ['value', 'val', 'val.', ])
-                value_units = get_from_dict(part_data, ['value_units', 'value units', 'val. units', 'val units', ])
+                revision = csv_headers.get_val_from_row(part_data, 'revision')
+                mpn = csv_headers.get_val_from_row(part_data, 'mpn')
+                mfg_name = csv_headers.get_val_from_row(part_data, 'mfg_name')
+                description = csv_headers.get_val_from_row(part_data, 'description')
+                value = csv_headers.get_val_from_row(part_data, 'value')
+                value_units = csv_headers.get_val_from_row(part_data, 'value_units')
 
                 # Check part number for uniqueness. If part number not specified
                 # then Part.save() will create one.
@@ -454,10 +482,10 @@ class PartCSVForm(forms.Form):
                             pass
                 elif part_class:
                     try:
-                        part_class = PartClass.objects.get(code=part_data['part_class'], organization=self.organization)
+                        part_class = PartClass.objects.get(code=part_data[csv_headers.get_default('part_class')], organization=self.organization)
                     except PartClass.DoesNotExist:
                         self.add_error(None, "Part class {0} in row {1} doesn't exist. "
-                                             "Uploading of this part skipped.".format(part_data['part_class'], row_count))
+                                             "Uploading of this part skipped.".format(part_data[csv_headers.get_default('part_class')], row_count))
                         continue
                 else:
                     self.add_error(None, "In row {} need to specify a part_class or a part_number. Uploading of this part skipped.".format(row_count))
@@ -468,11 +496,11 @@ class PartCSVForm(forms.Form):
                     continue
                 elif len(revision) > 4:
                     self.add_error(None, "Revision {0} in row {1} is more than the maximum 4 characters. "
-                                         "Uploading of this part skipped.".format(part_data['revision'], row_count))
+                                         "Uploading of this part skipped.".format(part_data[csv_headers.get_default('revision')], row_count))
                     continue
                 elif revision.isdigit() and int(revision) < 0:
                     self.add_error(None, "Revision {0} in row {1} cannot be a negative number. "
-                                         "Uploading of this part skipped.".format(part_data['revision'], row_count))
+                                         "Uploading of this part skipped.".format(part_data[csv_headers.get_default('revision')], row_count))
                     continue
 
                 if mpn and mfg_name:
@@ -515,12 +543,14 @@ class PartCSVForm(forms.Form):
                 # Optional properties with free-form values:
                 props_free_form = ['tolerance', 'pin_count', 'color', 'material', 'finish', 'attribute']
                 for prop_free_form in props_free_form:
+                    prop_free_form = csv_headers.get_default(prop_free_form)
                     if prop_free_form in part_data:
                         setattr(part_revision, prop_free_form, part_data[prop_free_form])
 
                 # Optional properties with choices for values:
                 props_with_value_choices = {'package': PACKAGE_TYPES, 'interface': INTERFACE_TYPES}
                 for k, v in props_with_value_choices.items():
+                    k = csv_headers.get_default(k)
                     if k in part_data:
                         if is_valid_choice(part_data[k], v):
                             setattr(part_revision, k, part_data[k])
@@ -539,6 +569,7 @@ class PartCSVForm(forms.Form):
                     'height': DISTANCE_UNITS, 'weight': WEIGHT_UNITS,
                 }
                 for k, v in props_with_unit_choices.items():
+                    k = csv_headers.get_default(k)
                     if k in part_data and k + '_units' in part_data:
                         if part_data[k] and not part_data[k + '_units']:
                             self.add_error(None, "Missing '{0}' for part in row {1}. Uploading of this part skipped.".format(k, row_count))
@@ -933,10 +964,25 @@ class BOMCSVForm(forms.Form):
                 reader = csv.reader(codecs.iterdecode(file, 'utf-8-sig'), dialect)
                 headers = [h.lower() for h in next(reader)]
 
-            if 'part_number' not in headers and 'manufacturer_part_number' not in headers:
-                raise ValidationError("Missing required column named 'part_number' or column named 'manufacturer_part_number'.", code='invalid')
-            if 'quantity' not in headers:
-                raise ValidationError("Missing required column named 'quantity'.", code='invalid')
+            csv_headers = BOMIndentedCSVHeaders()
+
+            try:
+                # Issue warning if unrecognized column header names appear in file.
+                csv_headers.validate_header_names(headers)
+            except CSVHeaderError as e:
+                self.warnings.append(e.__str__() + ". Columns ignored.")
+
+            try:
+                # Make sure that required columns appear in the file, then convert whatever
+                # header synonym names were used to default header names.
+                hdr_assertions = [
+                    ('part_number', 'manufacturer_part_number', 'or'),  # part_class OR part_number
+                    ('quantity', 'in'),  # CONTAINS quantity
+                ]
+                csv_headers.validate_header_assertions(headers, hdr_assertions)
+                headers = csv_headers.get_defaults_list(headers)
+            except CSVHeaderError as e:
+                raise ValidationError(e.__str__() + ". Uploading stopped. No subparts uploaded.", code='invalid')
 
             parent_part_revision = self.parent_part.latest()
             if parent_part_revision.assembly is None:
@@ -948,24 +994,37 @@ class BOMCSVForm(forms.Form):
                 row_count += 1
                 part_dict = {}
 
-                for idx, item in enumerate(row):
-                    part_dict[headers[idx]] = item
+                for idx, hdr in enumerate(headers):
+                    if idx == len(row): break
+                    part_dict[hdr] = row[idx]
 
-                dnp = get_from_dict(part_dict, ['dnp', 'dnl', 'do_not_populate', 'do_not_load', 'do_not_process', 'do not load', 'do not populate'])
+                dnp = csv_headers.get_val_from_row(part_dict, 'dnp')
                 do_not_load = dnp in ['y', 'x', 'dnp', 'dnl', 'yes', 'true', ]
+                part_number = csv_headers.get_val_from_row(part_dict, 'part_number')
+                revision = csv_headers.get_val_from_row(part_dict, 'revision')
+                mpn = csv_headers.get_val_from_row(part_dict, 'mpn')
+                count = csv_headers.get_val_from_row(part_dict, 'count')
+                reference = csv_headers.get_val_from_row(part_dict, 'reference')
+                reference_list = listify_string(reference) if reference else []
 
-                part_number = get_from_dict(part_dict, ['part_number', 'part number', 'part no', ])
-                revision = get_from_dict(part_dict, ['rev', 'revision', 'part_revision', ])
-                mpn = get_from_dict(part_dict, ['manufacturer_part_number', 'mpn', 'mfg_part_number', 'mfg part number', 'manufacturer part number'])
-                count = get_from_dict(part_dict, ['quantity', 'qty', ])
-                reference = get_from_dict(part_dict, ['reference', 'designator', ])
+                if len(reference_list) != len(set(reference_list)):
+                    self.add_error(None, f"Duplicate reference designators '{reference}' for subpart on row {row_count}. Uploading of this subpart skipped.")
+                    continue
+
+                if count is None:
+                    count = 1
+                elif not count.isdigit() or int(count) < 1:
+                    self.add_error(None, f"Quantity for subpart on row {row_count} must be a number > 0. Uploading of this subpart skipped.")
+                    continue
+                else:
+                    count = int(count)
 
                 # First try to add the subpart_part based on the part number
                 subpart_part = None
                 if part_number:
                     if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
                         try:
-                            (number_class, number_item, number_variation) = Part.parse_part_number(part_dict['part_number'], self.organization.number_item_len)
+                            (number_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization.number_item_len)
                             subparts = Part.objects.filter(
                                 number_class__code=number_class,
                                 number_item=number_item,
@@ -975,19 +1034,19 @@ class BOMCSVForm(forms.Form):
                             self.add_error(None, str(e) + " on row {}. Uploading of this subpart skipped. Couldn't parse part number.".format(row_count))
                             continue
                     else:
-                        subparts = Part.objects.filter(number_class=None, number_item=part_dict['part_number'], number_variation=None, organization=self.organization)
+                        subparts = Part.objects.filter(number_class=None, number_item=part_number, number_variation=None, organization=self.organization)
 
                     if len(subparts) == 0:
                         self.add_error(None,
                                        "Part {0} for subpart on row {1} does not exist, you must create the part "
                                        "before it can be added as a subpart. "
-                                       "Uploading of this subpart skipped.".format(part_dict['part_number'], row_count))
+                                       "Uploading of this subpart skipped.".format(part_number, row_count))
                         continue
                     elif len(subparts) > 1:
                         self.add_error(None,
                                        "Found {0} entries for part {1} for subpart on row {2}. This should not happen. "
                                        "Please let info@indabom.com know. Uploading of this subpart skipped.".format(
-                                           len(subparts), row_count, part_dict['part_number']))
+                                           len(subparts), row_count, part_number))
                         continue
 
                     subpart_part = subparts[0]  # TODO: handle more than one subpart
@@ -1002,18 +1061,17 @@ class BOMCSVForm(forms.Form):
 
                     subpart_part = manufacturer_parts[0].part
                 else:
-                    self.add_error(None, "Couldn't parse part on row {} with data: {}".format(row_count, row))
+                    self.add_error(None, f"Couldn't parse part on row {row_count} with data: {row}.")
                     continue
 
                 # We have the subpart_part at this point, make sure we don't have infinite recursion
                 if self.parent_part == subpart_part:
-                    self.add_error(None, "Subart on row {0} with part number {1} is the same as the parent part. A subpart can not be a subpart of its self. "
-                                         "Uploading of this subpart skipped.".format(row_count, subpart_part.__str__()))
+                    # Silently skip any rows that contain the parent part
                     continue
 
                 subpart_revision = subpart_part.latest()
                 if not subpart_revision:
-                    self.add_error(None, f"Part {part_number} has no revisions. Cannot add it to a BOM.")
+                    self.add_error(None, f"Part {part_number} has no revisions. Cannot add it to a BOM. Uploading of this subpart skipped.")
                     continue
 
                 if revision:
@@ -1022,7 +1080,7 @@ class BOMCSVForm(forms.Form):
                         subpart_revision = revs[0]
                     else:
                         rev_options = revs.values_list('revision', flat=True)
-                        self.add_error(None, f"Found part {part_number}, but couldn't match revision {revision}. Options are: {rev_options}")
+                        self.add_error(None, f"Found part {part_number}, but could not match revision {revision}. Options are: {rev_options}. Uploading of this subpart skipped.")
                         continue
 
                 contains_parent = False
@@ -1031,30 +1089,39 @@ class BOMCSVForm(forms.Form):
                     if sp.part_revision == parent_part_revision:
                         contains_parent = True
                 if contains_parent:
-                    self.add_error(None, f"Uploaded part {part_number} contains parent part in it's assembly. Cannot add {part_number} as it would cause infinite recursion.")
+                    self.add_error(None, f"Uploaded part {part_number} contains parent part in its assembly. Cannot add {part_number} as it would cause infinite recursion. Uploading of this subpart skipped.")
                     continue
 
-                if not count:
-                    count = '1'
-                elif not count.isdigit() or int(count) < 1:
-                    self.add_error(None, "Quantity for subpart {0} on row {1} must be a number > 0. Uploading of this subpart skipped.".format(subpart_part.__str__(), row_count))
-                    continue
+                # Decide if the current subpart (i.e., for current row) should:
+                # a. Be combined with a previously seen subpart
+                # b. Rejected because it is a duplicate of a previously seen subpart
+                # c. Be imported as a new subpart
+                #
+                # Do (a) if current subpart's part matches a previous subpart's part except for their designators. Combine if
+                # current subpart's designators either don't overlap or both subparts do not have designators. As
+                # part of the combing, adjust subpart count to represent the total number of combined subparts. Reject
+                # current subpart if it has a designator but the previous subpart does not (or vice versa).
+                #
+                # Do (b) if current subpart's part matches a previous subpart's part - AND - their designators match (this
+                # includes the case where the current and previous subpart do not have any designators.
+                #
+                # Do (c) if the current subpart's part does not match any previous subpart's part - OR - if there is a
+                # match except for their DNL flags. Want to have separate entries in the BOM for the to-be-loaded and
+                # the do-not-load versions of these subparts.
+                #
 
-                reference_list = listify_string(reference) if reference else []
-                if len(reference_list) > 0 and len(reference_list) != int(count):
-                    self.add_error(None, "The number of reference designators ({0}) for subpart {1} on row {2} does not match the subpart quantity ({3}). "
-                                         "Uploading of this subpart skipped.".format(len(reference_list), subpart_part.__str__(), row_count, count))
-                    continue
-                reference = stringify_list(reference_list)
-
-                subpart_exists = parent_part_revision.assembly.subparts.filter(
+                existing_subpart_qs = parent_part_revision.assembly.subparts.filter(
                     part_revision=subpart_revision,
-                    count=count,
-                    reference=reference,
-                    do_not_load=do_not_load
-                ).count() > 0
+                    do_not_load=do_not_load # Include DNL flag in filter per (c) above
+                )
 
-                if not subpart_exists:
+                if len(existing_subpart_qs) == 0:
+
+                    if len(reference_list) != count:
+                        self.warnings.append(
+                            f"The number of reference designators ({len(reference_list)}) for subpart {subpart_part} on row {row_count} does not match the subpart quantity ({count}). Quantity automatically adjusted.")
+                        count = len(reference_list)
+
                     new_subpart = Subpart.objects.create(
                         part_revision=subpart_revision,
                         count=count,
@@ -1064,23 +1131,34 @@ class BOMCSVForm(forms.Form):
 
                     AssemblySubparts.objects.get_or_create(assembly=parent_part_revision.assembly, subpart=new_subpart)
 
-                    info_msg = "Added subpart "
+                    info_msg = f"Added subpart {part_number} on row {row_count} "
                     if reference:
-                        info_msg += f' {reference}'
-                    info_msg += f" {part_number} to parent part {self.parent_part}."
+                        info_msg += f"with reference designators {reference} "
+                    info_msg += f"to parent part {self.parent_part}."
                     self.successes.append(info_msg)
+
                 else:
-                    self.warnings.append(f"Already created part on row {row_count}, {part_number}, rev {revision}, qty {count}, ref: {reference}. Did not create it again.")
+                    existing_subpart = existing_subpart_qs[0]
+                    existing_subpart_reference_list = listify_string(existing_subpart.reference)
+                    if len(reference_list) == 0 or len(existing_subpart_reference_list) == 0:
+                        self.add_error(None,
+                            f"Cannot combine subpart {part_number} on row {row_count} with existing matching subpart because one or both subparts have empty reference designators. Subpart combining skipped.")
+                    else:
+                        combine = True
+                        for ref in reference_list:
+                            if ref in existing_subpart_reference_list:
+                                combine = False
+                                self.warnings.append(
+                                    f"Cannot combine subpart subpart {part_number} on row {row_count} with existing subpart because one or more reference designators are the same. Subpart combining skipped.")
+                                break
+                        if combine:
+                            info_msg = f"Combined reference designators {stringify_list(reference_list)} for subpart on row {row_count} with existing subpart {part_number}."
+                            existing_subpart_reference_list = existing_subpart_reference_list + reference_list
+                            existing_subpart.reference = stringify_list(existing_subpart_reference_list)
+                            existing_subpart.count = len(existing_subpart_reference_list) if len(existing_subpart_reference_list) > 0 else '1'
+                            existing_subpart.save()
+                            self.successes.append(info_msg)
 
-                references_seen = set()
-                duplicate_references = set()
-                bom = parent_part_revision.indented()
-                for _, item in bom.parts.items():
-                    check_references_for_duplicates(item.references, references_seen, duplicate_references)
-
-                if len(duplicate_references) > 0:
-                    sorted_duplicate_references = sorted(duplicate_references, key=prep_for_sorting_nicely)
-                    self.warnings.append("The following BOM references are associated with multiple parts: " + str(sorted_duplicate_references))
         except UnicodeDecodeError as e:
             self.add_error(None, forms.ValidationError("CSV File Encoding error, try encoding your file as utf-8, and upload again. \
                 If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to \
