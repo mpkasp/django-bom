@@ -8,6 +8,7 @@ bom/apps.py
 bom/base_classes.py
 bom/constants.py
 bom/context_processors.py
+bom/csv_headers.py
 bom/decorators.py
 bom/forms.py
 bom/helpers.py
@@ -53,6 +54,7 @@ bom/migrations/0030_auto_20200101_2253.py
 bom/migrations/0031_auto_20200104_1352.py
 bom/migrations/0032_auto_20200126_1806.py
 bom/migrations/0033_auto_20200203_0618.py
+bom/migrations/0034_auto_20200222_0359.py
 bom/migrations/__init__.py
 bom/static/.DS_Store
 bom/static/bom/.DS_Store
@@ -101,6 +103,7 @@ bom/static/bom/img/google/web/vector/btn_google_light_normal_ios.eps
 bom/static/bom/img/google/web/vector/btn_google_light_normal_ios.svg
 bom/static/bom/img/google/web/vector/btn_google_light_pressed_ios.eps
 bom/static/bom/img/google/web/vector/btn_google_light_pressed_ios.svg
+bom/static/bom/js/jquery-3.4.1.min.js
 bom/static/bom/js/jquery.ba-floatingscrollbar.min.js
 bom/static/bom/js/jquery.treetable.js
 bom/static/bom/js/materialize.min.js
@@ -109,6 +112,7 @@ bom/templates/bom/add-sellerpart.html
 bom/templates/bom/base-menu.html
 bom/templates/bom/base.html
 bom/templates/bom/bom-action-btn.html
+bom/templates/bom/bom-action-table.html
 bom/templates/bom/bom-base-menu.html
 bom/templates/bom/bom-base.html
 bom/templates/bom/bom-flat.html

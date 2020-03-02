@@ -43,7 +43,7 @@
             </div>
             <div class="col s12 m2 text-center">
                 <button type="submit" class="waves-effect waves-green btn green lighten-1 input-field" name="action">Submit</button>
-            <a class="waves-effect waves-green btn-flat input-field btn-icon-round" href="{% url 'bom:search-help' %}"><i class="material-icons">help</i></a>
+            <a class="waves-effect waves-green btn-flat input-field btn-icon-round tooltipped" data-position="bottom" data-tooltip="Help with search" href="{% url 'bom:search-help' %}"><i class="material-icons">help</i></a>
                 {% if part_class or query %}
                     <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
                 {% endif %}
@@ -58,6 +58,9 @@
                     <span class="action-checkbox-hide" style="display: none;"><a href="#" onclick="part_checkbox_select_all()">Select All</a> |</span>
                     <span class="action-checkbox-hide" style="display: none;"><a href="#" onclick="part_checkbox_clear_all()">Clear</a></span>
                 {% endif %}
+            </div>
+            <div class="col s12 m6 right-align">
+                <button class="waves-effect waves-green btn-flat btn-icon-round tooltipped" data-position="bottom" data-tooltip="Download results as CSV." name="download"><i class="material-icons">file_download</i></button>
             </div>
         </div>
 
@@ -144,9 +147,6 @@
                                     onclick="return confirm('Are you sure you want to delete the selected parts? This cannot be undone.')">Delete
                             </button>
                         </div>
-                        <div class="col s6 right-align">
-                            <button class="waves-effect waves-light btn grey lighten-1" name="download">Download Search Results as CSV</button>
-                        </div>
                     </div>
                 {% endif %}
             </div>
@@ -217,6 +217,9 @@
                     coverTrigger: false
                 }
             );
+
+            // For tooltips!
+            $('.tooltipped').tooltip();
         });
     </script>
 

@@ -193,7 +193,7 @@ def home(request):
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
 
-@login_required()
+@login_required
 def organization_create(request):
     user = request.user
     profile = user.bom_profile()
