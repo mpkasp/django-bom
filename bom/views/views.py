@@ -47,15 +47,17 @@ def home(request):
 
     if request.method == 'POST':
         part_class_selection_form = PartClassSelectionForm(request.POST, organization=organization)
-        if 'submit-part-delete' in request.POST:
-            for item in request.POST:
-                if 'delete_part_id_' in item:
-                    part_id = item.partition('delete_part_id_')[2]
+        if 'actions' in request.POST and 'part-action' in request.POST:
+            action = request.POST.get('part-action')
+            if action == 'Delete':
+                for part_id in request.POST.getlist('actions'):
                     try:
                         part = Part.objects.get(id=part_id, organization=organization)
+                        part_number = part.full_part_number()
                         part.delete()
+                        messages.success(request, f"Deleted part {part_number}")
                     except Part.DoesNotExist:
-                        messages.error(request, "No part found with given id {}.".format(part_id))
+                        messages.error(request, "Can't delete part. No part found with given id {}.".format(part_id))
         # Note that posting a PartClass selection does not include a named parameter in
         # the POST, so this case is the de facto "else" clause.
     else:
