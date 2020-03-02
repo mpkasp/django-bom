@@ -817,24 +817,18 @@ class AddSubpartForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         self.part_id = kwargs.pop('part_id', None)
+        self.part = Part.objects.get(id=self.part_id)
+        self.part_revision = self.part.latest()
+        self.unusable_part_rev_ids = [pr.id for pr in self.part_revision.where_used_full()]
+        self.unusable_part_rev_ids.append(self.part_revision.id)
         super(AddSubpartForm, self).__init__(*args, **kwargs)
-
-        # TODO: Clean this up, consider forcing a primary mfg part on each part
-        self.fields['subpart_part_number'].label_from_instance = \
-            lambda obj: "%s" % obj.full_part_number() + ' [MFR:] ' \
-                        + str(obj.primary_manufacturer_part.manufacturer if obj.primary_manufacturer_part is not None
-                              else '-') + ' [MFR#:] ' + \
-                        str(obj.primary_manufacturer_part if obj.primary_manufacturer_part is not None else '-') \
-                        + ' [SYN:] ' + str(obj.latest().synopsis() if obj.latest() else '')
 
     def clean_count(self):
         count = self.cleaned_data['count']
         if not count:
             count = 1
         elif count < 1:
-            validation_error = forms.ValidationError(
-                ("Subpart quantity must be > 0."),
-                code='invalid')
+            validation_error = forms.ValidationError("Subpart quantity must be > 0.", code='invalid')
             self.add_error('count', validation_error)
         return count
 
@@ -847,33 +841,29 @@ class AddSubpartForm(forms.Form):
         subpart_part_number = self.cleaned_data['subpart_part_number']
 
         if not subpart_part_number:
-            validation_error = forms.ValidationError(
-                ("Must specify a part number."),
-                code='invalid')
+            validation_error = forms.ValidationError("Must specify a part number.", code='invalid')
             self.add_error('subpart_part_number', validation_error)
 
         try:
             (number_class, number_item, number_variation) = Part.parse_part_number(subpart_part_number, self.organization.number_item_len)
-            self.subpart_part = Part.objects.get(
+            part = Part.objects.get(
                 number_class=PartClass.objects.get(code=number_class, organization=self.organization),
                 number_item=number_item,
                 number_variation=number_variation,
                 organization=self.organization
-            ).latest()
+            )
+            self.subpart_part = part.latest()
+            if self.subpart_part.id in self.unusable_part_rev_ids:
+                validation_error = forms.ValidationError("Infinite recursion! Can't add a part to its self.", code='invalid')
+                self.add_error('subpart_part_number', validation_error)
         except AttributeError as e:
-            validation_error = forms.ValidationError(
-                "Ill-formed subpart part number... " + str(e) + ".",
-                code='invalid')
+            validation_error = forms.ValidationError("Ill-formed subpart part number... " + str(e) + ".", code='invalid')
             self.add_error('subpart_part_number', validation_error)
         except PartClass.DoesNotExist:
-            validation_error = forms.ValidationError(
-                ("No part class for in given part number {}.".format(subpart_part_number)),
-                code='invalid')
+            validation_error = forms.ValidationError(f"No part class for in given part number {subpart_part_number}.", code='invalid')
             self.add_error('subpart_part_number', validation_error)
         except Part.DoesNotExist:
-            validation_error = forms.ValidationError(
-                ("No part found with given part number {}.".format(subpart_part_number)),
-                code='invalid')
+            validation_error = forms.ValidationError(f"No part found with given part number {subpart_part_number}.", code='invalid')
             self.add_error('subpart_part_number', validation_error)
 
         return subpart_part_number

@@ -499,7 +499,7 @@ def part_info(request, part_id, part_revision_id=None):
 
     try:
         indented_bom = part_revision.indented(top_level_quantity=qty)
-    except RuntimeError:
+    except (RuntimeError, RecursionError):
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         indented_bom = []
     except AttributeError as err:
@@ -508,6 +508,9 @@ def part_info(request, part_id, part_revision_id=None):
 
     try:
         flat_bom = part_revision.flat(top_level_quantity=qty)
+    except (RuntimeError, RecursionError):
+        messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
+        flat_bom = []
     except AttributeError as err:
         messages.error(request, err)
         flat_bom = []
@@ -554,7 +557,15 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 1000)
 
-    bom = part_revision.indented(top_level_quantity=qty)
+    try:
+        bom = part_revision.indented(top_level_quantity=qty)
+    except (RuntimeError, RecursionError):
+        messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
+        bom = []
+    except AttributeError as err:
+        messages.error(request, err)
+        bom = []
+
     csv_headers = BOMIndentedCSVHeaders()
     writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
     writer.writeheader()
@@ -592,7 +603,15 @@ def part_export_bom_flat(request, part_revision_id):
     qty_cache_key = str(part_revision.part.id) + '_qty'
     qty = cache.get(qty_cache_key, 1000)
 
-    bom = part_revision.flat(top_level_quantity=qty)
+    try:
+        bom = part_revision.flat(top_level_quantity=qty)
+    except (RuntimeError, RecursionError):
+        messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
+        bom = []
+    except AttributeError as err:
+        messages.error(request, err)
+        bom = []
+
     csv_headers = BOMFlatCSVHeaders()
     writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
     writer.writeheader()
@@ -853,7 +872,14 @@ def manage_bom(request, part_id, part_revision_id):
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 100)
 
-    indented_bom = part_revision.indented(top_level_quantity=qty)
+    try:
+        indented_bom = part_revision.indented(top_level_quantity=qty)
+    except (RuntimeError, RecursionError):
+        messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
+        indented_bom = []
+    except AttributeError as err:
+        messages.error(request, err)
+        indented_bom = []
 
     references_seen = set()
     duplicate_references = set()
@@ -894,7 +920,6 @@ def add_subpart(request, part_id, part_revision_id):
 
     if request.method == 'POST':
         add_subpart_form = AddSubpartForm(request.POST, organization=organization, part_id=part_id)
-
         if add_subpart_form.is_valid():
             subpart_part = add_subpart_form.subpart_part
             reference = add_subpart_form.cleaned_data['reference']

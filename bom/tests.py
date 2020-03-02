@@ -401,6 +401,40 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(3, qty_p2_do_not_load)
         self.assertEqual(7, qty_p2_load)
 
+    def test_add_subpart_infinite_recursion(self):
+        self.client.login(username='kasper', password='ghostpassword')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        # Test preventing infinite recursion
+        form_data = {'subpart_part_number': p3.full_part_number(), 'count': 3, 'reference': '', 'do_not_load': False}
+        response = self.client.post(reverse('bom:part-add-subpart', kwargs={'part_id': p3.id, 'part_revision_id': p3.latest().id, }), form_data)
+        self.assertEqual(response.status_code, 302)
+        found_error = False
+        rejected_add = False
+        for m in response.wsgi_request._messages:
+            if 'Added' in str(m):
+                found_error = True
+            if "Can&#39;t add a part to its self." in str(m):
+                rejected_add = True
+        self.assertFalse(found_error)
+        self.assertTrue(rejected_add)
+
+        # Test preventing infinite recursion - Check that a subpart doesnt exist in a parent's parent assy / deep recursion
+        # p3 has p2 in its assy, dont let p2 add p3 to it
+        form_data = {'subpart_part_number': p3.full_part_number(), 'count': 3, 'reference': '', 'do_not_load': False}
+        response = self.client.post(reverse('bom:part-add-subpart', kwargs={'part_id': p2.id, 'part_revision_id': p2.latest().id, }), form_data)
+        self.assertEqual(response.status_code, 302)
+        found_error = False
+        rejected_add = False
+        for m in response.wsgi_request._messages:
+            if 'Added' in str(m):
+                found_error = True
+            if "Can&#39;t add a part to its self." in str(m):
+                rejected_add = True
+        self.assertFalse(found_error)
+        self.assertTrue(rejected_add)
+
     def test_remove_subpart(self):
         self.client.login(username='kasper', password='ghostpassword')
 
@@ -862,7 +896,9 @@ class TestForms(TestCase):
         self.assertTrue(form.is_valid())
 
     def test_add_subpart_form_blank(self):
-        form = AddSubpartForm({}, organization=self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        form = AddSubpartForm({}, organization=self.organization, part_id=p1.id)
         self.assertFalse(form.is_valid())
         self.assertTrue('subpart_part_number' in str(form.errors))
         self.assertTrue('This field is required.' in str(form.errors))
