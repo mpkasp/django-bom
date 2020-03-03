@@ -869,10 +869,10 @@ class AddSubpartForm(forms.Form):
             self.add_error('subpart_part_number', validation_error)
 
         try:
-            if self.organization.number_scheme == 'I':
+            if self.organization.number_scheme == NUMBER_SCHEME_INTELLIGENT:
                 part = Part.objects.get(number_item=subpart_part_number, organization=self.organization)
             else:
-                (number_class, number_item, number_variation) = Part.parse_part_number(subpart_part_number, self.organization)
+                (number_class, number_item, number_variation) = Part.parse_partial_part_number(subpart_part_number, self.organization)
                 part_class = PartClass.objects.get(code=number_class, organization=self.organization)
                 part = Part.objects.get(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
             self.subpart_part = part.latest()
@@ -1037,7 +1037,7 @@ class BOMCSVForm(forms.Form):
                 if part_number:
                     if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
                         try:
-                            (number_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization)
+                            (number_class, number_item, number_variation) = Part.parse_partial_part_number(part_number, self.organization)
                             subparts = Part.objects.filter(
                                 number_class__code=number_class,
                                 number_item=number_item,

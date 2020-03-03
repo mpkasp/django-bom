@@ -93,7 +93,8 @@ class TestBOM(TransactionTestCase):
     def test_part_upload_bom(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        with open('bom/test_files/test_bom.csv') as test_csv:
+        test_file = 'test_bom.csv' if self.organization.number_variation_len > 0 else 'test_bom_6_no_variations.csv'
+        with open(f'bom/test_files/{test_file}') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
@@ -103,13 +104,17 @@ class TestBOM(TransactionTestCase):
 
         subparts = p2.latest().assembly.subparts.all()
 
-        self.assertEqual(subparts[0].part_revision.part.full_part_number(), '200-3333-00')
+        expected_pn = '200-3333-00' if self.organization.number_variation_len > 0 else '200-3333'
+        self.assertEqual(subparts[0].part_revision.part.full_part_number(), expected_pn)
         self.assertEqual(subparts[0].count, 4)
-        self.assertEqual(subparts[1].part_revision.part.full_part_number(), '500-5555-00')
+
+        expected_pn = '500-5555-00' if self.organization.number_variation_len > 0 else '500-5555'
+        self.assertEqual(subparts[1].part_revision.part.full_part_number(), expected_pn)
         self.assertEqual(subparts[1].reference, 'U3, IC2, IC3')
         self.assertEqual(subparts[1].count, 3)
         self.assertEqual(subparts[1].do_not_load, False)
-        self.assertEqual(subparts[2].part_revision.part.full_part_number(), '500-5555-00')
+
+        self.assertEqual(subparts[2].part_revision.part.full_part_number(), expected_pn)
         self.assertEqual(subparts[2].reference, 'R1, R2')
         self.assertEqual(subparts[2].count, 2)
         self.assertEqual(subparts[2].do_not_load, True)
@@ -124,6 +129,8 @@ class TestBOM(TransactionTestCase):
             self.assertEqual(msg.tags, "error")
             self.assertTrue("does not exist" in str(msg.message))
 
+    def test_part_upload_bom_corner_cases(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         with open('bom/test_files/test_bom_3_recursion.csv') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
@@ -183,10 +190,12 @@ class TestBOM(TransactionTestCase):
             'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
             'number_class': p1.number_class.id,
             'number_item': '9999',
-            'number_variation': '01',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
         }
+
+        if self.organization.number_variation_len > 0:
+            new_part_form_data['number_variation'] = '01'
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
         self.assertEqual(response.status_code, 302)
@@ -211,10 +220,12 @@ class TestBOM(TransactionTestCase):
             'manufacturer': '',
             'number_class': p1.number_class.id,
             'number_item': '1234',
-            'number_variation': 'AZ',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
         }
+
+        if self.organization.number_variation_len > 0:
+            new_part_form_data['number_variation'] = 'AZ'
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
         self.assertEqual(response.status_code, 302)
@@ -294,7 +305,6 @@ class TestBOM(TransactionTestCase):
             'manufacturer': '',
             'number_class': p1.number_class.id,
             'number_item': '2000',
-            'number_variation': '01',
             'configuration': 'W',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
@@ -302,8 +312,13 @@ class TestBOM(TransactionTestCase):
             'value': ''
         }
 
+        number_variation = None
+        if self.organization.number_variation_len > 0:
+            number_variation = '01'
+            new_part_form_data['number_variation'] = number_variation
+
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
-        part = Part.objects.filter(number_class=p1.number_class.id, number_item='2000', number_variation='01').first()
+        part = Part.objects.get(number_class=p1.number_class.id, number_item='2000', number_variation=number_variation)
         self.assertEqual(len(part.manufacturer_parts()), 0)
 
     def test_part_edit(self):
@@ -953,8 +968,12 @@ class TestBOMIntelligent(TestBOM):
     def test_upload_part_classes(self):
         pass
 
-    # TODO: Make this more robust
+    @skip('not applicable')
+    def test_part_upload_bom_corner_cases(self):
+        pass
+
     def test_upload_part_classes_parts_and_boms(self):
+        # TODO: Make this more robust
         self.organization.number_item_len = 5
         self.organization.save()
 
@@ -966,11 +985,11 @@ class TestBOMIntelligent(TestBOM):
 
         self.assertEqual(response.status_code, 200)
         new_part_count = Part.objects.all().count()
-        self.assertEqual(new_part_count, 88)
+        self.assertEqual(new_part_count, 4)
 
-        pcba = Part.objects.filter(number_item='00003-0A').first()
+        pcba = Part.objects.get(number_item='DYSON-123')
 
-        with open('bom/test_files/test_bom_652-00003-0A.csv') as test_csv:
+        with open('bom/test_files/test_bom_5_intelligent.csv') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
@@ -981,31 +1000,9 @@ class TestBOMIntelligent(TestBOM):
             self.assertEqual(msg.tags, "info")
 
         subparts = pcba.latest().assembly.subparts.all().order_by('id')
-        self.assertEqual(subparts[0].reference, 'C1')
-        self.assertEqual(subparts[1].reference, 'C2, C21')
-        self.assertEqual(subparts[2].reference, 'C23')
-        pcba = Part.objects.filter(number_class=pcba_class, number_item='00004', number_variation='0A').first()
-
-        with open('bom/test_files/test_bom_652-00004-0A.csv') as test_csv:
-            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
-        self.assertEqual(response.status_code, 200)
-
-        messages = list(response.context.get('messages'))
-        for idx, msg in enumerate(messages):
-            self.assertNotEqual(msg.tags, "error")
-            self.assertEqual(msg.tags, "info")
-
-        # Check that that rows that have a part number already used but which denote a distinct designator are
-        # consolidated into one subpart with one part number but multiple designators and matching quantity counts.
-        subparts = pcba.latest().assembly.subparts.all().order_by('id')
-        self.assertEqual(subparts[0].reference, 'C1, C2')
-        self.assertEqual(subparts[0].count, 2)
-        self.assertEqual(subparts[1].reference, 'C3, C4, C5, C6, C11')
-        self.assertEqual(subparts[1].count, 5)
-        self.assertEqual(subparts[2].reference, 'C7, C8, C9, C10, C14, C18, C22, C33')
-        self.assertEqual(subparts[2].count, 8)
-        self.assertEqual(subparts[16].reference, 'Y1')
-        self.assertEqual(subparts[16].count, 1)
+        self.assertEqual(subparts[0].reference, 'C1, C2, C3')
+        self.assertEqual(subparts[1].reference, 'C4, C5')
+        self.assertEqual(subparts[2].reference, None)
 
 
 class TestBOMNoVariation(TestBOM):
@@ -1013,10 +1010,21 @@ class TestBOMNoVariation(TestBOM):
         self.client = Client()
         self.user, self.organization = create_user_and_organization()
         self.profile = self.user.bom_profile(organization=self.organization)
-        self.organization.number_variation_len = 4
+        self.organization.number_variation_len = 0
         self.organization.save()
         self.client.login(username='kasper', password='ghostpassword')
 
+    @skip('not applicable')
+    def test_create_part_variation(self):
+        pass
+
+    @skip('too specific of a test case for now...')
+    def test_upload_part_classes_parts_and_boms(self):
+        pass
+
+    @skip('not applicable')
+    def test_part_upload_bom_corner_cases(self):
+        pass
 
 class TestForms(TestCase):
     def setUp(self):

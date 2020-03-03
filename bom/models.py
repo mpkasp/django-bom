@@ -263,7 +263,7 @@ class Part(models.Model):
                 }
                 self.number_item = FORMATS[self.organization.number_item_len].format(
                     int(last_number_item.number_item) + 1)
-        if self.number_variation is None or self.number_variation == '':
+        if (self.number_variation is None or self.number_variation == '') and self.organization.number_variation_len > 0:
             last_number_variation = Part.objects.all().filter(
                 number_class=self.number_class,
                 number_item=self.number_item).order_by('number_variation').last()
@@ -538,8 +538,11 @@ class Subpart(models.Model):
 
     def save(self, *args, **kwargs):
         # Make sure reference designators are formated as a string with comma-separated fields.
-        reference = stringify_list(listify_string(self.reference))
-        self.reference = reference
+        try:
+            reference = stringify_list(listify_string(self.reference))
+            self.reference = reference
+        except TypeError:
+            pass
         super(Subpart, self).save(*args, **kwargs)
 
     def __str__(self):
