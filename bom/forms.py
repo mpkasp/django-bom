@@ -6,7 +6,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, MaxLengthValidator, MinLengthValidator
 
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
     WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, NUMBER_SCHEME_SEMI_INTELLIGENT, \
@@ -107,7 +107,9 @@ class OrganizationCreateForm(forms.ModelForm):
         exclude = ['owner', 'subscription', 'google_drive_parent']
         labels = {
             "name": "Organization Name",
-            "number_item_len": "Part Number Length"
+            "number_class_code_len": "Number Class Code Length (C)",
+            "number_item_len": "Number Item Length (N)",
+            "number_variation_len": "Number Variation Length (V)",
         }
 
 
@@ -117,7 +119,9 @@ class OrganizationForm(forms.ModelForm):
         exclude = ['owner', 'subscription', 'google_drive_parent', 'number_scheme', ]
         labels = {
             "name": "Organization Name",
-            "number_item_len": "Part Number Length"
+            "number_class_code_len": "Number Class Code Length (C)",
+            "number_item_len": "Number Item Length (N)",
+            "number_variation_len": "Number Variation Length (V)",
         }
 
     def __init__(self, *args, **kwargs):
@@ -214,8 +218,7 @@ class SellerPartForm(forms.ModelForm):
         if seller and new_seller:
             raise forms.ValidationError("Cannot have a seller and a new seller.", code='invalid')
         elif new_seller:
-            obj, created = Seller.objects.get_or_create(name__iexact=new_seller, organization=self.organization,
-                                                        defaults={'name': new_seller})
+            obj, created = Seller.objects.get_or_create(name__iexact=new_seller, organization=self.organization, defaults={'name': new_seller})
             cleaned_data['seller'] = obj
         elif not seller:
             raise forms.ValidationError("Must specify a seller.", code='invalid')
@@ -231,69 +234,33 @@ class PartClassForm(forms.ModelForm):
         super(PartClassForm, self).__init__(*args, **kwargs)
         self.fields['code'].required = False
         self.fields['name'].required = False
-
-    def clean_code(self):
-        cleaned_data = super(PartClassForm, self).clean()
-        code = cleaned_data.get('code')
-        if not code.isdigit() or int(code) < 0:
-            validation_error = forms.ValidationError(
-                "Part class code must be a positive number.",
-                code='invalid')
-            self.add_error('code', validation_error)
-
-        part_class_with_code = None
-        try:
-            part_class_with_code = PartClass.objects.get(code=code, organization=self.organization)
-            if part_class_with_code and self.instance and self.instance.id != part_class_with_code.id:
-                validation_error = forms.ValidationError(
-                    "Part class with code {} is already defined.".format(code),
-                    code='invalid')
-                self.add_error('code', validation_error)
-
-        except PartClass.DoesNotExist:
-            pass
-
-        return code
+        self.fields['code'].validators.extend([MaxLengthValidator(self.organization.number_class_code_len), MinLengthValidator(self.organization.number_class_code_len)])
 
     def clean_name(self):
         cleaned_data = super(PartClassForm, self).clean()
         name = cleaned_data.get('name')
-        part_class_with_name = None
         try:
             part_class_with_name = PartClass.objects.get(name__iexact=name, organization=self.organization)
             if part_class_with_name and self.instance and self.instance.id != part_class_with_name.id:
-                validation_error = forms.ValidationError(
-                    "Part class with name {} is already defined.".format(name),
-                    code='invalid')
+                validation_error = forms.ValidationError("Part class with name {} is already defined.".format(name), code='invalid')
                 self.add_error('name', validation_error)
-
         except PartClass.DoesNotExist:
             pass
-
         return name
 
-    def save(self):
+    def clean_code(self):
         cleaned_data = super(PartClassForm, self).clean()
         code = cleaned_data.get('code')
-        name = cleaned_data.get('name')
-        comment = cleaned_data.get('comment')
-        if (self.instance):
-            self.instance.code = code
-            self.instance.name = name
-            self.instance.comment = comment
-            self.instance.organization = self.organization
-            self.instance.save()
-        else:
-            try:
-                PartClass.objects.create(code=code, name__iexact=name, comment=comment, organization=self.organization)
+        if PartClass.objects.filter(code=code, organization=self.organization).count() > 0:
+            validation_error = forms.ValidationError(f"Part class with code {code} is already defined.", code='invalid')
+            self.add_error('code', validation_error)
+        return code
 
-            except IntegrityError:
-                validation_error = forms.ValidationError(
-                    "Part class {0} {1} is already defined.".format(code, name),
-                    code='invalid')
-                self.add_error(None, validation_error)
-
-        return self.instance
+    def clean(self):
+        cleaned_data = super(PartClassForm, self).clean()
+        cleaned_data['organization_id'] = self.organization
+        self.instance.organization = self.organization
+        return cleaned_data
 
 
 PartClassFormSet = forms.formset_factory(PartClassForm, extra=2, can_delete=True)
@@ -630,12 +597,13 @@ class PartFormIntelligent(forms.ModelForm):
         model = Part
         exclude = ['number_class', 'number_variation', 'organization', 'google_drive_parent', ]
         help_texts = {
-            'number_item': _('Auto generated if blank.'),
+            'number_item': _('Enter a part number.'),
         }
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super(PartFormIntelligent, self).__init__(*args, **kwargs)
+        self.fields['number_item'].required = True
         if self.instance and self.instance.id:
             self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(part__id=self.instance.id).order_by('manufacturer_part_number')
         else:

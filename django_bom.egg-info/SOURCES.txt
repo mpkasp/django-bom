@@ -55,6 +55,8 @@ bom/migrations/0031_auto_20200104_1352.py
 bom/migrations/0032_auto_20200126_1806.py
 bom/migrations/0033_auto_20200203_0618.py
 bom/migrations/0034_auto_20200222_0359.py
+bom/migrations/0035_auto_20200303_0111.py
+bom/migrations/0036_auto_20200303_0538.py
 bom/migrations/__init__.py
 bom/static/.DS_Store
 bom/static/bom/.DS_Store

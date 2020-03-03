@@ -50,8 +50,8 @@
                     </div>
                     <div id="item-number-length" class="col s12" style="padding: 16px;">
                         <h4>3) How long do you want your item numbers to be?</h4>
-                        <p>Your part numbers will have a part class (C), <b>item number (N)</b> and a variation (V) in the format CCC-<b>NNNN</b>-VV. You can always <i>increase</i> this number, but you can't decrease it. We recommend starting with 4 digits.</p>
-                        {{ form.number_item_len|materializecss }}
+                        <p>Your part numbers will have a part class (C), <b>item number (N)</b> and a variation (V) in the format CCC-NNNN-VV. You can always <i>increase</i> these numbers, but you can't decrease them. The recommended values are below (C = 3, N = 4, V = 2).</p>
+                        {{ form.number_class_code_len|materializecss:'s4' }} {{ form.number_item_len|materializecss:'s4' }} {{ form.number_variation_len|materializecss:'s4' }}
                     </div>
                 </div>
                 <div class="row">

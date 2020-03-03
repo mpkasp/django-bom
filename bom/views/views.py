@@ -346,7 +346,7 @@ def bom_settings(request, tab_anchor=None):
 
         elif 'cancel-part-class-create' in request.POST:
             tab_anchor = INDABOM_TAB
-            part_class_form = PartClassForm()
+            part_class_form = PartClassForm(organization=organization)
 
         elif 'submit-part-class-upload' in request.POST and request.FILES.get('file') is not None:
             tab_anchor = INDABOM_TAB
@@ -419,7 +419,7 @@ def bom_settings(request, tab_anchor=None):
 
     organization_form = OrganizationFormEditSettings(instance=organization)
     organization_number_len_form = OrganizationNumberLenForm(instance=organization)
-    part_class_form = PartClassForm()
+    part_class_form = PartClassForm(organization=organization)
     part_class_csv_form = PartClassCSVForm(organization=organization)
 
     return TemplateResponse(request, 'bom/settings.html', locals())

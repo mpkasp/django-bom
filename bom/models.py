@@ -88,9 +88,9 @@ class PartClass(models.Model):
     mouser_enabled = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ['code', 'name', 'organization', ]
+        unique_together = [['code', 'organization', ], ]
         ordering = ['code']
-        index_together = ['organization', 'code', ]
+        index_together = [['organization', 'code', ], ]
 
     def __str__(self):
         return u'%s' % (self.code + ': ' + self.name)
