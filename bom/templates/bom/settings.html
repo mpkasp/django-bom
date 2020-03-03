@@ -154,10 +154,9 @@
                     <h3 id="indabom-part-number">Part Number</h3>
                     <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
                         {% csrf_token %}
-                        <p>You may only increase the number of digits, up to 10, in your part number item number (CC-{{ organization.number_ns }}-VV, where {{ organization.number_ns }} is the number
-                            item).</p>
+                        <p>You may only increase the number of digits for each component of the part number: the part class code (C), part item number (N), and the part variation (V).</p><p>Your organization's current configuration is <b>{{ organization.number_cs }}-{{ organization.number_ns }}{% if organization.number_vs %}-{{ organization.number_vs }}{% endif %}</b></p>
                         <div class="row">
-                            {{ number_item_len_form.number_item_len|materializecss:'s12 m3' }}
+                            {{ organization_number_len_form|materializecss:'s4 m2' }}
                         </div>
                         <div class="row">
                             <div class="col s6">

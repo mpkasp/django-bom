@@ -1,14 +1,26 @@
 from bom.models import Part, PartClass, Seller, SellerPart, Subpart, \
-    Manufacturer, Organization, ManufacturerPart, PartRevision, Assembly
+    Manufacturer, Organization, ManufacturerPart, PartRevision, Assembly, User
+from bom import constants
 
 
-def create_a_fake_organization(user, free=False):
+def create_a_fake_organization(user, free=False, number_scheme=constants.NUMBER_SCHEME_SEMI_INTELLIGENT, number_variation_len=constants.NUMBER_VARIATION_LEN_DEFAULT):
     org, created = Organization.objects.get_or_create(
         name="Atlas",
-        subscription='F' if free else 'P',
+        subscription=constants.SUBSCRIPTION_TYPE_FREE if free else constants.SUBSCRIPTION_TYPE_PRO,
+        number_scheme=number_scheme,
         number_item_len=4,
+        number_variation_len=number_variation_len,
         owner=user)
     return org
+
+
+def create_user_and_organization(free=False, number_scheme=constants.NUMBER_SCHEME_SEMI_INTELLIGENT, number_variation_len=constants.NUMBER_VARIATION_LEN_DEFAULT):
+    user = User.objects.create_user('kasper', 'kasper@McFadden.com', 'ghostpassword')
+    organization = create_a_fake_organization(user, free, number_scheme, number_variation_len)
+    profile = user.bom_profile(organization=organization)
+    profile.role = 'A'
+    profile.save()
+    return user, organization
 
 
 def create_some_fake_part_classes(organization):
@@ -86,15 +98,55 @@ def create_a_fake_seller_part(
     return sp1
 
 
-def create_some_fake_parts(organization):
+def create_some_fake_intelligent_parts(organization):
+    pt1 = Part(number_item=('3' * organization.number_item_len), organization=organization)
+    pt1.save()
+
+    pt2 = Part(number_item='4' * organization.number_item_len, organization=organization)
+    pt2.save()
+
+    pt3 = Part(number_item='A' * organization.number_item_len, organization=organization)
+    pt3.save()
+
+    # pt4 is a part with no PartRevision
+    pt4 = Part(number_item='B' * organization.number_item_len, organization=organization)
+    pt4.save(no_part_revision=True)
+
+    pt5 = Part(number_item='5' * organization.number_item_len, organization=organization)
+    pt5.save()
+    return pt1, pt2, pt3, pt4, pt5
+
+
+def create_some_fake_semi_intelligent_parts(organization):
     (pc1, pc2, pc3) = create_some_fake_part_classes(organization=organization)
+    pt1 = Part(number_class=pc2, number_item='3333', organization=organization)
+    pt1.save()
+
+    pt2 = Part(number_class=pc1, organization=organization)
+    pt2.save()
+
+    pt3 = Part(number_class=pc3, organization=organization)
+    pt3.save()
+
+    # pt4 is a part with no PartRevision
+    pt4 = Part(number_class=pc1, number_item='4444', organization=organization)
+    pt4.save(no_part_revision=True)
+
+    pt5 = Part(number_class=pc1, number_item='5555', organization=organization)
+    pt5.save()
+    return pt1, pt2, pt3, pt4, pt5
+
+
+def create_some_fake_parts(organization):
     (m1, m2, m3) = create_some_fake_manufacturers(organization=organization)
 
-    pt1 = Part(
-        number_class=pc2,
-        number_item='3333',
-        organization=organization)
-    pt1.save()
+    if organization.number_scheme == 'I':
+        pt1, pt2, pt3, pt4, pt5 = create_some_fake_intelligent_parts(organization)
+    elif organization.number_scheme == 'S':
+        pt1, pt2, pt3, pt4, pt5 = create_some_fake_semi_intelligent_parts(organization)
+    else:
+        return None
+
     mp1 = ManufacturerPart(part=pt1, manufacturer=m1, manufacturer_part_number='STM32F401CEU6')
     mp1.save()
     pt1.primary_manufacturer_part = mp1
@@ -102,10 +154,6 @@ def create_some_fake_parts(organization):
     assy = create_a_fake_assembly()
     pr1 = create_a_fake_part_revision(part=pt1, assembly=None)
 
-    pt2 = Part(
-        number_class=pc1,
-        organization=organization)
-    pt2.save()
     mp2 = ManufacturerPart(part=pt2, manufacturer=None, manufacturer_part_number='GRM1555C1H100JA01D')
     mp2.save()
     pt2.primary_manufacturer_part = mp2
@@ -113,8 +161,6 @@ def create_some_fake_parts(organization):
     assy2 = create_a_fake_assembly_with_subpart(part_revision=pr1)
     pr2 = create_a_fake_part_revision(part=pt2, assembly=assy2)
 
-    pt3 = Part(number_class=pc3, organization=organization)
-    pt3.save()
     mp3 = ManufacturerPart(part=pt3, manufacturer=m3, manufacturer_part_number='NRF51822')
     mp3.save()
     assy3 = create_a_fake_assembly_with_subpart(part_revision=pr2)
@@ -124,49 +170,15 @@ def create_some_fake_parts(organization):
     create_a_fake_part_revision(part=pt3, assembly=assy3)
     create_a_fake_part_revision(part=pt3, assembly=assy3, revision="2")
 
-    # Create a part with no PartRevision
-    pt4 = Part(number_class=pc1, number_item='4444', organization=organization)
-    pt4.save(no_part_revision=True)
-
     # Create a part with a PartRevision with no assembly - no longer happens due to PartRevision save override
-    pt5 = Part(number_class=pc1, number_item='5555', organization=organization)
-    pt5.save()
     create_a_fake_part_revision(pt5, None)
 
     (s1, s2, s3) = create_some_fake_sellers(organization=organization)
 
-    create_a_fake_seller_part(
-        s1,
-        mp1,
-        moq=1,
-        mpq=1,
-        unit_cost=0,
-        lead_time_days=None,
-        nre_cost=0,)
-    create_a_fake_seller_part(
-        s1,
-        mp1,
-        moq=1,
-        mpq=1,
-        unit_cost=1.2,
-        lead_time_days=20,
-        nre_cost=500)
-    create_a_fake_seller_part(
-        s2,
-        mp1,
-        moq=1000,
-        mpq=5000,
-        unit_cost=0.1005,
-        lead_time_days=7,
-        nre_cost=0,)
-    create_a_fake_seller_part(
-        s2,
-        mp2,
-        moq=200,
-        mpq=200,
-        unit_cost=0.5,
-        lead_time_days=47,
-        nre_cost=1)
+    create_a_fake_seller_part(s1, mp1, moq=1, mpq=1, unit_cost=0, lead_time_days=None, nre_cost=0,)
+    create_a_fake_seller_part(s1, mp1, moq=1, mpq=1, unit_cost=1.2, lead_time_days=20, nre_cost=500)
+    create_a_fake_seller_part(s2, mp1, moq=1000, mpq=5000, unit_cost=0.1005, lead_time_days=7, nre_cost=0)
+    create_a_fake_seller_part(s2, mp2, moq=200, mpq=200, unit_cost=0.5, lead_time_days=47, nre_cost=1)
 
     return pt1, pt2, pt3, pt4
 

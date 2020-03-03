@@ -12,7 +12,8 @@ from .utils import increment_str, prep_for_sorting_nicely, listify_string, strin
 from .validators import alphanumeric, numeric, validate_pct
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
     WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, \
-    NUMBER_SCHEMES, NUMBER_SCHEME_SEMI_INTELLIGENT
+    NUMBER_SCHEMES, NUMBER_SCHEME_SEMI_INTELLIGENT, NUMBER_CLASS_CODE_LEN_DEFAULT, NUMBER_CLASS_CODE_LEN_MIN, NUMBER_CLASS_CODE_LEN_MAX, \
+    NUMBER_ITEM_LEN_DEFAULT, NUMBER_ITEM_LEN_MIN, NUMBER_ITEM_LEN_MAX, NUMBER_VARIATION_LEN_DEFAULT, NUMBER_VARIATION_LEN_MIN, NUMBER_VARIATION_LEN_MAX
 from .base_classes import AsDictModel
 
 from math import ceil
@@ -26,11 +27,22 @@ class Organization(models.Model):
     subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES, default=NUMBER_SCHEME_SEMI_INTELLIGENT)
-    number_item_len = models.PositiveIntegerField(default=3, validators=[MinValueValidator(3), MaxValueValidator(128)])
+    number_class_code_len = models.PositiveIntegerField(default=NUMBER_CLASS_CODE_LEN_DEFAULT,
+                                                        validators=[MinValueValidator(NUMBER_CLASS_CODE_LEN_MIN), MaxValueValidator(NUMBER_CLASS_CODE_LEN_MAX)])
+    number_item_len = models.PositiveIntegerField(default=NUMBER_ITEM_LEN_DEFAULT,
+                                                  validators=[MinValueValidator(NUMBER_ITEM_LEN_MIN), MaxValueValidator(NUMBER_ITEM_LEN_MAX)])
+    number_variation_len = models.PositiveIntegerField(default=NUMBER_VARIATION_LEN_DEFAULT,
+                                                       validators=[MinValueValidator(NUMBER_VARIATION_LEN_MIN), MaxValueValidator(NUMBER_VARIATION_LEN_MAX)])
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
+
+    def number_cs(self):
+        return "C" * self.number_class_code_len
 
     def number_ns(self):
         return "N" * self.number_item_len
+
+    def number_vs(self):
+        return "V" * self.number_variation_len
 
     def __str__(self):
         return u'%s' % self.name
@@ -69,10 +81,8 @@ class UserMeta(models.Model):
 
 
 class PartClass(models.Model):
-    CODE_LEN = 3
-
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
-    code = models.CharField(max_length=CODE_LEN)
+    code = models.CharField(max_length=NUMBER_CLASS_CODE_LEN_MAX, validators=[alphanumeric])
     name = models.CharField(max_length=255, default=None)
     comment = models.CharField(max_length=255, default=None, blank=True)
     mouser_enabled = models.BooleanField(default=False)
@@ -101,91 +111,87 @@ class Manufacturer(models.Model, AsDictModel):
 # (see PartRevision). Part numbers can be changed over time, but these cannot be tracked, as it is not a practice
 # that should be done often.
 class Part(models.Model):
-    NUMBER_ITEM_MIN_LEN = 3
-    NUMBER_ITEM_MAX_LEN = 128
-    NUMBER_VARIATION_LEN = 2
-
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
     number_class = models.ForeignKey(PartClass, default=None, blank=True, null=True, related_name='number_class', on_delete=models.PROTECT, db_index=True)
-    number_item = models.CharField(max_length=NUMBER_ITEM_MAX_LEN, default=None, blank=True, validators=[alphanumeric])
+    number_item = models.CharField(max_length=NUMBER_ITEM_LEN_MAX, default=None, blank=True, validators=[alphanumeric])
     number_variation = models.CharField(max_length=2, default=None, blank=True, null=True, validators=[alphanumeric])
     primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True,
                                                   on_delete=models.SET_NULL, related_name='primary_manufacturer_part')
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
 
-    class Meta():
+    class Meta:
         unique_together = ['number_class', 'number_item', 'number_variation', 'organization', ]
         index_together = ['organization', 'number_class']
 
     def full_part_number(self):
         if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
-            return "{0}-{1}-{2}".format(self.number_class.code, self.number_item, self.number_variation)
+            if self.organization.number_variation_len > 0:
+                return f"{self.number_class.code}-{self.number_item}-{self.number_variation}"
+            else:
+                return f"{self.number_class.code}-{self.number_item}"
         else:
             return self.number_item
 
     @staticmethod
-    def verify_format_number_class(number_class):
-        if len(number_class) != PartClass.CODE_LEN:
-            raise AttributeError("Expect " + str(PartClass.CODE_LEN) + " digits for number class")
+    def verify_format_number_class(number_class, organization):
+        if len(number_class) != organization.number_class_code_len:
+            raise AttributeError(f"Expect {organization.number_class_code_len} digits for number class")
         elif number_class is not None:
             for c in number_class:
                 if not c.isdigit():
-                    raise AttributeError("{} is not a proper character for a number class".format(c))
+                    raise AttributeError(f"{c} is not a proper character for a number class")
         return number_class
 
     @staticmethod
-    def verify_format_number_item(number_item, number_item_len):
-        if len(number_item) != number_item_len:
-            raise AttributeError("Expect {} digits for number item".format(number_item_len))
+    def verify_format_number_item(number_item, organization):
+        if len(number_item) != organization.number_item_len:
+            raise AttributeError(f"Expect {organization.number_item_len} digits for number item")
         elif number_item is not None:
             for c in number_item:
                 if not c.isdigit():
-                    raise AttributeError("{} is not a proper character for a number item".format(c))
+                    raise AttributeError(f"{c} is not a proper character for a number item")
         return number_item
 
     @staticmethod
-    def verify_format_number_variation(number_variation):
-        if len(number_variation) != Part.NUMBER_VARIATION_LEN:
-            raise AttributeError("Expect " + str(Part.NUMBER_VARIATION_LEN) + " characters for number variation")
+    def verify_format_number_variation(number_variation, organization):
+        if len(number_variation) != organization.number_variation_len:
+            raise AttributeError(f"Expect {organization.number_variation_len} characters for number variation")
         elif number_variation is not None:
             for c in number_variation:
                 if not c.isalnum():
-                    raise AttributeError("{} is not a proper character for a number variation".format(c))
+                    raise AttributeError(f"{c} is not a proper character for a number variation")
         return number_variation
 
     @staticmethod
-    def parse_part_number(part_number, number_item_len):
+    def parse_part_number(part_number, organization):
         if part_number is None:
             raise AttributeError("Cannot parse empty part number")
 
-        number_class = None
-        number_item = None
-        number_variation = None
-        (number_class, number_item, number_variation) = Part.parse_partial_part_number(part_number, number_item_len)
+        (number_class, number_item, number_variation) = Part.parse_partial_part_number(part_number, organization)
 
         if number_class is None:
             raise AttributeError("Missing part number part class")
         if number_item is None:
             raise AttributeError("Missing part number item number")
-        if number_variation is None:
+        if number_variation is None and organization.number_class_code_len != 0:
             raise AttributeError("Missing part number part item variation")
 
         return number_class, number_item, number_variation
 
     @staticmethod
-    def parse_partial_part_number(part_number, number_item_len):
+    def parse_partial_part_number(part_number, organization):
         elements = part_number.split('-')
         number_class = None
         number_item = None
         number_variation = None
 
         if len(elements) == 3:
-            number_class = Part.verify_format_number_class(elements[0])
-            number_item = Part.verify_format_number_item(elements[1], number_item_len)
-            number_variation = Part.verify_format_number_variation(elements[2])
+            number_class = Part.verify_format_number_class(elements[0], organization)
+            number_item = Part.verify_format_number_item(elements[1], organization)
+            number_variation = Part.verify_format_number_variation(elements[2], organization)
         elif len(elements) == 2:
-            number_class = Part.verify_format_number_class(elements[0])
-            number_item = Part.verify_format_number_item(elements[1], number_item_len)
+            number_class = Part.verify_format_number_class(elements[0], organization)
+            number_item = Part.verify_format_number_item(elements[1], organization)
 
         return number_class, number_item, number_variation
 
@@ -200,8 +206,7 @@ class Part(models.Model):
 
     def seller_parts(self):
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
-        return SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts) \
-            .order_by('seller', 'minimum_order_quantity')
+        return SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts).order_by('seller', 'minimum_order_quantity')
 
     def manufacturer_parts(self):
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
@@ -210,8 +215,7 @@ class Part(models.Model):
     def where_used(self):
         revisions = PartRevision.objects.filter(part=self)
         used_in_subparts = Subpart.objects.filter(part_revision__in=revisions)
-        used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly',
-                                                                                                         flat=True)
+        used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly', flat=True)
         used_in_prs = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)
         return used_in_prs
 

@@ -6,10 +6,12 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
     WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, NUMBER_SCHEME_SEMI_INTELLIGENT, \
-    ROLE_TYPE_VIEWER
+    NUMBER_SCHEME_INTELLIGENT, ROLE_TYPE_VIEWER, NUMBER_CLASS_CODE_LEN_DEFAULT, NUMBER_CLASS_CODE_LEN_MIN, NUMBER_CLASS_CODE_LEN_MAX, \
+    NUMBER_ITEM_LEN_DEFAULT, NUMBER_ITEM_LEN_MIN, NUMBER_ITEM_LEN_MAX, NUMBER_VARIATION_LEN_DEFAULT, NUMBER_VARIATION_LEN_MIN, NUMBER_VARIATION_LEN_MAX
 from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
     Organization, PartRevision, AssemblySubparts, Assembly
 from .validators import decimal, numeric
@@ -139,17 +141,22 @@ class OrganizationFormEditSettings(OrganizationForm):
         }
 
 
-class NumberItemLenForm(forms.Form):
-    def __init__(self, *args, **kwargs):
-        self.organization = kwargs.pop('organization', None)
-        super(NumberItemLenForm, self).__init__(*args, **kwargs)
-        self.fields['number_item_len'] = forms.IntegerField(max_value=Part.NUMBER_ITEM_MAX_LEN, min_value=self.organization.number_item_len,
-                                                            initial=self.organization.number_item_len)
+class OrganizationNumberLenForm(forms.ModelForm):
+    class Meta:
+        model = Organization
+        fields = ['number_class_code_len', 'number_item_len', 'number_variation_len', ]
+        labels = {
+            "number_class_code_len": "Number Class Code Length (C)",
+            "number_item_len": "Number Item Length (N)",
+            "number_variation_len": "Number Variation Length (V)",
+        }
 
-    def save(self):
-        self.organization.number_item_len = self.cleaned_data.get('number_item_len')
-        self.organization.save()
-        return self.organization.number_item_len
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.get('instance', None)
+        super(OrganizationNumberLenForm, self).__init__(*args, **kwargs)
+        self.fields['number_class_code_len'].validators.append(MinValueValidator(self.organization.number_class_code_len))
+        self.fields['number_item_len'].validators.append(MinValueValidator(self.organization.number_item_len))
+        self.fields['number_variation_len'].validators.append(MinValueValidator(self.organization.number_variation_len))
 
 
 class PartInfoForm(forms.Form):
@@ -460,7 +467,7 @@ class PartCSVForm(forms.Form):
                 if part_number:
                     if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
                         try:
-                            (number_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization.number_item_len)
+                            (number_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization)
                             part_class = PartClass.objects.get(code=number_class, organization=self.organization)
                             Part.objects.get(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
                             self.add_error(None, "Part number {0} in row {1} already exists. Uploading of this part skipped.".format(part_number, row_count))
@@ -589,6 +596,10 @@ class PartCSVForm(forms.Form):
                                 skip = True
                                 break
 
+                if self.organization.number_scheme == NUMBER_SCHEME_INTELLIGENT and number_item is None:
+                    self.add_error(None, "Can't upload a part without a number_item header for part in row {}. Uploading of this part skipped.".format(row_count))
+                    skip = True
+
                 if skip:
                     continue
 
@@ -614,7 +625,27 @@ class PartCSVForm(forms.Form):
         return cleaned_data
 
 
-class PartForm(forms.ModelForm):
+class PartFormIntelligent(forms.ModelForm):
+    class Meta:
+        model = Part
+        exclude = ['number_class', 'number_variation', 'organization', 'google_drive_parent', ]
+        help_texts = {
+            'number_item': _('Auto generated if blank.'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
+        super(PartFormIntelligent, self).__init__(*args, **kwargs)
+        if self.instance and self.instance.id:
+            self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(part__id=self.instance.id).order_by('manufacturer_part_number')
+        else:
+            del self.fields['primary_manufacturer_part']
+        for _, value in self.fields.items():
+            value.widget.attrs['placeholder'] = value.help_text
+            value.help_text = ''
+
+
+class PartFormSemiIntelligent(forms.ModelForm):
     class Meta:
         model = Part
         exclude = ['organization', 'google_drive_parent', ]
@@ -626,17 +657,11 @@ class PartForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
-        super(PartForm, self).__init__(*args, **kwargs)
-        if self.organization.number_scheme == 'S':
-            self.fields['number_class'] = forms.ModelChoiceField(queryset=PartClass.objects.filter(organization=self.organization),
-                                                                 empty_label="- Select Part Number Class -", label='Part Number Class*', required=True)
-        else:
-            self.fields['number_item'].help_text = 'Enter any unique number.'
-            del self.fields['number_class']
-            del self.fields['number_variation']
+        super(PartFormSemiIntelligent, self).__init__(*args, **kwargs)
+        self.fields['number_class'] = forms.ModelChoiceField(queryset=PartClass.objects.filter(organization=self.organization),
+                                                             empty_label="- Select Part Number Class -", label='Part Number Class*', required=True)
         if self.instance and self.instance.id:
-            self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(
-                part__id=self.instance.id).order_by('manufacturer_part_number')
+            self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(part__id=self.instance.id).order_by('manufacturer_part_number')
         else:
             del self.fields['primary_manufacturer_part']
         for _, value in self.fields.items():
@@ -644,46 +669,45 @@ class PartForm(forms.ModelForm):
             value.help_text = ''
 
     def clean(self):
-        cleaned_data = super(PartForm, self).clean()
+        cleaned_data = super(PartFormSemiIntelligent, self).clean()
         number_item = cleaned_data.get('number_item')
-        if self.organization.number_scheme == 'S':
-            number_class = cleaned_data.get('number_class')
-            number_variation = cleaned_data.get('number_variation')
+        number_class = cleaned_data.get('number_class')
+        number_variation = cleaned_data.get('number_variation')
 
-            try:
-                if number_class is not None and number_class.code != '':
-                    Part.verify_format_number_class(number_class.code)
-            except AttributeError as e:
-                validation_error = forms.ValidationError(str(e), code='invalid')
-                self.add_error('number_class', validation_error)
+        try:
+            if number_class is not None and number_class.code != '':
+                Part.verify_format_number_class(number_class.code, self.organization)
+        except AttributeError as e:
+            validation_error = forms.ValidationError(str(e), code='invalid')
+            self.add_error('number_class', validation_error)
 
-            try:
-                if number_item != '':
-                    Part.verify_format_number_item(number_item, self.organization.number_item_len)
-            except AttributeError as e:
-                validation_error = forms.ValidationError(str(e), code='invalid')
-                self.add_error('number_item', validation_error)
+        try:
+            if number_item != '':
+                Part.verify_format_number_item(number_item, self.organization)
+        except AttributeError as e:
+            validation_error = forms.ValidationError(str(e), code='invalid')
+            self.add_error('number_item', validation_error)
 
-            try:
-                if number_variation:
-                    Part.verify_format_number_variation(number_variation)
-            except AttributeError as e:
-                validation_error = forms.ValidationError(str(e), code='invalid')
-                self.add_error('number_variation', validation_error)
+        try:
+            if number_variation:
+                Part.verify_format_number_variation(number_variation, self.organization)
+        except AttributeError as e:
+            validation_error = forms.ValidationError(str(e), code='invalid')
+            self.add_error('number_variation', validation_error)
 
-            try:
-                Part.objects.get(
-                    number_class=number_class,
-                    number_item=number_item,
-                    number_variation=number_variation,
-                    organization=self.organization
-                )
-                validation_error = forms.ValidationError(
-                    ("Part number {0}-{1}-{2} already in use.".format(number_class, number_item, number_variation)),
-                    code='invalid')
-                self.add_error(None, validation_error)
-            except Part.DoesNotExist:
-                pass
+        try:
+            Part.objects.get(
+                number_class=number_class,
+                number_item=number_item,
+                number_variation=number_variation,
+                organization=self.organization
+            )
+            validation_error = forms.ValidationError(
+                ("Part number {0}-{1}-{2} already in use.".format(number_class, number_item, number_variation)),
+                code='invalid')
+            self.add_error(None, validation_error)
+        except Part.DoesNotExist:
+            pass
         return cleaned_data
 
 
@@ -845,13 +869,12 @@ class AddSubpartForm(forms.Form):
             self.add_error('subpart_part_number', validation_error)
 
         try:
-            (number_class, number_item, number_variation) = Part.parse_part_number(subpart_part_number, self.organization.number_item_len)
-            part = Part.objects.get(
-                number_class=PartClass.objects.get(code=number_class, organization=self.organization),
-                number_item=number_item,
-                number_variation=number_variation,
-                organization=self.organization
-            )
+            if self.organization.number_scheme == 'I':
+                part = Part.objects.get(number_item=subpart_part_number, organization=self.organization)
+            else:
+                (number_class, number_item, number_variation) = Part.parse_part_number(subpart_part_number, self.organization)
+                part_class = PartClass.objects.get(code=number_class, organization=self.organization)
+                part = Part.objects.get(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
             self.subpart_part = part.latest()
             if self.subpart_part.id in self.unusable_part_rev_ids:
                 validation_error = forms.ValidationError("Infinite recursion! Can't add a part to its self.", code='invalid')
@@ -896,7 +919,7 @@ class UploadBOMForm(forms.Form):
             self.add_error('parent_part_number', validation_error)
         if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
             try:
-                (number_class, number_item, number_variation) = Part.parse_part_number(parent_part_number, self.organization.number_item_len)
+                (number_class, number_item, number_variation) = Part.parse_part_number(parent_part_number, self.organization)
                 self.parent_part = Part.objects.get(
                     number_class=PartClass.objects.get(code=number_class, organization=self.organization),
                     number_item=number_item,
@@ -1014,7 +1037,7 @@ class BOMCSVForm(forms.Form):
                 if part_number:
                     if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
                         try:
-                            (number_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization.number_item_len)
+                            (number_class, number_item, number_variation) = Part.parse_part_number(part_number, self.organization)
                             subparts = Part.objects.filter(
                                 number_class__code=number_class,
                                 number_item=number_item,

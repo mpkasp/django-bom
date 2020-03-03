@@ -5,24 +5,22 @@ from unittest import skip
 
 from re import finditer
 
-from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_revision, \
-    create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers, create_some_fake_sellers
+from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_revision, create_user_and_organization, \
+    create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers, create_some_fake_sellers, create_a_fake_assembly
 from .models import Part, SellerPart, ManufacturerPart, Seller, PartClass, Subpart
-from .forms import PartInfoForm, PartForm, AddSubpartForm, AddSellerPartForm
+from .forms import PartInfoForm, PartFormSemiIntelligent, AddSubpartForm, AddSellerPartForm
+
+from . import constants
 
 
 class TestBOM(TransactionTestCase):
     def setUp(self):
         self.client = Client()
-        self.user = User.objects.create_user('kasper', 'kasper@McFadden.com', 'ghostpassword')
-        self.organization = create_a_fake_organization(self.user)
+        self.user, self.organization = create_user_and_organization()
         self.profile = self.user.bom_profile(organization=self.organization)
-        self.profile.role = 'A'
-        self.profile.save()
-
-    def test_home(self):
         self.client.login(username='kasper', password='ghostpassword')
 
+    def test_home(self):
         response = self.client.post(reverse('bom:home'))
         self.assertEqual(response.status_code, 200)
 
@@ -39,8 +37,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_part_info(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:part-info', kwargs={'part_id': p1.id}))
@@ -62,8 +58,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_part_manage_bom(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(
@@ -79,31 +73,24 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_part_export_bom(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:part-export-bom', kwargs={'part_id': p1.id}))
         self.assertEqual(response.status_code, 200)
 
     def test_part_revision_export_bom(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:part-revision-export-bom', kwargs={'part_revision_id': p1.latest().id}))
         self.assertEqual(response.status_code, 200)
 
     def test_part_revision_export_bom_flat(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:part-revision-export-bom-flat', kwargs={'part_revision_id': p1.latest().id}))
         self.assertEqual(response.status_code, 200)
 
     def test_part_upload_bom(self):
-        self.client.login(username='kasper', password='ghostpassword')
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         with open('bom/test_files/test_bom.csv') as test_csv:
@@ -112,7 +99,7 @@ class TestBOM(TransactionTestCase):
 
         messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertEqual(msg.tags, "error") # Error loading 200-3333-00 via CSV because already in parent's BOM and has empty ref designators
+            self.assertEqual(msg.tags, "error")  # Error loading 200-3333-00 via CSV because already in parent's BOM and has empty ref designators
 
         subparts = p2.latest().assembly.subparts.all()
 
@@ -156,16 +143,12 @@ class TestBOM(TransactionTestCase):
             self.assertTrue("revision" in str(msg.message))
 
     def test_export_part_list(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:export-part-list'))
         self.assertEqual(response.status_code, 200)
 
     def test_create_part(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         new_part_mpn = 'STM32F401-NEW-PART'
@@ -273,8 +256,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(len(occurances), 1)
 
     def test_create_part_variation(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         new_part_mpn = 'STM32F401-NEW-PART'
@@ -305,8 +286,6 @@ class TestBOM(TransactionTestCase):
         self.assertTrue('already in use' in str(response.content))
 
     def test_create_part_no_manufacturer_part(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         new_part_mpn = 'STM32F401-NEW-PART'
@@ -328,8 +307,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(len(part.manufacturer_parts()), 0)
 
     def test_part_edit(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.get(reverse('bom:part-edit', kwargs={'part_id': p1.id}))
@@ -345,16 +322,12 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_part_delete(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.post(reverse('bom:part-delete', kwargs={'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
 
     def test_add_subpart(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         # Submit with no form data
@@ -402,8 +375,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(7, qty_p2_load)
 
     def test_add_subpart_infinite_recursion(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         # Test preventing infinite recursion
@@ -436,8 +407,6 @@ class TestBOM(TransactionTestCase):
         self.assertTrue(rejected_add)
 
     def test_remove_subpart(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         s1 = create_a_fake_subpart(p1.latest(), count=10)
 
@@ -447,8 +416,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_remove_all_subparts(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         part = p3
@@ -466,8 +433,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(0, len(subparts))
 
     def test_upload_parts(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         create_some_fake_part_classes(self.organization)
 
         # part_count = Part.objects.all().count()
@@ -499,8 +464,6 @@ class TestBOM(TransactionTestCase):
         self.assertTrue(found_error)
 
     def test_upload_part_classes(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         # Should pass
         with open('bom/test_files/test_part_classes.csv') as test_csv:
             response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
@@ -528,7 +491,6 @@ class TestBOM(TransactionTestCase):
         self.assertTrue('Part class &#39;code&#39; in row 4 does not have a value. Uploading of this part class skipped.' in str(response.content))
 
     def test_upload_part_classes_parts_and_boms(self):
-        self.client.login(username='kasper', password='ghostpassword')
         self.organization.number_item_len = 5
         self.organization.save()
 
@@ -590,13 +552,10 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(subparts[16].count, 1)
 
     def test_edit_user_meta(self):
-        self.client.login(username='kasper', password='ghostpassword')
         response = self.client.post(reverse('bom:user-meta-edit', kwargs={'user_meta_id': self.user.bom_profile().id}))
         self.assertEqual(response.status_code, 200)
 
     def test_add_sellerpart(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.get(reverse('bom:manufacturer-part-add-sellerpart',
@@ -624,8 +583,6 @@ class TestBOM(TransactionTestCase):
         self.assertTrue('/part/' in response.url)
 
     def test_sellerpart_edit(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         edit_sellerpart_form_data = {
@@ -644,16 +601,12 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_sellerpart_delete(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(reverse('bom:sellerpart-delete', kwargs={'sellerpart_id': p1.optimal_seller().id}))
 
         self.assertEqual(response.status_code, 302)
 
     def test_add_manufacturer_part(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         # Test GET
         response = self.client.get(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': p1.id}))
@@ -672,8 +625,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_manufacturer_part_edit(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(
             reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
@@ -712,8 +663,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)  # 200 means it failed validation
 
     def test_manufacturer_part_delete(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(
             reverse('bom:manufacturer-part-delete', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
@@ -721,8 +670,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_part_revision_release(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.get(
@@ -735,8 +682,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_part_revision_revert(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.get(
             reverse('bom:part-revision-revert', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
@@ -744,8 +689,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_part_revision_new(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.get(reverse('bom:part-revision-new', kwargs={'part_id': p1.id}))
@@ -795,8 +738,6 @@ class TestBOM(TransactionTestCase):
             self.assertNotIn(nsid, previous_subpart_ids)
 
     def test_part_revision_edit(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.get(
             reverse('bom:part-revision-edit', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
@@ -818,8 +759,6 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_part_revision_delete(self):
-        self.client.login(username='kasper', password='ghostpassword')
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(
             reverse('bom:part-revision-delete', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
@@ -827,11 +766,262 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
 
 
+class TestBOMIntelligent(TestBOM):
+    def setUp(self):
+        self.client = Client()
+        self.user, self.organization = create_user_and_organization()
+        self.profile = self.user.bom_profile(organization=self.organization)
+        self.organization.number_scheme = constants.NUMBER_SCHEME_INTELLIGENT
+        self.organization.save()
+        self.client.login(username='kasper', password='ghostpassword')
+
+    def test_create_part(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        new_part_mpn = 'STM32F401-NEW-PART'
+        new_part_form_data = {
+            'manufacturer_part_number': new_part_mpn,
+            'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
+            'number_item': 'ABC1',
+            'configuration': 'W',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+            'attribute': '',
+            'value': ''
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
+
+        try:
+            created_part_id = response.url[6:-1]
+            created_part = Part.objects.get(id=created_part_id)
+        except IndexError:
+            self.assertFalse(True, "Part maybe not created? Url looks like: {}".format(response.url))
+
+        self.assertEqual(created_part.latest().description, 'IC, MCU 32 Bit')
+        self.assertEqual(created_part.manufacturer_parts().first().manufacturer_part_number, new_part_mpn)
+
+        new_part_form_data = {
+            'manufacturer_part_number': 'STM32F401',
+            'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
+            'number_item': '9999',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
+
+        new_part_form_data = {
+            'manufacturer_part_number': '',
+            'manufacturer': '',
+            'number_item': '5432',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
+
+        new_part_form_data = {
+            'manufacturer_part_number': '',
+            'manufacturer': '',
+            'number_item': '1234A',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
+
+        new_part_form_data = {
+            'manufacturer_part_number': '',
+            'manufacturer': '',
+            'number_item': '1235',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
+
+        # fail nicely
+        new_part_form_data = {
+            'manufacturer_part_number': 'ABC123',
+            'manufacturer': '',
+            'number_item': p1.number_item,
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 200)
+
+        # Make sure only one part shows up
+        response = self.client.post(reverse('bom:home'))
+        self.assertEqual(response.status_code, 200)
+
+        occurances = [m.start() for m in finditer(p1.full_part_number(), response.content.decode('utf-8'))]
+        self.assertEqual(len(occurances), 1)
+
+    @skip('Not applicable')
+    def test_create_part_variation(self):
+        pass
+
+    def test_create_part_no_manufacturer_part(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        new_part_mpn = 'STM32F401-NEW-PART'
+        new_part_form_data = {
+            'manufacturer_part_number': '',
+            'manufacturer': '',
+            'number_item': '2000',
+            'configuration': 'W',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+            'attribute': '',
+            'value': ''
+        }
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        part = Part.objects.get(number_item='2000')
+        self.assertEqual(len(part.manufacturer_parts()), 0)
+
+    def test_part_edit(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.get(reverse('bom:part-edit', kwargs={'part_id': p1.id}))
+        self.assertEqual(response.status_code, 200)
+
+        edit_part_form_data = {
+            'number_item': 'HEYA',
+        }
+
+        response = self.client.post(reverse('bom:part-edit', kwargs={'part_id': p1.id}), edit_part_form_data)
+        self.assertEqual(response.status_code, 302)
+
+    def test_part_upload_bom(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        p5, _ = Part.objects.get_or_create(number_item='500-5555-00', organization=self.organization)
+        assy = create_a_fake_assembly()
+        pr5 = create_a_fake_part_revision(part=p5, assembly=assy)
+
+        p6, _ = Part.objects.get_or_create(number_item='200-3333-00', organization=self.organization)
+        assy = create_a_fake_assembly()
+        pr6 = create_a_fake_part_revision(part=p5, assembly=assy)
+
+        with open('bom/test_files/test_bom.csv') as test_csv:
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertEqual(msg.tags, "error")  # Error loading 200-3333-00 via CSV because already in parent's BOM and has empty ref designators
+
+        subparts = p2.latest().assembly.subparts.all()
+
+        self.assertEqual(subparts[0].part_revision.part.full_part_number(), '3333')
+        self.assertEqual(subparts[0].count, 4)
+        self.assertEqual(subparts[1].part_revision.part.full_part_number(), '500-5555-00')
+        self.assertEqual(subparts[1].reference, 'U3, IC2, IC3')
+        self.assertEqual(subparts[1].count, 3)
+        self.assertEqual(subparts[1].do_not_load, False)
+        self.assertEqual(subparts[2].part_revision.part.full_part_number(), '500-5555-00')
+        self.assertEqual(subparts[2].reference, 'R1, R2')
+        self.assertEqual(subparts[2].count, 2)
+        self.assertEqual(subparts[2].do_not_load, True)
+
+    def test_upload_parts(self):
+        create_some_fake_part_classes(self.organization)
+
+        # part_count = Part.objects.all().count()
+        # Should pass
+        with open('bom/test_files/test_new_parts_5_intelligent.csv') as test_csv:
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertEqual(response.status_code, 302)
+        new_part_count = Part.objects.all().count()
+        self.assertEqual(new_part_count, 4)
+
+    @skip('not applicable')
+    def test_upload_part_classes(self):
+        pass
+
+    # TODO: Make this more robust
+    def test_upload_part_classes_parts_and_boms(self):
+        self.organization.number_item_len = 5
+        self.organization.save()
+
+        with open('bom/test_files/test_new_parts_5_intelligent.csv') as test_csv:
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertEqual(msg.tags, 'info')
+
+        self.assertEqual(response.status_code, 200)
+        new_part_count = Part.objects.all().count()
+        self.assertEqual(new_part_count, 88)
+
+        pcba = Part.objects.filter(number_item='00003-0A').first()
+
+        with open('bom/test_files/test_bom_652-00003-0A.csv') as test_csv:
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+
+        for msg in messages:
+            self.assertNotEqual(msg.tags, "error")
+            self.assertEqual(msg.tags, "info")
+
+        subparts = pcba.latest().assembly.subparts.all().order_by('id')
+        self.assertEqual(subparts[0].reference, 'C1')
+        self.assertEqual(subparts[1].reference, 'C2, C21')
+        self.assertEqual(subparts[2].reference, 'C23')
+        pcba = Part.objects.filter(number_class=pcba_class, number_item='00004', number_variation='0A').first()
+
+        with open('bom/test_files/test_bom_652-00004-0A.csv') as test_csv:
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for idx, msg in enumerate(messages):
+            self.assertNotEqual(msg.tags, "error")
+            self.assertEqual(msg.tags, "info")
+
+        # Check that that rows that have a part number already used but which denote a distinct designator are
+        # consolidated into one subpart with one part number but multiple designators and matching quantity counts.
+        subparts = pcba.latest().assembly.subparts.all().order_by('id')
+        self.assertEqual(subparts[0].reference, 'C1, C2')
+        self.assertEqual(subparts[0].count, 2)
+        self.assertEqual(subparts[1].reference, 'C3, C4, C5, C6, C11')
+        self.assertEqual(subparts[1].count, 5)
+        self.assertEqual(subparts[2].reference, 'C7, C8, C9, C10, C14, C18, C22, C33')
+        self.assertEqual(subparts[2].count, 8)
+        self.assertEqual(subparts[16].reference, 'Y1')
+        self.assertEqual(subparts[16].count, 1)
+
+
+class TestBOMNoVariation(TestBOM):
+    def setUp(self):
+        self.client = Client()
+        self.user, self.organization = create_user_and_organization()
+        self.profile = self.user.bom_profile(organization=self.organization)
+        self.organization.number_variation_len = 4
+        self.organization.save()
+        self.client.login(username='kasper', password='ghostpassword')
+
+
 class TestForms(TestCase):
     def setUp(self):
         self.client = Client()
-        self.user = User.objects.create_user(
-            'kasper', 'kasper@McFadden.com', 'ghostpassword')
+        self.user = User.objects.create_user('kasper', 'kasper@McFadden.com', 'ghostpassword')
         self.organization = create_a_fake_organization(self.user)
         self.profile = self.user.bom_profile(organization=self.organization)
 
@@ -855,7 +1045,7 @@ class TestForms(TestCase):
             'revision': 'AA'
         }
 
-        form = PartForm(data=form_data, organization=self.organization)
+        form = PartFormSemiIntelligent(data=form_data, organization=self.organization)
         self.assertTrue(form.is_valid())
 
         (m1, m2, m3) = create_some_fake_manufacturers(self.organization)
@@ -866,7 +1056,7 @@ class TestForms(TestCase):
             'revision': '1',
         }
 
-        form = PartForm(data=form_data, organization=self.organization)
+        form = PartFormSemiIntelligent(data=form_data, organization=self.organization)
         self.assertTrue(form.is_valid())
 
         new_part, created = Part.objects.get_or_create(
@@ -881,7 +1071,7 @@ class TestForms(TestCase):
     def test_part_form_blank(self):
         (pc1, pc2, pc3) = create_some_fake_part_classes(self.organization)
 
-        form = PartForm(data={}, organization=self.organization)
+        form = PartFormSemiIntelligent(data={}, organization=self.organization)
 
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors, {
@@ -932,9 +1122,9 @@ class TestJsonViews(TestCase):
         self.organization = create_a_fake_organization(self.user)
         self.profile = self.user.bom_profile(organization=self.organization)
 
-    def test_mouser_part_match_bom(self):
         self.client.login(username='kasper', password='ghostpassword')
 
+    def test_mouser_part_match_bom(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         self.assertGreaterEqual(len(p3.latest().assembly.subparts.all()), 1)
         response = self.client.get(

@@ -25,8 +25,8 @@ from json import loads, dumps
 
 from bom.models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, \
     UserMeta, PartRevision, Assembly, AssemblySubparts
-from bom.forms import PartInfoForm, PartForm, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
-    ManufacturerPartForm, SellerPartForm, UserForm, UserMetaForm, UserAddForm, OrganizationForm, NumberItemLenForm, PartRevisionForm, \
+from bom.forms import PartInfoForm, PartFormSemiIntelligent, PartFormIntelligent, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
+    ManufacturerPartForm, SellerPartForm, UserForm, UserMetaForm, UserAddForm, OrganizationForm, OrganizationNumberLenForm, PartRevisionForm, \
     PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm, PartClassFormSet, \
     OrganizationCreateForm, OrganizationFormEditSettings
 from bom.utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely
@@ -126,7 +126,7 @@ def home(request):
         # Scan for search terms that might represent a complete or partial part number
         for search_term in search_terms:
             try:
-                (number_class, number_item, number_variation) = Part.parse_partial_part_number(search_term, organization.number_item_len)
+                (number_class, number_item, number_variation) = Part.parse_partial_part_number(search_term, organization)
             except AttributeError:
                 pass
 
@@ -326,15 +326,15 @@ def bom_settings(request, tab_anchor=None):
 
         elif 'submit-number-item-len' in request.POST:
             tab_anchor = INDABOM_TAB
-            number_item_len_form = NumberItemLenForm(request.POST, organization=organization)
-            if number_item_len_form.is_valid():
-                number_item_len_form.save()
+            organization_number_len_form = OrganizationNumberLenForm(request.POST, instance=organization)
+            if organization_number_len_form.is_valid():
+                organization_number_len_form.save()
             else:
-                messages.error(request, number_item_len_form.errors)
+                messages.error(request, organization_number_len_form.errors)
 
         elif 'refresh-number-item-len' in request.POST:
             tab_anchor = INDABOM_TAB
-            number_item_len_form = NumberItemLenForm(organization=organization)
+            organization_number_len_form = OrganizationNumberLenForm(organization)
 
         elif 'submit-part-class-create' in request.POST:
             tab_anchor = INDABOM_TAB
@@ -418,7 +418,7 @@ def bom_settings(request, tab_anchor=None):
     user_meta_form = UserMetaForm()
 
     organization_form = OrganizationFormEditSettings(instance=organization)
-    number_item_len_form = NumberItemLenForm(organization=organization)
+    organization_number_len_form = OrganizationNumberLenForm(instance=organization)
     part_class_form = PartClassForm()
     part_class_csv_form = PartClassCSVForm(organization=organization)
 
@@ -766,6 +766,8 @@ def create_part(request):
 
     title = 'Create New Part'
 
+    PartForm = PartFormSemiIntelligent if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT else PartFormIntelligent
+
     if request.method == 'POST':
         part_form = PartForm(request.POST, organization=organization)
         manufacturer_form = ManufacturerForm(request.POST)
@@ -790,6 +792,10 @@ def create_part(request):
                 messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
             new_part = part_form.save(commit=False)
             new_part.organization = organization
+
+            if organization.number_scheme == constants.NUMBER_SCHEME_INTELLIGENT:
+                new_part.number_class = None
+                new_part.number_variation = None
 
             if part_revision_form.is_valid():
                 # Save the Part before the PartRevision, as this will again check for part
@@ -838,6 +844,8 @@ def part_edit(request, part_id):
     title = 'Edit Part {}'.format(part.full_part_number())
 
     action = reverse('bom:part-edit', kwargs={'part_id': part_id})
+
+    PartForm = PartFormSemiIntelligent if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT else PartFormIntelligent
 
     if request.method == 'POST':
         form = PartForm(request.POST, instance=part, organization=organization)

@@ -251,17 +251,17 @@ class BOMFlatCSVHeaders(CSVHeaders):
     part_class = {'part_class': ['class', 'part_category']}
     part_cost = {'part_cost': ['seller_part_unit_cost', 'unit_cost', ]}
     part_ext_cost = {'extended_cost': ['part_extended_cost', 'part_ext_cost', ]}
-    part_ext_qty= {'extended_qty': ['extended_quantity', 'part_extended_quantity', 'part_ext_qty', ]}
+    part_ext_qty = {'extended_qty': ['extended_quantity', 'part_extended_quantity', 'part_ext_qty', ]}
     part_lead_time_days = {'lead_time_days': ['part_lead_time_days', ]}
     part_manufacturer = {'manufacturer_name': ['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]}
     part_manufacturer_part_number = {'manufacturer_part_number': ['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']}
-    part_moq = {'moq': ['minimum_order_quantity', 'moq', 'part_moq',]}
+    part_moq = {'moq': ['minimum_order_quantity', 'moq', 'part_moq', ]}
     part_nre = {'nre': ['part_nre', 'part_nre_cost', ]}
     part_number = {'part_number': ['part number', 'part no', ]}
-    part_order_qty = {'order_qty': ['part_order_qty', 'part_order_quantity', 'order_quantity',  ]}
+    part_order_qty = {'order_qty': ['part_order_qty', 'part_order_quantity', 'order_quantity', ]}
     part_out_of_pocket_cost = {'out_of_pocket_cost': ['part_out_of_pocket_cost', 'cost', ]}
     part_revision = {'revision': ['rev', 'part_revision', ]}
-    part_seller= {'seller': ['part_seller', 'part_seller_name', ]}
+    part_seller = {'seller': ['part_seller', 'part_seller_name', ]}
     part_synopsis = {'synopsis': ['part_synopsis', ]}
     quantity = {'quantity': ['count', 'qty', ]}
     references = {'references': ['designator', 'designators', 'reference', ]}
@@ -289,8 +289,8 @@ class BOMFlatCSVHeaders(CSVHeaders):
             BOMFlatCSVHeaders.part_lead_time_days,
         ]
 
-class BOMIndentedCSVHeaders(BOMFlatCSVHeaders):
 
+class BOMIndentedCSVHeaders(BOMFlatCSVHeaders):
     level = {'level': []}
 
     def __init__(self):

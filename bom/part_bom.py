@@ -120,7 +120,7 @@ class PartBomItem(AsDictModel):
             'part_number': self.part.full_part_number(),
             'quantity': self.quantity,
             'do_not_load': self.do_not_load,
-            'part_class': self.part.number_class.name,
+            'part_class': self.part.number_class.name if self.part.number_class else '',
             'references': self.references,
             'part_synopsis': self.part_revision.synopsis(),
             'part_revision': self.part_revision.revision,
