@@ -22,7 +22,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Copy Local Settings
-      run: cp local_settings.py.example local_settings.py
+      run: cp bom/local_settings.py.example bom/local_settings.py
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
