@@ -95,7 +95,6 @@ def home(request):
     autocomplete_dict = {}
     for part in part_revs:
         autocomplete_dict.update({part.searchable_synopsis.replace('"', ''): None})
-        # autocomplete_dict.update({ part.full_part_number(): None }) # TODO: query full part number
 
     for mpn in manufacturer_part:
         if mpn.manufacturer_part_number:
@@ -287,8 +286,8 @@ def bom_settings(request, tab_anchor=None):
             else:
                 user_add_form = UserAddForm(request.POST, organization=organization)
                 if user_add_form.is_valid():
-                    user = user_add_form.save(commit=False)
-                    print(user)
+                    added_user_profile = user_add_form.save()
+                    messages.info(request, f"Added {added_user_profile.user.first_name} {added_user_profile.user.last_name} to your organization.")
                 else:
                     messages.error(request, user_add_form.errors)
 

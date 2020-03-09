@@ -58,28 +58,29 @@ class UserAddForm(forms.ModelForm):
             user = User.objects.get(username=username)
             user_meta = UserMeta.objects.get(user=user)
             if user_meta.organization == self.organization:
-                validation_error = forms.ValidationError(
-                    "User '{0}' already belongs to {1}.".format(username, self.organization),
-                    code='invalid')
+                validation_error = forms.ValidationError("User '{0}' already belongs to {1}.".format(username, self.organization), code='invalid')
                 self.add_error('username', validation_error)
             elif user_meta.organization:
-                validation_error = forms.ValidationError(
-                    "User '{}' belongs to another organization.".format(username),
-                    code='invalid')
+                validation_error = forms.ValidationError("User '{}' belongs to another organization.".format(username), code='invalid')
                 self.add_error('username', validation_error)
         except User.DoesNotExist:
-            validation_error = forms.ValidationError(
-                "User '{}' does not exist.".format(username),
-                code='invalid')
+            validation_error = forms.ValidationError("User '{}' does not exist.".format(username), code='invalid')
             self.add_error('username', validation_error)
 
         return username
+
+    def clean_role(self):
+        cleaned_data = super(UserAddForm, self).clean()
+        role = cleaned_data.get('role', None)
+        if not role:
+            role = ROLE_TYPE_VIEWER
+        return role
 
     def save(self, *args, **kwargs):
         username = self.cleaned_data.get('username')
         role = self.cleaned_data.get('role', ROLE_TYPE_VIEWER)
         user = User.objects.get(username=username)
-        user_meta = UserMeta.objects.get(user=user)
+        user_meta = user.bom_profile()
         user_meta.organization = self.organization
         user_meta.role = role
         user_meta.save()
@@ -126,6 +127,8 @@ class OrganizationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        if self.organization is None:
+            self.organization = kwargs.get('instance', None)
 
         super(OrganizationForm, self).__init__(*args, **kwargs)
         if self.organization:
