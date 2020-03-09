@@ -116,7 +116,7 @@ LOGGING = {
         # Log to a text file that can be rotated by logrotate
         'logfile': {
             'class': 'logging.handlers.WatchedFileHandler',
-            'filename': '/var/log/indabom/django.log'
+            'filename': '/var/log/indabom/django.log' if not DEBUG else './bom.log'
         },
     },
     'loggers': {
