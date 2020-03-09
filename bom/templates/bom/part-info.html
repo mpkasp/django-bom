@@ -1,6 +1,6 @@
 {% extends 'bom/bom-base.html' %}
 
-{% load staticfiles %}
+{% load static %}
 
 {% block head-title %}{{ part.full_part_number }}{% if part_revision %} {{ part_revision.synopsis }}{% endif %}{% endblock %}
 

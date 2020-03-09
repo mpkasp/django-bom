@@ -401,7 +401,7 @@ class TestBOM(TransactionTestCase):
         for m in response.wsgi_request._messages:
             if 'Added' in str(m):
                 found_error = True
-            if "Can&#39;t add a part to its self." in str(m):
+            if "Infinite recursion!" in str(m):
                 rejected_add = True
         self.assertFalse(found_error)
         self.assertTrue(rejected_add)
@@ -416,7 +416,7 @@ class TestBOM(TransactionTestCase):
         for m in response.wsgi_request._messages:
             if 'Added' in str(m):
                 found_error = True
-            if "Can&#39;t add a part to its self." in str(m):
+            if "Infinite recursion!" in str(m):
                 rejected_add = True
         self.assertFalse(found_error)
         self.assertTrue(rejected_add)
@@ -464,7 +464,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
         found_error = False
         for m in response.wsgi_request._messages:
-            if "Part class 216 in row 2 doesn&#39;t exist. Uploading of this part skipped." in str(m):
+            if "Part class 216 in row 2" in str(m) and "Uploading of this part skipped." in str(m):
                 found_error = True
         self.assertTrue(found_error)
 
@@ -502,8 +502,8 @@ class TestBOM(TransactionTestCase):
         with open('bom/test_files/test_part_classes_blank_rows.csv') as test_csv:
             response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
         self.assertEqual(response.status_code, 200)
-        self.assertTrue('Part class &#39;code&#39; in row 3 does not have a value. Uploading of this part class skipped.' in str(response.content))
-        self.assertTrue('Part class &#39;code&#39; in row 4 does not have a value. Uploading of this part class skipped.' in str(response.content))
+        self.assertTrue('in row 3 does not have a value. Uploading of this part class skipped.' in str(response.content))
+        self.assertTrue('in row 4 does not have a value. Uploading of this part class skipped.' in str(response.content))
 
     def test_upload_part_classes_parts_and_boms(self):
         self.organization.number_item_len = 5
