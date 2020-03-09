@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 
 import os
 
+BASE_DIR = None
+
 try:
     from bom.local_settings import *
 except ImportError as e:

@@ -107,6 +107,7 @@ source bin/activate
 git clone https://github.com/mpkasp/django-bom.git
 pip install -r requirements.txt
 python manage.py migrate
+cp bom/local_settings.py.example bom/local_settings.py
 python manage.py runserver
 ```
 
