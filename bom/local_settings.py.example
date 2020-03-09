@@ -11,6 +11,17 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+BOM_CONFIG = {
+    'mouser_api_key': 'secretkey',
+}
+
+# google GoogleOAuth
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = 'secretkey'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = 'secretkey'
+
+# Database
+# https://docs.djangoproject.com/en/1.10/ref/settings/#databases
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -18,33 +29,5 @@ DATABASES = {
     }
 }
 
-# Using memcached in production
-#CACHES = {
-#    'default': {
-#        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
-#        'LOCATION': '127.0.0.1:11211',
-#    }
-#}
-
-BOM_CONFIG = {
-    # docs: https://api.mouser.com/api/docs/ui/index
-    'mouser_api_key': 'secretkey', # via https://www.mouser.com/MyMouser/MouserSearchApplication.aspx
-}
-
-# google GoogleOAuth
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = 'secretkey'
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = 'secret'
-
-RAVEN_CONFIG = {
-    'dsn': 'secret',
-    # If you are using git, you can also automatically configure the
-    # release based on the git info.
-    'release': raven.fetch_git_sha('.'),
-}
-
 EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
 SENDGRID_API_KEY = 'secretkey'
-
-# Google ReCaptcha
-RECAPTCHA_PUBLIC_KEY = 'secretkey'
-RECAPTCHA_PRIVATE_KEY = 'secretkey'
