@@ -347,9 +347,9 @@ class PartClassCSVForm(forms.Form):
                         continue
 
                     description_or_comment = ''
-                    if 'description' is not None:
+                    if description is not None:
                         description_or_comment = description
-                    elif 'comment' is not None:
+                    elif comment is not None:
                         description_or_comment = comment
                     PartClass.objects.create(code=code, name=name, comment=description_or_comment, organization=self.organization)
                     self.successes.append("Part class {0} {1} on row {2} created.".format(code, name, row_count))
