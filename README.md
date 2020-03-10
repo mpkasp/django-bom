@@ -10,7 +10,7 @@ As an example, a live running version of the app in use can be seen [here](https
 If you already have a django project, you can skip to [Add Django Bom To Your App](#add-django-bom-to-your-app), otherwise [Start From Scratch: Add to new Django project](#start-from-scratch) to add it to a new django project, or [Start From Scratch: Use as standalone Django project](#start-from-scratch-standalone).
 
 ## Table of contents
-   * [Start From Scratch: Add to new Django project](#start-from-scratch)
+   * [Start From Scratch: Add to new Django project](#start-from-scratch-add-to-a-new-django-project)
    * [Add Django Bom To Your App](#add-django-bom-to-your-app)
    * [Start From Scratch: Use as standalone Django project](#start-from-scratch-standalone)
    * [Customize Base Template](#customize-base-template)
