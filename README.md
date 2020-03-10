@@ -1,5 +1,5 @@
 # BOM
-!()[https://github.com/mpkasp/django-bom/workflows/Django%20CI/badge.svg]
+![](https://github.com/mpkasp/django-bom/workflows/Django%20CI/badge.svg)
 
 BOM is a simple Django app to manage a bill of materials. It is a level up from an excel spreadsheet including an indented bill of materials, Octopart price match, Google Drive integration, and more. It is written in Python 3.7 and Django 2.
 
