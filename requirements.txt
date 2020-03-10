@@ -1,13 +1,13 @@
 asgiref==3.2.3
 asn1crypto==0.24.0
 bcrypt==3.1.4
-bleach==3.1.0
+bleach==3.1.1
 cachetools==3.0.0
 certifi==2018.8.24
 cffi==1.14.0
 chardet==3.0.4
 cryptography==2.3.1
-defusedxml==0.5.0
+defusedxml==0.6.0
 Django==3.0.4
 django-bom==1.129
 django-materializecss-form==1.1.14
