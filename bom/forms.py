@@ -14,7 +14,7 @@ from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES,
     NUMBER_ITEM_LEN_DEFAULT, NUMBER_ITEM_LEN_MIN, NUMBER_ITEM_LEN_MAX, NUMBER_VARIATION_LEN_DEFAULT, NUMBER_VARIATION_LEN_MIN, NUMBER_VARIATION_LEN_MAX
 from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
     Organization, PartRevision, AssemblySubparts, Assembly
-from .validators import decimal, numeric
+from .validators import decimal, numeric, alphanumeric
 from .utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely, get_from_dict
 from .csv_headers import PartsListCSVHeaders, PartClassesCSVHeaders, BOMFlatCSVHeaders, BOMIndentedCSVHeaders, CSVHeaderError
 
@@ -629,6 +629,7 @@ class PartFormSemiIntelligent(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super(PartFormSemiIntelligent, self).__init__(*args, **kwargs)
+        self.fields['number_item'].validators.append(alphanumeric)
         self.fields['number_class'] = forms.ModelChoiceField(queryset=PartClass.objects.filter(organization=self.organization),
                                                              empty_label="- Select Part Number Class -", label='Part Number Class*', required=True)
         if self.instance and self.instance.id:
@@ -653,7 +654,7 @@ class PartFormSemiIntelligent(forms.ModelForm):
             self.add_error('number_class', validation_error)
 
         try:
-            if number_item != '':
+            if number_item is not None and number_item != '':
                 Part.verify_format_number_item(number_item, self.organization)
         except AttributeError as e:
             validation_error = forms.ValidationError(str(e), code='invalid')

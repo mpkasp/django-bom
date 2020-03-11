@@ -152,3 +152,12 @@ SOCIAL_AUTH_REDIRECT_IS_HTTPS = not DEBUG
 Contributions welcome! Before contributing your work please read the [contributing readme](https://github.com/mpkasp/django-bom/blob/master/CONTRIBUTING.md).
 
 Also reach out to mike@indabom.com to discuss features, and join our slack channel.
+
+## Installation Pitfalls
+
+### Windows
+#### Sqlite
+You may get an error during your `pip install -r requirements.txt` related to sqlite. This may be fixed by installing Visual C++ for python...
+
+#### Cryptography
+Sometimes you'll have issues installing cryptography, if this is the case you may just need to set up some environment variables. This [stackoverflow](https://stackoverflow.com/questions/46288737/error-while-installing-sqlite-using-pip-on-python-2-7-13) may help.

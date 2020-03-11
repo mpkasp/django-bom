@@ -1,12 +1,13 @@
 Metadata-Version: 2.1
 Name: django-bom
-Version: 1.159
+Version: 1.160
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian
 Author-email: mpkasp@gmail.com
 License: MIT License
 Description: # BOM
+        ![](https://github.com/mpkasp/django-bom/workflows/Django%20CI/badge.svg)
         
         BOM is a simple Django app to manage a bill of materials. It is a level up from an excel spreadsheet including an indented bill of materials, Octopart price match, Google Drive integration, and more. It is written in Python 3.7 and Django 2.
         
@@ -17,7 +18,7 @@ Description: # BOM
         If you already have a django project, you can skip to [Add Django Bom To Your App](#add-django-bom-to-your-app), otherwise [Start From Scratch: Add to new Django project](#start-from-scratch) to add it to a new django project, or [Start From Scratch: Use as standalone Django project](#start-from-scratch-standalone).
         
         ## Table of contents
-           * [Start From Scratch: Add to new Django project](#start-from-scratch)
+           * [Start From Scratch: Add to new Django project](#start-from-scratch-add-to-a-new-django-project)
            * [Add Django Bom To Your App](#add-django-bom-to-your-app)
            * [Start From Scratch: Use as standalone Django project](#start-from-scratch-standalone)
            * [Customize Base Template](#customize-base-template)
@@ -159,6 +160,16 @@ Description: # BOM
         Contributions welcome! Before contributing your work please read the [contributing readme](https://github.com/mpkasp/django-bom/blob/master/CONTRIBUTING.md).
         
         Also reach out to mike@indabom.com to discuss features, and join our slack channel.
+        
+        ## Installation Pitfalls
+        
+        ### Windows
+        #### Sqlite
+        You may get an error during your `pip install -r requirements.txt` related to sqlite. This may be fixed by installing Visual C++ for python...
+        
+        #### Cryptography
+        Sometimes you'll have issues installing cryptography, if this is the case you may just need to set up some environment variables. This [stackoverflow](https://stackoverflow.com/questions/46288737/error-while-installing-sqlite-using-pip-on-python-2-7-13) may help.
+        
 Platform: UNKNOWN
 Classifier: Environment :: Web Environment
 Classifier: Framework :: Django
