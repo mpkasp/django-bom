@@ -1,20 +1,22 @@
 # BOM
 ![](https://github.com/mpkasp/django-bom/workflows/Django%20CI/badge.svg)
 
-BOM is a simple Django app to manage a bill of materials. It is a level up from an excel spreadsheet including an indented bill of materials, Octopart price match, Google Drive integration, and more. It is written in Python 3.7 and Django 2.
+BOM is a simple Django app to manage a bill of materials. It supports multiple part numbering schemes, tracking component sourcing information, estimates costs, and contains smart integrations with Mouser to pull in the latest component pricing and Google Drive for part file management. BOM is written in Python 3 and Django 3.
+
+[See a live example](https://www.indabom.com).
 
 BOM can be added to an existing (or new) Django project, or stand alone on its own, which can be more convenient if you're interested in tweaking the tool. 
 
-As an example, a live running version of the app in use can be seen [here](https://www.indabom.com).
-
-If you already have a django project, you can skip to [Add Django Bom To Your App](#add-django-bom-to-your-app), otherwise [Start From Scratch: Add to new Django project](#start-from-scratch) to add it to a new django project, or [Start From Scratch: Use as standalone Django project](#start-from-scratch-standalone).
+If you already have a django project, you can skip to [Add Django Bom To Your App](#add-django-bom-to-your-app), otherwise [Start From Scratch: Add to new Django project](#start-from-scratch-add-to-a-new-django-project) to add it to a new django project, or [Start From Scratch: Use as standalone Django project](#start-from-scratch-use-as-a-standalone-django-project).
 
 ## Table of contents
    * [Start From Scratch: Add to new Django project](#start-from-scratch-add-to-a-new-django-project)
    * [Add Django Bom To Your App](#add-django-bom-to-your-app)
-   * [Start From Scratch: Use as standalone Django project](#start-from-scratch-standalone)
+   * [Start From Scratch: Use as standalone Django project](#start-from-scratch-use-as-a-standalone-django-project)
    * [Customize Base Template](#customize-base-template)
-   * [Octopart Integration](#octopart-integration)
+   * [Integrations](#integrations)
+   * [Contributing](#contributing)
+   * [Installation pitfalls](#installation-pitfalls)
    
 ## Start From Scratch: Add to a new Django project
 1. To start from scratch we recommend setting up a virtual environment
@@ -123,10 +125,11 @@ BOM_CONFIG = {
 
 where `base.html` is your base template.
 
-## Mouser Integration
+## Integrations
+### Mouser Integration
 For part matching, make sure to add your Mouser api key. You can get your key [here](https://www.mouser.com/MyMouser/MouserSearchApplication.aspx).
 
-## Google Drive Integration
+### Google Drive Integration
 Make sure to add the following to your settings.py:
 ```
 AUTHENTICATION_BACKENDS = (
