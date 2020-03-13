@@ -461,7 +461,7 @@ class PartCSVForm(forms.Form):
                     try:
                         part_class = PartClass.objects.get(code=part_data[csv_headers.get_default('part_class')], organization=self.organization)
                     except PartClass.DoesNotExist:
-                        self.add_error(None, "Part class {0} in row {1} doesn't exist. "
+                        self.add_error(None, "Part class {0} in row {1} doesn't exist. Create part class on Settings > IndaBOM and try again."
                                              "Uploading of this part skipped.".format(part_data[csv_headers.get_default('part_class')], row_count))
                         continue
                 else:

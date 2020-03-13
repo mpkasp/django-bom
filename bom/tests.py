@@ -155,6 +155,31 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:export-part-list'))
         self.assertEqual(response.status_code, 200)
 
+    def test_create_edit_part_class(self):
+        part_class_code = 978
+        part_class_form_data = {
+            'submit-part-class-create': '',
+            'code': part_class_code,
+            'name': 'test part name',
+            'comment': 'this test part class description!'
+        }
+
+        response = self.client.post(reverse('bom:settings'), part_class_form_data)
+        self.assertEqual(response.status_code, 200)
+
+        part_classes = PartClass.objects.filter(code=part_class_code)
+        self.assertEqual(part_classes.count(), 1)
+        part_class = part_classes[0]
+
+        # Test edit
+        part_class_form_data['name'] = 'edited test part name'
+
+        response = self.client.post(reverse('bom:part-class-edit', kwargs={'part_class_id': part_class.id}), part_class_form_data)
+        self.assertEqual(response.status_code, 302)
+
+        part_class = PartClass.objects.get(id=part_class.id)
+        self.assertEqual(part_class.name, part_class_form_data['name'])
+
     def test_create_part(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
