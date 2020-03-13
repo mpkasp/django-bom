@@ -254,7 +254,7 @@ class PartClassForm(forms.ModelForm):
     def clean_code(self):
         cleaned_data = super(PartClassForm, self).clean()
         code = cleaned_data.get('code')
-        if PartClass.objects.filter(code=code, organization=self.organization).count() > 0:
+        if PartClass.objects.filter(code=code, organization=self.organization).exclude(pk=self.instance.pk).count() > 0:
             validation_error = forms.ValidationError(f"Part class with code {code} is already defined.", code='invalid')
             self.add_error('code', validation_error)
         return code
