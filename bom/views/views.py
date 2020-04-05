@@ -1334,7 +1334,14 @@ def part_revision_delete(request, part_id, part_revision_id):
         return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}))
 
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    part = part_revision.part
     part_revision.delete()
+
+    if part.revisions().count() == 0:
+        part.delete()
+        messages.info(request, 'Deleted {}.'.format(part.full_part_number()))
+        return HttpResponseRedirect(reverse('bom:home'))
+
     messages.info(request, 'Deleted {} Rev {}.'.format(part.full_part_number(), part_revision.revision))
 
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}))
