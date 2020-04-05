@@ -400,10 +400,10 @@ class PartRevision(models.Model):
         if self.assembly is None:
             assy = Assembly.objects.create()
             self.assembly = assy
-        if self.id:
-            previous_configuration = PartRevision.objects.get(id=self.id).configuration
-            if self.configuration != previous_configuration:
-                self.timestamp = timezone.now()
+        # if self.id:
+        #     previous_configuration = PartRevision.objects.get(id=self.id).configuration
+        #     if self.configuration != previous_configuration:
+        #         self.timestamp = timezone.now()
         self.searchable_synopsis = self.generate_synopsis(True)
         self.displayable_synopsis = self.generate_synopsis(False)
         super(PartRevision, self).save(*args, **kwargs)

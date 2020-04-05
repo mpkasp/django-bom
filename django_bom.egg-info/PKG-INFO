@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: django-bom
-Version: 1.162
+Version: 1.164
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian
@@ -59,6 +59,8 @@ Description: # BOM
             ...
             'bom',
             'social_django', # to enable google drive sync in bom
+            'djmoney', # for currency
+            'djmoney.contrib.exchange', # for currency
             'materializecssform',
         ]
         ```

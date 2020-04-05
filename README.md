@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     ...
     'bom',
     'social_django', # to enable google drive sync in bom
+    'djmoney', # for currency
+    'djmoney.contrib.exchange', # for currency
     'materializecssform',
 ]
 ```

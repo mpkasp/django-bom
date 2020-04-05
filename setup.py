@@ -9,7 +9,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-bom',
-    version='1.162',
+    version='1.164',
     packages=find_packages(),
     include_package_data=True,
     license='MIT License',
@@ -36,5 +36,6 @@ setup(
         'social-auth-app-django',
         'google-api-python-client',
         'django-materializecss-form',
+        'django-money',
     ],
 )

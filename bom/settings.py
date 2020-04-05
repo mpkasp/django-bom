@@ -204,7 +204,7 @@ SOCIAL_AUTH_DISCONNECT_PIPELINE = (
 )
 
 # django-money settings
-USE_THOUSAND_SEPARATOR = True
+# USE_THOUSAND_SEPARATOR = True
 CURRENCY_DECIMAL_PLACES = 4
 EXCHANGE_BACKEND = 'djmoney.contrib.exchange.backends.FixerBackend'
 
