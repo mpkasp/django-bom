@@ -469,7 +469,7 @@ class PartCSVForm(forms.Form):
                     continue
 
                 if not revision:
-                    self.add_error(None, "Missing revision in row {}. Uploading of this part skipped.", format(row_count))
+                    self.add_error(None, f"Missing revision in row {row_count}. Uploading of this part skipped.")
                     continue
                 elif len(revision) > 4:
                     self.add_error(None, "Revision {0} in row {1} is more than the maximum 4 characters. "

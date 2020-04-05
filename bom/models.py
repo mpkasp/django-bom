@@ -380,7 +380,7 @@ class PartRevision(models.Model):
         s += verbosify(self.width, units=self.width_units if make_searchable else self.get_width_units_display(), pre='W')
         s += verbosify(self.height, units=self.height_units if make_searchable else self.get_height_units_display(), pre='H')
         s += verbosify(self.weight, units=self.weight_units if make_searchable else self.get_weight_units_display())
-        return s
+        return s[:255]
 
     def synopsis(self, return_displayable=True):
         return self.displayable_synopsis if return_displayable else self.searchable_synopsis

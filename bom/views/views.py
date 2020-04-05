@@ -632,7 +632,7 @@ def upload_bom(request):
     profile = user.bom_profile()
     organization = profile.organization
 
-    if request.method == 'POST' and request.FILES['file'] is not None:
+    if request.method == 'POST' and 'file' in request.FILES and request.FILES['file'] is not None:
         upload_bom_form = UploadBOMForm(request.POST, organization=organization)
         if upload_bom_form.is_valid():
             bom_csv_form = BOMCSVForm(request.POST, request.FILES, parent_part=upload_bom_form.parent_part, organization=organization)
