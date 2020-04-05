@@ -25,7 +25,7 @@ from json import loads, dumps
 
 from bom.models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, \
     UserMeta, PartRevision, Assembly, AssemblySubparts
-from bom.forms import PartInfoForm, PartFormSemiIntelligent, PartFormIntelligent, AddSubpartForm, SubpartForm, FileForm, AddSellerPartForm, ManufacturerForm, \
+from bom.forms import PartInfoForm, PartFormSemiIntelligent, PartFormIntelligent, AddSubpartForm, SubpartForm, FileForm, ManufacturerForm, \
     ManufacturerPartForm, SellerPartForm, UserForm, UserMetaForm, UserAddForm, OrganizationForm, OrganizationNumberLenForm, PartRevisionForm, \
     PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm, PartClassFormSet, \
     OrganizationCreateForm, OrganizationFormEditSettings

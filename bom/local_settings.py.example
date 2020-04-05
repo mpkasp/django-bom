@@ -31,3 +31,5 @@ DATABASES = {
 
 EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
 SENDGRID_API_KEY = 'secretkey'
+
+FIXER_ACCESS_KEY = 'secretkey from fixer.io' # for exchange rate conversions

@@ -1,3 +1,7 @@
+from moneyed import Money
+
+from bom.utils import parse_number
+from djmoney.contrib.exchange.models import convert_money
 from .base_api import BaseApi, BaseApiError
 from ..models import SellerPart, Seller
 import json
@@ -62,7 +66,7 @@ class Mouser:
     def __init__(self):
         self.api = MouserApi()
 
-    def search_and_match(self, manufacturer_part, quantity=1):
+    def search_and_match(self, manufacturer_part, quantity=1, currency=None):
         manufacturer = manufacturer_part.manufacturer
         manufacturer_part_number = manufacturer_part.manufacturer_part_number
         if manufacturer:
@@ -98,17 +102,20 @@ class Mouser:
                 lead_time_days = [int(s) for s in part['LeadTime'].split() if s.isdigit()][0]  # TODO: Make sure it's actually days
                 for pb in part['PriceBreaks']:
                     moq = int(pb['Quantity'])
-                    price = float(pb['Price'].replace(',', '').strip('$'))
-                    currency = pb['Currency']
+                    unit_price_raw = parse_number(pb['Price'])
+                    unit_currency = pb['Currency']
+                    unit_cost = Money(unit_price_raw, unit_currency)
+                    if currency:
+                        unit_cost = convert_money(unit_cost, currency)
                     seller_part = SellerPart(
                         seller=seller,
                         manufacturer_part=manufacturer_part,
                         minimum_order_quantity=moq,
                         minimum_pack_quantity=1,
                         data_source='Mouser',
-                        unit_cost=price,
+                        unit_cost=unit_cost,
                         lead_time_days=lead_time_days,
-                        nre_cost=0,
+                        nre_cost=Money(0, currency),
                         ncnr=True)
                     mouser_part['seller_parts'].append(seller_part.as_dict())
                     seller_parts.append(seller_part)

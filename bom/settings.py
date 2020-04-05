@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'materializecssform',
     'social_django',
+    'djmoney',
+    'djmoney.contrib.exchange',
 ]
 
 MIDDLEWARE = [
@@ -200,6 +202,11 @@ SOCIAL_AUTH_DISCONNECT_PIPELINE = (
     'social_core.pipeline.disconnect.revoke_tokens',
     'social_core.pipeline.disconnect.disconnect',
 )
+
+# django-money settings
+USE_THOUSAND_SEPARATOR = True
+CURRENCY_DECIMAL_PLACES = 4
+EXCHANGE_BACKEND = 'djmoney.contrib.exchange.backends.FixerBackend'
 
 # django-bom config
 # django-bom configuration

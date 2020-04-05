@@ -16,6 +16,7 @@ from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES,
     NUMBER_ITEM_LEN_DEFAULT, NUMBER_ITEM_LEN_MIN, NUMBER_ITEM_LEN_MAX, NUMBER_VARIATION_LEN_DEFAULT, NUMBER_VARIATION_LEN_MIN, NUMBER_VARIATION_LEN_MAX
 from .base_classes import AsDictModel
 
+from djmoney.models.fields import MoneyField, CurrencyField, CURRENCY_CHOICES
 from math import ceil
 from social_django.models import UserSocialAuth
 
@@ -34,6 +35,7 @@ class Organization(models.Model):
     number_variation_len = models.PositiveIntegerField(default=NUMBER_VARIATION_LEN_DEFAULT,
                                                        validators=[MinValueValidator(NUMBER_VARIATION_LEN_MIN), MaxValueValidator(NUMBER_VARIATION_LEN_MAX)])
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
+    currency = CurrencyField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
 
     def number_cs(self):
         return "C" * self.number_class_code_len
@@ -46,6 +48,13 @@ class Organization(models.Model):
 
     def __str__(self):
         return u'%s' % self.name
+
+    def seller_parts(self):
+        return SellerPart.objects.filter(seller__organization=self)
+
+    def save(self, *args, **kwargs):
+        super(Organization, self).save()
+        SellerPart.objects.filter(seller__organization=self).update(unit_cost_currency=self.currency, nre_cost_currency=self.currency)
 
 
 class UserMeta(models.Model):
@@ -593,9 +602,10 @@ class SellerPart(models.Model, AsDictModel):
     minimum_order_quantity = models.PositiveIntegerField(default=1)
     minimum_pack_quantity = models.PositiveIntegerField(default=1)
     data_source = models.CharField(max_length=32, default=None, null=True, blank=True)
-    unit_cost = models.DecimalField(max_digits=8, decimal_places=4)
+    # "To comply with certain strict accounting or financial regulations, you may consider using max_digits=19 and decimal_places=4"
+    unit_cost = MoneyField(max_digits=19, decimal_places=4, default_currency='USD')
     lead_time_days = models.PositiveIntegerField(null=True, blank=True)
-    nre_cost = models.DecimalField(max_digits=8, decimal_places=4)
+    nre_cost = MoneyField(max_digits=19, decimal_places=4, default_currency='USD')
     ncnr = models.BooleanField(default=False)
 
     class Meta():
@@ -604,6 +614,12 @@ class SellerPart(models.Model, AsDictModel):
             'manufacturer_part',
             'minimum_order_quantity',
             'unit_cost']
+
+    def as_dict(self):
+        d = super().as_dict()
+        d['unit_cost'] = self.unit_cost.amount
+        d['nre_cost'] = self.nre_cost.amount
+        return d
 
     @staticmethod
     def optimal(sellerparts, quantity):

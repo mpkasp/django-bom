@@ -8,7 +8,7 @@ from re import finditer
 from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_revision, create_user_and_organization, \
     create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers, create_some_fake_sellers, create_a_fake_assembly
 from .models import Part, SellerPart, ManufacturerPart, Seller, PartClass, Subpart
-from .forms import PartInfoForm, PartFormSemiIntelligent, AddSubpartForm, AddSellerPartForm
+from .forms import PartInfoForm, PartFormSemiIntelligent, AddSubpartForm, SellerPartForm
 
 from . import constants
 
@@ -598,12 +598,10 @@ class TestBOM(TransactionTestCase):
     def test_add_sellerpart(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        response = self.client.get(reverse('bom:manufacturer-part-add-sellerpart',
-                                           kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+        response = self.client.get(reverse('bom:manufacturer-part-add-sellerpart', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
         self.assertEqual(response.status_code, 200)
 
-        response = self.client.post(reverse('bom:manufacturer-part-add-sellerpart',
-                                            kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
+        response = self.client.post(reverse('bom:manufacturer-part-add-sellerpart', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
         self.assertEqual(response.status_code, 200)
 
         new_sellerpart_form_data = {
@@ -1128,7 +1126,7 @@ class TestForms(TestCase):
 
     def test_add_sellerpart_form(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-        form = AddSellerPartForm()
+        form = SellerPartForm()
         self.assertFalse(form.is_valid())
 
         seller = Seller.objects.filter(organization=self.organization)[0]
@@ -1143,24 +1141,21 @@ class TestForms(TestCase):
             'ncnr': True,
         }
 
-        form = AddSellerPartForm(organization=self.organization, data=form_data)
+        form = SellerPartForm(organization=self.organization, data=form_data)
         self.assertTrue(form.is_valid())
 
 
 class TestJsonViews(TestCase):
     def setUp(self):
         self.client = Client()
-        self.user = User.objects.create_user(
-            'kasper', 'kasper@McFadden.com', 'ghostpassword')
+        self.user = User.objects.create_user('kasper', 'kasper@McFadden.com', 'ghostpassword')
         self.organization = create_a_fake_organization(self.user)
         self.profile = self.user.bom_profile(organization=self.organization)
-
         self.client.login(username='kasper', password='ghostpassword')
 
     def test_mouser_part_match_bom(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         self.assertGreaterEqual(len(p3.latest().assembly.subparts.all()), 1)
-        response = self.client.get(
-            reverse('json:mouser-part-match-bom', kwargs={'part_revision_id': p3.latest().id}))
+        response = self.client.get(reverse('json:mouser-part-match-bom', kwargs={'part_revision_id': p3.latest().id}))
 
         self.assertEqual(response.status_code, 200)

@@ -1,15 +1,23 @@
 from .base_classes import AsDictModel
 from collections import OrderedDict
+from djmoney.money import Money
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class PartBom(AsDictModel):
-    def __init__(self, part_revision, quantity, unit_cost=0, missing_item_costs=0, nre=0, out_of_pocket_cost=0):
+    def __init__(self, part_revision, quantity, unit_cost=None, missing_item_costs=0, nre=None, out_of_pocket_cost=None):
         self.part_revision = part_revision
         self.parts = OrderedDict()
         self.quantity = quantity
+        self._currency = self.part_revision.part.organization.currency
+        if unit_cost is None:
+            unit_cost = Money(0, self._currency)
+        if nre is None:
+            nre = Money(0, self._currency)
+        if out_of_pocket_cost is None:
+            out_of_pocket_cost = Money(0, self._currency)
 
         self.unit_cost = unit_cost
         self.missing_item_costs = missing_item_costs  # count of items that have no cost
@@ -17,10 +25,10 @@ class PartBom(AsDictModel):
         self.out_of_pocket_cost = out_of_pocket_cost  # cost of buying self.quantity with MOQs
 
     def cost(self):
-        return float(self.unit_cost) * self.quantity
+        return self.unit_cost * self.quantity
 
     def total_out_of_pocket_cost(self):
-        return float(self.out_of_pocket_cost) + float(self.nre)
+        return self.out_of_pocket_cost + self.nre
 
     def append_item_and_update(self, item):
         if item.bom_id in self.parts:
@@ -40,8 +48,7 @@ class PartBom(AsDictModel):
                 bom_part.order_cost = bom_part.total_extended_quantity * bom_part.seller_part.unit_cost
             except AttributeError:
                 pass
-
-            self.unit_cost = (self.unit_cost + float(bom_part.seller_part.unit_cost) * bom_part.extended_quantity) if bom_part.seller_part.unit_cost is not None else self.unit_cost
+            self.unit_cost = (self.unit_cost + bom_part.seller_part.unit_cost * bom_part.extended_quantity) if bom_part.seller_part.unit_cost is not None else self.unit_cost
             self.out_of_pocket_cost = self.out_of_pocket_cost + bom_part.out_of_pocket_cost()
             self.nre = (self.nre + bom_part.seller_part.nre_cost) if bom_part.seller_part.nre_cost is not None else self.nre
         else:
@@ -49,9 +56,9 @@ class PartBom(AsDictModel):
 
     def update(self):
         self.missing_item_costs = 0
-        self.unit_cost = 0
-        self.out_of_pocket_cost = 0
-        self.nre = 0
+        self.unit_cost = Money(0, self._currency)
+        self.out_of_pocket_cost = Money(0, self._currency)
+        self.nre = Money(0, self._currency)
         for _, bom_part in self.parts.items():
             self.update_bom_for_part(bom_part)
 
@@ -75,6 +82,13 @@ class PartBom(AsDictModel):
             return mps
         return [item.part.manufacturer_part for item in self.parts]
 
+    def as_dict(self, include_id=False):
+        d = super().as_dict()
+        d['unit_cost'] = self.unit_cost.amount
+        d['nre'] = self.nre.amount
+        d['out_of_pocket_cost'] = self.out_of_pocket_cost.amount
+        return d
+
 
 class PartBomItem(AsDictModel):
     def __init__(self, bom_id, part, part_revision, do_not_load, references, quantity, extended_quantity, seller_part=None):
@@ -91,24 +105,26 @@ class PartBomItem(AsDictModel):
         self.total_extended_quantity = None  # extended_quantity * top_level_quantity (PartBom.quantity) - Set when appending to PartBom
         self.order_quantity = None  # order quantity taking into MOQ/MPQ constraints - Set when appending to PartBom
 
-        self.order_cost = 0  # order_cost is updated similar to above order_quantity - Set when appending to PartBom
+        self._currency = self.part.organization.currency
+
+        self.order_cost = Money(0, self._currency)  # order_cost is updated similar to above order_quantity - Set when appending to PartBom
         self.seller_part = seller_part
 
         self.api_info = None
 
     def extended_cost(self):
         try:
-            return self.extended_quantity * float(self.seller_part.unit_cost)
+            return self.extended_quantity * self.seller_part.unit_cost
         except (AttributeError, TypeError) as err:
             logger.log(logging.INFO, '[part_bom.py] ' + str(err))
-            return 0
+            return Money(0, self._currency)
 
     def out_of_pocket_cost(self):
         try:
-            return self.order_quantity * float(self.seller_part.unit_cost)
+            return self.order_quantity * self.seller_part.unit_cost
         except (AttributeError, TypeError) as err:
             logger.log(logging.INFO, '[part_bom.py] ' + str(err))
-            return 0
+            return Money(0, self._currency)
 
     def as_dict(self, include_id=False):
         dict = super().as_dict()

@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, MaxLengthValidator, MinLengthValidator
+from djmoney.money import Money
 
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
     WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, NUMBER_SCHEME_SEMI_INTELLIGENT, \
@@ -142,7 +143,7 @@ class OrganizationForm(forms.ModelForm):
 class OrganizationFormEditSettings(OrganizationForm):
     class Meta:
         model = Organization
-        exclude = ['subscription', 'google_drive_parent', 'number_scheme', 'number_item_len', ]
+        exclude = ['subscription', 'google_drive_parent', 'number_scheme', 'number_item_len', 'number_class_code_len', 'number_variation_len' ]
         labels = {
             "name": "Organization Name",
         }
@@ -194,14 +195,15 @@ class ManufacturerPartForm(forms.ModelForm):
 
 
 class SellerPartForm(forms.ModelForm):
+    unit_cost = forms.DecimalField(required=True, decimal_places=4, max_digits=17)
+    nre_cost = forms.DecimalField(required=True, decimal_places=4, max_digits=17, label='NRE cost')
+
     class Meta:
         model = SellerPart
-        exclude = ['manufacturer_part', 'data_source', ]
+        exclude = ['manufacturer_part', 'data_source', 'unit_cost', 'nre_cost', ]
 
-    new_seller = forms.CharField(max_length=128, label='-or- Create new seller (leave blank if selecting)',
-                                 required=False)
-    field_order = ['seller', 'new_seller', 'unit_cost', 'nre_cost', 'lead_time_days', 'minimum_order_quantity',
-                   'minimum_pack_quantity', ]
+    new_seller = forms.CharField(max_length=128, label='-or- Create new seller (leave blank if selecting)', required=False)
+    field_order = ['seller', 'new_seller', 'unit_cost', 'nre_cost', 'lead_time_days', 'minimum_order_quantity', 'minimum_pack_quantity', ]
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
@@ -217,12 +219,21 @@ class SellerPartForm(forms.ModelForm):
         cleaned_data = super(SellerPartForm, self).clean()
         seller = cleaned_data.get('seller')
         new_seller = cleaned_data.get('new_seller')
+        unit_cost = cleaned_data.get('unit_cost')
+        nre_cost = cleaned_data.get('nre_cost')
+        if unit_cost is None:
+            raise forms.ValidationError("Invalid unit cost.", code='invalid')
+        self.instance.unit_cost = Money(unit_cost, self.organization.currency)
+
+        if nre_cost is None:
+            raise forms.ValidationError("Invalid NRE cost.", code='invalid')
+        self.instance.nre_cost = Money(nre_cost, self.organization.currency)
 
         if seller and new_seller:
             raise forms.ValidationError("Cannot have a seller and a new seller.", code='invalid')
         elif new_seller:
             obj, created = Seller.objects.get_or_create(name__iexact=new_seller, organization=self.organization, defaults={'name': new_seller})
-            cleaned_data['seller'] = obj
+            self.cleaned_data['seller'] = obj
         elif not seller:
             raise forms.ValidationError("Must specify a seller.", code='invalid')
 
@@ -1151,55 +1162,6 @@ class BOMCSVForm(forms.Form):
             logger.warning("UnicodeDecodeError: {}".format(e))
             raise ValidationError("Specific Error: {}".format(e),
                                   code='invalid')
-
-        return cleaned_data
-
-
-class AddSellerPartForm(forms.Form):
-    seller = forms.ModelChoiceField(queryset=Seller.objects.none(), required=False, label="Seller")
-    new_seller = forms.CharField(max_length=128, label='Create New Seller', required=False,
-                                 widget=forms.TextInput(attrs={'placeholder': 'Leave blank if selecting a seller.'}))
-    minimum_order_quantity = forms.IntegerField(required=False,
-                                                label='MOQ',
-                                                validators=[numeric],
-                                                widget=forms.TextInput(attrs={'placeholder': 'None'}))
-    minimum_pack_quantity = forms.IntegerField(required=False,
-                                               label='MPQ',
-                                               validators=[numeric],
-                                               widget=forms.TextInput(attrs={'placeholder': 'None'}))
-    unit_cost = forms.DecimalField(required=True,
-                                   label='Unit Cost',
-                                   validators=[decimal, ],
-                                   widget=forms.TextInput(attrs={'placeholder': '0.00'}))
-    lead_time_days = forms.IntegerField(required=False,
-                                        label='Lead Time (days)',
-                                        validators=[numeric],
-                                        widget=forms.TextInput(attrs={'placeholder': 'None'}))
-    nre_cost = forms.DecimalField(required=False,
-                                  label='NRE Cost',
-                                  validators=[decimal, ],
-                                  widget=forms.TextInput(attrs={'placeholder': 'None'}))
-    ncnr = forms.BooleanField(required=False, label='NCNR')
-
-    def __init__(self, *args, **kwargs):
-        self.organization = kwargs.pop('organization', None)
-        super(AddSellerPartForm, self).__init__(*args, **kwargs)
-        self.fields['seller'].queryset = Seller.objects.filter(
-            organization=self.organization).order_by('name', )
-
-    def clean(self):
-        cleaned_data = super(AddSellerPartForm, self).clean()
-        seller = cleaned_data.get('seller')
-        new_seller = cleaned_data.get('new_seller')
-
-        if seller and new_seller:
-            raise forms.ValidationError("Cannot have a seller and a new seller.", code='invalid')
-        elif new_seller:
-            obj, created = Seller.objects.get_or_create(name__iexact=new_seller, organization=self.organization,
-                                                        defaults={'name': new_seller})
-            cleaned_data['seller'] = obj
-        elif not seller:
-            raise forms.ValidationError("Must specify a seller.", code='invalid')
 
         return cleaned_data
 

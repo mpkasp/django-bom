@@ -150,6 +150,13 @@ And if you're using https on production add:
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = not DEBUG
 ```
 
+### FIXER
+Fixer.io is used to handle exchange rate calculations. This is helpful if you may be purchasing parts from another currency (especially via Mouser) and you still need to estimate your part costs.
+
+To set this up you just need to add your API key to local_settings.py as shown in the example.
+
+To update rates, migrate and run `python manage.py update_rates`. Some day we will need to add a (celerybeat?) task to update rates on a schedule. Explained more [here](https://github.com/django-money/django-money#working-with-exchange-rates).
+
 ## Contributing
 
 Contributions welcome! Before contributing your work please read the [contributing readme](https://github.com/mpkasp/django-bom/blob/master/CONTRIBUTING.md).

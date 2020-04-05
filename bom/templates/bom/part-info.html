@@ -1,6 +1,7 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
+{% load djmoney %}
 
 {% block head-title %}{{ part.full_part_number }}{% if part_revision %} {{ part_revision.synopsis }}{% endif %}{% endblock %}
 
@@ -167,7 +168,7 @@
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
-                                <div id="specs-unit-cost" class="col s8 l10"><span id="mouser-est-cost"></span><span>${{ indented_bom.unit_cost|floatformat:4 }}</span></div>
+                                <div id="specs-unit-cost" class="col s8 l10"><span id="mouser-est-cost"></span><span>{{ indented_bom.unit_cost|default_if_none:'-' }}</span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Subparts without costs:</div>
@@ -175,11 +176,11 @@
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
-                                <div class="col s8 l10"><span id="mouser-est-nre"></span><span>${{ indented_bom.nre|floatformat:2 }}</span></div>
+                                <div class="col s8 l10"><span id="mouser-est-nre"></span><span>{{ indented_bom.nre|default_if_none:'-' }}</span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost per {{ qty }} Unit Order (Including MOQs):</div>
-                                <div class="col s8 l10"><span id="mouser-est-cost-per-order"></span><span>${{ indented_bom.out_of_pocket_cost|floatformat:2 }}</span></div>
+                                <div class="col s8 l10"><span id="mouser-est-cost-per-order"></span><span>{{ indented_bom.out_of_pocket_cost|default_if_none:'-' }}</span></div>
                             </div>
                             <div class="row" id="mouser-stock-wrapper" style="display: none;">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Mouser stock:</div>
@@ -591,8 +592,9 @@
             const mouserDataSheetElement = $("#mouser-data-sheet");
             const mouserStockWrapperElement = $("#mouser-stock-wrapper");
             const mouserStockElement = $("#mouser-stock");
-            updateSpecElement(mouserEstCost, unitCost, `$${unitCost}`);
-            updateSpecElement(mouserEstCostPerOrder, estCostPerOrder, `$${estCostPerOrder}`);
+            const currencyUnit = "{{ organization.currency }}" === "USD" ? "$" : ""; // Do this right some day...
+            updateSpecElement(mouserEstCost, unitCost, `${currencyUnit}${unitCost}`);
+            updateSpecElement(mouserEstCostPerOrder, estCostPerOrder, `${currencyUnit}${estCostPerOrder}`);
             updateSpecElement(mouserMissingCosts, specsMissingParts, `${specsMissingParts}`);
             updateSpecElement(mouserStockElement, mouserStock, `${mouserStock}`, mouserStockWrapperElement, false);
 

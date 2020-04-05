@@ -18,6 +18,9 @@ class BomJsonResponse(View):
 class MouserPartMatchBOM(BomJsonResponse):
     def get(self, request, part_revision_id):
         part_revision = get_object_or_404(PartRevision, pk=part_revision_id)  # get all of the pricing for manufacturer parts, marked with mouser in this part
+        user = request.user
+        profile = user.bom_profile()
+        organization = profile.organization
 
         # Goal is to search mouser for anything that we want from mouser, then update the part revision in the bom with that
         # To do that we can just get the manufacturer parts in this BOM
@@ -35,9 +38,10 @@ class MouserPartMatchBOM(BomJsonResponse):
             bom_part_quantity = bom_part.total_extended_quantity
 
             try:
-                part_seller_info = mouser.search_and_match(mp, quantity=bom_part_quantity)
+                part_seller_info = mouser.search_and_match(mp, quantity=bom_part_quantity, currency=organization.currency)
             except BaseApiError as err:
                 self.response['errors'].append(err)
+                continue
 
             try:
                 bom_part.seller_part = part_seller_info['optimal_seller_part']
@@ -46,5 +50,6 @@ class MouserPartMatchBOM(BomJsonResponse):
                 continue
 
         flat_bom.update()
-        self.response['content'].update({'flat_bom': flat_bom.as_dict()})
+        flat_bom_dict = flat_bom.as_dict()
+        self.response['content'].update({'flat_bom': flat_bom_dict})
         return JsonResponse(self.response)
