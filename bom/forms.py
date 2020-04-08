@@ -34,6 +34,15 @@ class UserModelChoiceField(forms.ModelChoiceField):
         return l
 
 
+class UserCreateForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ('username', 'first_name', 'last_name', 'email', 'password',)
+        widgets = {
+            'password': forms.PasswordInput(),
+        }
+
+
 class UserForm(forms.ModelForm):
     class Meta:
         model = User
@@ -104,9 +113,18 @@ class UserMetaForm(forms.ModelForm):
 
 
 class OrganizationCreateForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(OrganizationCreateForm, self).__init__(*args, **kwargs)
+        if self.data.get('number_scheme') == NUMBER_SCHEME_INTELLIGENT:
+            # make the QueryDict mutable
+            self.data = self.data.copy()
+            self.data['number_class_code_len'] = 3
+            self.data['number_item_len'] = 128
+            self.data['number_variation_len'] = 2
+
     class Meta:
         model = Organization
-        exclude = ['owner', 'subscription', 'google_drive_parent']
+        fields = ['name', 'number_scheme', 'number_class_code_len', 'number_item_len', 'number_variation_len', ]
         labels = {
             "name": "Organization Name",
             "number_class_code_len": "Number Class Code Length (C)",

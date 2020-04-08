@@ -4,6 +4,7 @@ import operator
 import bom.constants as constants
 
 from django.contrib import messages
+from django.contrib.auth import authenticate, login, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -26,7 +27,7 @@ from json import loads, dumps
 from bom.models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, \
     UserMeta, PartRevision, Assembly, AssemblySubparts
 from bom.forms import PartInfoForm, PartFormSemiIntelligent, PartFormIntelligent, AddSubpartForm, SubpartForm, FileForm, ManufacturerForm, \
-    ManufacturerPartForm, SellerPartForm, UserForm, UserMetaForm, UserAddForm, OrganizationForm, OrganizationNumberLenForm, PartRevisionForm, \
+    ManufacturerPartForm, SellerPartForm, UserCreateForm, UserForm, UserMetaForm, UserAddForm, OrganizationForm, OrganizationNumberLenForm, PartRevisionForm, \
     PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm, PartClassFormSet, \
     OrganizationCreateForm, OrganizationFormEditSettings
 from bom.utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely
@@ -207,9 +208,6 @@ def organization_create(request):
     form = OrganizationCreateForm(initial={'name': org_name, 'number_item_len': 4})
     if request.method == 'POST':
         form = OrganizationCreateForm(request.POST)
-        form.is_valid()
-        if form.cleaned_data['number_scheme'] == constants.NUMBER_SCHEME_INTELLIGENT:
-            form.cleaned_data['number_item_len'] = 128
         if form.is_valid():
             organization = form.save(commit=False)
             organization.owner = user
@@ -225,6 +223,21 @@ def organization_create(request):
 @login_required
 def search_help(request):
     return TemplateResponse(request, 'bom/search-help.html', locals())
+
+
+def signup(request):
+    name = 'signup'
+
+    if request.method == 'POST':
+        form = UserCreateForm(request.POST)
+        if form.is_valid():
+            new_user = form.save()
+            login(request, new_user, backend='django.contrib.auth.backends.ModelBackend')
+            return HttpResponseRedirect(reverse('bom:home'))
+    else:
+        form = UserCreateForm()
+
+    return TemplateResponse(request, 'bom/signup.html', locals())
 
 
 @login_required
