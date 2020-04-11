@@ -140,6 +140,7 @@ bom/templates/bom/part-revision-new.html
 bom/templates/bom/part-revision-release.html
 bom/templates/bom/search-help.html
 bom/templates/bom/settings.html
+bom/templates/bom/signup.html
 bom/templates/bom/upload-bom.html
 bom/templates/bom/upload-parts-help.html
 bom/templates/bom/upload-parts.html
