@@ -145,23 +145,23 @@ class OrganizationForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        self.organization = kwargs.pop('organization', None)
-        if self.organization is None:
-            self.organization = kwargs.get('instance', None)
-
+        user = kwargs.pop('user', None)
         super(OrganizationForm, self).__init__(*args, **kwargs)
-        if self.organization:
+        if user and self.instance.owner == user:
             user_queryset = User.objects.filter(
-                id__in=UserMeta.objects.filter(organization=self.organization, role='A').values_list('user', flat=True)).order_by(
+                id__in=UserMeta.objects.filter(organization=self.instance, role='A').values_list('user', flat=True)).order_by(
                 'first_name', 'last_name', 'email')
-            self.fields['owner'] = UserModelChoiceField(queryset=user_queryset, label='Owner', initial=self.organization.owner, required=True)
-            # self.fields['name'] = forms.CharField(label="Name", initial=self.organization.name, required=True)
+            self.fields['owner'] = UserModelChoiceField(queryset=user_queryset, label='Owner', initial=self.instance.owner, required=True)
 
 
 class OrganizationFormEditSettings(OrganizationForm):
+    def __init__(self, *args, **kwargs):
+        super(OrganizationFormEditSettings, self).__init__(*args, **kwargs)
+        user = kwargs.get('user', None)
+
     class Meta:
         model = Organization
-        exclude = ['subscription', 'google_drive_parent', 'number_scheme', 'number_item_len', 'number_class_code_len', 'number_variation_len' ]
+        exclude = ['subscription', 'google_drive_parent', 'number_scheme', 'number_item_len', 'number_class_code_len', 'number_variation_len', 'owner', ]
         labels = {
             "name": "Organization Name",
         }

@@ -205,14 +205,12 @@
         </div>
 
         <div id="organization" class="col s12">
-            {% if organization.owner == user %}
+            {% if user.bom_profile.role == 'A' %}
                 <h3>Organization</h3>
                 <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="row">
-                        {{ organization_form.name|materializecss:'s12 m6' }}
-                        {{ organization_form.owner|materializecss:'s12 m6' }}
-                        {{ organization_form.currency|materializecss:'s12 m6' }}
+                        {{ organization_form|materializecss:'s12 m6' }}
                     </div>
                     <div class="row">
                         <div class="col s6">
@@ -300,8 +298,7 @@
                     </div>
                 </form>
 
-                <h3>Part File Storage with Google Drive <img title="Via Google Drive" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;"
-                                                             src="{% static 'bom/img/google_drive_logo.svg' %}"></h3>
+                <h3>Part File Storage with Google Drive <img title="Via Google Drive" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;" src="{% static 'bom/img/google_drive_logo.svg' %}"></h3>
                 <p>Connect your Google account. Organization owners can enable file storage using Google Drive. {% if organization.owner == user %} Since you are the owner, you are able to enable
                     file storage!{% else %}Contact your organization owner to enable.{% endif %}<p>
                 <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root of Google drive (and can be moved anywhere in your drive). To add files to a part,

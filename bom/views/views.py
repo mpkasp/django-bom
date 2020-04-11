@@ -326,7 +326,7 @@ def bom_settings(request, tab_anchor=None):
 
         elif 'submit-edit-organization' in request.POST:
             tab_anchor = ORGANIZATION_TAB
-            organization_form = OrganizationFormEditSettings(request.POST, instance=organization)
+            organization_form = OrganizationFormEditSettings(request.POST, instance=organization, user=user)
             if organization_form.is_valid():
                 organization_form.save()
             else:
@@ -334,7 +334,7 @@ def bom_settings(request, tab_anchor=None):
 
         elif 'refresh-edit-organization' in request.POST:
             tab_anchor = ORGANIZATION_TAB
-            organization_form = OrganizationFormEditSettings(instance=organization)
+            organization_form = OrganizationFormEditSettings(instance=organization, user=user)
 
         elif 'submit-number-item-len' in request.POST:
             tab_anchor = INDABOM_TAB
@@ -429,7 +429,7 @@ def bom_settings(request, tab_anchor=None):
     user_add_form = UserAddForm()
     user_meta_form = UserMetaForm()
 
-    organization_form = OrganizationFormEditSettings(instance=organization)
+    organization_form = OrganizationFormEditSettings(instance=organization, user=user)
     organization_number_len_form = OrganizationNumberLenForm(instance=organization)
     part_class_form = PartClassForm(organization=organization)
     part_class_csv_form = PartClassCSVForm(organization=organization)
