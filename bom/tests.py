@@ -525,8 +525,10 @@ class TestBOM(TransactionTestCase):
         # part_count = Part.objects.all().count()
         # Should pass
         with open('bom/test_files/test_new_parts.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertEqual(msg.tags, 'info')
         new_part_count = Part.objects.all().count()
         self.assertEqual(new_part_count, 4)
 

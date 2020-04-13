@@ -147,7 +147,7 @@ class Part(models.Model):
             raise AttributeError(f"Expect {organization.number_class_code_len} digits for number class")
         elif number_class is not None:
             for c in number_class:
-                if not c.isdigit():
+                if not (c.isdigit() or c.isalpha()):
                     raise AttributeError(f"{c} is not a proper character for a number class")
         return number_class
 

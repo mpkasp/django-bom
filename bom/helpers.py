@@ -26,7 +26,7 @@ def create_user_and_organization(free=False, number_scheme=constants.NUMBER_SCHE
 def create_some_fake_part_classes(organization):
     pc1, c = PartClass.objects.get_or_create(code=500, name='Wendy', comment='Mechanical Switches', organization=organization)
     pc2, c = PartClass.objects.get_or_create(code=200, name='Archibald', comment='', organization=organization)
-    pc3, c = PartClass.objects.get_or_create(code=503, name='Ghost', comment='Like Kasper', organization=organization)
+    pc3, c = PartClass.objects.get_or_create(code='50A', name='Ghost', comment='Like Kasper', organization=organization)
     return pc1, pc2, pc3
 
 
