@@ -123,7 +123,7 @@ class Part(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
     number_class = models.ForeignKey(PartClass, default=None, blank=True, null=True, related_name='number_class', on_delete=models.PROTECT, db_index=True)
     number_item = models.CharField(max_length=NUMBER_ITEM_LEN_MAX, default=None, blank=True)
-    number_variation = models.CharField(max_length=2, default=None, blank=True, null=True, validators=[alphanumeric])
+    number_variation = models.CharField(max_length=NUMBER_VARIATION_LEN_MAX, default=None, blank=True, null=True, validators=[alphanumeric])
     primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True,
                                                   on_delete=models.SET_NULL, related_name='primary_manufacturer_part')
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
