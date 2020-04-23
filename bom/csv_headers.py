@@ -1,5 +1,4 @@
-from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
-    Organization, PartRevision, AssemblySubparts, Assembly
+from abc import ABC
 from .utils import get_from_dict
 
 
@@ -11,22 +10,39 @@ class CSVHeaderError(Exception):
         return self.str
 
 
-class CSVHeaders:
+class CSVHeader:
+    def __init__(self, name, *args, **kwargs):
+        self.name = name
+        self.name_options = kwargs.get('name_options', [])
 
-    def __init__(self):
-        self.all_header_defns = []
+    def __contains__(self, item):
+        if isinstance(item, str):
+            return item == self.name
+        else:
+            return item.name == self.name
 
-    # Returns a list of synonyms or None if there are no synonyms.
+    def synonyms(self):
+        return [self.name] + self.name_options
+
+    def keys(self):
+        return [self.name]
+
+    def __str__(self):
+        return self.name
+
+
+class CSVHeaders(ABC):
+    all_headers_defns = []
+
     def get_synoynms(self, hdr_name):
         for defn in self.all_headers_defns:
             if hdr_name in defn:
-                return [hdr_name] + list(defn.values())[0]
+                return defn.synonyms()
             else:
-                for syns in defn.values():
-                    for syn in syns:
-                        if hdr_name == syn:
-                            k = list(defn.keys())[0]
-                            return [k] + list(defn.values())[0]
+                for syn in defn.name_options:
+                    if hdr_name == syn:
+                        k = defn.keys()
+                        return k + defn.name_options
 
     # If header name does not have a default (i.e., it is not a valid header name) then
     # returns None.
@@ -38,7 +54,7 @@ class CSVHeaders:
     def get_default_all(self):
         all_defaults = []
         for defn in self.all_headers_defns:
-            all_defaults.append(list(defn.keys())[0])
+            all_defaults.append(defn.name)
         return all_defaults
 
     # Given a list of header names returns the default name for each. The return list
@@ -143,156 +159,81 @@ class CSVHeaders:
 
 
 class PartClassesCSVHeaders(CSVHeaders):
-    code = {'code': []}
-    comment = {'comment': ['description', 'desc', 'desc.']}
-    mouser_enabled = {'mouser_enabled': []}
-    name = {'name': []}
-
-    def __init__(self):
-        super().__init__()
-        self.all_headers_defns = [
-            PartClassesCSVHeaders.code,
-            PartClassesCSVHeaders.name,
-            PartClassesCSVHeaders.comment,
-            PartClassesCSVHeaders.mouser_enabled,
-        ]
+    all_headers_defns = [
+        CSVHeader('code'),
+        CSVHeader('name'),
+        CSVHeader('comment', name_options=['description', 'desc', 'desc.']),
+        CSVHeader('mouser_enabled'),
+    ]
 
 
 class PartsListCSVHeaders(CSVHeaders):
-    description = {'description': ['desc', 'desc.', ]}
-    mfg_name = {'manufacturer_name': ['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]}
-    mpn = {'manufacturer_part_number': ['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']}
-    part_class = {'part_class': ['class', 'part_category']}
-    part_number = {'part_number': ['part number', 'part no', ]}
-    revision = {'revision': ['rev', 'part_revision', ]}
-    value = {'value': ['val', 'val.', ]}
-    value_units = {'value_units': ['value units', 'val. units', 'val units', ]}
-    tolerance = {'tolerance': []}
-    attribute = {'attribute': []}
-    package = {'package': []}
-    pin_count = {'pin_count': []}
-    frequency = {'frequency': []}
-    frequency_units = {'frequency_units': []}
-    wavelength = {'wavelength': []}
-    wavelength_units = {'wavelength_units': []}
-    memory = {'memory': []}
-    memory_units = {'memory_units': []}
-    interface = {'interface': []}
-    supply_voltage = {'supply_voltage': []}
-    supply_voltage_units = {'supply_voltage_units': []}
-    temperature_rating = {'temperature_rating': []}
-    temperature_rating_units = {'temperature_rating_units': []}
-    power_rating = {'power_rating': []}
-    power_rating_units = {'power_rating_units': []}
-    voltage_rating = {'voltage_rating': []}
-    voltage_rating_units = {'voltage_rating_units': []}
-    current_rating = {'current_rating': []}
-    current_rating_units = {'current_rating_units': []}
-    material = {'material': []}
-    color = {'color': []}
-    finish = {'finish': []}
-    length = {'length': []}
-    length_units = {'length_units': []}
-    width = {'width': []}
-    width_units = {'width_units': []}
-    height = {'height': []}
-    height_units = {'height_units': []}
-    weight = {'weight': []}
-    weight_units = {'weight_units': []}
-
-    def __init__(self):
-        super().__init__()
-        self.all_headers_defns = [
-            PartsListCSVHeaders.description,
-            PartsListCSVHeaders.mfg_name,
-            PartsListCSVHeaders.mpn,
-            PartsListCSVHeaders.part_class,
-            PartsListCSVHeaders.part_number,
-            PartsListCSVHeaders.revision,
-            PartsListCSVHeaders.value,
-            PartsListCSVHeaders.value_units,
-            PartsListCSVHeaders.tolerance,
-            PartsListCSVHeaders.attribute,
-            PartsListCSVHeaders.package,
-            PartsListCSVHeaders.pin_count,
-            PartsListCSVHeaders.frequency,
-            PartsListCSVHeaders.frequency_units,
-            PartsListCSVHeaders.wavelength,
-            PartsListCSVHeaders.wavelength_units,
-            PartsListCSVHeaders.memory,
-            PartsListCSVHeaders.memory_units,
-            PartsListCSVHeaders.interface,
-            PartsListCSVHeaders.supply_voltage,
-            PartsListCSVHeaders.supply_voltage_units,
-            PartsListCSVHeaders.temperature_rating,
-            PartsListCSVHeaders.temperature_rating_units,
-            PartsListCSVHeaders.power_rating,
-            PartsListCSVHeaders.power_rating_units,
-            PartsListCSVHeaders.voltage_rating,
-            PartsListCSVHeaders.voltage_rating_units,
-            PartsListCSVHeaders.current_rating,
-            PartsListCSVHeaders.current_rating_units,
-            PartsListCSVHeaders.material,
-            PartsListCSVHeaders.color,
-            PartsListCSVHeaders.finish,
-            PartsListCSVHeaders.length,
-            PartsListCSVHeaders.length_units,
-            PartsListCSVHeaders.width,
-            PartsListCSVHeaders.width_units,
-            PartsListCSVHeaders.height,
-            PartsListCSVHeaders.height_units,
-            PartsListCSVHeaders.weight,
-            PartsListCSVHeaders.weight_units,
-        ]
+    all_headers_defns = [
+        CSVHeader('description', name_options=['desc', 'desc.', ]),
+        CSVHeader('manufacturer_name', name_options=['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]),
+        CSVHeader('manufacturer_part_number', name_options=['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']),
+        CSVHeader('part_class', name_options=['class', 'part_category']),
+        CSVHeader('part_number', name_options=['part number', 'part no', ]),
+        CSVHeader('revision', name_options=['rev', 'part_revision', ]),
+        CSVHeader('value', name_options=['val', 'val.', ]),
+        CSVHeader('value_units', name_options=['value units', 'val. units', 'val units', ]),
+        CSVHeader('tolerance', name_options=[]),
+        CSVHeader('attribute', name_options=[]),
+        CSVHeader('package', name_options=[]),
+        CSVHeader('pin_count', name_options=[]),
+        CSVHeader('frequency', name_options=[]),
+        CSVHeader('frequency_units', name_options=[]),
+        CSVHeader('wavelength', name_options=[]),
+        CSVHeader('wavelength_units', name_options=[]),
+        CSVHeader('memory', name_options=[]),
+        CSVHeader('memory_units', name_options=[]),
+        CSVHeader('interface', name_options=[]),
+        CSVHeader('supply_voltage', name_options=[]),
+        CSVHeader('supply_voltage_units', name_options=[]),
+        CSVHeader('temperature_rating', name_options=[]),
+        CSVHeader('temperature_rating_units', name_options=[]),
+        CSVHeader('power_rating', name_options=[]),
+        CSVHeader('power_rating_units', name_options=[]),
+        CSVHeader('voltage_rating', name_options=[]),
+        CSVHeader('voltage_rating_units', name_options=[]),
+        CSVHeader('current_rating', name_options=[]),
+        CSVHeader('current_rating_units', name_options=[]),
+        CSVHeader('material', name_options=[]),
+        CSVHeader('color', name_options=[]),
+        CSVHeader('finish', name_options=[]),
+        CSVHeader('length', name_options=[]),
+        CSVHeader('length_units', name_options=[]),
+        CSVHeader('width', name_options=[]),
+        CSVHeader('width_units', name_options=[]),
+        CSVHeader('height', name_options=[]),
+        CSVHeader('height_units', name_options=[]),
+        CSVHeader('weight', name_options=[]),
+        CSVHeader('weight_units', name_options=[]),
+    ]
 
 
 class BOMFlatCSVHeaders(CSVHeaders):
-    do_not_load = {'do_not_load': ['dnl', 'dnp', 'do_not_populate', 'do_not_load', 'do not load', 'do not populate', ]}
-    part_class = {'part_class': ['class', 'part_category']}
-    part_cost = {'part_cost': ['seller_part_unit_cost', 'unit_cost', ]}
-    part_ext_cost = {'extended_cost': ['part_extended_cost', 'part_ext_cost', ]}
-    part_ext_qty = {'extended_qty': ['extended_quantity', 'part_extended_quantity', 'part_ext_qty', ]}
-    part_lead_time_days = {'lead_time_days': ['part_lead_time_days', ]}
-    part_manufacturer = {'manufacturer_name': ['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]}
-    part_manufacturer_part_number = {'manufacturer_part_number': ['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']}
-    part_moq = {'moq': ['minimum_order_quantity', 'moq', 'part_moq', ]}
-    part_nre = {'nre': ['part_nre', 'part_nre_cost', ]}
-    part_number = {'part_number': ['part number', 'part no', ]}
-    part_order_qty = {'order_qty': ['part_order_qty', 'part_order_quantity', 'order_quantity', ]}
-    part_out_of_pocket_cost = {'out_of_pocket_cost': ['part_out_of_pocket_cost', 'cost', ]}
-    part_revision = {'revision': ['rev', 'part_revision', ]}
-    part_seller = {'seller': ['part_seller', 'part_seller_name', ]}
-    part_synopsis = {'synopsis': ['part_synopsis', ]}
-    quantity = {'quantity': ['count', 'qty', ]}
-    references = {'references': ['designator', 'designators', 'reference', ]}
-
-    def __init__(self):
-        super().__init__()
-        self.all_headers_defns = [
-            BOMFlatCSVHeaders.part_number,
-            BOMFlatCSVHeaders.quantity,
-            BOMFlatCSVHeaders.do_not_load,
-            BOMFlatCSVHeaders.part_class,
-            BOMFlatCSVHeaders.references,
-            BOMFlatCSVHeaders.part_synopsis,
-            BOMFlatCSVHeaders.part_revision,
-            BOMFlatCSVHeaders.part_manufacturer,
-            BOMFlatCSVHeaders.part_manufacturer_part_number,
-            BOMFlatCSVHeaders.part_ext_qty,
-            BOMFlatCSVHeaders.part_ext_cost,
-            BOMFlatCSVHeaders.part_order_qty,
-            BOMFlatCSVHeaders.part_seller,
-            BOMFlatCSVHeaders.part_cost,
-            BOMFlatCSVHeaders.part_moq,
-            BOMFlatCSVHeaders.part_nre,
-            BOMFlatCSVHeaders.part_out_of_pocket_cost,
-            BOMFlatCSVHeaders.part_lead_time_days,
-        ]
+    all_headers_defns = [
+        CSVHeader('part_number', name_options=['part number', 'part no', ]),
+        CSVHeader('quantity', name_options=['count', 'qty', ]),
+        CSVHeader('do_not_load', name_options=['dnl', 'dnp', 'do_not_populate', 'do_not_load', 'do not load', 'do not populate', ]),
+        CSVHeader('part_class', name_options=['class', 'part_category']),
+        CSVHeader('references', name_options=['designator', 'designators', 'reference', ]),
+        CSVHeader('synopsis', name_options=['part_synopsis', ]),
+        CSVHeader('revision', name_options=['rev', 'part_revision', 'rev.']),
+        CSVHeader('manufacturer_name', name_options=['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]),
+        CSVHeader('manufacturer_part_number', name_options=['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']),
+        CSVHeader('extended_qty', name_options=['extended_quantity', 'part_extended_quantity', 'part_ext_qty', ]),
+        CSVHeader('extended_cost', name_options=['part_extended_cost', 'part_ext_cost', ]),
+        CSVHeader('order_qty', name_options=['part_order_qty', 'part_order_quantity', 'order_quantity', ]),
+        CSVHeader('seller', name_options=['part_seller', 'part_seller_name', ]),
+        CSVHeader('part_cost', name_options=['seller_part_unit_cost', 'unit_cost', ]),
+        CSVHeader('moq', name_options=['minimum_order_quantity', 'moq', 'part_moq', ]),
+        CSVHeader('nre', name_options=['part_nre', 'part_nre_cost', ]),
+        CSVHeader('out_of_pocket_cost', name_options=['part_out_of_pocket_cost', 'cost', ]),
+        CSVHeader('lead_time_days', name_options=['part_lead_time_days', ]),
+    ]
 
 
 class BOMIndentedCSVHeaders(BOMFlatCSVHeaders):
-    level = {'level': []}
-
-    def __init__(self):
-        super().__init__()
-        self.all_headers_defns.append(BOMIndentedCSVHeaders.level)
+    all_headers_defns = [CSVHeader('level')] + BOMFlatCSVHeaders.all_headers_defns
