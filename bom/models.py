@@ -7,13 +7,15 @@ from django.db import models
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
 from django.core.validators import MaxValueValidator, MinValueValidator
+from .csv_headers import PartsListCSVHeadersSemiIntelligent, PartsListCSVHeaders
 from .part_bom import PartIndentedBomItem, PartBomItem, PartBom
 from .utils import increment_str, prep_for_sorting_nicely, listify_string, stringify_list, strip_trailing_zeros
 from .validators import alphanumeric, numeric, validate_pct
 from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
     WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, \
     NUMBER_SCHEMES, NUMBER_SCHEME_SEMI_INTELLIGENT, NUMBER_CLASS_CODE_LEN_DEFAULT, NUMBER_CLASS_CODE_LEN_MIN, NUMBER_CLASS_CODE_LEN_MAX, \
-    NUMBER_ITEM_LEN_DEFAULT, NUMBER_ITEM_LEN_MIN, NUMBER_ITEM_LEN_MAX, NUMBER_VARIATION_LEN_DEFAULT, NUMBER_VARIATION_LEN_MIN, NUMBER_VARIATION_LEN_MAX
+    NUMBER_ITEM_LEN_DEFAULT, NUMBER_ITEM_LEN_MIN, NUMBER_ITEM_LEN_MAX, NUMBER_VARIATION_LEN_DEFAULT, NUMBER_VARIATION_LEN_MIN, NUMBER_VARIATION_LEN_MAX, \
+    NUMBER_SCHEME_INTELLIGENT
 from .base_classes import AsDictModel
 
 from djmoney.models.fields import MoneyField, CurrencyField, CURRENCY_CHOICES
@@ -51,6 +53,12 @@ class Organization(models.Model):
 
     def seller_parts(self):
         return SellerPart.objects.filter(seller__organization=self)
+
+    def part_list_csv_headers(self):
+        if self.number_scheme == NUMBER_SCHEME_INTELLIGENT:
+            return PartsListCSVHeaders()
+        else:
+            return PartsListCSVHeadersSemiIntelligent()
 
     def save(self, *args, **kwargs):
         super(Organization, self).save()

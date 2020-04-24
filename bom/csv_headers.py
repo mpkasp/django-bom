@@ -168,13 +168,7 @@ class PartClassesCSVHeaders(CSVHeaders):
 
 
 class PartsListCSVHeaders(CSVHeaders):
-    all_headers_defns = [
-        CSVHeader('description', name_options=['desc', 'desc.', ]),
-        CSVHeader('manufacturer_name', name_options=['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]),
-        CSVHeader('manufacturer_part_number', name_options=['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']),
-        CSVHeader('part_class', name_options=['class', 'part_category']),
-        CSVHeader('part_number', name_options=['part number', 'part no', ]),
-        CSVHeader('revision', name_options=['rev', 'part_revision', ]),
+    part_attributes = [
         CSVHeader('value', name_options=['val', 'val.', ]),
         CSVHeader('value_units', name_options=['value units', 'val. units', 'val units', ]),
         CSVHeader('tolerance', name_options=[]),
@@ -210,6 +204,25 @@ class PartsListCSVHeaders(CSVHeaders):
         CSVHeader('weight', name_options=[]),
         CSVHeader('weight_units', name_options=[]),
     ]
+
+    all_headers_defns = [
+        CSVHeader('description', name_options=['desc', 'desc.', ]),
+        CSVHeader('manufacturer_name', name_options=['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]),
+        CSVHeader('manufacturer_part_number', name_options=['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']),
+        CSVHeader('part_number', name_options=['part number', 'part no', ]),
+        CSVHeader('revision', name_options=['rev', 'part_revision', ]),
+    ] + part_attributes
+
+
+class PartsListCSVHeadersSemiIntelligent(PartsListCSVHeaders):
+    all_headers_defns = [
+        CSVHeader('description', name_options=['desc', 'desc.', ]),
+        CSVHeader('manufacturer_name', name_options=['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]),
+        CSVHeader('manufacturer_part_number', name_options=['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']),
+        CSVHeader('part_class', name_options=['class', 'part_category']),
+        CSVHeader('part_number', name_options=['part number', 'part no', ]),
+        CSVHeader('revision', name_options=['rev', 'part_revision', ]),
+    ] + PartsListCSVHeaders.part_attributes
 
 
 class BOMFlatCSVHeaders(CSVHeaders):

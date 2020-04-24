@@ -420,7 +420,7 @@ class PartCSVForm(forms.Form):
             reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
             headers = [h.lower() for h in next(reader)]
 
-            csv_headers = PartsListCSVHeaders()
+            csv_headers = self.organization.part_list_csv_headers()
 
             try:
                 # Issue warning if unrecognized column header names appear in file.
