@@ -190,7 +190,6 @@ def home(request):
                     csv_headers.get_default('part_manufacturer_part_number'): part_rev.part.primary_manufacturer_part.manufacturer_part_number if part_rev.part.primary_manufacturer_part is not None else '',
                 }
                 for field_name in csv_headers.get_default_all():
-                    print(field_name)
                     if field_name not in csv_headers.get_defaults_list(['part_number', 'part_synopsis', 'part_revision', 'part_manufacturer', 'part_manufacturer_part_number', ]):
                         attr = getattr(part_rev, field_name)
                         row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
