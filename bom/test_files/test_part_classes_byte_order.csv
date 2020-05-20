@@ -1,0 +1,54 @@
+﻿name,code,description
+Misc Mech,708,Other Mechanical
+Misc Elec,709,Other Electrical Part
+Tubing,710,Pipe & Tubing
+Fitting,711,Fittings
+Valve,712,Valves
+PCB,720,Printed circuit boards – non-stuffed
+PCBA - Purchased,721,Purchased PCB assemblies (PCBA)
+PCBA - Internal WIP,722,PCB assemblies – stuffed & untested (PCBA)
+PCBA - Internal Tested,723,Tested PCB assemblies
+Header,725,Headers
+Connector,726,Connectors
+Heatsink,727,Heat sinks and coolers
+Switch,730,Switches
+Relay,731,Relays
+Breaker,732,Mechanical Circuit Protection
+Wire,736,Wire and Cable
+Harness,737,Wire and Cable assemblies
+"Resistor, Through",740,Resistor
+"Resistor, Power",741,"Resistor, Power (>1W) / Current Sense"
+"Resistor, Variable",743,Resistor Variable
+Polyfuse,745,Polyfuse
+"Cap, Aluminum",750,"Capacitor, Aluminum Electrolytic"
+"Cap, Film",751,"Capacitor, Film"
+"Cap, Ceramic",752,Capacitor Ceramic
+Battery,754,Batteries
+Transformer,756,Transformer
+"Inductor, Power",757,Inductor Power
+"Inductor, HF",759,"Inductor, Ferrite, SMD"
+Diode,760,Diodes
+Transistor,761,Transistors – FETS – Bipolar
+Opto,762,LED – Optical
+Regulator,763,Linear Regulators
+"IC, Analog",765,Integrated Circuits – Analog/Linear – AD/DA
+"IC, Digital",766,Integrated Circuits – Digital – logic – specific purpose
+"IC, Hybrid",767,Integrated Circuits – Microprocessor – Microcontroller
+Memory,768,Programmable parts and Memory
+Artwork,771,Labels and artwork
+Fastener,772,"Fasteners – nuts, screws, washers, standoffs etc."
+Plastic,772,"Plastic fab or purchase parts – clamps, cable ties, brackets, bumpers, etc."
+Sheet Metal,773,Sheet metal fab items
+Machined,774,Machined & cast parts
+Sheet Metal ASSY,775,Sheet metal assemblies
+Machined ASSY,776,Machined parts assemblies
+OEM Electrical,781,"Purchased Functional Assemblies, Electrical"
+OEM Electrical,782,"Purchased Functional Assemblies, Mechanical"
+"Sensor, Elec",784,Mechanical Sensors
+"Sensor, Mech",785,Electrical Sensors
+Elec ASSY,790,Electromechanical assemblies – metal fab along with electronic components– enclosure with PCBs
+Elec ASSY Final,791,Tested Electromechanical
+SAU,792,Stand Alone Unit (SAU) – Untested
+"SAU, Final",793,Stand Alone unit (SAU) – Tested
+TLA,794,Top Level Assembly (TLA) Ready to ship in shipping carton with accessories
+Software,799,Software Code

@@ -324,7 +324,7 @@ class PartClassCSVForm(forms.Form):
             dialect = csv.Sniffer().sniff(csvline_decoded)
             file.open()
             reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
-            headers = [h.lower() for h in next(reader)]
+            headers = [h.lower().replace('\ufeff', '') for h in next(reader)]
 
             csv_headers = PartClassesCSVHeaders()
 

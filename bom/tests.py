@@ -585,6 +585,14 @@ class TestBOM(TransactionTestCase):
         self.assertTrue('in row 3 does not have a value. Uploading of this part class skipped.' in str(response.content))
         self.assertTrue('in row 4 does not have a value. Uploading of this part class skipped.' in str(response.content))
 
+        # Submit with a csv file exported with a byte order mask, typically from MS word I think
+        with open('bom/test_files/test_part_classes_byte_order.csv') as test_csv:
+            response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertTrue('None on row' not in str(msg.message))
+
     def test_upload_part_classes_parts_and_boms(self):
         self.organization.number_item_len = 5
         self.organization.save()
