@@ -21,7 +21,7 @@ google-api-python-client==1.7.5
 google-auth==1.6.1
 google-auth-httplib2==0.0.3
 gunicorn==19.9.0
-httplib2==0.12.0
+httplib2==0.18.0
 idna==2.7
 keyring==15.0.0
 mysqlclient==1.3.13
