@@ -420,6 +420,11 @@ class PartCSVForm(forms.Form):
             reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
             headers = [h.lower() for h in next(reader)]
 
+            # Handle utf-8-sig encoding
+            if "\ufeff" in headers[0]:
+                reader = csv.reader(codecs.iterdecode(file, 'utf-8-sig'), dialect)
+                headers = [h.lower() for h in next(reader)]
+
             csv_headers = self.organization.part_list_csv_headers()
 
             try:
