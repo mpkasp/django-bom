@@ -3,6 +3,7 @@ import codecs
 import logging
 
 from django import forms
+from django.contrib.auth.forms import UserCreationForm
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
 from django.db import IntegrityError
@@ -36,13 +37,25 @@ class UserModelChoiceField(forms.ModelChoiceField):
         return l
 
 
-class UserCreateForm(forms.ModelForm):
-    class Meta:
-        model = User
-        fields = ('username', 'first_name', 'last_name', 'email', 'password',)
-        widgets = {
-            'password': forms.PasswordInput(),
-        }
+class UserCreateForm(UserCreationForm):
+    first_name = forms.CharField(required=True)
+    last_name = forms.CharField(required=True)
+    email = forms.EmailField(required=True)
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        exists = User.objects.filter(email__iexact=email).count() > 0
+        if exists:
+            raise ValidationError('An account with this email address already exists.')
+        return email
+
+    def save(self, commit=True):
+        user = super(UserCreateForm, self).save(commit=commit)
+        user.email = self.cleaned_data['email']
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        user.save()
+        return user
 
 
 class UserForm(forms.ModelForm):

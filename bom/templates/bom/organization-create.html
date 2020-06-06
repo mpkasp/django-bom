@@ -12,22 +12,48 @@
 {% block content %}
     <div class="container">
         <h1 class="light header center">Welcome to IndaBOM!</h1>
-        <h3 class="center">Let's create your organization.</h3>
+        <div id="create-or-join">
+            <h3 class="center">Create or join an Organization?</h3>
+            <p class="center">In IndaBOM, everything happens in an Organization. This is where your team collaborates on parts, BOMs, and assemblies.</p>
 
-        <p class="center"><a class="modal-trigger" href="#modal1">Join an existing organization.</a></p>
-        <div id="modal1" class="modal">
-            <div class="modal-content">
-                <h4>Join an existing organization</h4>
-                <p>To join a an existing organization, you must provide the e-mail address you signed up with to your IndaBOM organization owner. <br><br>Your e-mail address is {{ user.email }}, click
-                    <a href="mailto:?subject=Add me to your IndaBOM Organization&body=Hi,%0D%0A%0D%0APlease add me to your IndaBOM organization. To do so, log in, go to Settings > Organization and add me via my e-mail address {{ user.email }}">here</a>
-                    to send an email.</p>
-            </div>
-            <div class="modal-footer">
-                <a href="#!" class="modal-close waves-effect waves-green btn-flat">Ok</a>
+            <div class="row" style="display: flex; flex-wrap: wrap;">
+                <div class="col s12 m6" style="display: flex;">
+                    <div class="card green lighten-2 waves-effect waves-block waves-light" style="width: 100%;" onclick="selectNewOrganization()">
+                        <div class="card-image">
+                            <i class="material-icons" style="margin-top: 20px; color: white; text-align: center; font-size: 7rem; display: block;">group</i>
+                        </div>
+                        <div class="card-content text-center">
+                            <span class="card-title white-text">Create a new organization</span>
+                            <p class="white-text">Create a new workspace for your team or company to collaborate.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col s12 m6" style="display: flex;">
+                    <a class="card green lighten-2 waves-effect waves-block waves-light modal-trigger" style="width: 100%;" onclick="selectJoinOrganization()">
+                        <div class="card-image">
+                            <i class="material-icons" style="margin-top: 20px; color: white; text-align: center; font-size: 7rem; display: block;">group_add</i>
+                        </div>
+                        <div class="card-content text-center">
+                            <span class="card-title white-text">Join an existing organization</span>
+                            <p class="white-text">Join a workspace already created by your team member.</p>
+                        </div>
+                    </a>
+                </div>
             </div>
         </div>
 
-        <div style="padding-top: 24px">
+        <div id="join-organization" style="display: none;">
+            <h3 class="center">Join an existing Organization</h3>
+            <h5 class="center" style="padding-top: 36px;">To join an existing organization, you must provide the e-mail address you signed up with to your IndaBOM organization owner. <br><br>Your e-mail address is {{ user.email }}, click
+                <a href="mailto:?subject=Add me to your IndaBOM Organization&body=Hi,%0D%0A%0D%0APlease add me to your IndaBOM organization. To do so, log in, go to Settings > Organization and add me via my e-mail address {{ user.email }}">here</a>
+                to send an email.</h5>
+            <br><br>
+            <p class="center">Oops! I meant to <a class="modal-trigger" onclick="resetView()">create a new organization</a>.</p>
+        </div>
+
+        <div id="create-organization" style="display: none;">
+            <h3 class="center">Create a new Organization</h3>
+            <p class="center">Oops! I meant to <a class="modal-trigger" onclick="resetView()">join an existing organization</a>.</p>
             <form name="seller" action="{% url 'bom:organization-create' %}" method="post" class="col s12">
                 <div class="row">
                     {% csrf_token %}
@@ -40,17 +66,25 @@
                         <h4>2) What type of numbering scheme do you want your organization to use?</h4>
                         <p><i>We recommend using "Semi-intelligent" numbering systems</i> to take advantage of all of the IndaBOM features.</p>
                         <ul class="browser-default">
-                            <li style="padding-bottom: 16px;"><b>Semi-intelligent</b> e.g. CCC-NNNN-YY<br>Consists of 3 components: a 3-digit part class, a N-digit part number, and a 2-digit variation. IndaBOM part numbers are designed to be simple to assign and simple to subsequently write, type, or speak.  You define the part classes in your organization, and how long your N-digit part number is below.</li>
-                            <li><b>Intelligent</b> You control your numbers.<br>Intelligent part numbering on IndaBOM allows the user to assign any part number to a part. The part number contains descriptive details embedded within that provides
-                                noteworthy information about the part. For example, a capacitor may be named C0402X5R33PF to indicate that it is a capacitor of size "0402", using a X5R dialectric, and is 33pF.</li>
+                            <li style="padding-bottom: 16px;"><b>Semi-intelligent</b> e.g. CCC-NNNN-YY<br>Consists of 3 components: a 3-digit part class, a N-digit part number, and a 2-digit
+                                variation. IndaBOM part numbers are designed to be simple to assign and simple to subsequently write, type, or speak. You define the part classes in your organization,
+                                and how long your N-digit part number is below.
+                            </li>
+                            <li><b>Intelligent</b> You control your numbers.<br>Intelligent part numbering on IndaBOM allows the user to assign any part number to a part. The part number contains
+                                descriptive details embedded within that provides
+                                noteworthy information about the part. For example, a capacitor may be named C0402X5R33PF to indicate that it is a capacitor of size "0402", using a X5R dialectric, and
+                                is 33pF.
+                            </li>
                         </ul>
-                        <p style="font-size: 15px;">You can read more about the options <a href="{% url 'bom:help' %}#part-numbering" target="_blank">here</a>. Some times the "intelligent" way isn't the best way 😉.</p>
+                        <p style="font-size: 15px;">You can read more about the options <a href="{% url 'bom:help' %}#part-numbering" target="_blank">here</a>. Some times the "intelligent" way isn't
+                            the best way 😉.</p>
                         <p><b>Important!</b> Once you've created parts, you cannot change your organization type without having to delete your parts (export is available).</p>
                         {{ form.number_scheme|materializecss }}
                     </div>
                     <div id="item-number-length" class="col s12" style="padding: 16px;">
                         <h4>3) How long do you want your item numbers to be?</h4>
-                        <p>Your part numbers will have a part class (C), <b>item number (N)</b> and a variation (V) in the format CCC-NNNN-VV. You can always <i>increase</i> these numbers, but you can't decrease them. The recommended values are below (C = 3, N = 4, V = 2).</p>
+                        <p>Your part numbers will have a part class (C), <b>item number (N)</b> and a variation (V) in the format CCC-NNNN-VV. You can always <i>increase</i> these numbers, but you
+                            can't decrease them. The recommended values are below (C = 3, N = 4, V = 2).</p>
                         {{ form.number_class_code_len|materializecss:'s4' }} {{ form.number_item_len|materializecss:'s4' }} {{ form.number_variation_len|materializecss:'s4' }}
                     </div>
                 </div>
@@ -69,6 +103,24 @@
         });
     </script>
     <script type='text/javascript'>
+        function selectNewOrganization() {
+            $('#create-or-join').hide();
+            $('#join-organization').hide();
+            $('#create-organization').show();
+        }
+
+        function selectJoinOrganization() {
+            $('#create-or-join').hide();
+            $('#create-organization').hide();
+            $('#join-organization').show();
+        }
+
+        function resetView() {
+            $('#create-organization').hide();
+            $('#join-organization').hide();
+            $('#create-or-join').show();
+        }
+
         $(function () {
             $('select[name="number_scheme"]').change(function () {
                 var numberScheme = $('select[name="number_scheme"]').val();
