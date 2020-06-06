@@ -50,7 +50,9 @@
         <div id="indabom" class="col s12">
             {% if profile.role == 'A' %}
                 {% if organization.number_scheme == 'S' %}
+                    {% if part_classes.count > 0 %}
                     <h3>Edit Part Classes</h3>
+                        <a href="{% url 'bom:help' %}#part-numbering" target="_blank">What is a part class?</a>
                     <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         {% if part_classes.count > 0 %}
@@ -110,7 +112,11 @@
                             </div>
                         </div>
                     </form>
+                    {% endif %}
                     <h3>Create Part Class</h3>
+                    {% if part_classes.count == 0 %}
+                    <a href="{% url 'bom:help' %}#part-numbering" target="_blank">What is a part class?</a>
+                    {% endif %}
                     <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         <div class="row">

@@ -110,7 +110,7 @@ class PartClass(models.Model):
         index_together = [['organization', 'code', ], ]
 
     def __str__(self):
-        return u'%s' % (self.code + ': ' + self.name)
+        return f'{self.code}: {self.name}'
 
 
 class Manufacturer(models.Model, AsDictModel):
@@ -176,7 +176,7 @@ class Part(models.Model):
         elif number_variation is not None:
             for c in number_variation:
                 if not c.isalnum():
-                    raise AttributeError(f"{c} is not a proper character for a number variation")
+                    raise AttributeError(f"{c} is not a proper character for a number variation. Must be alphanumeric.")
         return number_variation
 
     @staticmethod
@@ -196,19 +196,18 @@ class Part(models.Model):
         return number_class, number_item, number_variation
 
     @staticmethod
-    def parse_partial_part_number(part_number, organization):
+    def parse_partial_part_number(part_number, organization, validate=True):
         elements = part_number.split('-')
-        number_class = None
-        number_item = None
-        number_variation = None
+        number_class = elements[0]
+        number_item = elements[1]
+        number_variation = elements[2] if len(elements) >= 3 else None
 
-        if len(elements) == 3:
-            number_class = Part.verify_format_number_class(elements[0], organization)
-            number_item = Part.verify_format_number_item(elements[1], organization)
-            number_variation = Part.verify_format_number_variation(elements[2], organization)
-        elif len(elements) == 2:
-            number_class = Part.verify_format_number_class(elements[0], organization)
-            number_item = Part.verify_format_number_item(elements[1], organization)
+        if validate:
+            if len(elements) >= 2:
+                number_class = Part.verify_format_number_class(elements[0], organization)
+                number_item = Part.verify_format_number_item(elements[1], organization)
+            if len(elements) >= 3:
+                number_variation = Part.verify_format_number_variation(elements[2], organization)
 
         return number_class, number_item, number_variation
 

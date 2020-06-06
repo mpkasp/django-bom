@@ -10,6 +10,7 @@ bom/constants.py
 bom/context_processors.py
 bom/csv_headers.py
 bom/decorators.py
+bom/form_fields.py
 bom/forms.py
 bom/helpers.py
 bom/local_settings.py

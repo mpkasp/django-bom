@@ -62,7 +62,7 @@ def home(request):
         # Note that posting a PartClass selection does not include a named parameter in
         # the POST, so this case is the de facto "else" clause.
     else:
-        part_class_selection_form = PartClassSelectionForm(request.GET, organization=organization)
+        part_class_selection_form = PartClassSelectionForm(organization=organization)
 
     if part_class_selection_form.is_valid():
         part_class = part_class_selection_form.cleaned_data['part_class']
@@ -791,6 +791,11 @@ def create_part(request):
     title = 'Create New Part'
 
     PartForm = PartFormSemiIntelligent if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT else PartFormIntelligent
+
+    if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT and PartClass.objects.count() == 0:
+        messages.info(request, f'Welcome to IndaBOM! Before you create your first part, you must create your first part class. '
+                               f'<a href="{reverse("bom:help")}#part-numbering" target="_blank">What is a part class?</a>')
+        return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
 
     if request.method == 'POST':
         part_form = PartForm(request.POST, organization=organization)

@@ -17,7 +17,8 @@
     <div class="container-app">
         {% if profile.role == 'A' %}
             <div class="row">
-                <form name="seller" action="{% url 'bom:create-part' %}" method="post" class="col s12">
+                <form name="form" action="{% url 'bom:create-part' %}" method="post" class="col s12">
+                    {% csrf_token %}
                     <h2>Part Number</h2>
                     {% if organization.number_scheme == 'S' %}
                     <p>Part numbers must be in the format CCC-{{ organization.number_ns }}-VV where CCC is the part number class, {{ organization.number_ns }} is the part number number item, and VV
@@ -25,24 +26,29 @@
                                 href="{% url 'bom:settings' tab_anchor='indabom' %}">Settings</a> page, and create them in the IndaBOM tab.</p>
                     {% endif %}
                     <div class="row">
-                        {% csrf_token %}
                         {{ part_form.non_field_errors }}
                         {{ part_form|materializecss:'m4 s12' }}
                     </div>
                     <h2>Part Properties</h2>
                     {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}
-
                     <h2>Add a Manufacturer Part</h2>
                     <p><i>The below fields are optional.</i></p>
                     <p>Skip this form if your part is a custom part. Leave the manufacturer field unselected if creating a new manufacturer.</p>
                     <div class="row">
-                        {% csrf_token %}
-                        {{ manufacturer_part_form|materializecss:'m4 s12' }}
                         {{ manufacturer_form.non_field_errors }}
+                        {{ manufacturer_part_form.manufacturer_part_number.errors }}
+                        {{ manufacturer_part_form.manufacturer_part_number|materializecss:'m4 s12' }}
+                        {{ manufacturer_part_form.manufacturer.errors }}
+                        {{ manufacturer_part_form.manufacturer|materializecss:'m4 s12' }}
                         <div class="input-field col m4 s12">
                             {{ manufacturer_form.name.errors }}
                             {{ manufacturer_form.name }}
                             <label for="{{ manufacturer_form.name.id_for_label }}">OR Create A New Manufacturer:</label>
+                        </div>
+                        <div class="input-field col m4 s12 materialize-checkbox-padding">
+                            <span>Select for parts that aren't found on Mouser.com</span>
+                        {{ manufacturer_part_form.mouser_disable.errors }}
+                        {{ manufacturer_part_form.mouser_disable|materializecss }}
                         </div>
                     </div>
                     <div class="row">

@@ -26,8 +26,6 @@
             {% if organization.number_scheme == 'S' %}
             <div class="col s12 m4">
                 {{ part_class_selection_form|materializecss }}
-                <!-- Implicit submit when select an item from form via jscript function below.
-                     Note then when submit a selection a widget name is not included in the post. -->
             </div>
             {% endif %}
             <div class="input-field col s12 {% if organization.number_scheme == 'S' %}m6{% else %}m10{% endif %}">
@@ -180,7 +178,7 @@
         $(document).ready(function () {
             $('input.autocomplete').autocomplete({
                 data: data,
-                limit: 10, // The max amount of results that can be shown at once. Default: Infinity.
+                {#limit: 10, // The max amount of results that can be shown at once. Default: Infinity.#}
                 onAutocomplete: function (val) {
                     var form = document.getElementById("searchForm");
                     var input = document.getElementById("autocomplete-input");
@@ -233,17 +231,9 @@
     </script>
 
     <script type='text/javascript'>
-        $(function () {
-            $('select[name="part_class"]').change(function () {
-                $('#searchForm').submit();
-            });
-        });
-    </script>
-
-    <script type='text/javascript'>
         function clearSearchExpression() {
-            document.getElementById("autocomplete-input").value = ""
-            $('select[name="part_class"]').val('')
+            $("#autocomplete-input").val("");
+            $('#id_part_class').val('');
             $('#searchForm').submit();
         }
     </script>

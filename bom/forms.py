@@ -13,6 +13,7 @@ from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES,
     WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, NUMBER_SCHEME_SEMI_INTELLIGENT, \
     NUMBER_SCHEME_INTELLIGENT, ROLE_TYPE_VIEWER, NUMBER_CLASS_CODE_LEN_DEFAULT, NUMBER_CLASS_CODE_LEN_MIN, NUMBER_CLASS_CODE_LEN_MAX, \
     NUMBER_ITEM_LEN_DEFAULT, NUMBER_ITEM_LEN_MIN, NUMBER_ITEM_LEN_MAX, NUMBER_VARIATION_LEN_DEFAULT, NUMBER_VARIATION_LEN_MIN, NUMBER_VARIATION_LEN_MAX
+from .form_fields import AutocompleteTextInput
 from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
     Organization, PartRevision, AssemblySubparts, Assembly
 from .validators import decimal, numeric, alphanumeric
@@ -204,12 +205,15 @@ class ManufacturerPartForm(forms.ModelForm):
         model = ManufacturerPart
         exclude = ['part', ]
 
+    field_order = ['manufacturer_part_number', 'manufacturer']
+
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super(ManufacturerPartForm, self).__init__(*args, **kwargs)
         self.fields['manufacturer'].required = False
         self.fields['manufacturer_part_number'].required = False
         self.fields['manufacturer'].queryset = Manufacturer.objects.filter(organization=self.organization).order_by('name')
+        self.fields['mouser_disable'].initial = True
 
 
 class SellerPartForm(forms.ModelForm):
@@ -302,8 +306,25 @@ class PartClassSelectionForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super(PartClassSelectionForm, self).__init__(*args, **kwargs)
-        self.fields['part_class'] = forms.ModelChoiceField(queryset=PartClass.objects.filter(organization=self.organization).order_by('code'),
-                                                           empty_label="- Select Part Class -", label='List parts by class', required=False)
+        self.fields['part_class'] = forms.CharField(required=False,
+                                                    widget=AutocompleteTextInput(attrs={'placeholder': 'Select a part class.'},
+                                                                                 autocomplete_submit=True,
+                                                                                 queryset=PartClass.objects.filter(organization=self.organization)))
+
+    def clean_part_class(self):
+        part_class = self.cleaned_data['part_class']
+        if part_class == '':
+            return None
+
+        try:
+            return PartClass.objects.get(code=part_class.split(':')[0])
+        except PartClass.DoesNotExist:
+            pc = PartClass.objects.filter(name__icontains=part_class).order_by('name').first()
+            if pc is not None:
+                return pc
+            else:
+                self.add_error('part_class', 'Select a valid part class.')
+        return None
 
 
 class PartClassCSVForm(forms.Form):
@@ -655,7 +676,6 @@ class PartFormSemiIntelligent(forms.ModelForm):
         model = Part
         exclude = ['organization', 'google_drive_parent', ]
         help_texts = {
-            'number_class': _('Select a number class.'),
             'number_item': _('Auto generated if blank.'),
             'number_variation': 'Auto generated if blank.',
         }
@@ -664,8 +684,8 @@ class PartFormSemiIntelligent(forms.ModelForm):
         self.organization = kwargs.pop('organization', None)
         super(PartFormSemiIntelligent, self).__init__(*args, **kwargs)
         self.fields['number_item'].validators.append(alphanumeric)
-        self.fields['number_class'] = forms.ModelChoiceField(queryset=PartClass.objects.filter(organization=self.organization),
-                                                             empty_label="- Select Part Number Class -", label='Part Number Class*', required=True)
+        self.fields['number_class'] = forms.CharField(label='Part Number Class*', required=True, help_text='Select a number class.',
+                                                      widget=AutocompleteTextInput(queryset=PartClass.objects.filter(organization=self.organization)))
         if self.instance and self.instance.id:
             self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(part__id=self.instance.id).order_by('manufacturer_part_number')
         else:
@@ -673,6 +693,14 @@ class PartFormSemiIntelligent(forms.ModelForm):
         for _, value in self.fields.items():
             value.widget.attrs['placeholder'] = value.help_text
             value.help_text = ''
+
+    def clean_number_class(self):
+        number_class = self.cleaned_data['number_class']
+        try:
+            return PartClass.objects.get(code=number_class.split(':')[0])
+        except PartClass.DoesNotExist:
+            self.add_error('number_class', f'Select an existing part class, or create one in Settings.')
+        return None
 
     def clean(self):
         cleaned_data = super(PartFormSemiIntelligent, self).clean()
@@ -852,6 +880,9 @@ class AddSubpartForm(forms.Form):
         self.unusable_part_rev_ids = [pr.id for pr in self.part_revision.where_used_full()]
         self.unusable_part_rev_ids.append(self.part_revision.id)
         super(AddSubpartForm, self).__init__(*args, **kwargs)
+        self.fields['subpart_part_number'] = forms.CharField(required=True, label="Subpart part number",
+                                                    widget=AutocompleteTextInput(attrs={'placeholder': 'Select a part.'},
+                                                                                 queryset=Part.objects.filter(organization=self.organization).exclude(id=self.part_id)))
 
     def clean_count(self):
         count = self.cleaned_data['count']
@@ -878,10 +909,13 @@ class AddSubpartForm(forms.Form):
             if self.organization.number_scheme == NUMBER_SCHEME_INTELLIGENT:
                 part = Part.objects.get(number_item=subpart_part_number, organization=self.organization)
             else:
-                (number_class, number_item, number_variation) = Part.parse_partial_part_number(subpart_part_number, self.organization)
+                (number_class, number_item, number_variation) = Part.parse_partial_part_number(subpart_part_number, self.organization, validate=False)
                 part_class = PartClass.objects.get(code=number_class, organization=self.organization)
                 part = Part.objects.get(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
             self.subpart_part = part.latest()
+            if self.subpart_part is None:
+                self.add_error('subpart_part_number', f"No part revision exists for part {part.full_part_number()}. Create a revision before adding to an assembly.")
+                return subpart_part_number
             if self.subpart_part.id in self.unusable_part_rev_ids:
                 validation_error = forms.ValidationError("Infinite recursion! Can't add a part to its self.", code='invalid')
                 self.add_error('subpart_part_number', validation_error)

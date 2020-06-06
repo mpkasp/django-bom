@@ -39,9 +39,9 @@ td, tr {
     min-width: 40px;
 }
 
-.help-block {
-    color: red;
-}
+/*.help-block {*/
+/*    color: red;*/
+/*}*/
 
 .tight td {
     padding: 3px 3px;
@@ -203,5 +203,5 @@ a.anchor {
 }
 
 .materialize-checkbox-padding div {
-    padding: 10.5px 0;
+    padding: 14.5px 0;
 }

@@ -240,7 +240,7 @@ class TestBOM(TransactionTestCase):
         new_part_form_data = {
             'manufacturer_part_number': new_part_mpn,
             'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
-            'number_class': p1.number_class.id,
+            'number_class': str(p1.number_class),
             'number_item': '',
             'number_variation': '',
             'configuration': 'W',
@@ -266,7 +266,7 @@ class TestBOM(TransactionTestCase):
         new_part_form_data = {
             'manufacturer_part_number': 'STM32F401',
             'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
-            'number_class': p1.number_class.id,
+            'number_class': str(p1.number_class),
             'number_item': '9999',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
@@ -282,7 +282,7 @@ class TestBOM(TransactionTestCase):
         new_part_form_data = {
             'manufacturer_part_number': '',
             'manufacturer': '',
-            'number_class': p1.number_class.id,
+            'number_class': str(p1.number_class),
             'number_item': '',
             'number_variation': '',
             'description': 'IC, MCU 32 Bit',
@@ -296,7 +296,7 @@ class TestBOM(TransactionTestCase):
         new_part_form_data = {
             'manufacturer_part_number': '',
             'manufacturer': '',
-            'number_class': p1.number_class.id,
+            'number_class': str(p1.number_class),
             'number_item': '1234',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
@@ -312,7 +312,7 @@ class TestBOM(TransactionTestCase):
         new_part_form_data = {
             'manufacturer_part_number': '',
             'manufacturer': '',
-            'number_class': p1.number_class.id,
+            'number_class': str(p1.number_class),
             'number_item': '1235',
             'number_variation': '',
             'description': 'IC, MCU 32 Bit',
@@ -327,7 +327,7 @@ class TestBOM(TransactionTestCase):
         new_part_form_data = {
             'manufacturer_part_number': 'ABC123',
             'manufacturer': '',
-            'number_class': p1.number_class.id,
+            'number_class': str(p1.number_class),
             'number_item': '',
             'number_variation': '',
             'description': 'IC, MCU 32 Bit',
@@ -351,7 +351,7 @@ class TestBOM(TransactionTestCase):
         new_part_form_data = {
             'manufacturer_part_number': new_part_mpn,
             'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
-            'number_class': p1.number_class.id,
+            'number_class': (p1.number_class),
             'number_item': '2000',
             'number_variation': '01',
             'configuration': 'W',
@@ -381,7 +381,7 @@ class TestBOM(TransactionTestCase):
         new_part_form_data = {
             'manufacturer_part_number': '',
             'manufacturer': '',
-            'number_class': p1.number_class.id,
+            'number_class': str(p1.number_class),
             'number_item': '2000',
             'configuration': 'W',
             'description': 'IC, MCU 32 Bit',
@@ -406,7 +406,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
         edit_part_form_data = {
-            'number_class': p1.number_class.id,
+            'number_class': str(p1.number_class),
             'number_item': '',
             'number_variation': '',
         }
@@ -1134,7 +1134,7 @@ class TestForms(TestCase):
     def test_part_form(self):
         (pc1, pc2, pc3) = create_some_fake_part_classes(self.organization)
         form_data = {
-            'number_class': pc1.id,
+            'number_class': str(pc1),
             'description': "ASSY, ATLAS WRISTBAND 10",
             'revision': 'AA'
         }
@@ -1145,7 +1145,7 @@ class TestForms(TestCase):
         (m1, m2, m3) = create_some_fake_manufacturers(self.organization)
 
         form_data = {
-            'number_class': pc2.id,
+            'number_class': str(pc2),
             'description': "ASSY, ATLAS WRISTBAND 5",
             'revision': '1',
         }
