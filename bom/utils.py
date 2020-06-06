@@ -43,6 +43,8 @@ def prep_for_sorting_nicely(item):
 # Convert a string with delimited fields into a list of fields. Delimiters are comma,
 # semi-colon, colon, tab, or blank space. Fields may contain any printable character.
 def listify_string(st):
+    if st is None:
+        return []
     ss = re.split(' |:|;|,|\t|\n', st)
     split_st = []
     for s in ss:

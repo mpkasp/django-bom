@@ -184,7 +184,10 @@ class Part(models.Model):
         if part_number is None:
             raise AttributeError("Cannot parse empty part number")
 
-        (number_class, number_item, number_variation) = Part.parse_partial_part_number(part_number, organization)
+        try:
+            (number_class, number_item, number_variation) = Part.parse_partial_part_number(part_number, organization)
+        except IndexError:
+            raise AttributeError("Invalid part number. Does not match organization preferences.")
 
         if number_class is None:
             raise AttributeError("Missing part number part class")

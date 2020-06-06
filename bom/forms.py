@@ -3,6 +3,7 @@ import codecs
 import logging
 
 from django import forms
+from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
@@ -628,17 +629,39 @@ class PartCSVForm(forms.Form):
                 if skip:
                     continue
 
-                part = Part.objects.create(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
-                part_revision.part = part
-                if mfg_name and mpn:
-                    mfg, created = Manufacturer.objects.get_or_create(name__iexact=mfg_name, organization=self.organization, defaults={'name': mfg_name})
-                    manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=mpn, manufacturer=mfg)
-                    if part.primary_manufacturer_part is None and manufacturer_part is not None:
-                        part.primary_manufacturer_part = manufacturer_part
+                PartForm = PartFormSemiIntelligent if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT else PartFormIntelligent
+                part = Part(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
+                part_dict = model_to_dict(part)
+                part_dict.update({'number_class': str(part.number_class)})
+                pf = PartForm(data=part_dict, organization=self.organization)
+                prf = PartRevisionForm(data=model_to_dict(part_revision))
 
-                part.save()
-                part_revision.save()
-                self.successes.append("Part {0} on row {1} created.".format(part.full_part_number(), row_count))
+                if pf.is_valid() and prf.is_valid():
+                    part = pf.save(commit=False)
+                    part.organization = self.organization
+                    part.save()
+                    part_revision = prf.save(commit=False)
+                    part_revision.part = part
+                    part_revision.save()
+
+                    if mfg_name and mpn:
+                        mfg, created = Manufacturer.objects.get_or_create(name__iexact=mfg_name, organization=self.organization, defaults={'name': mfg_name})
+                        manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=mpn, manufacturer=mfg)
+                        if part.primary_manufacturer_part is None and manufacturer_part is not None:
+                            part.primary_manufacturer_part = manufacturer_part
+
+                    self.successes.append("Part {0} on row {1} created.".format(part.full_part_number(), row_count))
+                else:
+                    for k, error in prf.errors.items():
+                        for idx, msg in enumerate(error):
+                            error[idx] = f"Error on Row {row_count}, {k}: " + msg
+                        self.errors.update({k: error})
+                    for k, error in pf.errors.items():
+                        for idx, msg in enumerate(error):
+                            error[idx] = f"Error on Row {row_count}, {k}: " + msg
+                        self.errors.update({k: error})
+
+                # part = Part.objects.create(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
 
         except UnicodeDecodeError as e:
             self.add_error(None, forms.ValidationError("CSV File Encoding error, try encoding your file as utf-8, and upload again. \
@@ -697,9 +720,9 @@ class PartFormSemiIntelligent(forms.ModelForm):
     def clean_number_class(self):
         number_class = self.cleaned_data['number_class']
         try:
-            return PartClass.objects.get(code=number_class.split(':')[0])
+            return PartClass.objects.get(organization=self.organization, code=number_class.split(':')[0])
         except PartClass.DoesNotExist:
-            self.add_error('number_class', f'Select an existing part class, or create one in Settings.')
+            self.add_error('number_class', f'Select an existing part class, or create `{number_class}` in Settings.')
         return None
 
     def clean(self):
@@ -737,7 +760,7 @@ class PartFormSemiIntelligent(forms.ModelForm):
                 organization=self.organization
             )
             validation_error = forms.ValidationError(
-                ("Part number {0}-{1}-{2} already in use.".format(number_class, number_item, number_variation)),
+                ("Part number {0}-{1}-{2} already in use.".format(number_class.code, number_item, number_variation)),
                 code='invalid')
             self.add_error(None, validation_error)
         except Part.DoesNotExist:

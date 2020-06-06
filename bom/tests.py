@@ -528,7 +528,6 @@ class TestBOM(TransactionTestCase):
     def test_upload_parts(self):
         create_some_fake_part_classes(self.organization)
 
-        # part_count = Part.objects.all().count()
         # Should pass
         with open('bom/test_files/test_new_parts.csv') as test_csv:
             response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
@@ -537,6 +536,10 @@ class TestBOM(TransactionTestCase):
             self.assertEqual(msg.tags, 'info')
         new_part_count = Part.objects.all().count()
         self.assertEqual(new_part_count, 4)
+
+        # Part revs should be created for each part
+        for p in Part.objects.all():
+            self.assertIsNotNone(p.latest())
 
         # Should fail because class doesn't exist
         with open('bom/test_files/test_new_parts_2.csv') as test_csv:
@@ -557,6 +560,18 @@ class TestBOM(TransactionTestCase):
             if "Part already exists for manufacturer part 2 in row GhostBuster2000. Uploading of this part skipped." in str(m):
                 found_error = True
         self.assertTrue(found_error)
+
+    def test_upload_parts_break_tolerance(self):
+        create_some_fake_part_classes(self.organization)
+
+        # Should break with data error
+        with open('bom/test_files/test_new_parts_broken.csv') as test_csv:
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
+        messages = list(response.context.get('messages'))
+
+        self.assertTrue(len(messages) > 0)
+        for msg in messages:
+            self.assertEqual(msg.tags, 'error')
 
     def test_upload_part_classes(self):
         # Should pass
@@ -613,6 +628,8 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         new_part_count = Part.objects.all().count()
         self.assertEqual(new_part_count, 88)
+        for p in Part.objects.all():
+            self.assertIsNotNone(p.latest())
 
         pcba_class = PartClass.objects.filter(code=652).first()
         pcba = Part.objects.filter(number_class=pcba_class, number_item='00003', number_variation='0A').first()
@@ -1088,7 +1105,7 @@ class TestBOMIntelligent(TestBOM):
         subparts = pcba.latest().assembly.subparts.all().order_by('id')
         self.assertEqual(subparts[0].reference, 'C1, C2, C3')
         self.assertEqual(subparts[1].reference, 'C4, C5')
-        self.assertEqual(subparts[2].reference, None)
+        self.assertEqual(subparts[2].reference, '')
 
 
 class TestBOMNoVariation(TestBOM):
