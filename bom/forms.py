@@ -318,7 +318,7 @@ class PartClassSelectionForm(forms.Form):
             return None
 
         try:
-            return PartClass.objects.get(code=part_class.split(':')[0])
+            return PartClass.objects.get(organization=self.organization, code=part_class.split(':')[0])
         except PartClass.DoesNotExist:
             pc = PartClass.objects.filter(name__icontains=part_class).order_by('name').first()
             if pc is not None:
