@@ -13,6 +13,12 @@ class AutocompleteTextInput(forms.TextInput):
         super().__init__(*args, **kwargs)
 
     def render(self, name, value, attrs=None, renderer=None):
+        # Disable chrome autocomplete..we dont want double duty here!
+        if attrs is not None:
+            attrs.update({'autocomplete': 'off'})
+        else:
+            attrs['autocomplete'] = "off"
+
         html = super().render(name, value, attrs)
 
         autocomplete_dict = {}
