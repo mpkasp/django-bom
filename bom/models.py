@@ -201,8 +201,9 @@ class Part(models.Model):
     @staticmethod
     def parse_partial_part_number(part_number, organization, validate=True):
         elements = part_number.split('-')
-        number_class = elements[0]
-        number_item = elements[1]
+
+        number_class = elements[0] if len(elements) >= 1 else None
+        number_item = elements[1] if len(elements) >= 2 else None
         number_variation = elements[2] if len(elements) >= 3 else None
 
         if validate:
