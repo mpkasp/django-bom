@@ -97,6 +97,7 @@ class Mouser:
                     'stock_parsed': quantity_available,
                     'lead_time': part['LeadTime'],
                     'seller_parts': [],
+                    'product_detail_url': part['ProductDetailUrl'],
                 }
 
                 lead_time_days = [int(s) for s in part['LeadTime'].split() if s.isdigit()][0]  # TODO: Make sure it's actually days

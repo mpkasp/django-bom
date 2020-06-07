@@ -527,7 +527,8 @@
                             specsMissingParts = flatBom['missing_item_costs'];
                             dataSheet = mouserInfo['data_sheet'];
                             mouserStock = mouserInfo['stock'];
-                            updateSpecs(specsUnitCost, specsEstCostPerOrder, specsMissingParts, dataSheet, mouserStock);
+                            const sellerLink = mouserInfo['product_detail_url'];
+                            updateSpecs(specsUnitCost, specsEstCostPerOrder, specsMissingParts, dataSheet, mouserStock, sellerLink);
                             updateFlat(bomParts);
                             updateIndented(bomParts);
                             updateSourcing(sourcingParts, optimalSellerPart, stockParsed);
@@ -584,7 +585,7 @@
             }
         }
 
-        function updateSpecs(unitCost, estCostPerOrder, specsMissingParts, dataSheet, mouserStock) {
+        function updateSpecs(unitCost, estCostPerOrder, specsMissingParts, dataSheet, mouserStock, sellerLink) {
             const mouserEstCost = $("#mouser-est-cost");
             const mouserEstCostPerOrder = $("#mouser-est-cost-per-order");
             const mouserMissingCosts = $("#mouser-missing-item-costs");
@@ -597,6 +598,7 @@
             updateSpecElement(mouserEstCostPerOrder, estCostPerOrder, `${currencyUnit}${estCostPerOrder}`);
             updateSpecElement(mouserMissingCosts, specsMissingParts, `${specsMissingParts}`);
             updateSpecElement(mouserStockElement, mouserStock, `${mouserStock}`, mouserStockWrapperElement, false);
+            mouserStockElement.append(` (<a href="${sellerLink}" target="_blank">view</a>)`)
 
             if (dataSheet) {
                 mouserDataSheetElement.attr("href", `${dataSheet}`);
@@ -634,15 +636,21 @@
                 if (bomParts.hasOwnProperty(partRevId) && bomParts[partRevId].hasOwnProperty('seller_part') && bomParts[partRevId].hasOwnProperty('api_info')) {
                     const unitCost = parseFloat(bomParts[partRevId]['seller_part']['unit_cost']);
                     const sellerName = bomParts[partRevId]['seller_part']['data_source'];
-                    const isMouser = bomParts[partRevId]['seller_part']['seller'] === 'None';
+                    const isMouser = bomParts[partRevId]['seller_part']['seller'] === 'None' || bomParts[partRevId]['seller_part']['seller'] === null;
+                    const sellerLink = bomParts[partRevId]['api_info']['product_detail_url'];
                     const sourcingInfo = bomParts[partRevId]['api_info'] !== 'None';
                     const unitCostId = `${baseUnitCostId}${partRevId}`;
                     const unitCostElement = $(unitCostId);
                     const sellerNameId = `${baseSellerNameId}${partRevId}`;
                     const sellerNameElement = $(sellerNameId);
-                    if (unitCost && sourcingInfo) unitCostElement.text(`${unitCost.toFixed(4)}`);
+                    if (unitCost && sourcingInfo && sellerLink) {
+                        unitCostElement.text('');
+                        unitCostElement.html(`<a href="${sellerLink}" target="_blank">${unitCost.toFixed(4)}</a>`);
+                    } else if (unitCost && sourcingInfo) {
+                        unitCostElement.text(`${unitCost.toFixed(4)}`);
+                    }
                     if (unitCost && sourcingInfo && bomParts[partRevId]['seller_part']['data_source'] === 'Mouser') unitCostElement.append(mouserImage);
-                    if (isMouser && sellerName) sellerNameElement.text(`${sellerName}`);
+                    if (isMouser && sellerName) sellerNameElement.text('Mouser');
                 }
             }
         }
