@@ -600,6 +600,7 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
     else:
         csv_headers = BOMIndentedCSVHeaders()
 
+    csv_headers_raw = []
     csv_rows = []
     for _, item in bom.parts.items():
         mapped_row = {}
@@ -607,19 +608,23 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
         for kx, vx in raw_row.items():
             if csv_headers.get_default(kx) is None: print ("NONE", kx)
             mapped_row.update({csv_headers.get_default(kx): vx})
+
+        csv_headers_raw = csv_headers.get_default_all()
         if sourcing_detailed:
             for idx, sp in enumerate(item.seller_parts_for_export()):
-                csv_headers.all_headers_defns.extend([CSVHeader(f'{h}_{idx + 1}') for h in ManufacturerPartCSVHeaders.all_headers_defns])
-                csv_headers.all_headers_defns.extend([CSVHeader(f'{h}_{idx + 1}') for h in SellerPartCSVHeaders.all_headers_defns])
+                if f'{ManufacturerPartCSVHeaders.all_headers_defns[0]}_{idx + 1}' not in csv_headers_raw:
+                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in ManufacturerPartCSVHeaders.all_headers_defns])
+                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in SellerPartCSVHeaders.all_headers_defns])
                 mapped_row.update({f'{k}_{idx + 1}': smart_str(v) for k, v in sp.items()})
         elif sourcing:
             for idx, mp in enumerate(item.manufacturer_parts_for_export()):
-                csv_headers.all_headers_defns.extend([CSVHeader(f'{h} {idx + 1}') for h in ManufacturerPartCSVHeaders.all_headers_defns])
+                if f'{ManufacturerPartCSVHeaders.all_headers_defns[0]}_{idx + 1}' not in csv_headers_raw:
+                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in ManufacturerPartCSVHeaders.all_headers_defns])
                 mapped_row.update({f'{k} {idx + 1}': smart_str(v) for k, v in mp.items()})
 
         csv_rows.append(mapped_row)
 
-    writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
+    writer = csv.DictWriter(response, fieldnames=csv_headers_raw)
     writer.writeheader()
     writer.writerows(csv_rows)
 
