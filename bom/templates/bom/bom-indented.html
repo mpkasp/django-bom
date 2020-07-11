@@ -37,10 +37,13 @@
                 {% endif %}
                 {% if part_revision %}
                     <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}">
-                        <i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
+                        <i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a>
                     </li>
-                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_revision.id %}">
-                        <i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
+                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom-sourcing' part_revision_id=part_revision.id %}">
+                        <i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (sourcing)</a>
+                    </li>
+                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom-sourcing-detailed' part_revision_id=part_revision.id %}">
+                        <i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (sourcing detailed)</a>
                     </li>
                 {% else %}
                     <li><a class="green-text text-lighten-1 disabled" href=""><i class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV</a></li>

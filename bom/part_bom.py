@@ -147,11 +147,17 @@ class PartBomItem(AsDictModel):
             'part_seller': self.seller_part.seller.name if self.seller_part is not None else '',
             'part_cost': self.seller_part.unit_cost if self.seller_part is not None else '',
             'part_moq': self.seller_part.minimum_order_quantity if self.seller_part is not None else 0,
+            'part_nre': self.seller_part.nre_cost if self.seller_part is not None else 0,
             'part_ext_cost': self.extended_cost(),
             'part_out_of_pocket_cost': self.out_of_pocket_cost(),
-            'part_nre': self.seller_part.nre_cost if self.seller_part is not None else 0,
             'part_lead_time_days': self.seller_part.lead_time_days if self.seller_part is not None else 0,
         }
+
+    def manufacturer_parts_for_export(self):
+        return [mp.as_dict_for_export() for mp in self.part.manufacturer_parts(exclude_primary=True)]
+
+    def seller_parts_for_export(self):
+        return [sp.as_dict_for_export() for sp in self.part.seller_parts(exclude_primary=True)]
 
 
 class PartIndentedBomItem(PartBomItem, AsDictModel):

@@ -31,7 +31,8 @@ from bom.forms import PartInfoForm, PartFormSemiIntelligent, PartFormIntelligent
     PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm, PartClassFormSet, \
     OrganizationCreateForm, OrganizationFormEditSettings
 from bom.utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely
-from bom.csv_headers import PartsListCSVHeaders, PartsListCSVHeadersSemiIntelligent, PartClassesCSVHeaders, BOMFlatCSVHeaders, BOMIndentedCSVHeaders
+from bom.csv_headers import PartsListCSVHeaders, PartsListCSVHeadersSemiIntelligent, PartClassesCSVHeaders, BOMFlatCSVHeaders, BOMIndentedCSVHeaders, ManufacturerPartCSVHeaders, SellerPartCSVHeaders, \
+    CSVHeader
 
 logger = logging.getLogger(__name__)
 
@@ -556,7 +557,7 @@ def part_info(request, part_id, part_revision_id=None):
 
 
 @login_required
-def part_export_bom(request, part_id=None, part_revision_id=None):
+def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, sourcing=False, sourcing_detailed=False):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
@@ -583,7 +584,10 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
     qty = cache.get(qty_cache_key, 1000)
 
     try:
-        bom = part_revision.indented(top_level_quantity=qty)
+        if flat:
+            bom = part_revision.flat(top_level_quantity=qty)
+        else:
+            bom = part_revision.indented(top_level_quantity=qty)
     except (RuntimeError, RecursionError):
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         bom = []
@@ -591,65 +595,80 @@ def part_export_bom(request, part_id=None, part_revision_id=None):
         messages.error(request, err)
         bom = []
 
-    csv_headers = BOMIndentedCSVHeaders()
-    writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
-    writer.writeheader()
+    if flat:
+        csv_headers = BOMFlatCSVHeaders()
+    else:
+        csv_headers = BOMIndentedCSVHeaders()
 
+    csv_rows = []
     for _, item in bom.parts.items():
         mapped_row = {}
         raw_row = {k: smart_str(v) for k, v in item.as_dict_for_export().items()}
         for kx, vx in raw_row.items():
             if csv_headers.get_default(kx) is None: print ("NONE", kx)
             mapped_row.update({csv_headers.get_default(kx): vx})
-        writer.writerow({k: smart_str(v) for k, v in mapped_row.items()})
+        if sourcing_detailed:
+            for idx, sp in enumerate(item.seller_parts_for_export()):
+                csv_headers.all_headers_defns.extend([CSVHeader(f'{h}_{idx + 1}') for h in ManufacturerPartCSVHeaders.all_headers_defns])
+                csv_headers.all_headers_defns.extend([CSVHeader(f'{h}_{idx + 1}') for h in SellerPartCSVHeaders.all_headers_defns])
+                mapped_row.update({f'{k}_{idx + 1}': smart_str(v) for k, v in sp.items()})
+        elif sourcing:
+            for idx, mp in enumerate(item.manufacturer_parts_for_export()):
+                csv_headers.all_headers_defns.extend([CSVHeader(f'{h} {idx + 1}') for h in ManufacturerPartCSVHeaders.all_headers_defns])
+                mapped_row.update({f'{k} {idx + 1}': smart_str(v) for k, v in mp.items()})
 
-    return response
+        csv_rows.append(mapped_row)
 
-
-@login_required
-def part_export_bom_flat(request, part_revision_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
-    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-
-    if part_revision.part.organization != organization:
-        messages.error(request, "Cant export a part that is not yours!")
-        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
-
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_flat.csv"'.format(
-        part_revision.part.full_part_number())
-
-    # As compared to indented bom, show all references for a subpart as a single item and
-    # don't show do_not_load status at all because it won't be clear as to which subpart reference
-    # the do_not_load refers to.
-    qty_cache_key = str(part_revision.part.id) + '_qty'
-    qty = cache.get(qty_cache_key, 1000)
-
-    try:
-        bom = part_revision.flat(top_level_quantity=qty)
-    except (RuntimeError, RecursionError):
-        messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
-        bom = []
-    except AttributeError as err:
-        messages.error(request, err)
-        bom = []
-
-    csv_headers = BOMFlatCSVHeaders()
     writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
     writer.writeheader()
-
-    for _, item in bom.parts.items():
-        mapped_row = {}
-        raw_row = {k: smart_str(v) for k, v in item.as_dict_for_export().items()}
-        for kx, vx in raw_row.items():
-            if csv_headers.get_default(kx) is None: print ("NONE", kx)
-            mapped_row.update({csv_headers.get_default(kx): vx})
-        writer.writerow({k: smart_str(v) for k, v in mapped_row.items()})
+    writer.writerows(csv_rows)
 
     return response
+
+# @login_required
+# def part_export_bom_flat(request, part_revision_id):
+#     user = request.user
+#     profile = user.bom_profile()
+#     organization = profile.organization
+#
+#     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+#
+#     if part_revision.part.organization != organization:
+#         messages.error(request, "Cant export a part that is not yours!")
+#         return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
+#
+#     response = HttpResponse(content_type='text/csv')
+#     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_flat.csv"'.format(
+#         part_revision.part.full_part_number())
+#
+#     # As compared to indented bom, show all references for a subpart as a single item and
+#     # don't show do_not_load status at all because it won't be clear as to which subpart reference
+#     # the do_not_load refers to.
+#     qty_cache_key = str(part_revision.part.id) + '_qty'
+#     qty = cache.get(qty_cache_key, 1000)
+#
+#     try:
+#         bom = part_revision.flat(top_level_quantity=qty)
+#     except (RuntimeError, RecursionError):
+#         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
+#         bom = []
+#     except AttributeError as err:
+#         messages.error(request, err)
+#         bom = []
+#
+#     csv_headers = BOMFlatCSVHeaders()
+#     writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
+#     writer.writeheader()
+#
+#     for _, item in bom.parts.items():
+#         mapped_row = {}
+#         raw_row = {k: smart_str(v) for k, v in item.as_dict_for_export().items()}
+#         for kx, vx in raw_row.items():
+#             if csv_headers.get_default(kx) is None: print ("NONE", kx)
+#             mapped_row.update({csv_headers.get_default(kx): vx})
+#         writer.writerow({k: smart_str(v) for k, v in mapped_row.items()})
+#
+#     return response
 
 
 @login_required

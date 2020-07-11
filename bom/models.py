@@ -224,13 +224,19 @@ class Part(models.Model):
     def revisions(self):
         return PartRevision.objects.filter(part=self)
 
-    def seller_parts(self):
+    def seller_parts(self, exclude_primary=False):
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
-        return SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts).order_by('seller', 'minimum_order_quantity')
+        q = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts).order_by('seller', 'minimum_order_quantity')\
+            .select_related('manufacturer_part').select_related('manufacturer_part__manufacturer').select_related('seller')
+        if exclude_primary and self.primary_manufacturer_part is not None and self.primary_manufacturer_part.optimal_seller():
+            return q.exclude(id=self.primary_manufacturer_part.optimal_seller().id)
+        return q
 
-    def manufacturer_parts(self):
-        manufacturer_parts = ManufacturerPart.objects.filter(part=self)
-        return manufacturer_parts
+    def manufacturer_parts(self, exclude_primary=False):
+        q = ManufacturerPart.objects.filter(part=self).select_related('manufacturer')
+        if exclude_primary and self.primary_manufacturer_part is not None and self.primary_manufacturer_part.optimal_seller():
+            return q.exclude(id=self.primary_manufacturer_part.id)
+        return q
 
     def where_used(self):
         revisions = PartRevision.objects.filter(part=self)
@@ -595,6 +601,12 @@ class ManufacturerPart(models.Model, AsDictModel):
         sellerparts = SellerPart.objects.filter(manufacturer_part=self)
         return SellerPart.optimal(sellerparts, quantity)
 
+    def as_dict_for_export(self):
+        return {
+            'manufacturer_name': self.manufacturer.name if self.manufacturer is not None else '',
+            'manufacturer_part_number': self.manufacturer_part_number
+        }
+
     def __str__(self):
         return u'%s' % (self.manufacturer_part_number)
 
@@ -631,6 +643,16 @@ class SellerPart(models.Model, AsDictModel):
         d['unit_cost'] = self.unit_cost.amount
         d['nre_cost'] = self.nre_cost.amount
         return d
+
+    def as_dict_for_export(self):
+        return {
+            'manufacturer_name': self.manufacturer_part.manufacturer.name if self.manufacturer_part.manufacturer is not None else '',
+            'manufacturer_part_number': self.manufacturer_part.manufacturer_part_number,
+            'seller': self.seller.name,
+            'part_cost': self.unit_cost,
+            'moq': self.minimum_order_quantity,
+            'nre': self.nre_cost
+        }
 
     @staticmethod
     def optimal(sellerparts, quantity):

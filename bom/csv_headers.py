@@ -52,10 +52,7 @@ class CSVHeaders(ABC):
 
     # Preserves order of definitions as listed in all_header_defns:
     def get_default_all(self):
-        all_defaults = []
-        for defn in self.all_headers_defns:
-            all_defaults.append(defn.name)
-        return all_defaults
+        return [d.name for d in self.all_headers_defns]
 
     # Given a list of header names returns the default name for each. The return list
     # matches the order of the input list. If a name is not recognized, then returns
@@ -157,6 +154,21 @@ class CSVHeaders(ABC):
 # order will be preserved.
 #
 
+class ManufacturerPartCSVHeaders(CSVHeaders):
+    all_headers_defns = [
+        CSVHeader('manufacturer_name', name_options=['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]),
+        CSVHeader('manufacturer_part_number', name_options=['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']),
+    ]
+
+
+class SellerPartCSVHeaders(CSVHeaders):
+    all_headers_defns = [
+        CSVHeader('seller', name_options=['part_seller', 'part_seller_name', ]),
+        CSVHeader('part_cost', name_options=['seller_part_unit_cost', 'unit_cost', ]),
+        CSVHeader('moq', name_options=['minimum_order_quantity', 'moq', 'part_moq', ]),
+        CSVHeader('nre', name_options=['part_nre', 'part_nre_cost', ]),
+    ]
+
 
 class PartClassesCSVHeaders(CSVHeaders):
     all_headers_defns = [
@@ -234,15 +246,11 @@ class BOMFlatCSVHeaders(CSVHeaders):
         CSVHeader('references', name_options=['designator', 'designators', 'reference', ]),
         CSVHeader('synopsis', name_options=['part_synopsis', ]),
         CSVHeader('revision', name_options=['rev', 'part_revision', 'rev.']),
-        CSVHeader('manufacturer_name', name_options=['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]),
-        CSVHeader('manufacturer_part_number', name_options=['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']),
+    ] + ManufacturerPartCSVHeaders.all_headers_defns \
+      + SellerPartCSVHeaders.all_headers_defns + [
         CSVHeader('extended_qty', name_options=['extended_quantity', 'part_extended_quantity', 'part_ext_qty', ]),
         CSVHeader('extended_cost', name_options=['part_extended_cost', 'part_ext_cost', ]),
         CSVHeader('order_qty', name_options=['part_order_qty', 'part_order_quantity', 'order_quantity', ]),
-        CSVHeader('seller', name_options=['part_seller', 'part_seller_name', ]),
-        CSVHeader('part_cost', name_options=['seller_part_unit_cost', 'unit_cost', ]),
-        CSVHeader('moq', name_options=['minimum_order_quantity', 'moq', 'part_moq', ]),
-        CSVHeader('nre', name_options=['part_nre', 'part_nre_cost', ]),
         CSVHeader('out_of_pocket_cost', name_options=['part_out_of_pocket_cost', 'cost', ]),
         CSVHeader('lead_time_days', name_options=['part_lead_time_days', ]),
     ]
