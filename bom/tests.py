@@ -131,6 +131,9 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:part-export-bom-sourcing-detailed', kwargs={'part_id': p1.id}))
         self.assertEqual(response.status_code, 200)
 
+        response = self.client.post(reverse('bom:part-revision-export-bom-sourcing-detailed', kwargs={'part_revision_id': p3.latest().id}))
+        self.assertEqual(response.status_code, 200)
+
     def test_part_revision_export_bom(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 

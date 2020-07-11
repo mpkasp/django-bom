@@ -1,5 +1,5 @@
 from bom.models import Part, PartClass, Seller, SellerPart, Subpart, \
-    Manufacturer, Organization, ManufacturerPart, PartRevision, Assembly, User
+    Manufacturer, Organization, ManufacturerPart, PartRevision, Assembly, User, AssemblySubparts
 from bom import constants
 
 
@@ -165,7 +165,9 @@ def create_some_fake_parts(organization):
     mp3.save()
     assy3 = create_a_fake_assembly_with_subpart(part_revision=pr2)
     subpart3 = create_a_fake_subpart(pr1, count=10, reference="")
+    subpart32 = create_a_fake_subpart(pr2, count=3, reference="")
     assy3.subparts.add(subpart3)
+    assy3.subparts.add(subpart32)
     assy3.save()
     create_a_fake_part_revision(part=pt3, assembly=assy3)
     create_a_fake_part_revision(part=pt3, assembly=assy3, revision="2")
@@ -179,7 +181,9 @@ def create_some_fake_parts(organization):
     create_a_fake_seller_part(s1, mp1, moq=1, mpq=1, unit_cost=1.2, lead_time_days=20, nre_cost=500)
     create_a_fake_seller_part(s2, mp1, moq=1000, mpq=5000, unit_cost=0.1005, lead_time_days=7, nre_cost=0)
     create_a_fake_seller_part(s2, mp2, moq=200, mpq=200, unit_cost=0.5, lead_time_days=47, nre_cost=1)
-
+    create_a_fake_seller_part(s2, mp2, moq=2000, mpq=200, unit_cost=0.4, lead_time_days=47, nre_cost=10)
+    create_a_fake_seller_part(s1, mp2, moq=2000, mpq=200, unit_cost=0.4, lead_time_days=47, nre_cost=10)
+    create_a_fake_seller_part(s1, mp2, moq=3000, mpq=200, unit_cost=0.3, lead_time_days=47, nre_cost=10)
     return pt1, pt2, pt3, pt4
 
 

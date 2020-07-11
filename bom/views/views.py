@@ -600,7 +600,7 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
     else:
         csv_headers = BOMIndentedCSVHeaders()
 
-    csv_headers_raw = []
+    csv_headers_raw = csv_headers.get_default_all()
     csv_rows = []
     for _, item in bom.parts.items():
         mapped_row = {}
@@ -609,7 +609,6 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
             if csv_headers.get_default(kx) is None: print ("NONE", kx)
             mapped_row.update({csv_headers.get_default(kx): vx})
 
-        csv_headers_raw = csv_headers.get_default_all()
         if sourcing_detailed:
             for idx, sp in enumerate(item.seller_parts_for_export()):
                 if f'{ManufacturerPartCSVHeaders.all_headers_defns[0]}_{idx + 1}' not in csv_headers_raw:
