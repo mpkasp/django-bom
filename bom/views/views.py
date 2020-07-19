@@ -46,7 +46,6 @@ def home(request):
 
     query = request.POST.get('q', '')
     title = f'{organization.name}\'s'
-
     if request.method == 'POST':
         part_class_selection_form = PartClassSelectionForm(request.POST, organization=organization)
         if 'actions' in request.POST and 'part-action' in request.POST:
@@ -125,11 +124,12 @@ def home(request):
         number_variation = None
 
         # Scan for search terms that might represent a complete or partial part number
-        for search_term in search_terms:
-            try:
-                (number_class, number_item, number_variation) = Part.parse_partial_part_number(search_term, organization)
-            except AttributeError:
-                pass
+        if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            for search_term in search_terms:
+                try:
+                    (number_class, number_item, number_variation) = Part.parse_partial_part_number(search_term, organization)
+                except AttributeError:
+                    pass
 
         # Query searchable_synopsis by OR'ing search terms
         part_synopsis_ids = PartRevision.objects.filter(reduce(operator.or_, (Q(searchable_synopsis__icontains=term) for term in search_terms))).values_list("part", flat=True)
@@ -153,6 +153,7 @@ def home(request):
                 q_primary_mfg)
         else:
             parts = parts.filter(
+                Q(number_item__in=search_terms) |
                 Q(id__in=part_synopsis_ids) |
                 q_primary_mpn |
                 q_primary_mfg)
@@ -206,6 +207,8 @@ def home(request):
         part_revs = paginator.page(1)
     except EmptyPage:
         part_revs = paginator.page(paginator.num_pages)
+
+    print(len(part_revs))
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
 
@@ -619,7 +622,7 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
             for idx, mp in enumerate(item.manufacturer_parts_for_export()):
                 if f'{ManufacturerPartCSVHeaders.all_headers_defns[0]}_{idx + 1}' not in csv_headers_raw:
                     csv_headers_raw.extend([f'{h}_{idx + 1}' for h in ManufacturerPartCSVHeaders.all_headers_defns])
-                mapped_row.update({f'{k} {idx + 1}': smart_str(v) for k, v in mp.items()})
+                mapped_row.update({f'{k}_{idx + 1}': smart_str(v) for k, v in mp.items()})
 
         csv_rows.append(mapped_row)
 

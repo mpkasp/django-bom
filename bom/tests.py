@@ -83,6 +83,12 @@ class TestBOM(TransactionTestCase):
         response = self.client.get(reverse('bom:home'), {'q': p1.primary_manufacturer_part.manufacturer_part_number})
         self.assertEqual(response.status_code, 200)
 
+        # Test search
+        response = self.client.post(reverse('bom:home'), {'q': p1.full_part_number()})
+        # TODO: Assert that a part comes up
+        print(len(response.context['part_revs']))
+        self.assertEqual(len(response.context['part_revs']), 1)
+
     def test_part_info(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
@@ -129,6 +135,9 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
         response = self.client.post(reverse('bom:part-export-bom-sourcing-detailed', kwargs={'part_id': p1.id}))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(reverse('bom:part-revision-export-bom-sourcing', kwargs={'part_revision_id': p3.latest().id}))
         self.assertEqual(response.status_code, 200)
 
         response = self.client.post(reverse('bom:part-revision-export-bom-sourcing-detailed', kwargs={'part_revision_id': p3.latest().id}))
