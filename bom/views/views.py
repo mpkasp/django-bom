@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import IntegrityError
-from django.db.models import Q, ProtectedError
+from django.db.models import Q, ProtectedError, prefetch_related_objects
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -44,12 +44,12 @@ def home(request):
     if not organization:
         return HttpResponseRedirect(reverse('bom:organization-create'))
 
-    query = request.POST.get('q', '')
+    query = request.GET.get('q', '')
     title = f'{organization.name}\'s'
-    if request.method == 'POST':
-        part_class_selection_form = PartClassSelectionForm(request.POST, organization=organization)
-        if 'actions' in request.POST and 'part-action' in request.POST:
-            action = request.POST.get('part-action')
+    if request.method == 'GET':
+        part_class_selection_form = PartClassSelectionForm(request.GET, organization=organization)
+        if 'actions' in request.POST and 'part-action' in request.GET:
+            action = request.GET.get('part-action')
             if action == 'Delete':
                 for part_id in request.POST.getlist('actions'):
                     try:
@@ -77,7 +77,7 @@ def home(request):
     if part_class:
         parts = Part.objects.filter(Q(organization=organization) & Q(number_class__code=part_class.code))
     else:
-        parts = Part.objects.filter(Q(organization=organization))
+        parts = Part.objects.filter(organization=organization)
 
     part_ids = list(parts.values_list('id', flat=True))
 
@@ -91,13 +91,15 @@ def home(request):
     part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
     q = part_rev_query.format(part_list)
     part_revs = PartRevision.objects.raw(q)
-    manufacturer_part = ManufacturerPart.objects.filter(part__in=parts)
+    prefetch_related_objects(part_revs, 'part')
+    manufacturer_parts = ManufacturerPart.objects.filter(part__in=parts)
 
     autocomplete_dict = {}
-    for part in part_revs:
-        autocomplete_dict.update({part.searchable_synopsis.replace('"', ''): None})
+    for pr in part_revs:
+        autocomplete_dict.update({pr.searchable_synopsis.replace('"', ''): None})
+        autocomplete_dict.update({pr.part.full_part_number(): None})
 
-    for mpn in manufacturer_part:
+    for mpn in manufacturer_parts:
         if mpn.manufacturer_part_number:
             autocomplete_dict.update({mpn.manufacturer_part_number.replace('"', ''): None})
         if mpn.manufacturer is not None and mpn.manufacturer.name:
@@ -127,7 +129,7 @@ def home(request):
         if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
             for search_term in search_terms:
                 try:
-                    (number_class, number_item, number_variation) = Part.parse_partial_part_number(search_term, organization)
+                    (number_class, number_item, number_variation) = Part.parse_partial_part_number(search_term, organization, validate=False)
                 except AttributeError:
                     pass
 
@@ -163,7 +165,7 @@ def home(request):
         q = part_rev_query.format(part_list)
         part_revs = PartRevision.objects.raw(q)
 
-    if 'download' in request.POST:
+    if 'download' in request.GET:
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="indabom_parts_search.csv"'
         csv_headers = organization.part_list_csv_headers()
@@ -198,7 +200,7 @@ def home(request):
             writer.writerow({k: smart_str(v) for k, v in row.items()})
         return response
 
-    paginator = Paginator(part_revs, 50)
+    paginator = Paginator(part_revs, 10)
 
     page = request.GET.get('page')
     try:
@@ -208,7 +210,6 @@ def home(request):
     except EmptyPage:
         part_revs = paginator.page(paginator.num_pages)
 
-    print(len(part_revs))
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
 

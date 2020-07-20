@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from unittest import skip
 
-from re import finditer
+from re import finditer, search
 
 from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_revision, create_user_and_organization, \
     create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers, create_some_fake_sellers, create_a_fake_assembly
@@ -77,16 +77,16 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
         # Make sure only one part shows up
-        occurances = [m.start() for m in finditer(p1.full_part_number(), response.content.decode('utf-8'))]
+        decoded_content = response.content.decode('utf-8')
+        main_content = decoded_content[decoded_content.find('<main>')+len('<main>'):decoded_content.rfind('</main>')]
+        occurances = [m.start() for m in finditer(p1.full_part_number(), main_content)]
         self.assertEqual(len(occurances), 1)
 
         response = self.client.get(reverse('bom:home'), {'q': p1.primary_manufacturer_part.manufacturer_part_number})
         self.assertEqual(response.status_code, 200)
 
         # Test search
-        response = self.client.post(reverse('bom:home'), {'q': p1.full_part_number()})
-        # TODO: Assert that a part comes up
-        print(len(response.context['part_revs']))
+        response = self.client.get(reverse('bom:home'), {'q': f'"{p1.full_part_number()}"'})
         self.assertEqual(len(response.context['part_revs']), 1)
 
     def test_part_info(self):
@@ -362,10 +362,12 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
         # Make sure only one part shows up
-        response = self.client.post(reverse('bom:home'))
+        response = self.client.get(reverse('bom:home'))
         self.assertEqual(response.status_code, 200)
+        decoded_content = response.content.decode('utf-8')
+        main_content = decoded_content[decoded_content.find('<main>')+len('<main>'):decoded_content.rfind('</main>')]
 
-        occurances = [m.start() for m in finditer(p1.full_part_number(), response.content.decode('utf-8'))]
+        occurances = [m.start() for m in finditer(p1.full_part_number(), main_content)]
         self.assertEqual(len(occurances), 1)
 
     def test_create_part_variation(self):
@@ -1008,8 +1010,9 @@ class TestBOMIntelligent(TestBOM):
         # Make sure only one part shows up
         response = self.client.post(reverse('bom:home'))
         self.assertEqual(response.status_code, 200)
-
-        occurances = [m.start() for m in finditer(p1.full_part_number(), response.content.decode('utf-8'))]
+        decoded_content = response.content.decode('utf-8')
+        main_content = decoded_content[decoded_content.find('<main>')+len('<main>'):decoded_content.rfind('</main>')]
+        occurances = [m.start() for m in finditer(p1.full_part_number(), main_content)]
         self.assertEqual(len(occurances), 1)
 
     @skip('Not applicable')

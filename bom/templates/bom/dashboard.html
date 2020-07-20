@@ -20,8 +20,8 @@
 {% block content %}
     <div class="container-app">
 
-    <form id="searchForm" name="search-form" action="{% url 'bom:home' %}" method="post" enctype="multipart/form-data">
-        {% csrf_token %}
+    <form id="searchForm" name="search-form" action="{% url 'bom:home' %}" method="get" enctype="multipart/form-data">
+{#        {% csrf_token %}#}
         <div class="row">
             {% if organization.number_scheme == 'S' %}
             <div class="col s12 m4">
