@@ -200,7 +200,7 @@ def home(request):
             writer.writerow({k: smart_str(v) for k, v in row.items()})
         return response
 
-    paginator = Paginator(part_revs, 10)
+    paginator = Paginator(part_revs, 50)
 
     page = request.GET.get('page')
     try:

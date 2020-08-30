@@ -1,4 +1,4 @@
-asgiref==3.2.3
+asgiref==3.2.10
 asn1crypto==0.24.0
 bcrypt==3.1.4
 bleach==3.1.4
@@ -8,9 +8,9 @@ cffi==1.14.0
 chardet==3.0.4
 cryptography==2.3.1
 defusedxml==0.6.0
-Django==3.0.7
+Django==3.1
 django-materializecss-form==1.1.17
-django-money==1.0
+django-money==1.1
 django-recaptcha==2.0.6
 django-sendgrid-v5==0.8.0
 docutils==0.14
