@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
     subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
     number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES, default=NUMBER_SCHEME_SEMI_INTELLIGENT)
     number_class_code_len = models.PositiveIntegerField(default=NUMBER_CLASS_CODE_LEN_DEFAULT,
                                                         validators=[MinValueValidator(NUMBER_CLASS_CODE_LEN_MIN), MaxValueValidator(NUMBER_CLASS_CODE_LEN_MAX)])
@@ -67,7 +67,7 @@ class Organization(models.Model):
 
 class UserMeta(models.Model):
     user = models.OneToOneField(User, db_index=True, on_delete=models.CASCADE)
-    organization = models.ForeignKey(Organization, blank=True, null=True, on_delete=models.PROTECT)
+    organization = models.ForeignKey(Organization, blank=True, null=True, on_delete=models.CASCADE)
     role = models.CharField(max_length=1, choices=ROLE_TYPES)
 
     def get_or_create_organization(self):
@@ -129,7 +129,7 @@ class Manufacturer(models.Model, AsDictModel):
 # that should be done often.
 class Part(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
-    number_class = models.ForeignKey(PartClass, default=None, blank=True, null=True, related_name='number_class', on_delete=models.PROTECT, db_index=True)
+    number_class = models.ForeignKey(PartClass, default=None, blank=True, null=True, related_name='number_class', on_delete=models.CASCADE, db_index=True)
     number_item = models.CharField(max_length=NUMBER_ITEM_LEN_MAX, default=None, blank=True)
     number_variation = models.CharField(max_length=NUMBER_VARIATION_LEN_MAX, default=None, blank=True, null=True, validators=[alphanumeric])
     primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True,
@@ -317,7 +317,7 @@ class PartRevision(models.Model):
     timestamp = models.DateTimeField(default=timezone.now)
     configuration = models.CharField(max_length=1, choices=CONFIGURATION_TYPES, default='W')
     revision = models.CharField(max_length=4, db_index=True, default='1')
-    assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.PROTECT, db_index=True)
+    assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.CASCADE, db_index=True)
     displayable_synopsis = models.CharField(editable=False, default="", null=True, blank=True, max_length=255, db_index=True)
     searchable_synopsis = models.CharField(editable=False, default="", null=True, blank=True, max_length=255, db_index=True)
 
@@ -582,7 +582,7 @@ class Assembly(models.Model):
 class ManufacturerPart(models.Model, AsDictModel):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
     manufacturer_part_number = models.CharField(max_length=128, default='', blank=True)
-    manufacturer = models.ForeignKey(Manufacturer, default=None, blank=True, null=True, on_delete=models.PROTECT)
+    manufacturer = models.ForeignKey(Manufacturer, default=None, blank=True, null=True, on_delete=models.CASCADE)
     mouser_disable = models.BooleanField(default=False)
 
     class Meta:
