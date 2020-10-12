@@ -662,6 +662,7 @@ class PartCSVForm(forms.Form):
                         manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=mpn, manufacturer=mfg)
                         if part.primary_manufacturer_part is None and manufacturer_part is not None:
                             part.primary_manufacturer_part = manufacturer_part
+                            part.save()
 
                     self.successes.append("Part {0} on row {1} created.".format(part.full_part_number(), row_count))
                 else:
