@@ -46,12 +46,19 @@ def home(request):
 
     query = request.GET.get('q', '')
     title = f'{organization.name}\'s'
+
+    # Note that posting a PartClass selection does not include a named parameter in
+    # the POST, so this case is the de facto "else" clause.
+    part_class_selection_form = PartClassSelectionForm(organization=organization)
+
     if request.method == 'GET':
         part_class_selection_form = PartClassSelectionForm(request.GET, organization=organization)
-        if 'actions' in request.POST and 'part-action' in request.GET:
-            action = request.GET.get('part-action')
+    elif request.method == 'POST':
+        if 'actions' in request.POST and 'part-action' in request.POST:
+            action = request.POST.get('part-action')
             if action == 'Delete':
-                for part_id in request.POST.getlist('actions'):
+                part_ids = [part_id for part_id in request.POST.getlist('actions') if part_id.isdigit()]
+                for part_id in part_ids:
                     try:
                         part = Part.objects.get(id=part_id, organization=organization)
                         part_number = part.full_part_number()
@@ -59,10 +66,6 @@ def home(request):
                         messages.success(request, f"Deleted part {part_number}")
                     except Part.DoesNotExist:
                         messages.error(request, "Can't delete part. No part found with given id {}.".format(part_id))
-        # Note that posting a PartClass selection does not include a named parameter in
-        # the POST, so this case is the de facto "else" clause.
-    else:
-        part_class_selection_form = PartClassSelectionForm(organization=organization)
 
     if part_class_selection_form.is_valid():
         part_class = part_class_selection_form.cleaned_data['part_class']

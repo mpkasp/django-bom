@@ -47,7 +47,9 @@
                 {% endif %}
             </div>
         </div>
-
+    </form>
+    <form id="actionForm" name="action-form" action="{% url 'bom:home' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
         <div class="row" style="margin-bottom: 0;">
             <div class="col s6 no-padding">
                 {% if profile.role == 'A' %}
@@ -60,7 +62,7 @@
                             <label>Action</label>
                         </div>
                         <div class="col s12 m4" style="margin: 8px 0;">
-                            <button class="waves-effect waves-light btn green lighten-1" type="submit">Go</button>
+                            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="actions">Go</button>
                             <span><a class="btn-flat waves-green" href="#" onclick="disableActionCheckboxColumn()">Hide</a></span>
                         </div>
                     </div>
@@ -102,7 +104,7 @@
                     {% for part_rev in part_revs %}
                         <tr>
                             {% if profile.role == 'A' %}
-                                <td class="action-checkbox-column" style="display: none;"><label><input type="checkbox" class="checkbox-array" name="actions" value="{{ part_rev.part.id }}"><span></span></label></td>
+                                <td class="action-checkbox-column" style="display: none;"><label>{% if part_rev.part.id %}<input type="checkbox" class="checkbox-array" name="actions" value="{{ part_rev.part.id }}">{% endif %}<span></span></label></td>
                             {% endif %}
 
                             <td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part_rev.part.id %}">{{ part_rev.part.full_part_number }}</a></td>
