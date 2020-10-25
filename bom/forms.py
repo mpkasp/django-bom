@@ -524,6 +524,7 @@ class PartCSVForm(forms.Form):
                             number_item = part_number
                             Part.objects.get(number_class=None, number_item=number_item, number_variation=None, organization=self.organization)
                             self.add_error(None, f"Part number {part_number} in row {row_count} already exists. Uploading of this part skipped.")
+                            continue
                         except Part.DoesNotExist:
                             pass
                 elif part_class:

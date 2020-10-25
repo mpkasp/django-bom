@@ -638,6 +638,7 @@ class TestBOM(TransactionTestCase):
         self.organization.number_item_len = 5
         self.organization.save()
 
+        # Upload part classes
         with open('bom/test_files/test_part_classes_4.csv') as test_csv:
             response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
         self.assertEqual(response.status_code, 200)
@@ -645,6 +646,7 @@ class TestBOM(TransactionTestCase):
         new_part_class_count = PartClass.objects.all().count()
         self.assertEqual(new_part_class_count, 39)
 
+        # Upload parts
         with open('bom/test_files/test_new_parts_4.csv') as test_csv:
             response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
         messages = list(response.context.get('messages'))
@@ -1093,6 +1095,29 @@ class TestBOMIntelligent(TestBOM):
         self.assertEqual(response.status_code, 302)
         new_part_count = Part.objects.all().count()
         self.assertEqual(new_part_count, 4)
+
+        # Part should be skipped because it already exists
+        with open('bom/test_files/test_new_parts_5_intelligent.csv') as test_csv:
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertEqual(response.status_code, 302)
+        found_error = False
+        for m in response.wsgi_request._messages:
+            if "already exists" in str(m):
+                found_error = True
+        self.assertTrue(found_error)
+
+        # Only one part should exist
+        self.assertEqual(Part.objects.filter(number_item='C0402X5R10V001').count(), 1)
+
+        # Uploading this BOM should work, and multiple parts should not be created
+        p = Part.objects.first()
+        with open('bom/test_files/test_bom_5_intelligent.csv') as test_csv:
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertTrue("This should not happen." not in msg.message, msg=msg.message)
 
     @skip('not applicable')
     def test_upload_part_classes(self):
