@@ -126,7 +126,6 @@ class PartBomItem(AsDictModel):
 
     def out_of_pocket_cost(self):
         try:
-            print(self.order_quantity, self.seller_part.unit_cost)
             return self.order_quantity * self.seller_part.unit_cost
         except (AttributeError, TypeError) as err:
             logger.log(logging.INFO, '[part_bom.py] ' + str(err))
@@ -139,7 +138,7 @@ class PartBomItem(AsDictModel):
 
     def as_dict_for_export(self):
         return {
-            'part_number': self.part.full_part_number(),
+            'part_number': self.part.fuyll_part_number(),
             'quantity': self.quantity,
             'do_not_load': self.do_not_load,
             'part_class': self.part.number_class.name if self.part.number_class else '',
