@@ -138,7 +138,7 @@ class PartBomItem(AsDictModel):
 
     def as_dict_for_export(self):
         return {
-            'part_number': self.part.fuyll_part_number(),
+            'part_number': self.part.full_part_number(),
             'quantity': self.quantity,
             'do_not_load': self.do_not_load,
             'part_class': self.part.number_class.name if self.part.number_class else '',
