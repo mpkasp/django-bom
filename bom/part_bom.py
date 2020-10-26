@@ -42,6 +42,9 @@ class PartBom(AsDictModel):
             self.update_bom_for_part(item)
 
     def update_bom_for_part(self, bom_part):
+        if bom_part.do_not_load:
+            return
+
         if bom_part.seller_part:
             try:
                 bom_part.order_quantity = bom_part.seller_part.order_quantity(bom_part.total_extended_quantity)
