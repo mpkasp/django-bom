@@ -26,12 +26,11 @@ class AutocompleteTextInput(forms.TextInput):
         html = super().render(name, value, attrs)
 
         autocomplete_dict = {}
-        for obj in self.queryset:
-            autocomplete_dict.update({self.verbose_string_function(obj): None})
-
         autocomplete_dict_to_fill = {}
         for obj in self.queryset:
-            autocomplete_dict_to_fill.update({self.verbose_string_function(obj): str(obj)})
+            verbose_obj_str = self.verbose_string_function(obj).replace('"', '\\"')
+            autocomplete_dict.update({verbose_obj_str: None})
+            autocomplete_dict_to_fill.update({verbose_obj_str: str(obj)})
 
         autocomplete_json = dumps(autocomplete_dict).replace("'", "\\'")
         autocomplete_json_to_fill = dumps(autocomplete_dict_to_fill).replace("'", "\\'")
