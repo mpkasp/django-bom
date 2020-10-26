@@ -920,7 +920,8 @@ class AddSubpartForm(forms.Form):
         super(AddSubpartForm, self).__init__(*args, **kwargs)
         self.fields['subpart_part_number'] = forms.CharField(required=True, label="Subpart part number",
                                                     widget=AutocompleteTextInput(attrs={'placeholder': 'Select a part.'},
-                                                                                 queryset=Part.objects.filter(organization=self.organization).exclude(id=self.part_id)))
+                                                                                 queryset=Part.objects.filter(organization=self.organization).exclude(id=self.part_id),
+                                                                                 verbose_string_function=Part.verbose_str))
 
     def clean_count(self):
         count = self.cleaned_data['count']

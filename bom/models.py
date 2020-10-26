@@ -307,6 +307,9 @@ class Part(models.Model):
             self.assign_part_number()
         super(Part, self).save()
 
+    def verbose_str(self):
+        return f'{self.full_part_number()} ┆ {self.description()}'
+
     def __str__(self):
         return u'%s' % (self.full_part_number())
 
