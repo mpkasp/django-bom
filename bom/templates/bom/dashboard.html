@@ -123,14 +123,33 @@
 
                             <td class="text-normal td-med">
                                 <!-- Dropdown Trigger -->
-                                <a class="dropdown-trigger" href='#' data-target='export-part-{{ part_rev.id }}'><i class="material-icons green-text">more_horiz</i></a>
+                                <a class="dropdown-trigger" href='#' data-target='part-menu-{{ part_rev.id }}'><i class="material-icons green-text">more_horiz</i></a>
                                 <!-- Dropdown Structure -->
-                                <ul id='export-part-{{ part_rev.id }}' class='dropdown-content'>
+                                <ul id='part-menu-{{ part_rev.id }}' class='dropdown-content'>
+                                    {% if part_rev.configuration == 'W' %}
+                                    <li>
+                                        <a class="green-text text-lighten-1"
+                                           href="{% url 'bom:part-revision-edit' part_id=part_rev.part.id part_revision_id=part_rev.id %}">
+                                            <i class="material-icons green-text text-lighten-1">edit</i>Edit Revision</a>
+                                    </li>
+                                    <li>
+                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part_rev.part.id part_revision_id=part_rev.id %}">
+                                            <i class="material-icons green-text text-lighten-1">format_list_numbered</i>Edit BOM</a>
+                                    </li>
+                                    {% endif %}
+                                    <li>
+                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=used">
+                                            <i class="material-icons green-text text-lighten-1">my_location</i>Where Used</a>
+                                    </li>
+                                    <li>
+                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=sourcing">
+                                            <i class="material-icons green-text text-lighten-1">local_airport</i>Sourcing</a>
+                                    </li>
+                                    <li class="divider" tabindex="-1"></li>
                                     <li><a class="green-text text-lighten-1"
                                            href="{% url 'bom:part-revision-export-bom' part_revision_id=part_rev.id %}"><i
                                             class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
                                     </li>
-                                    <li class="divider" tabindex="-1"></li>
                                     <li><a class="green-text text-lighten-1"
                                            href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_rev.id %}"><i
                                             class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
