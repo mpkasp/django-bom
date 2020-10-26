@@ -43,6 +43,8 @@ class PartBom(AsDictModel):
 
     def update_bom_for_part(self, bom_part):
         if bom_part.do_not_load:
+            bom_part.order_quantity = 0
+            bom_part.order_cost = 0
             return
 
         if bom_part.seller_part:
@@ -124,6 +126,7 @@ class PartBomItem(AsDictModel):
 
     def out_of_pocket_cost(self):
         try:
+            print(self.order_quantity, self.seller_part.unit_cost)
             return self.order_quantity * self.seller_part.unit_cost
         except (AttributeError, TypeError) as err:
             logger.log(logging.INFO, '[part_bom.py] ' + str(err))

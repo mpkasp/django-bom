@@ -1051,9 +1051,11 @@ class BOMCSVForm(forms.Form):
             headers = [h.lower() for h in next(reader)]
 
             # Handle utf-8-sig encoding
-            if "\ufeff" in headers[0]:
+            if len(headers) > 0 and "\ufeff" in headers[0]:
                 reader = csv.reader(codecs.iterdecode(file, 'utf-8-sig'), dialect)
                 headers = [h.lower() for h in next(reader)]
+            elif len(headers) == 0:
+                self.warnings.append("No headers found in CSV file.")
 
             csv_headers = BOMIndentedCSVHeaders()
 

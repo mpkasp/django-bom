@@ -584,8 +584,8 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
         return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_indented.csv"'.format(
-        part.full_part_number())
+    filename = f'indabom_export_{part.full_part_number()}_{"flat" if flat else "indented"}'
+    response['Content-Disposition'] = f'attachment; filename="{filename}.csv'
 
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 1000)
