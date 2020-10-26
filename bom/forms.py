@@ -1210,7 +1210,7 @@ class BOMCSVForm(forms.Form):
 
                 if len(existing_subpart_qs) == 0:
 
-                    if len(reference_list) != count:
+                    if len(reference_list) != count and len(reference_list) > 0:
                         self.warnings.append(
                             f"The number of reference designators ({len(reference_list)}) for subpart {subpart_part} on row {row_count} does not match the subpart quantity ({count}). Quantity automatically adjusted.")
                         count = len(reference_list)

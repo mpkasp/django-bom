@@ -1159,6 +1159,15 @@ class TestBOMIntelligent(TestBOM):
         self.assertEqual(subparts[1].reference, 'C4, C5')
         self.assertEqual(subparts[2].reference, '')
 
+        pt1, pt2, pt3, pt4 = create_some_fake_parts(self.organization)
+        with open('bom/test_files/test_bom_5_intelligent_no_reference.csv') as test_csv:
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': pt1.id}), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        subparts = pt1.latest().assembly.subparts.all().order_by('id')
+        self.assertNotEqual(subparts[0].count, 0)
+        self.assertNotEqual(subparts[1].count, 0)
+        self.assertNotEqual(subparts[2].count, 0)
+
 
 class TestBOMNoVariation(TestBOM):
     def setUp(self):
