@@ -40,6 +40,7 @@
                     <li>Uploading Parts</li>
                     <li>CSV File Headers and Values</li>
                     <li>Units of Measure Lists</li>
+                    <li>Mouser Integration</li>
                 </ul>
             </li>
             <li><a href="#bill-of-materials">Bill Of Materials Page</a>
@@ -924,7 +925,14 @@
         <p>Wavelength Units = km m, cm, um, nm, A (where A means &Aring;ngstrom)</p>
         <p>Distance Units = mil, in, ft, yd, km, m, cm, um, nm</p>
         <p>Weight Units = mg, g, kb, oz, lb</p>
-
+        <h4>Mouser Integration</h4>
+        <p>The Mouser integration shows up in a few places - both on the part info page (the detail view for a part with the tabs "Specifications", "Bill of materials", etc...):</p>
+            <ul>
+                <li>Specifications: Under the Manufacturer and sourcing tab, after the page loads, we ping Mouser and update BOM costs. This may take a few seconds, and you will know it's done when a Mouser "M" icon shows up.</li>
+                <li>Bill of Materials: In-line, the part Cost column will update with the Mouser icon and the pricing info</li>
+                <li>Sourcing: If sourcing for the part viewed exists from Mouser, the cost breakdown will appear here.</li>
+            </ul>
+        <p>To make sure the integration works, you need to enable Mouser Sourcing for the part class of interest (e.g. if you have a Capacitor part class, you need to enable mouser sourcing for this part class). This setting is found in Settings > IndaBOM under part classes. From here, a part is searched for in Mouser by part number and manfuacturer, or just part number if there is no manufacturer.</p>
         <div class="divider"></div>
         <a class="anchor" id="bill-of-materials"></a>
         <h2>Bill Of Materials Page</h2>
