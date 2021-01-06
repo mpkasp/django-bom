@@ -403,9 +403,9 @@ class PartClassCSVForm(forms.Form):
                             code='invalid')
                         self.add_error(None, validation_error)
                         continue
-                    elif not code.isdigit() or int(code) < 0:
+                    elif len(code) != self.organization.number_class_code_len:
                         validation_error = forms.ValidationError(
-                            "Part class 'code' in row {} must be a positive number. Uploading of this part class skipped.".format(row_count),
+                            "Length of part class 'code' in row {} is different than the organization class length {}. Uploading of this part class skipped.".format(row_count, self.organization.number_class_code_len),
                             code='invalid')
                         self.add_error(None, validation_error)
                         continue
