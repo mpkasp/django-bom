@@ -500,6 +500,11 @@ class PartCSVForm(forms.Form):
                 description = csv_headers.get_val_from_row(part_data, 'description')
                 value = csv_headers.get_val_from_row(part_data, 'value')
                 value_units = csv_headers.get_val_from_row(part_data, 'value_units')
+                seller_name = csv_headers.get_val_from_row(part_data, 'seller')
+                unit_cost = csv_headers.get_val_from_row(part_data, 'unit_cost')
+                nre_cost = csv_headers.get_val_from_row(part_data, 'part_nre_cost')
+                moq = csv_headers.get_val_from_row(part_data, 'moq')
+                mpq = csv_headers.get_val_from_row(part_data, 'minimum_pack_quantity')
 
                 # Check part number for uniqueness. If part number not specified
                 # then Part.save() will create one.
@@ -535,7 +540,10 @@ class PartCSVForm(forms.Form):
                                              "Uploading of this part skipped.".format(part_data[csv_headers.get_default('part_class')], row_count))
                         continue
                 else:
-                    self.add_error(None, "In row {} need to specify a part_class or a part_number. Uploading of this part skipped.".format(row_count))
+                    if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+                        self.add_error(None, "In row {} need to specify a part_class or part_number. Uploading of this part skipped.".format(row_count))
+                    else:
+                        self.add_error(None, "In row {} need to specify a part_number. Uploading of this part skipped.".format(row_count))
                     continue
 
                 if not revision:
@@ -664,6 +672,10 @@ class PartCSVForm(forms.Form):
                         if part.primary_manufacturer_part is None and manufacturer_part is not None:
                             part.primary_manufacturer_part = manufacturer_part
                             part.save()
+
+                        if seller_name and unit_cost and nre_cost:
+                            seller, created = Seller.objects.get_or_create(name__iexact=seller_name, organization=self.organization, defaults={'name': seller_name})
+                            seller_part, created = SellerPart.objects.get_or_create(manufacturer_part=manufacturer_part, seller=seller, unit_cost=unit_cost, nre_cost=nre_cost, minimum_order_quantity=moq, minimum_pack_quantity=mpq)
 
                     self.successes.append("Part {0} on row {1} created.".format(part.full_part_number(), row_count))
                 else:
