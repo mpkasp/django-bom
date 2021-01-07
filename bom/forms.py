@@ -569,7 +569,6 @@ class PartCSVForm(forms.Form):
 
                 skip = False
                 part_revision = PartRevision()
-                # Get the imported revision
                 part_revision.revision = revision
 
                 # Required properties:

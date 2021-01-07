@@ -244,6 +244,7 @@ class PartsListCSVHeadersSemiIntelligent(PartsListCSVHeaders):
         CSVHeader('minimum_pack_quantity', name_options=['part_minimum_pack_quantity', 'mpq' ]),
     ]
 
+
 class BOMFlatCSVHeaders(CSVHeaders):
     all_headers_defns = [
         CSVHeader('part_number', name_options=['part number', 'part no', ]),
