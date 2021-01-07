@@ -1,0 +1,5 @@
+part_number,description,revision,manufacturer,manufacturer_part_number,seller,unit_cost,part_nre_cost,moq,mpq
+PART1,Test Part 1,A,Manufacturer1,MAN1_123,Seller1,12,2,100,10
+PART2,Test Part 2,A,Manufacturer2,MAN2_13,Seller2,1000.23,124.23,1,1
+PART3,Test Part 2,A,Manufacturer2,MAN2_14,Seller1,1000.23,124.23,1,1
+PART4,Test Part 2,A,Manufacturer1,MAN2_15,Seller2,1000.23,124.23,1,1
