@@ -754,9 +754,7 @@ class TestBOM(TransactionTestCase):
             'ncnr': True,
         }
 
-        response = self.client.post(reverse('bom:sellerpart-edit', kwargs={'sellerpart_id': p1.optimal_seller().id}),
-                                    edit_sellerpart_form_data)
-
+        response = self.client.post(reverse('bom:sellerpart-edit', kwargs={'sellerpart_id': p1.optimal_seller().id}), edit_sellerpart_form_data)
         self.assertEqual(response.status_code, 302)
 
     def test_sellerpart_delete(self):
@@ -1305,8 +1303,18 @@ class TestForms(TestCase):
             'ncnr': True,
         }
 
-        form = SellerPartForm(organization=self.organization, data=form_data)
-        self.assertTrue(form.is_valid())
+        filled_form = SellerPartForm(form_data, organization=self.organization)
+        self.assertTrue(filled_form.is_valid())
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        sp = p1.optimal_seller()
+        sp.unit_cost = 10
+        sp.nre_cost = 22
+        sp.save()
+
+        filled_form = SellerPartForm(instance=sp, organization=self.organization)
+        self.assertFalse("$10.0" in filled_form.as_ul())
+        self.assertFalse("$22.0" in filled_form.as_ul())
 
 
 class TestJsonViews(TestCase):

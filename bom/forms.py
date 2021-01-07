@@ -231,12 +231,9 @@ class ManufacturerPartForm(forms.ModelForm):
 
 
 class SellerPartForm(forms.ModelForm):
-    unit_cost = forms.DecimalField(required=True, decimal_places=4, max_digits=17)
-    nre_cost = forms.DecimalField(required=True, decimal_places=4, max_digits=17, label='NRE cost')
-
     class Meta:
         model = SellerPart
-        exclude = ['manufacturer_part', 'data_source', 'unit_cost', 'nre_cost', ]
+        exclude = ['manufacturer_part', 'data_source', ]
 
     new_seller = forms.CharField(max_length=128, label='-or- Create new seller (leave blank if selecting)', required=False)
     field_order = ['seller', 'new_seller', 'unit_cost', 'nre_cost', 'lead_time_days', 'minimum_order_quantity', 'minimum_pack_quantity', ]
@@ -244,11 +241,19 @@ class SellerPartForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         self.manufacturer_part = kwargs.pop('manufacturer_part', None)
+        self.base_fields['unit_cost'] = forms.DecimalField(required=True, decimal_places=4, max_digits=17)
+        self.base_fields['nre_cost'] = forms.DecimalField(required=True, decimal_places=4, max_digits=17, label='NRE cost')
+
+        instance = kwargs.get('instance')
+        if instance:
+            initial = kwargs.get('initial', {})
+            initial['unit_cost'] = instance.unit_cost.amount
+            initial['nre_cost'] = instance.nre_cost.amount
+            kwargs['initial'] = initial
         super(SellerPartForm, self).__init__(*args, **kwargs)
         if self.manufacturer_part is not None:
             self.instance.manufacturer_part = self.manufacturer_part
-        self.fields['seller'].queryset = Seller.objects.filter(
-            organization=self.organization).order_by('name')
+        self.fields['seller'].queryset = Seller.objects.filter(organization=self.organization).order_by('name')
         self.fields['seller'].required = False
 
     def clean(self):

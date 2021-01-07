@@ -11,7 +11,7 @@ class AsDictModel:
 
     def __iter__(self):
         for key in dir(self):
-            if not key.startswith("_"):
+            if not key.startswith("_") and not key == "objects":
                 value = getattr(self, key)
                 if not callable(value):
                     if isinstance(value, (dict, OrderedDict)):
