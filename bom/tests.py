@@ -601,6 +601,17 @@ class TestBOM(TransactionTestCase):
         for msg in messages:
             self.assertEqual(msg.tags, 'error')
 
+    def test_upload_part_with_sellers(self):
+        create_some_fake_part_classes(self.organization)
+        # Should pass
+        initial_parts_count = Part.objects.all().count()
+        with open('bom/test_files/test_new_parts_sellers.csv') as test_csv:
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertEqual(response.status_code, 302)
+
+        parts_count = Part.objects.all().count()
+        self.assertEqual(parts_count - initial_parts_count, 4)
+
     def test_upload_part_classes(self):
         # Should pass
         with open(f'{TEST_FILES_DIR}/test_part_classes.csv') as test_csv:
@@ -1120,6 +1131,16 @@ class TestBOMIntelligent(TestBOM):
         messages = list(response.context.get('messages'))
         for msg in messages:
             self.assertTrue("This should not happen." not in msg.message, msg=msg.message)
+
+    def test_upload_part_with_sellers(self):
+        # Should pass
+        initial_parts_count = Part.objects.all().count()
+        with open('bom/test_files/test_new_parts_sellers_intelligent.csv') as test_csv:
+            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertEqual(response.status_code, 302)
+
+        parts_count = Part.objects.all().count()
+        self.assertEqual(parts_count - initial_parts_count, 4)
 
     @skip('not applicable')
     def test_upload_part_classes(self):
