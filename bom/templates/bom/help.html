@@ -169,7 +169,7 @@
             unique number and a unique name. It may also optionally include a comment or description.</p>
         <p>You can define part classes by uploading a CSV file in which one column contains a name for the part class, and another column contains the three-digit code that you have assigned.
             Alternatively, you manually may define a part class using a form.</p>
-        <p>You may also use the sample CSV file that is available on the IndaBOM web site.</p>
+        <p>You may also use <a href="{% static 'bom/doc/test_part_classes.csv' %}">this sample CSV file</a>.</p>
         <p>Over time you may add additional part classes, and you can edit or delete existing part classes.</p>
         <h4>Intelligent Part Numbers</h4>
         <p>Intelligent part numbering on IndaBOM allows the user to assign any part number to a part. The part number contains descriptive details embedded within that provides noteworthy information
@@ -318,6 +318,8 @@
         <p>When you upload parts from a CSV file you can assign IndaBOM part numbers in the file or you can allow IndaBOM to automatically assign part numbers. If you specify a part number that is
             already in use then the conflicting part will not be uploaded. Similarly, other errors may prevent a part from being uploaded, for example, an improperly formatted IndaBOM part number or
             the use of an unknown IndaBOM part class. The uploading will continue with the next valid part in the file.</p>
+        <p>Here is <a href="{% static 'bom/doc/test_new_parts.csv' %}">a sample CSV for uploading semi-intelligent parts</a> and here is
+            <a href="{% static 'bom/doc/test_new_parts_5_intelligent.csv' %}">a sample CSV for uploading intelligent parts</a>.</p>
         <h4>CSV File Headers and Values</h4>
         <p>Any information that you can enter using the Create Part page may also be submitted via the part list upload file. Here is the complete list of items you can upload for each part in the
             list:</p>
@@ -965,6 +967,8 @@
             &ldquo;Upload&rdquo; menu that appears on the Home page and search results pages.</p>
         <p>When you upload BOM subparts from a file, errors may prevent a subpart from being uploaded, for example, an improperly formatted IndaBOM part number a mismatch between the part count and
             the number of reference designators. The uploading will continue with the next valid subpart in the file.</p>
+        <p>Here is <a href="{% static 'bom/doc/test_bom_5_intelligent.csv' %}">a sample CSV file for uploading intelligent parts</a> and here is <a href="{% static 'bom/doc/test_bom.csv' %}">a
+            sample CSV file for uploading semi-intelligent parts</a></p>
         <h3>CSV File Headers and Values</h3>
         <p>Any information that you can enter manually about a BOM via the Bill Of Materials page may also be submitted via the BOM upload file. Here is the complete list of items you can upload for a
             subpart in the list:</p>

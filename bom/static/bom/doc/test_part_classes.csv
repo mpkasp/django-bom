@@ -1,0 +1,38 @@
+name,code,comment
+Capacitor,101,All types of capacitors
+Resistor,102,All types of resistors
+LED,103,All types of LEDs
+Transistor,104,All types of transistor
+IC General,105,All types of general integrated circuits
+Microcontroller,106,All types of microcontrollers
+Microprocessor,107,All types of microprocessors
+IC Memory,108,All types of memory storage
+Sensor,109,All types of analog and digital sensors
+Audio / Video IC,110,All types of audio and video integrated circuits
+Screens,111,All types of display screens incl. touch
+User Input Misc,112,Miscellaneous user input devices
+Inductor,113,All types of inductors
+Choke,114,All types of chokes
+Diode,115,All types of diodes
+Fuse,116,All types of fuses
+Crystal,117,All types of crystals
+Switch / Button,118,All types of switches and buttons
+Connector,119,All types of connectors
+Fastener Misc,200,Miscellaneous fasteners
+Screw,201,All types of screws
+Nut,202,All types of nuts
+Washer,203,All types of washers
+Cable Misc,300,Miscellaneous cables
+Cable Assy,310,All types of cable assemblies
+Molded Part,400,All types of molded parts
+Printed Part,410,All types of printed parts
+Machined Part,420,All types of machined parts
+Mechanical Assy,450,All types of mechanical assembles
+Packaging,550,All types of shippingand handling packaging
+Label,560,All types of applied labels
+PC Board Bare,600,All types of bare PC boards
+PC Board Assy,650,All types of soldered PC boards
+Internal Documentation,700,All types of documents for internal audiences
+External Documentation,710,All types of documents for external audiences
+Product Subassembly,800,All types of product subassemblies
+Product,850,All types of products
