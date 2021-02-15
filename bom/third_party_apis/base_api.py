@@ -41,7 +41,7 @@ class BaseApi:
         else:
             r = requests.get(url, headers=headers, params=params)
         if r.status_code != 200:
-            raise("HTTP Response != 200")
+            raise BaseApiError(f"HTTP Response != 200. Returned: {r.status_code} {r.reason}")
 
         cache.set(cache_key, r.content, self.cache_timeout)
         return r.content
