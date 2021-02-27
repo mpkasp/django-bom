@@ -9,10 +9,10 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-bom',
-    version='1.196',
+    version='1.197',
     packages=find_packages(),
     include_package_data=True,
-    license='MIT License',
+    license='GPL 3.0 License',
     description='A simple Django app to manage a bill of materials.',
     long_description=README,
     long_description_content_type='text/markdown',
@@ -22,7 +22,7 @@ setup(
     classifiers=[
         'Environment :: Web Environment',
         'Framework :: Django',
-        'Framework :: Django :: 2.1',
+        'Framework :: Django :: 3.1',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',

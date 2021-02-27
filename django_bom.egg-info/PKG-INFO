@@ -1,11 +1,11 @@
 Metadata-Version: 2.1
 Name: django-bom
-Version: 1.196
+Version: 1.197
 Summary: A simple Django app to manage a bill of materials.
 Home-page: https://www.indabom.com/
 Author: Mike Kasparian
 Author-email: mpkasp@gmail.com
-License: MIT License
+License: GPL 3.0 License
 Description: # BOM
         ![](https://github.com/mpkasp/django-bom/workflows/Django%20CI/badge.svg)
         
@@ -185,7 +185,7 @@ Description: # BOM
 Platform: UNKNOWN
 Classifier: Environment :: Web Environment
 Classifier: Framework :: Django
-Classifier: Framework :: Django :: 2.1
+Classifier: Framework :: Django :: 3.1
 Classifier: Intended Audience :: Developers
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
