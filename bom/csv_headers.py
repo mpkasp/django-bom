@@ -164,9 +164,11 @@ class ManufacturerPartCSVHeaders(CSVHeaders):
 class SellerPartCSVHeaders(CSVHeaders):
     all_headers_defns = [
         CSVHeader('seller', name_options=['part_seller', 'part_seller_name', ]),
-        CSVHeader('part_cost', name_options=['seller_part_unit_cost', 'unit_cost', ]),
-        CSVHeader('moq', name_options=['minimum_order_quantity', 'moq', 'part_moq', ]),
-        CSVHeader('nre', name_options=['part_nre', 'part_nre_cost', ]),
+        CSVHeader('unit_cost', name_options=['seller_part_unit_cost', 'unit_cost', 'part_cost', ]),
+        CSVHeader('minimum_order_quantity', name_options=['minimum_order_quantity', 'moq', 'part_moq', ]),
+        CSVHeader('nre_cost', name_options=['part_nre', 'part_nre_cost', 'nre', 'nre_cost', ]),
+        CSVHeader('minimum_pack_quantity', name_options=['minimum_pack_quantity', 'mpq', 'part_mpq' ]),
+        CSVHeader('lead_time_days', name_options=['lead_time_days', 'lead_time', 'lt']),
     ]
 
 
@@ -224,10 +226,7 @@ class PartsListCSVHeaders(CSVHeaders):
         CSVHeader('part_number', name_options=['part number', 'part no', ]),
         CSVHeader('revision', name_options=['rev', 'part_revision', ]),
     ] + part_attributes \
-      + SellerPartCSVHeaders.all_headers_defns + [
-        CSVHeader('lead_time_days', name_options=['part_lead_time_days', ]),
-        CSVHeader('minimum_pack_quantity', name_options=['part_minimum_pack_quantity', 'mpq' ]),
-    ]
+      + SellerPartCSVHeaders.all_headers_defns
 
 
 class PartsListCSVHeadersSemiIntelligent(PartsListCSVHeaders):
@@ -239,10 +238,7 @@ class PartsListCSVHeadersSemiIntelligent(PartsListCSVHeaders):
         CSVHeader('part_number', name_options=['part number', 'part no', ]),
         CSVHeader('revision', name_options=['rev', 'part_revision', ]),
     ] + PartsListCSVHeaders.part_attributes \
-      + SellerPartCSVHeaders.all_headers_defns + [
-        CSVHeader('lead_time_days', name_options=['part_lead_time_days', ]),
-        CSVHeader('minimum_pack_quantity', name_options=['part_minimum_pack_quantity', 'mpq' ]),
-    ]
+      + SellerPartCSVHeaders.all_headers_defns
 
 
 class BOMFlatCSVHeaders(CSVHeaders):

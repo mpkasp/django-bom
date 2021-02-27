@@ -652,9 +652,9 @@ class SellerPart(models.Model, AsDictModel):
             'manufacturer_name': self.manufacturer_part.manufacturer.name if self.manufacturer_part.manufacturer is not None else '',
             'manufacturer_part_number': self.manufacturer_part.manufacturer_part_number,
             'seller': self.seller.name,
-            'part_cost': self.unit_cost,
-            'moq': self.minimum_order_quantity,
-            'nre': self.nre_cost
+            'unit_cost': self.unit_cost,
+            'minimum_order_quantity': self.minimum_order_quantity,
+            'nre_cost': self.nre_cost
         }
 
     @staticmethod

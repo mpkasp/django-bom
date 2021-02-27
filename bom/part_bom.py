@@ -7,28 +7,28 @@ logger = logging.getLogger(__name__)
 
 
 class PartBom(AsDictModel):
-    def __init__(self, part_revision, quantity, unit_cost=None, missing_item_costs=0, nre=None, out_of_pocket_cost=None):
+    def __init__(self, part_revision, quantity, unit_cost=None, missing_item_costs=0, nre_cost=None, out_of_pocket_cost=None):
         self.part_revision = part_revision
         self.parts = OrderedDict()
         self.quantity = quantity
         self._currency = self.part_revision.part.organization.currency
         if unit_cost is None:
             unit_cost = Money(0, self._currency)
-        if nre is None:
-            nre = Money(0, self._currency)
+        if nre_cost is None:
+            nre_cost = Money(0, self._currency)
         if out_of_pocket_cost is None:
             out_of_pocket_cost = Money(0, self._currency)
 
         self.unit_cost = unit_cost
         self.missing_item_costs = missing_item_costs  # count of items that have no cost
-        self.nre = nre
+        self.nre_cost = nre_cost
         self.out_of_pocket_cost = out_of_pocket_cost  # cost of buying self.quantity with MOQs
 
     def cost(self):
         return self.unit_cost * self.quantity
 
     def total_out_of_pocket_cost(self):
-        return self.out_of_pocket_cost + self.nre
+        return self.out_of_pocket_cost + self.nre_cost
 
     def append_item_and_update(self, item):
         if item.bom_id in self.parts:
@@ -55,7 +55,7 @@ class PartBom(AsDictModel):
                 pass
             self.unit_cost = (self.unit_cost + bom_part.seller_part.unit_cost * bom_part.extended_quantity) if bom_part.seller_part.unit_cost is not None else self.unit_cost
             self.out_of_pocket_cost = self.out_of_pocket_cost + bom_part.out_of_pocket_cost()
-            self.nre = (self.nre + bom_part.seller_part.nre_cost) if bom_part.seller_part.nre_cost is not None else self.nre
+            self.nre_cost = (self.nre_cost + bom_part.seller_part.nre_cost) if bom_part.seller_part.nre_cost is not None else self.nre_cost
         else:
             self.missing_item_costs += 1
 
@@ -63,7 +63,7 @@ class PartBom(AsDictModel):
         self.missing_item_costs = 0
         self.unit_cost = Money(0, self._currency)
         self.out_of_pocket_cost = Money(0, self._currency)
-        self.nre = Money(0, self._currency)
+        self.nre_cost = Money(0, self._currency)
         for _, bom_part in self.parts.items():
             self.update_bom_for_part(bom_part)
 
@@ -90,7 +90,7 @@ class PartBom(AsDictModel):
     def as_dict(self, include_id=False):
         d = super().as_dict()
         d['unit_cost'] = self.unit_cost.amount
-        d['nre'] = self.nre.amount
+        d['nre'] = self.nre_cost.amount
         d['out_of_pocket_cost'] = self.out_of_pocket_cost.amount
         return d
 
