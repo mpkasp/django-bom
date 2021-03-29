@@ -34,7 +34,7 @@ py-moneyed==0.8.0
 pyasn1==0.4.4
 pyasn1-modules==0.2.2
 pycparser==2.18
-Pygments==2.4.0
+Pygments==2.7.4
 PyJWT==1.6.4
 PyNaCl==1.2.1
 pyparsing==2.4.7
