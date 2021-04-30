@@ -47,7 +47,7 @@ readme-renderer==24.0
 requests==2.22.0
 requests-oauthlib==1.0.0
 requests-toolbelt==0.8.0
-rsa==4.0
+rsa==4.7
 sendgrid==6.0.5
 sentry-sdk==0.20.3
 six==1.11.0
