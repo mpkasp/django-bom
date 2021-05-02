@@ -8,7 +8,7 @@ cffi==1.14.0
 chardet==3.0.4
 cryptography==3.4.6
 defusedxml==0.6.0
-Django==3.1.7
+Django==3.1.8
 django-materializecss-form==1.1.17
 django-money==1.1
 django-recaptcha==2.0.6
@@ -34,7 +34,7 @@ py-moneyed==0.8.0
 pyasn1==0.4.4
 pyasn1-modules==0.2.2
 pycparser==2.18
-Pygments==2.4.0
+Pygments==2.7.4
 PyJWT==1.6.4
 PyNaCl==1.2.1
 pyparsing==2.4.7
@@ -47,7 +47,7 @@ readme-renderer==24.0
 requests==2.22.0
 requests-oauthlib==1.0.0
 requests-toolbelt==0.8.0
-rsa==4.0
+rsa==4.7
 sendgrid==6.0.5
 sentry-sdk==0.20.3
 six==1.11.0
@@ -57,5 +57,5 @@ sqlparse==0.3.0
 tqdm==4.25.0
 twine==1.13.0
 uritemplate==3.0.0
-urllib3==1.25.3
+urllib3==1.25.8
 webencodings==0.5.1
