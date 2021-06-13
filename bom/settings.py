@@ -143,6 +143,8 @@ LOGGING = {
     },
 }
 
+DEFAULT_AUTO_FIELD='django.db.models.AutoField'
+
 # Internationalization
 # https://docs.djangoproject.com/en/1.10/topics/i18n/
 
