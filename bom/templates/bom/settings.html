@@ -129,9 +129,7 @@
                             {{ organization.number_vs }}{% endif %}</b></p>
                         <div class="row">
                             {{ organization_number_len_form|materializecss:'s4 m2' }}
-                        </div>
-                        <div class="row">
-                            <div class="col s6 right-align">
+                            <div class="col s12 m6 input-field">
                                 <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-number-item-len"
                                         onclick="return confirm('Are you sure you want to change the number of digits?')">Save
                                 </button>
@@ -180,7 +178,7 @@
                 <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="row">
-                        {{ organization_form|materializecss:'s12 m6' }}
+                        {{ organization_form|materializecss:'s12 m4' }}
                     </div>
                     <div class="row">
                         <div class="col s12 right-align">
