@@ -130,6 +130,7 @@ bom/templates/bom/bom-action-table.html
 bom/templates/bom/bom-base-menu.html
 bom/templates/bom/bom-base.html
 bom/templates/bom/bom-flat.html
+bom/templates/bom/bom-form-modal.html
 bom/templates/bom/bom-form.html
 bom/templates/bom/bom-indented.html
 bom/templates/bom/bom-signup.html
