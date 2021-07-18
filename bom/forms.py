@@ -1,26 +1,78 @@
-import csv
 import codecs
+import csv
 import logging
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxLengthValidator, MaxValueValidator, MinLengthValidator, MinValueValidator
+from django.db import IntegrityError
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
-from django.db import IntegrityError
-from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator, MaxLengthValidator, MinLengthValidator
+
 from djmoney.money import Money
 
-from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
-    WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, NUMBER_SCHEME_SEMI_INTELLIGENT, \
-    NUMBER_SCHEME_INTELLIGENT, ROLE_TYPE_VIEWER, NUMBER_CLASS_CODE_LEN_DEFAULT, NUMBER_CLASS_CODE_LEN_MIN, NUMBER_CLASS_CODE_LEN_MAX, \
-    NUMBER_ITEM_LEN_DEFAULT, NUMBER_ITEM_LEN_MIN, NUMBER_ITEM_LEN_MAX, NUMBER_VARIATION_LEN_DEFAULT, NUMBER_VARIATION_LEN_MIN, NUMBER_VARIATION_LEN_MAX
+from .constants import (
+    CONFIGURATION_TYPES,
+    CURRENT_UNITS,
+    DISTANCE_UNITS,
+    FREQUENCY_UNITS,
+    INTERFACE_TYPES,
+    MEMORY_UNITS,
+    NUMBER_CLASS_CODE_LEN_DEFAULT,
+    NUMBER_CLASS_CODE_LEN_MAX,
+    NUMBER_CLASS_CODE_LEN_MIN,
+    NUMBER_ITEM_LEN_DEFAULT,
+    NUMBER_ITEM_LEN_MAX,
+    NUMBER_ITEM_LEN_MIN,
+    NUMBER_SCHEME_INTELLIGENT,
+    NUMBER_SCHEME_SEMI_INTELLIGENT,
+    NUMBER_VARIATION_LEN_DEFAULT,
+    NUMBER_VARIATION_LEN_MAX,
+    NUMBER_VARIATION_LEN_MIN,
+    PACKAGE_TYPES,
+    POWER_UNITS,
+    ROLE_TYPE_VIEWER,
+    ROLE_TYPES,
+    SUBSCRIPTION_TYPES,
+    TEMPERATURE_UNITS,
+    VALUE_UNITS,
+    VOLTAGE_UNITS,
+    WAVELENGTH_UNITS,
+    WEIGHT_UNITS,
+)
+from .csv_headers import (
+    BOMFlatCSVHeaders,
+    BOMIndentedCSVHeaders,
+    CSVHeaderError,
+    PartClassesCSVHeaders,
+    PartsListCSVHeaders,
+)
 from .form_fields import AutocompleteTextInput
-from .models import Part, PartClass, Manufacturer, ManufacturerPart, Subpart, Seller, SellerPart, User, UserMeta, \
-    Organization, PartRevision, AssemblySubparts, Assembly
-from .validators import decimal, numeric, alphanumeric
-from .utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely, get_from_dict
-from .csv_headers import PartsListCSVHeaders, PartClassesCSVHeaders, BOMFlatCSVHeaders, BOMIndentedCSVHeaders, CSVHeaderError
+from .models import (
+    Assembly,
+    AssemblySubparts,
+    Manufacturer,
+    ManufacturerPart,
+    Organization,
+    Part,
+    PartClass,
+    PartRevision,
+    Seller,
+    SellerPart,
+    Subpart,
+    User,
+    UserMeta,
+)
+from .utils import (
+    check_references_for_duplicates,
+    get_from_dict,
+    listify_string,
+    prep_for_sorting_nicely,
+    stringify_list,
+)
+from .validators import alphanumeric, decimal, numeric
+
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +203,7 @@ class OrganizationCreateForm(forms.ModelForm):
 class OrganizationForm(forms.ModelForm):
     class Meta:
         model = Organization
-        exclude = ['owner', 'subscription', 'google_drive_parent', 'number_scheme', ]
+        exclude = ['owner', 'subscription', 'subscription_quantity', 'google_drive_parent', 'number_scheme', ]
         labels = {
             "name": "Organization Name",
             "number_class_code_len": "Number Class Code Length (C)",
@@ -176,7 +228,7 @@ class OrganizationFormEditSettings(OrganizationForm):
 
     class Meta:
         model = Organization
-        exclude = ['subscription', 'google_drive_parent', 'number_scheme', 'number_item_len', 'number_class_code_len', 'number_variation_len', 'owner', ]
+        exclude = ['subscription', 'subscription_quantity', 'google_drive_parent', 'number_scheme', 'number_item_len', 'number_class_code_len', 'number_variation_len', 'owner', ]
         labels = {
             "name": "Organization Name",
         }

@@ -1,6 +1,7 @@
 LICENSE
 MANIFEST.in
 README.md
+setup.cfg
 setup.py
 bom/__init__.py
 bom/admin.py

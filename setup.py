@@ -9,8 +9,8 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-bom',
-    version='1.200',
-    packages=find_packages(),
+    version='1.201',
+    packages=find_packages(include=["bom", ]),
     include_package_data=True,
     license='GPL 3.0 License',
     description='A simple Django app to manage a bill of materials.',

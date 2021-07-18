@@ -1,26 +1,52 @@
 from __future__ import unicode_literals
 
 import logging
-
-from django.core.cache import cache
-from django.db import models
-from django.contrib.auth.models import User, Group
-from django.utils import timezone
-from django.core.validators import MaxValueValidator, MinValueValidator
-from .csv_headers import PartsListCSVHeadersSemiIntelligent, PartsListCSVHeaders
-from .part_bom import PartIndentedBomItem, PartBomItem, PartBom
-from .utils import increment_str, prep_for_sorting_nicely, listify_string, stringify_list, strip_trailing_zeros
-from .validators import alphanumeric, numeric, validate_pct
-from .constants import VALUE_UNITS, PACKAGE_TYPES, POWER_UNITS, INTERFACE_TYPES, TEMPERATURE_UNITS, DISTANCE_UNITS, WAVELENGTH_UNITS, \
-    WEIGHT_UNITS, FREQUENCY_UNITS, VOLTAGE_UNITS, CURRENT_UNITS, MEMORY_UNITS, SUBSCRIPTION_TYPES, ROLE_TYPES, CONFIGURATION_TYPES, \
-    NUMBER_SCHEMES, NUMBER_SCHEME_SEMI_INTELLIGENT, NUMBER_CLASS_CODE_LEN_DEFAULT, NUMBER_CLASS_CODE_LEN_MIN, NUMBER_CLASS_CODE_LEN_MAX, \
-    NUMBER_ITEM_LEN_DEFAULT, NUMBER_ITEM_LEN_MIN, NUMBER_ITEM_LEN_MAX, NUMBER_VARIATION_LEN_DEFAULT, NUMBER_VARIATION_LEN_MIN, NUMBER_VARIATION_LEN_MAX, \
-    NUMBER_SCHEME_INTELLIGENT
-from .base_classes import AsDictModel
-
-from djmoney.models.fields import MoneyField, CurrencyField, CURRENCY_CHOICES
 from math import ceil
+
+from django.contrib.auth.models import Group, User
+from django.core.cache import cache
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+from django.utils import timezone
+
+from djmoney.models.fields import CURRENCY_CHOICES, CurrencyField, MoneyField
 from social_django.models import UserSocialAuth
+
+from .base_classes import AsDictModel
+from .constants import (
+    CONFIGURATION_TYPES,
+    CURRENT_UNITS,
+    DISTANCE_UNITS,
+    FREQUENCY_UNITS,
+    INTERFACE_TYPES,
+    MEMORY_UNITS,
+    NUMBER_CLASS_CODE_LEN_DEFAULT,
+    NUMBER_CLASS_CODE_LEN_MAX,
+    NUMBER_CLASS_CODE_LEN_MIN,
+    NUMBER_ITEM_LEN_DEFAULT,
+    NUMBER_ITEM_LEN_MAX,
+    NUMBER_ITEM_LEN_MIN,
+    NUMBER_SCHEME_INTELLIGENT,
+    NUMBER_SCHEME_SEMI_INTELLIGENT,
+    NUMBER_SCHEMES,
+    NUMBER_VARIATION_LEN_DEFAULT,
+    NUMBER_VARIATION_LEN_MAX,
+    NUMBER_VARIATION_LEN_MIN,
+    PACKAGE_TYPES,
+    POWER_UNITS,
+    ROLE_TYPES,
+    SUBSCRIPTION_TYPES,
+    TEMPERATURE_UNITS,
+    VALUE_UNITS,
+    VOLTAGE_UNITS,
+    WAVELENGTH_UNITS,
+    WEIGHT_UNITS,
+)
+from .csv_headers import PartsListCSVHeaders, PartsListCSVHeadersSemiIntelligent
+from .part_bom import PartBom, PartBomItem, PartIndentedBomItem
+from .utils import increment_str, listify_string, prep_for_sorting_nicely, stringify_list, strip_trailing_zeros
+from .validators import alphanumeric, numeric, validate_pct
+
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +54,7 @@ logger = logging.getLogger(__name__)
 class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
     subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
+    subscription_quantity = models.IntegerField(default=0)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
     number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES, default=NUMBER_SCHEME_SEMI_INTELLIGENT)
     number_class_code_len = models.PositiveIntegerField(default=NUMBER_CLASS_CODE_LEN_DEFAULT,
@@ -60,6 +87,10 @@ class Organization(models.Model):
         else:
             return PartsListCSVHeadersSemiIntelligent()
 
+    @property
+    def email(self):
+        return self.owner.email
+
     def save(self, *args, **kwargs):
         super(Organization, self).save()
         SellerPart.objects.filter(seller__organization=self).update(unit_cost_currency=self.currency, nre_cost_currency=self.currency)
@@ -90,6 +121,9 @@ class UserMeta(models.Model):
             return True
         except UserSocialAuth.DoesNotExist:
             return False
+
+    def is_organization_owner(self):
+        return self.organization.owner == self.user
 
     def _user_meta(self, organization=None):
         return UserMeta.objects.get_or_create(user=self, defaults={'organization': organization})[0]
