@@ -190,6 +190,11 @@ table.treetable tr.expanded span.indenter a {
     padding: 0 8px;
 }
 
+.file-field .btn, .file-field .btn-large, .file-field .btn-small {
+    background-color: #66BB6A;
+}
+
+
 a.anchor {
     display: block;
     position: relative;

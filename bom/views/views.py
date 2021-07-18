@@ -1,15 +1,16 @@
 import csv
 import logging
 import operator
-import bom.constants as constants
+from functools import reduce
+from json import dumps, loads
 
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, get_user_model
+from django.contrib.auth import authenticate, get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import IntegrityError
-from django.db.models import Q, ProtectedError, prefetch_related_objects
+from django.db.models import ProtectedError, Q, prefetch_related_objects
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -20,19 +21,61 @@ from django.views.generic.base import TemplateView
 
 from social_django.models import UserSocialAuth
 
-from functools import reduce
+import bom.constants as constants
+from bom.csv_headers import (
+    BOMFlatCSVHeaders,
+    BOMIndentedCSVHeaders,
+    CSVHeader,
+    ManufacturerPartCSVHeaders,
+    PartClassesCSVHeaders,
+    PartsListCSVHeaders,
+    PartsListCSVHeadersSemiIntelligent,
+    SellerPartCSVHeaders,
+)
+from bom.forms import (
+    AddSubpartForm,
+    BOMCSVForm,
+    FileForm,
+    ManufacturerForm,
+    ManufacturerPartForm,
+    OrganizationCreateForm,
+    OrganizationForm,
+    OrganizationFormEditSettings,
+    OrganizationNumberLenForm,
+    PartClassCSVForm,
+    PartClassForm,
+    PartClassFormSet,
+    PartClassSelectionForm,
+    PartCSVForm,
+    PartFormIntelligent,
+    PartFormSemiIntelligent,
+    PartInfoForm,
+    PartRevisionForm,
+    PartRevisionNewForm,
+    SellerPartForm,
+    SubpartForm,
+    UploadBOMForm,
+    UserAddForm,
+    UserCreateForm,
+    UserForm,
+    UserMetaForm,
+)
+from bom.models import (
+    Assembly,
+    AssemblySubparts,
+    Manufacturer,
+    ManufacturerPart,
+    Organization,
+    Part,
+    PartClass,
+    PartRevision,
+    SellerPart,
+    Subpart,
+    User,
+    UserMeta,
+)
+from bom.utils import check_references_for_duplicates, listify_string, prep_for_sorting_nicely, stringify_list
 
-from json import loads, dumps
-
-from bom.models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, \
-    UserMeta, PartRevision, Assembly, AssemblySubparts
-from bom.forms import PartInfoForm, PartFormSemiIntelligent, PartFormIntelligent, AddSubpartForm, SubpartForm, FileForm, ManufacturerForm, \
-    ManufacturerPartForm, SellerPartForm, UserCreateForm, UserForm, UserMetaForm, UserAddForm, OrganizationForm, OrganizationNumberLenForm, PartRevisionForm, \
-    PartRevisionNewForm, PartCSVForm, PartClassForm, PartClassSelectionForm, PartClassCSVForm, UploadBOMForm, BOMCSVForm, PartClassFormSet, \
-    OrganizationCreateForm, OrganizationFormEditSettings
-from bom.utils import listify_string, stringify_list, check_references_for_duplicates, prep_for_sorting_nicely
-from bom.csv_headers import PartsListCSVHeaders, PartsListCSVHeadersSemiIntelligent, PartClassesCSVHeaders, BOMFlatCSVHeaders, BOMIndentedCSVHeaders, ManufacturerPartCSVHeaders, SellerPartCSVHeaders, \
-    CSVHeader
 
 logger = logging.getLogger(__name__)
 
@@ -460,11 +503,13 @@ def bom_settings(request, tab_anchor=None):
 
     user_form = UserForm(instance=user)
     user_add_form = UserAddForm()
+    user_add_form_action = reverse('bom:settings', kwargs={'tab_anchor': ORGANIZATION_TAB})
     user_meta_form = UserMetaForm()
 
     organization_form = OrganizationFormEditSettings(instance=organization, user=user)
     organization_number_len_form = OrganizationNumberLenForm(instance=organization)
     part_class_form = PartClassForm(organization=organization)
+    part_class_form_action = reverse('bom:settings', kwargs={'tab_anchor': INDABOM_TAB})
     part_class_csv_form = PartClassCSVForm(organization=organization)
 
     return TemplateResponse(request, 'bom/settings.html', locals())
