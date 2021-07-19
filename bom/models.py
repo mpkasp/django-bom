@@ -115,15 +115,15 @@ class UserMeta(models.Model):
             self.save()
         return self.organization
 
-    def google_authenticated(self):
+    def google_authenticated(self) -> bool:
         try:
             self.user.social_auth.get(provider='google-oauth2')
             return True
         except UserSocialAuth.DoesNotExist:
             return False
 
-    def is_organization_owner(self):
-        return self.organization.owner == self.user
+    def is_organization_owner(self) -> bool:
+        return self.organization.owner == self.user if self.organization else False
 
     def _user_meta(self, organization=None):
         return UserMeta.objects.get_or_create(user=self, defaults={'organization': organization})[0]
