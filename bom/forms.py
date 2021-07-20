@@ -121,6 +121,7 @@ class UserAddForm(forms.ModelForm):
         model = UserMeta
         fields = ['role']
 
+    field_order = ['username', 'role', ]
     username = forms.CharField(initial=None, required=False)
 
     def __init__(self, *args, **kwargs):

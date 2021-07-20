@@ -79,6 +79,11 @@ from bom.utils import check_references_for_duplicates, listify_string, prep_for_
 
 logger = logging.getLogger(__name__)
 
+def form_error_messages(form_errors) -> [str]:
+    error_messages = []
+    for k, errors in form_errors.as_data().items():
+        for error_message in errors:
+            error_messages.append(str(error_message.message))
 
 @login_required
 def home(request):
