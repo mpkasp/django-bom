@@ -388,6 +388,8 @@ class PartRevision(models.Model):
     weight = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
     temperature_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=TEMPERATURE_UNITS)
     temperature_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
+    temperature_rating_range_max = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
+    temperature_rating_range_min = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
     wavelength_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=WAVELENGTH_UNITS)
     wavelength = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
     frequency_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=FREQUENCY_UNITS)
