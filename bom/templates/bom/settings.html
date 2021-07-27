@@ -238,7 +238,7 @@
                         <div class="col s12">
                             <p>There are no additional users in this organization: {{ organization }}.</p>
                             {% if organization.subscription == 'F' %}
-                                <p><i>Note: Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.</i></p>
+                                {% include 'bom/bom-form-modal.html' with modal_title='Add User' name='submit-add-user-free' modal_description='Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.' %}
                             {% else %}
                                 {% if organization.subscription_quantity == 0 or users_in_organization.count < organization.subscription_quantity %}
                                     {% include 'bom/bom-form-modal.html' with modal_title='Add User' form=user_add_form action=user_add_form_action name='submit-add-user' modal_description='Add a user to your organization.' %}
