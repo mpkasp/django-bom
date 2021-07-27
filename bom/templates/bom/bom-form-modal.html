@@ -1,7 +1,7 @@
 {% load materializecss %}
 {% load static %}
 
-<a class="waves-effect waves-light btn green lighten-1 modal-trigger" href="#modal-{{ name }}">{{ modal_title }}</a>
+<a class="waves-effect waves-light btn green lighten-1 modal-trigger modal-{{ name }}" href="#modal-{{ name }}">{{ modal_title }}</a>
 
 <div id="modal-{{ name }}" class="modal left-align">
     <form name="seller" action="{{ action }}" method="post" class="col s12" enctype="multipart/form-data">
