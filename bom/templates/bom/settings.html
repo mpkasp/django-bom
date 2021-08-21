@@ -116,6 +116,7 @@
                         <div class="col s12 right-align">
                             {% if part_classes.count == 0 %}
                                 <a href="{% url 'bom:help' %}#part-numbering" target="_blank">What is a part class?</a>
+                                <p>You may also use <a href="{% static 'bom/doc/sample_part_classes.csv' %}">this sample CSV file</a>.</p>
                             {% endif %}
                             {% include 'bom/bom-form-modal.html' with modal_title='Upload Part Classes' form=part_class_csv_form action=part_class_form_action name='submit-part-class-upload' modal_description='To batch add part classes, upload a csv that contains columns with the headers<b>`name`</b> and <b>`code`</b>. You may optionally specify a description or comment by including a column with the header <b>`description`</b> or <b>`comment`</b>.' %}
                             {% include 'bom/bom-form-modal.html' with modal_title='Add Part Class' form=part_class_form action=part_class_form_action name='submit-part-class-create' %}

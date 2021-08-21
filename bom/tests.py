@@ -1,16 +1,25 @@
-from django.test import TestCase, Client, TransactionTestCase
-from django.urls import reverse
-from django.contrib.auth.models import User
+from re import finditer, search
 from unittest import skip
 
-from re import finditer, search
-
-from .helpers import create_some_fake_parts, create_a_fake_organization, create_a_fake_part_revision, create_user_and_organization, \
-    create_a_fake_subpart, create_some_fake_part_classes, create_some_fake_manufacturers, create_some_fake_sellers, create_a_fake_assembly
-from .models import Part, SellerPart, ManufacturerPart, Seller, PartClass, Subpart
-from .forms import PartInfoForm, PartFormSemiIntelligent, AddSubpartForm, SellerPartForm
+from django.contrib.auth.models import User
+from django.test import Client, TestCase, TransactionTestCase
+from django.urls import reverse
 
 from . import constants
+from .forms import AddSubpartForm, PartFormSemiIntelligent, PartInfoForm, SellerPartForm
+from .helpers import (
+    create_a_fake_assembly,
+    create_a_fake_organization,
+    create_a_fake_part_revision,
+    create_a_fake_subpart,
+    create_some_fake_manufacturers,
+    create_some_fake_part_classes,
+    create_some_fake_parts,
+    create_some_fake_sellers,
+    create_user_and_organization,
+)
+from .models import ManufacturerPart, Part, PartClass, Seller, SellerPart, Subpart
+
 
 TEST_FILES_DIR = "bom/test_files"
 
@@ -649,6 +658,15 @@ class TestBOM(TransactionTestCase):
         messages = list(response.context.get('messages'))
         for msg in messages:
             self.assertTrue('None on row' not in str(msg.message))
+
+    def test_upload_part_classes_sample(self):
+        # Should pass
+        with open(f'{TEST_FILES_DIR}/sample_part_classes.csv') as test_csv:
+            response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
+        self.assertEqual(response.status_code, 200)
+
+        new_part_class_count = PartClass.objects.all().count()
+        self.assertEqual(new_part_class_count, 37)
 
     def test_upload_part_classes_parts_and_boms(self):
         self.organization.number_item_len = 5
