@@ -1,16 +1,17 @@
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from social_django.utils import load_strategy
-from requests import HTTPError
 
-from bom.models import Part
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from requests import HTTPError
+from social_django.utils import load_strategy
+
 from bom.decorators import google_authenticated
+from bom.models import Part
 
 
 # Helpers
@@ -39,12 +40,14 @@ def create_root(user):
 
 def create_part_folder(user, part):
     service = get_service(user)
+    print("got service")
     organization = user.bom_profile().organization
     file_metadata = {
         'name': part.full_part_number() + ' ' + part.latest().description,
         'mimeType': 'application/vnd.google-apps.folder',
         'parents': [organization.google_drive_parent],
     }
+    print("about to create")
     file = service.files().create(body=file_metadata, fields='id').execute()
     part.google_drive_parent = file.get('id')
     part.save()
@@ -126,7 +129,12 @@ def get_or_create_and_open_folder(request, part_id):
         try:
             create_part_folder(user, part)
         except HttpError as e:
-            messages.error(request, "Error: {}".format(e))
+            for detail in e.error_details:
+                msg = detail['message'] if 'message' in detail else 'Unknown error'
+                if 'reason' in detail and detail['reason'] == 'notFound':
+                    msg += '<br>You may need to ask your organization owner to share the organization folder with you.'
+                messages.error(request, "Error: {}".format(msg))
+
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
     return HttpResponseRedirect('https://drive.google.com/drive/folders/{}'.format(part.google_drive_parent))
