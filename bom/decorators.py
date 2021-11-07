@@ -1,6 +1,8 @@
+from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.urls import reverse
 from django.http import HttpResponseRedirect
+from django.urls import reverse
+
 from social_django.models import UserSocialAuth
 
 
@@ -11,7 +13,8 @@ def google_authenticated(function):
             user.social_auth.get(provider='google-oauth2')
             return function(request, *args, **kwargs)
         except UserSocialAuth.DoesNotExist as e:
-            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'file'}))
+            messages.error(request, "You must Sign in with Google to access this feature.")
+            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
 
     wrap.__doc__ = function.__doc__
     wrap.__name__ = function.__name__

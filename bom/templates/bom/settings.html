@@ -21,7 +21,7 @@
         </div>
 
         <div id="user" class="col s12">
-            <h3>Your IndaBOM User Info:</h3>
+            <h3>User Info</h3>
             <form name="seller" action="{% url 'bom:settings' tab_anchor=USER_TAB %}" method="post" class="col s12">
                 {% csrf_token %}
                 <div class="row">
@@ -176,119 +176,150 @@
         <div id="organization" class="col s12">
             {% if user.bom_profile.role == 'A' %}
                 <h3>Organization</h3>
-                <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <div class="row">
-                        {{ organization_form|materializecss:'s12 m4' }}
-                    </div>
-                    <div class="row">
-                        <div class="col s12 right-align">
-                            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-organization"
-                                    onclick="return confirm('Are you sure you want to change the organization information?')">Save
-                            </button>
-                        </div>
-                    </div>
-                </form>
-                <br/>
-                <h3>Users</h3>
-                {% if users_in_organization.count > 0 %}
-                    <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        <table>
-                            <thead>
-                            <tr>
-                                <th class="text-normal"><label><input type="checkbox" id="user-select-all"><span></span></label></th>
-                                <th class="text-normal">Role</th>
-                                <th class="text-normal">User Name</th>
-                                <th class="text-normal">Full Name</th>
-                                <th class="text-normal">Email</th>
-                                <th class="text-normal"></th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {% for org_user in users_in_organization %}
-                                <tr>
-                                    <td>
-                                        <label><input type="checkbox" class="filled-in" name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>
-                                    </td>
-                                    <td class="text-normal">{{ org_user.bom_profile.get_role_display }}</td>
-                                    <td class="text-normal">{{ org_user.username }}</td>
-                                    <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
-                                    <td class="text-normal"><a href="mailto:{{ user.email }}">{{ org_user.email }}</a></td>
-                                    <td>
-                                        <a class="waves-effect waves-green btn-flat green-text text-lighten-1" href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
-                                                class="material-icons left green-text text-lighten-1">edit</i>Edit</a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
-                        <div class="row" style="padding-top: 16px;">
-                            <div class="col s6">
-                                <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-remove-user"
-                                        onclick="return confirm('Are you sure you want to remove the selected users from {{ organization }}?')">Remove Selected
-                                </button>
-                            </div>
-                            <div class="col s6 right-align">
-                                {% include 'bom/bom-form-modal.html' with modal_title='Add User' form=user_add_form action=user_add_form_action name='submit-add-user' modal_description='Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.' %}
-                            </div>
-                        </div>
-                    </form>
-                {% else %}
-                    <div class="row" style="padding-left: .75rem;">
-                        <div class="col s12">
-                            <p>There are no additional users in this organization: {{ organization }}.</p>
-                            {% if organization.subscription == 'F' %}
-                                {% include 'bom/bom-form-modal.html' with modal_title='Add User' name='submit-add-user-free' modal_description='Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.' %}
-                            {% else %}
-                                {% if organization.subscription_quantity == 0 or users_in_organization.count < organization.subscription_quantity %}
-                                    {% include 'bom/bom-form-modal.html' with modal_title='Add User' form=user_add_form action=user_add_form_action name='submit-add-user' modal_description='Add a user to your organization.' %}
-                                {% else %}
-                                    <p>You've added the maximum number of users to this organization. Update your subscription to add more.</p>
-                                {% endif %}
-                            {% endif %}
-                        </div>
-                    </div>
-                {% endif %}
-
-                <h3>Part File Storage with Google Drive <img title="Via Google Drive" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;"
-                                                             src="{% static 'bom/img/google_drive_logo.svg' %}"></h3>
-                <p>Connect your Google account. Organization owners can enable file storage using Google Drive. {% if organization.owner == user %} Since you are the owner, you are able to enable
-                    file storage!{% else %}Contact your organization owner to enable.{% endif %}<p>
-                <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root of Google drive (and can be moved anywhere in your drive). To add files to a part,
-                    navigate to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img title="Via Google Drive" style="width: 16px; vertical-align: middle;"
-                                                                                                                 src="{% static 'bom/img/google_drive_logo.svg' %}">&nbsp;Google Drive link.
-                    This will create a folder for your part in your root IndaBOM directory, or take you there if it already exists.<p>
-                <p>You'll be able to access the files directly through Google Drive, and through IndaBOM.</p>
-                <h4>Google Connections</h4>
-                <ul>
-                    {% if google_authentication %}
-                        <p>Logged in to Google as: {{ google_authentication.uid }}
-                        <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
+                <div class="row">
+                    <div class="col s12">
+                        <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
                             {% csrf_token %}
-                            <button class="waves-effect waves-light btn green lighten-1" type="submit">Disconnect</button>
+                            <div class="row">
+                                {{ organization_form|materializecss:'s12 m4' }}
+                            </div>
+                            <div class="row">
+                                <div class="col s12 right-align">
+                                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-organization"
+                                            onclick="return confirm('Are you sure you want to change the organization information?')">Save
+                                    </button>
+                                </div>
+                            </div>
                         </form>
-                    {% else %}
-                        <a href="{% url "social:begin" "google-oauth2" %}">
-                            <img title="Google sign-in." src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}">
-                        </a>
-                    {% endif %}
-                </ul>
-                <h3>Automagic Sourcing via Mouser <img title="Sourcing via Mouser.com" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;" src="{% static 'bom/img/mouser.png' %}">
-                </h3>
-                <p>No connection required. To enable sourcing via mouser, select which part classes you'd like enabled on the Settings INDABOM tab. Once enabled, sourcing information will appear on
-                    part detail pages in which there are parts sourced via Mouser.</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s12">
+                        <h3>Users</h3>
+                        {% if users_in_organization.count > 0 %}
+                            <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <table>
+                                    <thead>
+                                    <tr>
+                                        <th class="text-normal"><label><input type="checkbox" id="user-select-all"><span></span></label></th>
+                                        <th class="text-normal">Role</th>
+                                        <th class="text-normal">User Name</th>
+                                        <th class="text-normal">Full Name</th>
+                                        <th class="text-normal">Email</th>
+                                        <th class="text-normal"></th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {% for org_user in users_in_organization %}
+                                        <tr>
+                                            <td>
+                                                <label><input type="checkbox" class="filled-in" name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>
+                                            </td>
+                                            <td class="text-normal">{{ org_user.bom_profile.get_role_display }}</td>
+                                            <td class="text-normal">{{ org_user.username }}</td>
+                                            <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
+                                            <td class="text-normal"><a href="mailto:{{ user.email }}">{{ org_user.email }}</a></td>
+                                            <td>
+                                                <a class="waves-effect waves-green btn-flat green-text text-lighten-1" href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
+                                                        class="material-icons left green-text text-lighten-1">edit</i>Edit</a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                                <div class="row" style="padding-top: 16px;">
+                                    <div class="col s6">
+                                        <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-remove-user"
+                                                onclick="return confirm('Are you sure you want to remove the selected users from {{ organization }}?')">Remove Selected
+                                        </button>
+                                    </div>
+                                    <div class="col s6 right-align">
+                                        {% include 'bom/bom-form-modal.html' with modal_title='Add User' form=user_add_form action=user_add_form_action name='submit-add-user' modal_description='Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.' %}
+                                    </div>
+                                </div>
+                            </form>
+                        {% else %}
+                            <div class="row" style="padding-left: .75rem;">
+                                <div class="col s12">
+                                    <p>There are no additional users in this organization: {{ organization }}.</p>
+                                    {% if organization.subscription == 'F' %}
+                                        {% include 'bom/bom-form-modal.html' with modal_title='Add User' name='submit-add-user-free' modal_description='Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.' %}
+                                    {% else %}
+                                        {% if organization.subscription_quantity == 0 or users_in_organization.count < organization.subscription_quantity %}
+                                            {% include 'bom/bom-form-modal.html' with modal_title='Add User' form=user_add_form action=user_add_form_action name='submit-add-user' modal_description='Add a user to your organization.' %}
+                                        {% else %}
+                                            <p>You've added the maximum number of users to this organization. Update your subscription to add more.</p>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s12">
+                        <h3>Part File Storage with Google Drive <img title="Via Google Drive" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;"
+                                                                     src="{% static 'bom/img/google_drive_logo.svg' %}"></h3>
+                        {% if not google_authentication %}
+                            <p>Connect your Google account to access Google Drive features.
+                                {% if not organization.google_drive_parent %}Organization owners can enable file storage using Google Drive. {% if organization.owner == user %} Since you are the
+                                    owner, you are able to enable
+                                    file storage!{% else %}Contact your organization owner to enable.{% endif %}{% endif %}<p>
+                            <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root of Google drive (and can be moved anywhere in your drive). To add files to a
+                                part,
+                                navigate to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img title="Via Google Drive" style="width: 16px; vertical-align: middle;"
+                                                                                                                             src="{% static 'bom/img/google_drive_logo.svg' %}">&nbsp;Google Drive link.
+                                This will create a folder for your part in your root IndaBOM directory, or take you there if it already exists.
+                            <p>
+                            <p>You'll be able to access the files directly through Google Drive, and through IndaBOM.</p>
+                        {% else %}
+                            <p>You're connected with Google and can access Google Drive features.</p>
+                        {% endif %}
+                        <ul>
+                            {% if google_authentication %}
+                                <p>Logged in to Google as: {{ google_authentication.uid }}
+                                <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
+                                    {% csrf_token %}
+                                    <button class="waves-effect waves-light btn green lighten-1" type="submit">Disconnect</button>
+                                </form>
+                            {% else %}
+                                <a href="{% url "social:begin" "google-oauth2" %}">
+                                    <img title="Google sign-in." src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}">
+                                </a>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col s12">
+                        <h3>Automagic Sourcing via Mouser <img title="Sourcing via Mouser.com" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;"
+                                                               src="{% static 'bom/img/mouser.png' %}">
+                        </h3>
+                        <p>No connection required. To enable sourcing via mouser, select which part classes you'd like enabled on the Settings INDABOM tab. Once enabled, sourcing information will
+                            appear on
+                            part detail pages in which there are parts sourced via Mouser.</p>
+                    </div>
+                </div>
             {% endif %}
             {% if profile.organization %}
-                <h3>Leave Your Organization</h3>
-                <p>Warning, the only way back in to {{ organization.name }} is if you are invited by an organization administrator.</p>
-                <form name="leave-organization" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-leave-organization">Leave Organization</button>
-                </form>
+                <div class="row">
+                    <div class="col s12">
+                        <h3>Leave Your Organization</h3>
+                        <p>Warning, the only way back in to {{ organization.name }} is if you are invited by an organization administrator.</p>
+                        <form name="leave-organization" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-leave-organization">Leave Organization</button>
+                        </form>
+                    </div>
+                </div>
             {% else %}
-                <h3>You're not part of any organization!</h3>
-                <p>To create your organization, start <a href="{% url 'bom:home' %}">here</a>.</p>
+                <div class="row">
+                    <div class="col s12">
+                        <h3>You're not part of any organization!</h3>
+                        <p>To create your organization, start <a href="{% url 'bom:home' %}">here</a>.</p>
+                    </div>
+                </div>
             {% endif %}
         </div>
     </div>
