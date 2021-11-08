@@ -61,7 +61,7 @@ six==1.16.0
 social-auth-app-django==4.0.0
 social-auth-core>3.0.0,<=4.0.0
 sqlparse==0.4.1
-starkbank-ecdsa==1.1.1
+starkbank-ecdsa==2.0.1
 tqdm==4.61.1
 twine==3.4.1
 typing-extensions==3.10.0.0
