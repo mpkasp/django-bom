@@ -211,9 +211,19 @@ a.anchor {
     padding: 14.5px 0;
 }
 
+/* Material dropdowns tighter */
+.dropdown-content li>a, .dropdown-content li>span {
+    padding: 8px 16px;
+}
+
+.dropdown-content li {
+    min-height: 38px;
+}
+
 /* table of contents styling */
 /*#toc div.h1 { margin-left: 0 }*/
 #toc li.h2 { margin-left: 0 }
 #toc li.h3 { margin-left: 1em }
 #toc li.h4 { margin-left: 2em }
 #toc li.h5 { margin-left: 3em }
+
