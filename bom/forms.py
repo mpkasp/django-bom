@@ -795,6 +795,9 @@ class PartFormSemiIntelligent(forms.ModelForm):
         self.fields['number_item'].validators.append(alphanumeric)
         self.fields['number_class'] = forms.CharField(label='Part Number Class*', required=True, help_text='Select a number class.',
                                                       widget=AutocompleteTextInput(queryset=PartClass.objects.filter(organization=self.organization)))
+        if 'instance' in kwargs:  # To check uniqueness
+            self.id = kwargs['instance'].id
+
         if self.instance and self.instance.id:
             self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(part__id=self.instance.id).order_by('manufacturer_part_number')
         else:
@@ -802,6 +805,13 @@ class PartFormSemiIntelligent(forms.ModelForm):
         for _, value in self.fields.items():
             value.widget.attrs['placeholder'] = value.help_text
             value.help_text = ''
+
+        if self.initial.get('number_class'):
+            try:
+                part_class = PartClass.objects.get(id=self.initial['number_class'])
+                self.initial['number_class'] = str(part_class)
+            except PartClass.DoesNotExist:
+                self.initial['number_class'] = ""
 
     def clean_number_class(self):
         number_class = self.cleaned_data['number_class']
@@ -838,19 +848,23 @@ class PartFormSemiIntelligent(forms.ModelForm):
             validation_error = forms.ValidationError(str(e), code='invalid')
             self.add_error('number_variation', validation_error)
 
+        part = Part.objects.filter(
+            number_class=number_class,
+            number_item=number_item,
+            number_variation=number_variation,
+            organization=self.organization
+        )
+
         try:
-            Part.objects.get(
-                number_class=number_class,
-                number_item=number_item,
-                number_variation=number_variation,
-                organization=self.organization
-            )
+            part = part.exclude(pk=self.id)
+        except AttributeError:
+            pass
+
+        if part.count() > 0:
             validation_error = forms.ValidationError(
                 ("Part number {0}-{1}-{2} already in use.".format(number_class.code, number_item, number_variation)),
                 code='invalid')
             self.add_error(None, validation_error)
-        except Part.DoesNotExist:
-            pass
         return cleaned_data
 
 
