@@ -103,7 +103,7 @@
                 {% if subpart.parent_id %}data-tt-parent-id="{{ subpart.parent_id }}"{% endif %}>
                 <td class="text-normal">{{ subpart.indent_level }}</td>
                 <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
-                <td class="text-normal">{{ subpart.quantity }}</td>
+                <td class="text-normal">{{ subpart.quantity | floatformat }}</td>
                 <td class="text-normal">{{ subpart.references | default:"-" | truncatechars:25 }}{% if subpart.references|length > 25 %}
                     <a class="modal-trigger modal-{{ subpart.part.id }}-references" href="#modal-{{ subpart.part.id }}-references">&nbsp;[+]</a>
                 {% endif %}</td>

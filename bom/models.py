@@ -597,7 +597,7 @@ class AssemblySubparts(models.Model):
 
 class Subpart(models.Model):
     part_revision = models.ForeignKey('PartRevision', related_name='assembly_subpart', null=True, on_delete=models.CASCADE)
-    count = models.PositiveIntegerField(default=1)
+    count = models.FloatField(default=1, validators=[MinValueValidator(0)])
     reference = models.TextField(default='', blank=True, null=True)
     do_not_load = models.BooleanField(default=False, verbose_name='Do Not Load')
 

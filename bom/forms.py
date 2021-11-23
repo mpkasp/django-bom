@@ -963,12 +963,12 @@ class SubpartForm(forms.ModelForm):
     def clean_count(self):
         count = self.cleaned_data['count']
         if not count:
-            count = 1
-        if count < 1:
-            validation_error = forms.ValidationError(
-                ("Subpart quantity must be > 0."),
-                code='invalid')
-            self.add_error('count', validation_error)
+            count = 0
+        # if count < 1:
+        #     validation_error = forms.ValidationError(
+        #         ("Subpart quantity must be > 0."),
+        #         code='invalid')
+        #     self.add_error('count', validation_error)
         return count
 
     def clean_reference(self):
