@@ -213,11 +213,12 @@ a.anchor {
 
 /* Material dropdowns tighter */
 .dropdown-content li>a, .dropdown-content li>span {
-    padding: 8px 16px;
+    padding: 6px;
+    line-height: 16px;
 }
 
 .dropdown-content li {
-    min-height: 38px;
+    min-height: 30px;
 }
 
 /* table of contents styling */
