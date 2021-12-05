@@ -986,7 +986,7 @@ class SubpartForm(forms.ModelForm):
 
 class AddSubpartForm(forms.Form):
     subpart_part_number = forms.CharField(required=True, label="Subpart part number")
-    count = forms.IntegerField(required=False, label='Quantity')
+    count = forms.FloatField(required=False, label='Quantity')
     reference = forms.CharField(required=False, label="Reference")
     do_not_load = forms.BooleanField(required=False, label="do_not_load")
 
