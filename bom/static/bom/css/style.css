@@ -228,3 +228,24 @@ a.anchor {
 #toc li.h4 { margin-left: 2em }
 #toc li.h5 { margin-left: 3em }
 
+/* Printer friendly */
+.printer-header {
+    display: none;
+}
+@media print {
+    body {
+        font-family:verdana, arial, sans-serif;
+    }
+    .printer-header {
+        display: block;
+    }
+    .navbar-fixed {
+        display: none;
+    }
+    .sidenav {
+        display: none;
+    }
+    footer {
+        display: none;
+    }
+}
