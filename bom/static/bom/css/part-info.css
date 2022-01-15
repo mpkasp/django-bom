@@ -1,0 +1,15 @@
+@media print {
+    .fixed-action-btn {
+        display: none;
+    }
+
+    .responsive-table-wrapper {
+        overflow-x: visible !important;
+    }
+
+    .text-right {
+        text-align: left;
+        font-weight: bold;
+        margin-top: 12px;
+    }
+}

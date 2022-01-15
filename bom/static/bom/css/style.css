@@ -28,7 +28,7 @@ h5 {
     font-size: 1.3rem;
 }
 
-.tabs { 
+.tabs {
     /* Materialize has a bug that shows the scrollbar sometimes, this prevents it */
     /*overflow-x: hidden;*/
 }
@@ -102,23 +102,26 @@ td, tr {
     margin-top: 50px;
 }
 
-.tabs .tab a{
+.tabs .tab a {
     /*@extend .green .lighten-3;*/
-    color:#a5d6a7;
+    color: #a5d6a7;
 }
-.tabs .tab a:hover,.tabs .tab a.active {
-    background-color:transparent;
-    color:#66bb6a;
+
+.tabs .tab a:hover, .tabs .tab a.active {
+    background-color: transparent;
+    color: #66bb6a;
 }
-.tabs .tab.disabled a,.tabs .tab.disabled a:hover {
-    color:rgba(165,214,167,0.5);    
+
+.tabs .tab.disabled a, .tabs .tab.disabled a:hover {
+    color: rgba(165, 214, 167, 0.5);
 }
+
 .tabs .indicator {
-    background-color:#66bb6a;
+    background-color: #66bb6a;
 }
 
 .tabs .tab a:focus, .tabs .tab a:focus.active {
-    background-color:transparent;
+    background-color: transparent;
 }
 
 /* Alerts */
@@ -212,7 +215,7 @@ a.anchor {
 }
 
 /* Material dropdowns tighter */
-.dropdown-content li>a, .dropdown-content li>span {
+.dropdown-content li > a, .dropdown-content li > span {
     padding: 6px;
     line-height: 16px;
 }
@@ -223,29 +226,72 @@ a.anchor {
 
 /* table of contents styling */
 /*#toc div.h1 { margin-left: 0 }*/
-#toc li.h2 { margin-left: 0 }
-#toc li.h3 { margin-left: 1em }
-#toc li.h4 { margin-left: 2em }
-#toc li.h5 { margin-left: 3em }
+#toc li.h2 {
+    margin-left: 0
+}
+
+#toc li.h3 {
+    margin-left: 1em
+}
+
+#toc li.h4 {
+    margin-left: 2em
+}
+
+#toc li.h5 {
+    margin-left: 3em
+}
 
 /* Printer friendly */
-.printer-header {
+.printer-show {
     display: none;
 }
+
 @media print {
+    .container {
+        width: 8.5in;
+    }
+
     body {
-        font-family:verdana, arial, sans-serif;
+        font-family: verdana, arial, sans-serif;
+        transform: scale(.7);
+        transform-origin: left top;
     }
-    .printer-header {
-        display: block;
-    }
+
     .navbar-fixed {
         display: none;
     }
+
     .sidenav {
         display: none;
     }
+
     footer {
         display: none;
+    }
+
+    .printer-show {
+        display: block;
+    }
+
+    .printer-hide {
+        display: none;
+    }
+
+    .modal {
+        display: none;
+    }
+
+    .dropdown-content {
+        display: none;
+    }
+
+
+    .dropdown-trigger {
+        display: none;
+    }
+
+    table {
+        page-break-inside: avoid;
     }
 }

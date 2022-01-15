@@ -1,0 +1,17 @@
+@media print {
+    #searchForm {
+        display: none;
+    }
+
+    .actions-row {
+        display: none;
+    }
+
+    .fixed-action-btn {
+        display: none;
+    }
+
+    .responsive-table-wrapper {
+        overflow-x: visible !important;
+    }
+}

@@ -7,6 +7,7 @@
 
 {% block main %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/dashboard.css' %}"/>
 {% endblock %}
 
 {% block bom-menu %}
@@ -14,180 +15,183 @@
 {% endblock %}
 
 {% block bom-menu-mobile %}
-    {% include 'bom/dashboard-menu.html' with upload_id='-mobile'%}
+    {% include 'bom/dashboard-menu.html' with upload_id='-mobile' %}
 {% endblock %}
 
 {% block content %}
     <div class="container-app">
-
-    <form id="searchForm" name="search-form" action="{% url 'bom:home' %}" method="get" enctype="multipart/form-data">
-{#        {% csrf_token %}#}
-        <div class="row">
-            {% if organization.number_scheme == 'S' %}
-            <div class="col s12 m4">
-                {{ part_class_selection_form|materializecss }}
-            </div>
-            {% endif %}
-            <div class="input-field col s12 {% if organization.number_scheme == 'S' %}m6{% else %}m10{% endif %}">
-                <i class="material-icons prefix">search</i>
-                <input type="search" id="autocomplete-input" autocomplete="off" class="text autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
-                {% if part_class %}
-                    <label for="autocomplete-input">Search for parts within selected part class:</label>
-                {% elif part_assembly %}
-                    <label for="autocomplete-input">Search for parts within selected part assembly:</label>
-                {% else %}
-                    <label for="autocomplete-input">Search for parts:</label>
-                {% endif %}
-            </div>
-            <div class="col s12 m2 text-center">
-                <button type="submit" class="waves-effect waves-green btn green lighten-1 input-field" name="action">Submit</button>
-            <a class="waves-effect waves-green btn-flat input-field btn-icon-round tooltipped" data-position="bottom" data-tooltip="Help with search" href="{% url 'bom:search-help' %}"><i class="material-icons">help</i></a>
-                {% if part_class or query %}
-                    <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
-                {% endif %}
-            </div>
-        </div>
-    </form>
-    <form id="actionForm" name="action-form" action="{% url 'bom:home' %}" method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <div class="row" style="margin-bottom: 0;">
-            <div class="col s6 no-padding">
-                {% if profile.role == 'A' %}
-                    <div class="row action-checkbox-hide" style="margin: 0; padding: 0; display: none;">
-                        <div class="col s10 m6">
-                            <select name="part-action">
-                                <option value="" disabled selected>Choose your action</option>
-                                <option name="submit-part-delete">Delete</option>
-                            </select>
-                            <label>Action</label>
-                        </div>
-                        <div class="col s12 m4" style="margin: 8px 0;">
-                            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="actions">Go</button>
-                            <span><a class="btn-flat waves-green" href="#" onclick="disableActionCheckboxColumn()">Hide</a></span>
-                        </div>
+        <form id="searchForm" name="search-form" action="{% url 'bom:home' %}" method="get" enctype="multipart/form-data">
+            {#        {% csrf_token %}#}
+            <div class="row">
+                {% if organization.number_scheme == 'S' %}
+                    <div class="col s12 m4">
+                        {{ part_class_selection_form|materializecss }}
                     </div>
-                    <span><a class="btn-flat action-checkbox-show" href="#" onclick="enableActionCheckboxColumn()">Actions</a></span>
                 {% endif %}
+                <div class="input-field col s12 {% if organization.number_scheme == 'S' %}m6{% else %}m10{% endif %}">
+                    <i class="material-icons prefix">search</i>
+                    <input type="search" id="autocomplete-input" autocomplete="off" class="text autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
+                    {% if part_class %}
+                        <label for="autocomplete-input">Search for parts within selected part class:</label>
+                    {% elif part_assembly %}
+                        <label for="autocomplete-input">Search for parts within selected part assembly:</label>
+                    {% else %}
+                        <label for="autocomplete-input">Search for parts:</label>
+                    {% endif %}
+                </div>
+                <div class="col s12 m2 text-center">
+                    <button type="submit" class="waves-effect waves-green btn green lighten-1 input-field" name="action">Submit</button>
+                    <a class="waves-effect waves-green btn-flat input-field btn-icon-round tooltipped" data-position="bottom" data-tooltip="Help with search" href="{% url 'bom:search-help' %}"><i
+                            class="material-icons">help</i></a>
+                    {% if part_class or query %}
+                        <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
+                    {% endif %}
+                </div>
             </div>
-            <div class="col s6 right-align">
-                <a class="button waves-effect waves-green btn-flat btn-icon-round tooltipped" data-position="bottom" data-tooltip="Download results as CSV." href="{% url 'bom:home' %}?download=1"><i class="material-icons">file_download</i></a>
+        </form>
+        <form id="actionForm" name="action-form" action="{% url 'bom:home' %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="row actions-row" style="margin-bottom: 0;">
+                <div class="col s6 no-padding">
+                    {% if profile.role == 'A' %}
+                        <div class="row action-checkbox-hide" style="margin: 0; padding: 0; display: none;">
+                            <div class="col s10 m6">
+                                <select name="part-action">
+                                    <option value="" disabled selected>Choose your action</option>
+                                    <option name="submit-part-delete">Delete</option>
+                                </select>
+                                <label>Action</label>
+                            </div>
+                            <div class="col s12 m4" style="margin: 8px 0;">
+                                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="actions">Go</button>
+                                <span><a class="btn-flat waves-green" href="#" onclick="disableActionCheckboxColumn()">Hide</a></span>
+                            </div>
+                        </div>
+                        <span><a class="btn-flat action-checkbox-show" href="#" onclick="enableActionCheckboxColumn()">Actions</a></span>
+                    {% endif %}
+                </div>
+                <div class="col s6 right-align">
+                    <a class="button waves-effect waves-green btn-flat btn-icon-round tooltipped" data-position="bottom" data-tooltip="Download results as CSV." href="{% url 'bom:home' %}?download=1"><i
+                            class="material-icons">file_download</i></a>
+                </div>
             </div>
-        </div>
 
-        <div class="part-list push-footer">
-            <div class="responsive-table-wrapper">
-                <table class="highlight part-list tight single-line" style="margin-bottom: 14px;">
-                    <thead>
-                    <tr>
-                        {% if profile.role == 'A' %}
-                            <th class="text-normal td-small action-checkbox-column" style="display: none;"><label><input type="checkbox" id="action-select-all"><span></span></label></th>
-                        {% endif %}
-
-                        <th class="text-normal td-med">Part Number</th>
-
-                        {% if organization.number_scheme == 'S' %}
-                        <th class="text-normal td-small">Category</th>
-                        {% endif %}
-
-                        <th class="text-normal td-large">Synopsis</th>
-
-                        <th class="text-normal td-small">Revision</th>
-
-                        <th class="text-normal td-med">Manufacturer</th>
-
-                        <th class="text-normal td-med">MPN</th>
-
-                        <th class="text-normal td-med">Options</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for part_rev in part_revs %}
+            <div class="part-list push-footer">
+                <div class="responsive-table-wrapper">
+                    <table class="highlight part-list tight single-line" style="margin-bottom: 14px;">
+                        <thead>
                         <tr>
                             {% if profile.role == 'A' %}
-                                <td class="action-checkbox-column" style="display: none;"><label>{% if part_rev.part.id %}<input type="checkbox" class="checkbox-array" name="actions" value="{{ part_rev.part.id }}">{% endif %}<span></span></label></td>
+                                <th class="text-normal td-small action-checkbox-column" style="display: none;"><label><input type="checkbox" id="action-select-all"><span></span></label></th>
                             {% endif %}
 
-                            <td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part_rev.part.id %}">{{ part_rev.part.full_part_number }}</a></td>
+                            <th class="text-normal td-med">Part Number</th>
 
                             {% if organization.number_scheme == 'S' %}
-                            <td class="text-normal td-small">{{ part_rev.part.number_class.name }}</td>
+                                <th class="text-normal td-small">Category</th>
                             {% endif %}
 
-                            <td class="text-normal td-large">{{ part_rev.synopsis }}</td>
+                            <th class="text-normal td-large">Synopsis</th>
 
-                            <td class="text-normal td-small">{{ part_rev.revision }}</td>
+                            <th class="text-normal td-small">Revision</th>
 
-                            <td class="text-normal td-med">{{ part_rev.part.primary_manufacturer_part.manufacturer.name }}</td>
+                            <th class="text-normal td-med">Manufacturer</th>
 
-                            <td class="text-normal td-med">{{ part_rev.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                            <th class="text-normal td-med">MPN</th>
 
-                            <td class="text-normal td-med">
-                                <!-- Dropdown Trigger -->
-                                <a class="dropdown-trigger" href='#' data-target='part-menu-{{ part_rev.id }}'><i class="material-icons green-text">more_horiz</i></a>
-                                <!-- Dropdown Structure -->
-                                <ul id='part-menu-{{ part_rev.id }}' class='dropdown-content'>
-                                    {% if part_rev.configuration == 'W' %}
-                                    <li>
-                                        <a class="green-text text-lighten-1"
-                                           href="{% url 'bom:part-revision-edit' part_id=part_rev.part.id part_revision_id=part_rev.id %}">
-                                            <i class="material-icons green-text text-lighten-1">edit</i>Edit Revision</a>
-                                    </li>
-                                    <li>
-                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part_rev.part.id part_revision_id=part_rev.id %}">
-                                            <i class="material-icons green-text text-lighten-1">format_list_numbered</i>Edit BOM</a>
-                                    </li>
-                                    {% endif %}
-                                    <li>
-                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=used">
-                                            <i class="material-icons green-text text-lighten-1">my_location</i>Where Used</a>
-                                    </li>
-                                    <li>
-                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=sourcing">
-                                            <i class="material-icons green-text text-lighten-1">local_airport</i>Sourcing</a>
-                                    </li>
-                                    <li class="divider" tabindex="-1"></li>
-                                    <li><a class="green-text text-lighten-1"
-                                           href="{% url 'bom:part-revision-export-bom' part_revision_id=part_rev.id %}"><i
-                                            class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
-                                    </li>
-                                    <li><a class="green-text text-lighten-1"
-                                           href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_rev.id %}"><i
-                                            class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
-                                    </li>
-                                </ul>
-                            </td>
+                            <th class="text-normal td-med">Options</th>
                         </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="99" style="text-align: center; padding: 5%;"><i>No parts found. To add your first part, first create a Part Class on the <a href="{% url 'bom:settings' tab_anchor='indabom' %}">settings</a> page, then click the red + button in the bottom right of your screen.</i></td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% if part_revs.has_other_pages %}
-                <ul class="pagination center" style="padding-top: 24px;">
-                    {% if part_revs.has_previous %}
-                        <li><a href="?page={{ part_revs.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
-                    {% else %}
-                        <li class="disabled"><i class="material-icons">chevron_left</i></li>
-                    {% endif %}
-                    {% for i in part_revs.paginator.page_range %}
-                        {% if part_revs.number == i %}
-                            <li class="active green lighten-2"><a>{{ i }}</a></li>
+                        </thead>
+                        <tbody>
+                        {% for part_rev in part_revs %}
+                            <tr>
+                                {% if profile.role == 'A' %}
+                                    <td class="action-checkbox-column" style="display: none;"><label>{% if part_rev.part.id %}
+                                        <input type="checkbox" class="checkbox-array" name="actions" value="{{ part_rev.part.id }}">{% endif %}<span></span></label></td>
+                                {% endif %}
+
+                                <td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part_rev.part.id %}">{{ part_rev.part.full_part_number }}</a></td>
+
+                                {% if organization.number_scheme == 'S' %}
+                                    <td class="text-normal td-small">{{ part_rev.part.number_class.name }}</td>
+                                {% endif %}
+
+                                <td class="text-normal td-large">{{ part_rev.synopsis }}</td>
+
+                                <td class="text-normal td-small">{{ part_rev.revision }}</td>
+
+                                <td class="text-normal td-med">{{ part_rev.part.primary_manufacturer_part.manufacturer.name }}</td>
+
+                                <td class="text-normal td-med">{{ part_rev.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+
+                                <td class="text-normal td-med">
+                                    <!-- Dropdown Trigger -->
+                                    <a class="dropdown-trigger" href='#' data-target='part-menu-{{ part_rev.id }}'><i class="material-icons green-text">more_horiz</i></a>
+                                    <!-- Dropdown Structure -->
+                                    <ul id='part-menu-{{ part_rev.id }}' class='dropdown-content'>
+                                        {% if part_rev.configuration == 'W' %}
+                                            <li>
+                                                <a class="green-text text-lighten-1"
+                                                   href="{% url 'bom:part-revision-edit' part_id=part_rev.part.id part_revision_id=part_rev.id %}">
+                                                    <i class="material-icons green-text text-lighten-1">edit</i>Edit Revision</a>
+                                            </li>
+                                            <li>
+                                                <a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part_rev.part.id part_revision_id=part_rev.id %}">
+                                                    <i class="material-icons green-text text-lighten-1">format_list_numbered</i>Edit BOM</a>
+                                            </li>
+                                        {% endif %}
+                                        <li>
+                                            <a class="green-text text-lighten-1" href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=used">
+                                                <i class="material-icons green-text text-lighten-1">my_location</i>Where Used</a>
+                                        </li>
+                                        <li>
+                                            <a class="green-text text-lighten-1" href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=sourcing">
+                                                <i class="material-icons green-text text-lighten-1">local_airport</i>Sourcing</a>
+                                        </li>
+                                        <li class="divider" tabindex="-1"></li>
+                                        <li><a class="green-text text-lighten-1"
+                                               href="{% url 'bom:part-revision-export-bom' part_revision_id=part_rev.id %}"><i
+                                                class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
+                                        </li>
+                                        <li><a class="green-text text-lighten-1"
+                                               href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_rev.id %}"><i
+                                                class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
+                                        </li>
+                                    </ul>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="99" style="text-align: center; padding: 5%;"><i>No parts found. To add your first part, first create a Part Class on the <a
+                                        href="{% url 'bom:settings' tab_anchor='indabom' %}">settings</a> page, then click the red + button in the bottom right of your screen.</i></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if part_revs.has_other_pages %}
+                    <ul class="pagination center" style="padding-top: 24px;">
+                        {% if part_revs.has_previous %}
+                            <li><a href="?page={{ part_revs.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
                         {% else %}
-                            <li class="waves-effect waves-green"><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
+                            <li class="disabled"><i class="material-icons">chevron_left</i></li>
                         {% endif %}
-                    {% endfor %}
-                    {% if part_revs.has_next %}
-                        <li><a href="?page={{ part_revs.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
-                    {% else %}
-                        <li class="disabled"><i class="material-icons">chevron_right</i></li>
-                    {% endif %}
-                </ul>
-            {% endif %}
-        </div>
-    </form>
+                        {% for i in part_revs.paginator.page_range %}
+                            {% if part_revs.number == i %}
+                                <li class="active green lighten-2"><a>{{ i }}</a></li>
+                            {% else %}
+                                <li class="waves-effect waves-green"><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        {% if part_revs.has_next %}
+                            <li><a href="?page={{ part_revs.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
+                        {% else %}
+                            <li class="disabled"><i class="material-icons">chevron_right</i></li>
+                        {% endif %}
+                    </ul>
+                {% endif %}
+            </div>
+        </form>
     </div>
     {% include 'bom/bom-action-btn.html' with profile=profile %}
 {% endblock %}
@@ -244,6 +248,7 @@
             $(".action-checkbox-hide").show();
             $(".action-checkbox-show").hide();
         }
+
         function disableActionCheckboxColumn() {
             $(".action-checkbox-column").hide();
             $(".action-checkbox-hide").hide();
