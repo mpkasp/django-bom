@@ -254,8 +254,8 @@ a.anchor {
 
     body {
         font-family: verdana, arial, sans-serif;
-        transform: scale(.7);
-        transform-origin: left top;
+        /*transform: scale(.7);*/
+        /*transform-origin: left top;*/
     }
 
     main {
@@ -300,5 +300,9 @@ a.anchor {
 
     table {
         page-break-inside: avoid;
+    }
+
+    .pagination {
+        display: none;
     }
 }
