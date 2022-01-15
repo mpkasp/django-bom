@@ -69,8 +69,10 @@ bom/migrations/0043_auto_20211123_0157.py
 bom/migrations/__init__.py
 bom/static/.DS_Store
 bom/static/bom/.DS_Store
+bom/static/bom/css/dashboard.css
 bom/static/bom/css/jquery.treetable.css
 bom/static/bom/css/materialize.min.css
+bom/static/bom/css/part-info.css
 bom/static/bom/css/style.css
 bom/static/bom/css/tablesorter-theme.materialize.css
 bom/static/bom/css/treetable-theme.css

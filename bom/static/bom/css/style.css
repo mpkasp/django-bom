@@ -258,6 +258,14 @@ a.anchor {
         transform-origin: left top;
     }
 
+    main {
+        min-height: 0;
+    }
+
+    html {
+        height: 100%;
+    }
+
     .navbar-fixed {
         display: none;
     }
