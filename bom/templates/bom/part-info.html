@@ -308,6 +308,8 @@
                                 <th>Lead Time (days)</th>
                                 <th>NRE</th>
                                 <th>NCNR</th>
+                                <th>Preferred</th>
+                                <th>Date</th>
                                 <th colspan="2">Manage</th>
                             </tr>
                             </thead>
@@ -323,6 +325,8 @@
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-lt">{{ manufacturer_part.optimal_seller.lead_time_days }}</td>
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-nre">{{ manufacturer_part.optimal_seller.nre_cost }}</td>
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-ncnr">{{ manufacturer_part.optimal_seller.ncnr }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-used">{{ manufacturer_part.optimal_seller.preferred }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-date">{{ manufacturer_part.optimal_seller.date }}</td>
                                     {#                                    <td style="min-width: 0px;"></td>#}
                                     <td>
                                         {% if profile.role == 'A' %}
@@ -358,6 +362,8 @@
                                         <td>{{ seller_part.lead_time_days }}</td>
                                         <td>{{ seller_part.nre_cost }}</td>
                                         <td>{{ seller_part.ncnr }}</td>
+                                        <td>{{ seller_part.preferred }}</td>
+                                        <td>{{ seller_part.date }}</td>
                                         <td>{% if profile.role == 'A' %}
                                             <a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a> |
                                             <a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
