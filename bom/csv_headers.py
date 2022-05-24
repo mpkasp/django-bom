@@ -169,6 +169,8 @@ class SellerPartCSVHeaders(CSVHeaders):
         CSVHeader('nre_cost', name_options=['part_nre', 'part_nre_cost', 'nre', 'nre_cost', ]),
         CSVHeader('minimum_pack_quantity', name_options=['minimum_pack_quantity', 'mpq', 'part_mpq' ]),
         CSVHeader('lead_time_days', name_options=['lead_time_days', 'lead_time', 'lt']),
+        CSVHeader('preferred', name_options=['preferred', 'preferred_seller']),
+        CSVHeader('date', name_options=['date', 'part_seller_date']),
     ]
 
 
