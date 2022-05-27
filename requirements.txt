@@ -10,7 +10,7 @@ chardet==3.0.4
 colorama==0.4.4
 cryptography==3.4.7
 defusedxml==0.7.1
-Django==3.2.4
+Django==3.2.13
 django-materializecss-form==1.1.17
 django-money==2.0
 django-recaptcha==2.0.6
@@ -32,7 +32,7 @@ keyring==23.0.1
 mysqlclient==2.0.3
 oauthlib==3.1.1
 packaging==20.9
-paramiko==2.7.2
+paramiko==2.10.1
 pip-autoremove==0.9.1
 pkginfo==1.7.0
 protobuf==3.17.3
@@ -41,7 +41,7 @@ pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pycparser==2.20
 Pygments==2.9.0
-PyJWT==2.1.0
+PyJWT==2.4.0
 PyNaCl==1.4.0
 pyparsing==2.4.7
 python-http-client==3.3.2
@@ -60,8 +60,8 @@ sentry-sdk==1.1.0
 six==1.16.0
 social-auth-app-django==4.0.0
 social-auth-core>3.0.0,<=4.0.0
-sqlparse==0.4.1
-starkbank-ecdsa==1.1.1
+sqlparse==0.4.2
+starkbank-ecdsa==2.0.1
 tqdm==4.61.1
 twine==3.4.1
 typing-extensions==3.10.0.0

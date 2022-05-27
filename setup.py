@@ -11,7 +11,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-bom',
-    version='1.217',
+    version='1.219',
     packages=find_packages(),
     include_package_data=True,
     license='GPL 3.0 License',
