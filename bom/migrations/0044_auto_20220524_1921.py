@@ -21,4 +21,8 @@ class Migration(migrations.Migration):
             name='preferred',
             field=models.BooleanField(default=False),
         ),
+        migrations.AlterUniqueTogether(
+            name='sellerpart',
+            unique_together={('seller', 'manufacturer_part', 'minimum_order_quantity', 'unit_cost', 'preferred', 'date')},
+        ),
     ]

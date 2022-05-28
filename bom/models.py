@@ -678,7 +678,9 @@ class SellerPart(models.Model, AsDictModel):
             'seller',
             'manufacturer_part',
             'minimum_order_quantity',
-            'unit_cost']
+            'unit_cost',
+            'preferred',
+            'date']
 
     def as_dict(self):
         d = super().as_dict()
