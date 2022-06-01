@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='sellerpart',
             name='date',
-            field=models.DateField(default=django.utils.timezone.now),
+            field=models.DateTimeField(default=django.utils.timezone.now),
         ),
         migrations.AddField(
             model_name='sellerpart',

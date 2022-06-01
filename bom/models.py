@@ -670,7 +670,7 @@ class SellerPart(models.Model, AsDictModel):
     nre_cost = MoneyField(max_digits=19, decimal_places=4, default_currency='USD')
     ncnr = models.BooleanField(default=False)
     preferred = models.BooleanField(default=False)
-    date = models.DateField(default=timezone.now)
+    date = models.DateTimeField(default=timezone.now)
 
 
     class Meta():
