@@ -287,7 +287,7 @@ class ManufacturerPartForm(forms.ModelForm):
 class SellerPartForm(forms.ModelForm):
     class Meta:
         model = SellerPart
-        exclude = ['manufacturer_part', 'data_source', ]
+        exclude = ['manufacturer_part', 'data_source', 'date']
 
     new_seller = forms.CharField(max_length=128, label='-or- Create new seller (leave blank if selecting)', required=False)
     field_order = ['seller', 'new_seller', 'unit_cost', 'nre_cost', 'lead_time_days', 'minimum_order_quantity', 'minimum_pack_quantity', ]

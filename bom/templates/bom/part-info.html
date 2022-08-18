@@ -308,6 +308,8 @@
                                 <th>Lead Time (days)</th>
                                 <th>NRE</th>
                                 <th>NCNR</th>
+                                <th>Preferred</th>
+                                <th>Date</th>
                                 <th colspan="2">Manage</th>
                             </tr>
                             </thead>
@@ -323,6 +325,8 @@
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-lt">{{ manufacturer_part.optimal_seller.lead_time_days }}</td>
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-nre">{{ manufacturer_part.optimal_seller.nre_cost }}</td>
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-ncnr">{{ manufacturer_part.optimal_seller.ncnr }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-used">{{ manufacturer_part.optimal_seller.preferred }}</td>
+                                    <td id="sourcing-mp-{{ manufacturer_part.id }}-date"><div class="local_tz">{{ manufacturer_part.optimal_seller.date.isoformat }}</div></td>
                                     {#                                    <td style="min-width: 0px;"></td>#}
                                     <td>
                                         {% if profile.role == 'A' %}
@@ -358,6 +362,8 @@
                                         <td>{{ seller_part.lead_time_days }}</td>
                                         <td>{{ seller_part.nre_cost }}</td>
                                         <td>{{ seller_part.ncnr }}</td>
+                                        <td>{{ seller_part.preferred }}</td>
+                                        <td><div class="local_tz">{{ seller_part.date.isoformat }}</div></td>
                                         <td>{% if profile.role == 'A' %}
                                             <a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a> |
                                             <a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
@@ -670,5 +676,12 @@
             $('#bom-flat').hide();
             $('#bom-indented').show();
         }
+    </script>
+    <!-- Get the date in the local timezone -->
+    <script>
+        $('.local_tz').each(function(){
+            var d = new Date($(this).text());
+            $(this).text(d.toLocaleDateString());
+        })
     </script>
 {% endblock bom-script %}
