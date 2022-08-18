@@ -249,9 +249,9 @@ class OrganizationNumberLenForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.get('instance', None)
         super(OrganizationNumberLenForm, self).__init__(*args, **kwargs)
-        self.fields['number_class_code_len'].validators.append(MinValueValidator(self.organization.number_class_code_len))
-        self.fields['number_item_len'].validators.append(MinValueValidator(self.organization.number_item_len))
-        self.fields['number_variation_len'].validators.append(MinValueValidator(self.organization.number_variation_len))
+        # self.fields['number_class_code_len'].validators.append(MinValueValidator(self.organization.number_class_code_len))
+        # self.fields['number_item_len'].validators.append(MinValueValidator(self.organization.number_item_len))
+        # self.fields['number_variation_len'].validators.append(MinValueValidator(self.organization.number_variation_len))
 
 
 class PartInfoForm(forms.Form):
