@@ -1,3 +1,4 @@
+import csv
 from re import finditer, search
 from unittest import skip
 
@@ -191,13 +192,13 @@ class TestBOM(TransactionTestCase):
 
         messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertEqual(msg.tags, "error")  # Error loading 200-3333-00 via CSV because already in parent's BOM and has empty ref designators
+            self.assertNotEqual(msg.tags, "error")
 
         subparts = p2.latest().assembly.subparts.all()
 
         expected_pn = '200-3333-00' if self.organization.number_variation_len > 0 else '200-3333'
         self.assertEqual(subparts[0].part_revision.part.full_part_number(), expected_pn)
-        self.assertEqual(subparts[0].count, 4)
+        self.assertEqual(subparts[0].count, 104)  # append 4, 99, 1
 
         expected_pn = '500-5555-00' if self.organization.number_variation_len > 0 else '500-5555'
         self.assertEqual(subparts[1].part_revision.part.full_part_number(), expected_pn)
@@ -210,15 +211,121 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(subparts[2].count, 2)
         self.assertEqual(subparts[2].do_not_load, True)
 
-
         with open(f'{TEST_FILES_DIR}/test_bom_2.csv') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         messages = list(response.context.get('messages'))
+        for idx, msg in enumerate(messages):
+            self.assertTrue("Row 5 - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number." in str(msg.message))
+            self.assertTrue("Row 6 - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number." in str(msg.message))
+
+        p1.refresh_from_db()
+        bom = p1.latest().indented()
+        self.assertEqual(len(bom.parts), 3)
+
+    def test_upload_bom(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        # Test OK page visit
+        response = self.client.get(reverse('bom:upload-bom'))
+        self.assertEqual(response.status_code, 200)
+
+        # Test OK upload
+        test_file = 'test_full_bom.csv' if self.organization.number_variation_len > 0 else 'test_full_bom_no_variations.csv'
+        with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
+            response = self.client.post(reverse('bom:upload-bom'), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
+            reader = csv.DictReader(test_csv)
+            test_list = list(reader)
+
+        messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertEqual(msg.tags, "error")
-            self.assertTrue("does not exist" in str(msg.message))
+            self.assertEqual(msg.tags, "info")
+            self.assertNotEqual(msg.tags, "error")
+
+        parent_part_number = '100-0001-02' if self.organization.number_variation_len > 0 else '100-0001'
+        parent_part = Part.from_part_number(parent_part_number, organization=self.organization)
+        bom = parent_part.indented()
+        bom_list = list(bom.parts.values())
+        self.assertEqual(len(bom.parts), len(test_list))
+
+        # Check that we successfully updated an existing part (only tested for semi-intelligent scheme for now)
+        if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            p2.refresh_from_db()
+            p2_rev = p2.latest()
+            p2_mp = p2.primary_manufacturer_part
+            self.assertEqual(p2_rev.revision, '88')  # previously 1
+            self.assertEqual(p2_rev.description, "123")  # previously 'Brown dog'
+            self.assertEqual(p2_mp.manufacturer.name, "a new manufacturer name")  # previously None
+            self.assertEqual(p2_mp.manufacturer_part_number, "a new mpn")  # previously 'GRM1555C1H100JA01D'
+
+        # Check that parts get uploaded correctly
+        for idx, item in enumerate(test_list):
+            assertion_message = f'Index: {idx}, CSV PN: {item["part_number"]}, BOM PN: {bom_list[idx].part.full_part_number()}'
+            self.assertEqual(int(float(item['level'])), bom_list[idx].indent_level, assertion_message)
+            self.assertEqual(item['part_number'], bom_list[idx].part.full_part_number(), assertion_message)
+            self.assertEqual(item['revision'], bom_list[idx].part_revision.revision, assertion_message)
+            self.assertEqual(item['manufacturer_name'], bom_list[idx].part.primary_manufacturer_part.manufacturer.name, assertion_message)
+            self.assertEqual(item['manufacturer_part_number'], bom_list[idx].part.primary_manufacturer_part.manufacturer_part_number, assertion_message)
+            if bom_list[idx].indent_level > 0:
+                self.assertEqual(float(item['quantity']), bom_list[idx].subpart.count, assertion_message)
+
+        # Test OK upload with parent part number
+        test_file = 'test_full_bom.csv' if self.organization.number_variation_len > 0 else 'test_full_bom_no_variations.csv'
+        p4_rev = create_a_fake_part_revision(p4, create_a_fake_assembly())
+        with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
+            response = self.client.post(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p4.full_part_number()}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertEqual(msg.tags, "info", msg.message)
+            self.assertNotEqual(msg.tags, "error", msg.message)
+
+        p4.refresh_from_db()
+        p4_rev.refresh_from_db()
+        self.assertEqual(len(p4_rev.indented().parts), 36)
+
+        # Test errors get thrown
+        test_file = 'test_full_bom_with_errors.csv' if self.organization.number_variation_len > 0 else 'test_full_bom_no_variations_with_errors.csv'
+        with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
+            response = self.client.post(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p3.full_part_number()}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+
+        for idx, msg in enumerate(messages):
+            if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+                self.assertTrue("Row 38 - part_number: Uploading of this subpart skipped. Couldn&#x27;t parse part number." in str(msg.message))
+                self.assertTrue("Row 34 - code: Ensure this value has at most 3 characters (it has 9)." in str(msg.message))
+                self.assertTrue("Row 33 - part_number: Uploading of this subpart skipped. Couldn&#x27;t parse part number." in str(msg.message))
+                self.assertTrue("Row 35 - part_number: Uploading of this subpart skipped. Couldn&#x27;t parse part number." in str(msg.message))
+                self.assertTrue("Row 36 - part_number: Uploading of this subpart skipped. Couldn&#x27;t parse part number." in str(msg.message))
+                self.assertTrue("Row 37 - part_number: Uploading of this subpart skipped. Couldn&#x27;t parse part number." in str(msg.message))
+            self.assertTrue("Row 39 - count: Ensure this value is greater than or equal to 0." in str(msg.message))
+            self.assertTrue("Row 40 - level: Assembly levels must decrease by no more than 1 from sequential rows." in str(msg.message))
+
+        # Check that 2 rows of 103-0002-00 in one assembly gets combined into one part, and added to the 2 that already exist = 2 + 1 + 1
+        parent_part_number = '107-0003-22' if self.organization.number_variation_len > 0 else '107-0003'
+        parent_part = Part.from_part_number(parent_part_number, organization=self.organization)
+        bom = parent_part.indented()
+        part_number_to_check = '103-0002-00' if self.organization.number_variation_len > 0 else '103-0002'
+        self.assertEqual(list(bom.parts.values())[6].part.full_part_number(), part_number_to_check)
+        self.assertEqual(list(bom.parts.values())[6].subpart.count, 4)
+
+        # Test infinite recursion error gets thrown
+        test_file = 'test_full_bom_with_errors_infinite_recursion.csv' if self.organization.number_variation_len > 0 else 'test_full_bom_no_variations_with_errors_infinite_recursion.csv'
+        with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
+            response = self.client.post(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p3.full_part_number()}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for idx, msg in enumerate(messages):
+            self.assertTrue("it would cause infinite recursion. Uploading of this subpart skipped." in str(msg.message))
+            self.assertTrue("Row 15" in str(msg.message))
 
     def test_part_upload_bom_corner_cases(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
@@ -237,8 +344,7 @@ class TestBOM(TransactionTestCase):
 
         messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertEqual(msg.tags, "error")
-            self.assertTrue("revision" in str(msg.message))
+            self.assertNotEqual(msg.tags, "error")  # Should be OK since we will default revision to 1
 
     def test_export_part_list(self):
         create_some_fake_parts(organization=self.organization)
@@ -1102,7 +1208,7 @@ class TestBOMIntelligent(TestBOM):
 
         messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertEqual(msg.tags, "error")  # Error loading 200-3333-00 via CSV because already in parent's BOM and has empty ref designators
+            self.assertNotEqual(msg.tags, "error")  # Error loading 200-3333-00 via CSV because already in parent's BOM and has empty ref designators
 
         subparts = p2.latest().assembly.subparts.all()
 

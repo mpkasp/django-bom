@@ -1,7 +1,10 @@
-from .base_classes import AsDictModel
-from collections import OrderedDict
-from djmoney.money import Money
 import logging
+from collections import OrderedDict
+
+from djmoney.money import Money
+
+from .base_classes import AsDictModel
+
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +147,7 @@ class PartBomItem(AsDictModel):
             'part_class': self.part.number_class.name if self.part.number_class else '',
             'references': self.references,
             'part_synopsis': self.part_revision.synopsis(),
+            'part_description': self.part_revision.description,
             'part_revision': self.part_revision.revision,
             'part_manufacturer': self.part.primary_manufacturer_part.manufacturer.name if self.part.primary_manufacturer_part is not None and self.part.primary_manufacturer_part.manufacturer is not None else '',
             'part_manufacturer_part_number': self.part.primary_manufacturer_part.manufacturer_part_number if self.part.primary_manufacturer_part is not None else '',
@@ -164,6 +168,9 @@ class PartBomItem(AsDictModel):
     def seller_parts_for_export(self):
         return [sp.as_dict_for_export() for sp in self.part.seller_parts(exclude_primary=True)]
 
+    def __str__(self):
+        return f'{self.part.full_part_number()}, qty: {self.quantity}'
+
 
 class PartIndentedBomItem(PartBomItem, AsDictModel):
     def __init__(self, indent_level, parent_id, subpart, parent_quantity, *args, **kwargs):
@@ -179,3 +186,6 @@ class PartIndentedBomItem(PartBomItem, AsDictModel):
             'level': self.indent_level,
         })
         return dict
+
+    def __str__(self):
+        return f'level: {self.indent_level}, {super().__str__()}'

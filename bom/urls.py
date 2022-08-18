@@ -1,10 +1,11 @@
 from django.conf.urls import include
-from django.urls import path
-from django.contrib.auth import views as auth_views
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
+from django.urls import path
 
-from bom.views import views, json_views
 from bom.third_party_apis import google_drive
+from bom.views import json_views, views
+
 
 bom_patterns = [
     # BOM urls

@@ -1,4 +1,4 @@
-"part_number","quantity","dnp","reference","junk"
-"C0402X5R10V001","3","","C1, C2, C3",""
-"C0402X5R10V001","2","x","C4, C5",""
-"S06-233-G24","2","","",""
+"part_number","quantity","dnp","reference","description","revision","manufacturer_part_number","manufacturer"
+"C0402X5R10V001","3","","C1, C2, C3","hi",1,"123","you"
+"C0402X5R10V001","2","x","C4, C5","yo","2","456","me"
+"S06-233-G24","2","","","test","A","ABC","them"
