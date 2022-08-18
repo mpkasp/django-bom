@@ -59,6 +59,7 @@ from bom.forms import (
     UserCreateForm,
     UserForm,
     UserMetaForm,
+    part_form_from_organization,
 )
 from bom.models import (
     Assembly,
@@ -749,6 +750,7 @@ def upload_bom(request):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
+    title = 'Upload Bill of Materials'
 
     if request.method == 'POST' and 'file' in request.FILES and request.FILES['file'] is not None:
         upload_bom_form = UploadBOMForm(request.POST, organization=organization)
@@ -882,7 +884,7 @@ def create_part(request):
 
     title = 'Create New Part'
 
-    PartForm = PartFormSemiIntelligent if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT else PartFormIntelligent
+    PartForm = part_form_from_organization(organization)
 
     if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT and PartClass.objects.count() == 0:
         messages.info(request, f'Welcome to IndaBOM! Before you create your first part, you must create your first part class. '
@@ -966,7 +968,7 @@ def part_edit(request, part_id):
 
     action = reverse('bom:part-edit', kwargs={'part_id': part_id})
 
-    PartForm = PartFormSemiIntelligent if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT else PartFormIntelligent
+    PartForm = part_form_from_organization(organization)
 
     if request.method == 'POST':
         form = PartForm(request.POST, instance=part, organization=organization)

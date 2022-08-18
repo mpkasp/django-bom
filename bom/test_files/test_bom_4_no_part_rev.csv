@@ -1,6 +1,6 @@
-part_number,quantity,manufacturer_part_number,dnp,reference,junk
-500-4444-00,1,abc123,,U3,
-500-4444-00,2,abc123,,IC2; IC3,
-500-4444-00,2,abc123,dnp,,
-503-0001-00,1,testing,,,
-200-0001-00,99,hi,,,
+part_number,quantity,manufacturer_part_number,dnp,reference,description,junk
+500-4444-00,1,abc123,,U3,abc123,
+500-4444-00,2,abc123,,IC2; IC3,abcdef,
+500-4444-00,2,abc123,dnp,,123456,
+503-0001-00,1,testing,,,test,
+200-0001-00,99,hi,,,yo,

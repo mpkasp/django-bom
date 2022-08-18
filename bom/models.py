@@ -135,7 +135,7 @@ class PartClass(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
     code = models.CharField(max_length=NUMBER_CLASS_CODE_LEN_MAX, validators=[alphanumeric])
     name = models.CharField(max_length=255, default=None)
-    comment = models.CharField(max_length=255, default=None, blank=True)
+    comment = models.CharField(max_length=255, default='', blank=True)
     mouser_enabled = models.BooleanField(default=False)
 
     class Meta:
@@ -217,37 +217,71 @@ class Part(models.Model):
     def parse_part_number(part_number, organization):
         if part_number is None:
             raise AttributeError("Cannot parse empty part number")
+        if organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+            try:
+                (number_class, number_item, number_variation) = Part.parse_partial_part_number(part_number, organization)
+            except IndexError:
+                raise AttributeError("Invalid part number. Does not match organization preferences.")
 
-        try:
-            (number_class, number_item, number_variation) = Part.parse_partial_part_number(part_number, organization)
-        except IndexError:
-            raise AttributeError("Invalid part number. Does not match organization preferences.")
+            if number_class is None:
+                raise AttributeError("Missing part number part class")
+            if number_item is None:
+                raise AttributeError("Missing part number item number")
+            if number_variation is None and organization.number_class_code_len != 0 and organization.number_variation_len > 0:
+                raise AttributeError("Missing part number part item variation")
 
-        if number_class is None:
-            raise AttributeError("Missing part number part class")
-        if number_item is None:
-            raise AttributeError("Missing part number item number")
-        if number_variation is None and organization.number_class_code_len != 0:
-            raise AttributeError("Missing part number part item variation")
-
-        return number_class, number_item, number_variation
+            return number_class, number_item, number_variation
+        else:
+            return None, part_number, None
 
     @staticmethod
     def parse_partial_part_number(part_number, organization, validate=True):
-        elements = part_number.split('-')
+        if organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+            elements = part_number.split('-')
 
-        number_class = elements[0] if len(elements) >= 1 else None
-        number_item = elements[1] if len(elements) >= 2 else None
-        number_variation = elements[2] if len(elements) >= 3 else None
+            number_class = elements[0] if len(elements) >= 1 else None
+            number_item = elements[1] if len(elements) >= 2 else None
+            number_variation = elements[2] if len(elements) >= 3 else None
 
-        if validate:
-            if len(elements) >= 2:
-                number_class = Part.verify_format_number_class(elements[0], organization)
-                number_item = Part.verify_format_number_item(elements[1], organization)
-            if len(elements) >= 3:
-                number_variation = Part.verify_format_number_variation(elements[2], organization)
+            if validate:
+                if len(elements) >= 2:
+                    number_class = Part.verify_format_number_class(elements[0], organization)
+                    number_item = Part.verify_format_number_item(elements[1], organization)
+                if len(elements) >= 3:
+                    number_variation = Part.verify_format_number_variation(elements[2], organization)
 
-        return number_class, number_item, number_variation
+            return number_class, number_item, number_variation
+        else:
+            return None, part_number, None
+
+    @classmethod
+    def from_part_number(cls, part_number, organization):
+        (number_class, number_item, number_variation) = Part.parse_part_number(part_number, organization)
+        if organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+            return Part.objects.get(
+                number_class__code=number_class,
+                number_class__organization=organization,
+                number_item=number_item,
+                number_variation=number_variation,
+                organization=organization
+            )
+        return Part.objects.get(
+            number_item=number_item,
+            organization=organization
+        )
+
+    @classmethod
+    def from_manufacturer_part_number(cls, manufacturer_part_number, organization):
+        part = Part.objects.filter(
+            primary_manufacturer_part__manufacturer_part_number=manufacturer_part_number,
+            organization=organization
+        )
+        if len(part) == 1:
+            return part[0]
+        elif len(part) == 0:
+            return None
+        else:
+            raise ValueError('Too many objects found')
 
     def description(self):
         return self.latest().description if self.latest() is not None else ''

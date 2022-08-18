@@ -1170,23 +1170,16 @@
                 <div class="section scrollspy">
                     <h3>Uploading a BOM</h3>
                     <p>A BOM may be uploaded from a comma-separated file. This can be done from the bottom of the Bill of Materials page when a particular BOM is being edited. It can also be done
-                        using
-                        the
-                        &ldquo;Upload&rdquo; menu that appears on the Home page and search results pages.</p>
-                    <p>When you upload BOM subparts from a file, errors may prevent a subpart from being uploaded, for example, an improperly formatted IndaBOM part number a mismatch between the part
-                        count
-                        and
-                        the number of reference designators. The uploading will continue with the next valid subpart in the file.</p>
+                        using the &ldquo;Upload&rdquo; menu that appears on the Home page and search results pages.</p>
+                    <p>When you upload BOM subparts from a file, errors may prevent a subpart from being uploaded, for example, an improperly formatted part number.
+                        The uploading may continue with the next valid subpart in the file, if it can.</p>
                     <p>Here is <a href="{% static 'bom/doc/test_bom_5_intelligent.csv' %}">a sample CSV file for uploading intelligent parts</a> and here is <a
-                            href="{% static 'bom/doc/test_bom.csv' %}">a
-                        sample CSV file for uploading semi-intelligent parts</a></p>
+                            href="{% static 'bom/doc/test_full_bom.csv' %}">a sample CSV file for uploading semi-intelligent parts</a></p>
                 </div>
                 <div class="section scrollspy">
                     <h3>CSV File Headers and Values</h3>
                     <p>Any information that you can enter manually about a BOM via the Bill Of Materials page may also be submitted via the BOM upload file. Here is the complete list of items you can
-                        upload
-                        for a
-                        subpart in the list:</p>
+                        upload for a subpart in the list:</p>
                 </div>
                 <div class="section scrollspy">
                     <h5>Required Headers</h5>
@@ -1335,10 +1328,7 @@
                         downloaded.&nbsp;</p>
                     <p>On the Bill of Materials page, the &ldquo;Manage&rdquo; menu on the right side of the page presents download choices.</p>
                     <p>A BOM may be downloaded as a CSV file that is either indented or flat. An indented BOM lists each part exactly as it was added to the BOM, whereas a flat BOM gathers presents
-                        only
-                        one
-                        row
-                        for each part number.&nbsp;</p>
+                        only one row for each part number.&nbsp;</p>
                 </div>
             </article>
 

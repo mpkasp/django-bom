@@ -1,6 +1,7 @@
 import codecs
 import csv
 import logging
+from typing import Type, TypeVar
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
@@ -248,9 +249,9 @@ class OrganizationNumberLenForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.get('instance', None)
         super(OrganizationNumberLenForm, self).__init__(*args, **kwargs)
-        self.fields['number_class_code_len'].validators.append(MinValueValidator(self.organization.number_class_code_len))
-        self.fields['number_item_len'].validators.append(MinValueValidator(self.organization.number_item_len))
-        self.fields['number_variation_len'].validators.append(MinValueValidator(self.organization.number_variation_len))
+        # self.fields['number_class_code_len'].validators.append(MinValueValidator(self.organization.number_class_code_len))
+        # self.fields['number_item_len'].validators.append(MinValueValidator(self.organization.number_item_len))
+        # self.fields['number_variation_len'].validators.append(MinValueValidator(self.organization.number_variation_len))
 
 
 class PartInfoForm(forms.Form):
@@ -339,6 +340,7 @@ class PartClassForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        self.ignore_unique_constraint = kwargs.pop('ignore_unique_constraint', False)
         super(PartClassForm, self).__init__(*args, **kwargs)
         self.fields['code'].required = False
         self.fields['name'].required = False
@@ -347,6 +349,8 @@ class PartClassForm(forms.ModelForm):
     def clean_name(self):
         cleaned_data = super(PartClassForm, self).clean()
         name = cleaned_data.get('name')
+        if self.ignore_unique_constraint:
+            return name
         try:
             part_class_with_name = PartClass.objects.get(name__iexact=name, organization=self.organization)
             if part_class_with_name and self.instance and self.instance.id != part_class_with_name.id:
@@ -359,6 +363,8 @@ class PartClassForm(forms.ModelForm):
     def clean_code(self):
         cleaned_data = super(PartClassForm, self).clean()
         code = cleaned_data.get('code')
+        if self.ignore_unique_constraint:
+            return code
         if PartClass.objects.filter(code=code, organization=self.organization).exclude(pk=self.instance.pk).count() > 0:
             validation_error = forms.ValidationError(f"Part class with code {code} is already defined.", code='invalid')
             self.add_error('code', validation_error)
@@ -710,7 +716,7 @@ class PartCSVForm(forms.Form):
                 if skip:
                     continue
 
-                PartForm = PartFormSemiIntelligent if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT else PartFormIntelligent
+                PartForm = part_form_from_organization(self.organization)
                 part = Part(number_class=part_class, number_item=number_item, number_variation=number_variation, organization=self.organization)
                 part_dict = model_to_dict(part)
                 part_dict.update({'number_class': str(part.number_class)})
@@ -769,6 +775,8 @@ class PartFormIntelligent(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        self.ignore_number_class = kwargs.pop('ignore_part_class', False)
+        self.ignore_unique_constraint = kwargs.pop('ignore_unique_constraint', False)
         super(PartFormIntelligent, self).__init__(*args, **kwargs)
         self.fields['number_item'].required = True
         if self.instance and self.instance.id:
@@ -778,7 +786,6 @@ class PartFormIntelligent(forms.ModelForm):
         for _, value in self.fields.items():
             value.widget.attrs['placeholder'] = value.help_text
             value.help_text = ''
-
 
 class PartFormSemiIntelligent(forms.ModelForm):
     class Meta:
@@ -791,11 +798,13 @@ class PartFormSemiIntelligent(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        self.ignore_number_class = kwargs.pop('ignore_part_class', False)
+        self.ignore_unique_constraint = kwargs.pop('ignore_unique_constraint', False)
         super(PartFormSemiIntelligent, self).__init__(*args, **kwargs)
         self.fields['number_item'].validators.append(alphanumeric)
         self.fields['number_class'] = forms.CharField(label='Part Number Class*', required=True, help_text='Select a number class.',
                                                       widget=AutocompleteTextInput(queryset=PartClass.objects.filter(organization=self.organization)))
-        if 'instance' in kwargs:  # To check uniqueness
+        if kwargs.get('instance', None):  # To check uniqueness
             self.id = kwargs['instance'].id
 
         if self.instance and self.instance.id:
@@ -813,7 +822,12 @@ class PartFormSemiIntelligent(forms.ModelForm):
             except PartClass.DoesNotExist:
                 self.initial['number_class'] = ""
 
+        if self.ignore_number_class:
+            self.fields.get('number_class').required = False
+
     def clean_number_class(self):
+        if self.ignore_number_class:
+            return None
         number_class = self.cleaned_data['number_class']
         try:
             return PartClass.objects.get(organization=self.organization, code=number_class.split(':')[0])
@@ -847,6 +861,9 @@ class PartFormSemiIntelligent(forms.ModelForm):
         except AttributeError as e:
             validation_error = forms.ValidationError(str(e), code='invalid')
             self.add_error('number_variation', validation_error)
+
+        if self.ignore_unique_constraint:
+            return cleaned_data
 
         part = Part.objects.filter(
             number_class=number_class,
@@ -898,6 +915,9 @@ class PartRevisionForm(forms.ModelForm):
             value.widget.attrs['placeholder'] = value.help_text
             value.help_text = ''
 
+        if self.instance and not self.data.get('description') and self.instance.description:
+            self.data['description'] = self.instance.description
+
     def clean(self):
         cleaned_data = super(PartRevisionForm, self).clean()
 
@@ -948,12 +968,15 @@ class SubpartForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         self.part_id = kwargs.pop('part_id', None)
+        self.ignore_part_revision = kwargs.pop('ignore_part_revision', False)
         super(SubpartForm, self).__init__(*args, **kwargs)
         if self.part_id is None:
             self.Meta.exclude = ['part_revision']
         else:
             self.fields['part_revision'].queryset = PartRevision.objects.filter(
                 part__id=self.part_id).order_by('-timestamp')
+        if self.ignore_part_revision:
+            self.fields.get('part_revision').required = False
 
         if self.part_id:
             part = Part.objects.get(id=self.part_id)
@@ -970,6 +993,11 @@ class SubpartForm(forms.ModelForm):
         reference = self.cleaned_data['reference']
         reference = stringify_list(listify_string(reference))
         return reference
+
+    def clean_part_revision(self):
+        if self.ignore_part_revision:
+            return None
+        return super(SubpartForm, self).clean_part_revision()
 
     def clean(self):
         cleaned_data = super(SubpartForm, self).clean()
@@ -1061,46 +1089,24 @@ class AddSubpartForm(forms.Form):
 
 
 class UploadBOMForm(forms.Form):
-    parent_part_number = forms.CharField(required=True, label="Parent part number")
+    parent_part_number = forms.CharField(required=False, label="Parent part number")
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        self.parent_part = kwargs.pop('parent_part', None)
         super(UploadBOMForm, self).__init__(*args, **kwargs)
 
     def clean_parent_part_number(self):
         parent_part_number = self.cleaned_data['parent_part_number']
 
-        if not parent_part_number:
-            validation_error = forms.ValidationError(("Must specify a parent part number."), code='invalid')
-            self.add_error('parent_part_number', validation_error)
-        if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+        if parent_part_number: #  not required, so only validate if its provided
             try:
-                (number_class, number_item, number_variation) = Part.parse_part_number(parent_part_number, self.organization)
-                self.parent_part = Part.objects.get(
-                    number_class=PartClass.objects.get(code=number_class, organization=self.organization),
-                    number_item=number_item,
-                    number_variation=number_variation,
-                    organization=self.organization
-                )
+                self.parent_part = Part.from_part_number(parent_part_number, self.organization)
             except AttributeError as e:
                 validation_error = forms.ValidationError("Ill-formed parent part number... " + str(e) + ".", code='invalid')
                 self.add_error('parent_part_number', validation_error)
-            except PartClass.DoesNotExist:
-                validation_error = forms.ValidationError(("No part class found for given parent part number {}.".format(parent_part_number)), code='invalid')
-                self.add_error('parent_part_number', validation_error)
             except Part.DoesNotExist:
-                validation_error = forms.ValidationError(("No part found with given parent part number {}.".format(parent_part_number)), code='invalid')
-                self.add_error('parent_part_number', validation_error)
-        else:
-            try:
-                self.parent_part = Part.objects.get(
-                    number_class=None,
-                    number_item=parent_part_number,
-                    number_variation=None,
-                    organization=self.organization
-                )
-            except Part.DoesNotExist:
-                validation_error = forms.ValidationError(("No part found with given parent part number {}.".format(parent_part_number)), code='invalid')
+                validation_error = forms.ValidationError(("Parent part not found with given part number {}.".format(parent_part_number)), code='invalid')
                 self.add_error('parent_part_number', validation_error)
 
         return parent_part_number
@@ -1125,12 +1131,12 @@ class BOMCSVForm(forms.Form):
             dialect = csv.Sniffer().sniff(csv_row_decoded)
             file.open()
 
-            reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
+            reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect, quotechar='"', escapechar='\\')
             headers = [h.lower() for h in next(reader)]
 
             # Handle utf-8-sig encoding
             if len(headers) > 0 and "\ufeff" in headers[0]:
-                reader = csv.reader(codecs.iterdecode(file, 'utf-8-sig'), dialect)
+                reader = csv.reader(codecs.iterdecode(file, 'utf-8-sig'), dialect, quotechar='"', escapechar='\\')
                 headers = [h.lower() for h in next(reader)]
             elif len(headers) == 0:
                 self.warnings.append("No headers found in CSV file.")
@@ -1155,191 +1161,232 @@ class BOMCSVForm(forms.Form):
             except CSVHeaderError as e:
                 raise ValidationError(e.__str__() + ". Uploading stopped. No subparts uploaded.", code='invalid')
 
-            parent_part_revision = self.parent_part.latest()
-            if parent_part_revision.assembly is None:
-                parent_part_revision.assembly = Assembly.objects.create()
-                parent_part_revision.save()
+            parent_part_revision = self.parent_part.latest() if self.parent_part else None
+
+            last_level = None
+            last_part_revision = parent_part_revision
+            part_revision_tree = [] if parent_part_revision is None else [parent_part_revision]
 
             row_count = 1  # Skip over header row
             for row in reader:
                 row_count += 1
                 part_dict = {}
 
+                # First prepare data
                 for idx, hdr in enumerate(headers):
                     if idx == len(row): break
                     part_dict[hdr] = row[idx]
 
                 dnp = csv_headers.get_val_from_row(part_dict, 'dnp')
-                do_not_load = dnp in ['y', 'x', 'dnp', 'dnl', 'yes', 'true', ]
-                part_number = csv_headers.get_val_from_row(part_dict, 'part_number')
-                revision = csv_headers.get_val_from_row(part_dict, 'revision')
-                mpn = csv_headers.get_val_from_row(part_dict, 'mpn')
-                count = csv_headers.get_val_from_row(part_dict, 'count')
                 reference = csv_headers.get_val_from_row(part_dict, 'reference')
-                reference_list = listify_string(reference) if reference else []
+                part_number = csv_headers.get_val_from_row(part_dict, 'part_number')
+                manufacturer_part_number = csv_headers.get_val_from_row(part_dict, 'mpn')
+                manufacturer_name = csv_headers.get_val_from_row(part_dict, 'manufacturer_name')
+                try:
+                    level = int(float(csv_headers.get_val_from_row(part_dict, 'level')))
+                except ValueError as e:
+                    # TODO: May want to validate whole file has acceptable levels first.
+                    raise ValidationError(f"Row {row_count} - level: invalid level, can't continue.", code='invalid')
+                except TypeError as e:
+                    # no level field was provided, we MUST have a parent part number to upload this way, and in this case all levels are the same
+                    if parent_part_revision is None:
+                        raise ValidationError(f"Row {row_count} - level: must provide either level, or a parent part to upload a part.", code='invalid')
+                    else:
+                        level = 1
 
-                if len(reference_list) != len(set(reference_list)):
-                    self.add_error(None, f"Duplicate reference designators '{reference}' for subpart on row {row_count}. Uploading of this subpart skipped.")
-                    continue
+                if last_level is None:
+                    last_level = level
 
-                if count is None:
-                    count = 1
-                elif not count.isdigit() or int(count) < 1:
-                    self.add_error(None, f"Quantity for subpart on row {row_count} must be a number > 0. Uploading of this subpart skipped.")
-                    continue
-                else:
-                    count = int(count)
+                # Extract some values
+                part_dict['reference'] = reference
+                part_dict['do_not_load'] = dnp in ['y', 'x', 'dnp', 'dnl', 'yes', 'true', ]
+                part_dict['revision'] = csv_headers.get_val_from_row(part_dict, 'revision') or 1
+                part_dict['count'] = csv_headers.get_val_from_row(part_dict, 'count')
+                part_dict['number_class'] = None
+                part_dict['number_variation'] = None
 
-                # First try to add the subpart_part based on the part number
-                subpart_part = None
                 if part_number:
-                    if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
-                        try:
-                            (number_class, number_item, number_variation) = Part.parse_partial_part_number(part_number, self.organization)
-                            subparts = Part.objects.filter(
-                                number_class__code=number_class,
-                                number_item=number_item,
-                                number_variation=number_variation,
-                                organization=self.organization)
-                        except AttributeError as e:
-                            self.add_error(None, str(e) + " on row {}. Uploading of this subpart skipped. Couldn't parse part number.".format(row_count))
+                    try:
+                        (part_dict['number_class'], part_dict['number_item'], part_dict['number_variation']) = Part.parse_partial_part_number(part_number, self.organization)
+                    except AttributeError as e:
+                        self.add_error(None, f"Row {row_count} - part_number: Uploading of this subpart skipped. Couldn't parse part number.")
+                        continue
+                elif manufacturer_part_number:
+                    try:
+                        part = Part.from_manufacturer_part_number(manufacturer_part_number, self.organization)
+                        if part is None:
+                            self.add_error(None, f"Row {row_count} - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number.")
                             continue
-                    else:
-                        subparts = Part.objects.filter(number_class=None, number_item=part_number, number_variation=None, organization=self.organization)
-
-                    if len(subparts) == 0:
-                        self.add_error(None,
-                                       "Part {0} for subpart on row {1} does not exist, you must create the part "
-                                       "before it can be added as a subpart. "
-                                       "Uploading of this subpart skipped.".format(part_number, row_count))
+                        part_dict['number_class'] = part.number_class.code
+                        part_dict['number_item'] = part.number_item
+                        part_dict['number_variation'] = part.number_variation
+                        part_number = part.full_part_number()
+                    except ValueError:
+                        self.add_error(None, f"Row {row_count} - manufacturer_part_number: Uploading of this subpart skipped. Too many parts found for manufacturer part number.")
                         continue
-                    elif len(subparts) > 1:
-                        self.add_error(None,
-                                       "Found {0} entries for part {1} for subpart on row {2}. This should not happen. "
-                                       "Please let info@indabom.com know. Uploading of this subpart skipped.".format(
-                                           len(subparts), row_count, part_number))
-                        continue
-
-                    subpart_part = subparts[0]  # TODO: handle more than one subpart
-                # Couldn't add the sub-part based on the part number, so try from MPN
-                elif mpn:
-                    manufacturer_parts = ManufacturerPart.objects.filter(manufacturer_part_number=mpn, part__organization=self.organization)
-                    if len(manufacturer_parts) == 0:
-                        self.add_error(None, "Manufacturer part number {0} for subpart on row {1} does not exist, "
-                                             "you must create the part before it can be added as a subpart. "
-                                             "Uploading of this part skipped.".format(part_dict['manufacturer_part_number'], row_count))
-                        continue
-
-                    subpart_part = manufacturer_parts[0].part
                 else:
-                    self.add_error(None, f"Couldn't parse part on row {row_count} with data: {row}.")
-                    continue
+                    raise ValidationError("No part_number or manufacturer_part_number found. Uploading stopped. No subparts uploaded.", code='invalid')
 
-                # We have the subpart_part at this point, make sure we don't have infinite recursion
-                if self.parent_part == subpart_part:
-                    # Silently skip any rows that contain the parent part
-                    continue
-
-                subpart_revision = subpart_part.latest()
-                if not subpart_revision:
-                    self.add_error(None, f"Part {part_number} has no revisions. Cannot add it to a BOM. Uploading of this subpart skipped.")
-                    continue
-
-                if revision:
-                    revs = subpart_part.revisions().filter(revision=revision).order_by('-timestamp')
-                    if revs.count() > 0:
-                        subpart_revision = revs[0]
-                    else:
-                        rev_options = revs.values_list('revision', flat=True)
-                        self.add_error(None, f"Found part {part_number}, but could not match revision {revision}. Options are: {rev_options}. Uploading of this subpart skipped.")
-                        continue
-
-                contains_parent = False
-                indented_bom = subpart_revision.indented()
-                for _, sp in indented_bom.parts.items():  # Make sure the subpart does not contain the parent - infinite recursion!
-                    if sp.part_revision == parent_part_revision:
-                        contains_parent = True
-                if contains_parent:
-                    self.add_error(None, f"Uploaded part {part_number} contains parent part in its assembly. Cannot add {part_number} as it would cause infinite recursion. Uploading of this subpart skipped.")
-                    continue
-
-                # Decide if the current subpart (i.e., for current row) should:
-                # a. Be combined with a previously seen subpart
-                # b. Rejected because it is a duplicate of a previously seen subpart
-                # c. Be imported as a new subpart
-                #
-                # Do (a) if current subpart's part matches a previous subpart's part except for their designators. Combine if
-                # current subpart's designators either don't overlap or both subparts do not have designators. As
-                # part of the combing, adjust subpart count to represent the total number of combined subparts. Reject
-                # current subpart if it has a designator but the previous subpart does not (or vice versa).
-                #
-                # Do (b) if current subpart's part matches a previous subpart's part - AND - their designators match (this
-                # includes the case where the current and previous subpart do not have any designators.
-                #
-                # Do (c) if the current subpart's part does not match any previous subpart's part - OR - if there is a
-                # match except for their DNL flags. Want to have separate entries in the BOM for the to-be-loaded and
-                # the do-not-load versions of these subparts.
-                #
-
-                existing_subpart_qs = parent_part_revision.assembly.subparts.filter(
-                    part_revision=subpart_revision,
-                    do_not_load=do_not_load # Include DNL flag in filter per (c) above
-                )
-
-                if len(existing_subpart_qs) == 0:
-
-                    if len(reference_list) != count and len(reference_list) > 0:
-                        self.warnings.append(
-                            f"The number of reference designators ({len(reference_list)}) for subpart {subpart_part} on row {row_count} does not match the subpart quantity ({count}). Quantity automatically adjusted.")
-                        count = len(reference_list)
-
-                    new_subpart = Subpart.objects.create(
-                        part_revision=subpart_revision,
-                        count=count,
-                        reference=reference,
-                        do_not_load=do_not_load
-                    )
-
-                    AssemblySubparts.objects.get_or_create(assembly=parent_part_revision.assembly, subpart=new_subpart)
-
-                    info_msg = f"Added subpart {part_number} on row {row_count} "
-                    if reference:
-                        info_msg += f"with reference designators {reference} "
-                    info_msg += f"to parent part {self.parent_part}."
-                    self.successes.append(info_msg)
-
+                # Handle indented bom level changes
+                level_change = level - last_level
+                if level_change == 1:  # Level decreases, must only decrease by 1
+                    part_revision_tree.append(last_part_revision)
+                elif level_change <= -1:  # Level increases, going up in assembly; intentionally empty tree if level change is very negative
+                    part_revision_tree = part_revision_tree[:level_change]
+                elif level_change == 0:
+                    pass
+                elif level - last_level > 1:
+                    raise ValidationError(f'Row {row_count} - level: Assembly levels must decrease by no more than 1 from sequential rows.', code='invalid')
                 else:
-                    existing_subpart = existing_subpart_qs[0]
-                    existing_subpart_reference_list = listify_string(existing_subpart.reference)
-                    if len(reference_list) == 0 or len(existing_subpart_reference_list) == 0:
-                        self.add_error(None,
-                            f"Cannot combine subpart {part_number} on row {row_count} with existing matching subpart because one or both subparts have empty reference designators. Subpart combining skipped.")
-                    else:
-                        combine = True
-                        for ref in reference_list:
-                            if ref in existing_subpart_reference_list:
-                                combine = False
-                                self.warnings.append(
-                                    f"Cannot combine subpart subpart {part_number} on row {row_count} with existing subpart because one or more reference designators are the same. Subpart combining skipped.")
-                                break
-                        if combine:
-                            info_msg = f"Combined reference designators {stringify_list(reference_list)} for subpart on row {row_count} with existing subpart {part_number}."
-                            existing_subpart_reference_list = existing_subpart_reference_list + reference_list
-                            existing_subpart.reference = stringify_list(existing_subpart_reference_list)
-                            existing_subpart.count = len(existing_subpart_reference_list) if len(existing_subpart_reference_list) > 0 else '1'
-                            existing_subpart.save()
-                            self.successes.append(info_msg)
+                    raise ValidationError(f'Row {row_count} - level: Invalid assembly level.', code='invalid')
 
+                try:
+                    parent_part_revision = part_revision_tree[-1]
+                    if parent_part_revision.assembly is None:
+                        parent_part_revision.assembly = Assembly.objects.create()
+                        parent_part_revision.save()
+                except IndexError:
+                    parent_part_revision = None
+
+                # Check for existing objects
+                existing_part_class = PartClass.objects.filter(code=part_dict['number_class'], organization=self.organization).first()
+
+                existing_part = None
+                if existing_part_class or self.organization.number_scheme == NUMBER_SCHEME_INTELLIGENT:
+                    existing_part = Part.objects.filter(number_class=existing_part_class, number_item=part_dict['number_item'], number_variation=part_dict['number_variation'], organization=self.organization).first()
+
+                existing_part_revision = None
+                if existing_part:
+                    existing_part_revision = PartRevision.objects.filter(part=existing_part, revision=part_dict['revision']).first()
+
+                if existing_part_revision and parent_part_revision:  # Check for infinite recursion
+                    contains_parent = False
+                    indented_bom = existing_part_revision.indented()
+                    for _, sp in indented_bom.parts.items():  # Make sure the subpart does not contain the parent - infinite recursion!
+                        if sp.part_revision == parent_part_revision:
+                            contains_parent = True
+                    if contains_parent:
+                        raise ValidationError(
+                            f"Row {row_count} - Uploaded part {part_number} contains parent part in its assembly. Cannot add {part_number} as it would cause infinite recursion. Uploading of this subpart skipped.",
+                            code='invalid')
+
+                existing_subpart = None
+                existing_subpart_count = 0
+                existing_subpart_references = None
+                if existing_part_revision and parent_part_revision:
+                    existing_subpart = parent_part_revision.assembly.subparts.all().filter(part_revision=existing_part_revision, do_not_load=part_dict['do_not_load']).first()
+                    existing_subpart_count = existing_subpart.count if existing_subpart else 0
+                    existing_subpart_references = existing_subpart.reference if existing_subpart else None
+
+                # Now validate & save PartClass, Part, PartRevision, Subpart
+                part_class_dict = {'code': part_dict['number_class'], 'name': part_dict.get('part_class', None)}
+                part_class_form = PartClassForm(part_class_dict, instance=existing_part_class, ignore_unique_constraint=True, organization=self.organization)
+                if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT and not part_class_form.is_valid():
+                    add_nonfield_error_from_existing(part_class_form, self, f'Row {row_count} - ')
+                    continue
+
+                PartForm = part_form_from_organization(self.organization)
+                part_form = PartForm(part_dict, instance=existing_part, ignore_part_class=True, ignore_unique_constraint=True, organization=self.organization)
+                if not part_form.is_valid():
+                    add_nonfield_error_from_existing(part_form, self, f'Row {row_count} - ')
+                    continue
+
+                part_revision_form = PartRevisionForm(part_dict, instance=existing_part_revision)
+                if not part_revision_form.is_valid():
+                    add_nonfield_error_from_existing(part_revision_form, self, f'Row {row_count} - ')
+                    continue
+
+                subpart_form = SubpartForm(part_dict, instance=existing_subpart, ignore_part_revision=True, organization=self.organization)
+                if not subpart_form.is_valid():
+                    add_nonfield_error_from_existing(subpart_form, self, f'Row {row_count} - ')
+                    continue
+
+                part_class = part_class_form.save(commit=False)
+                part = part_form.save(commit=False)
+                part_revision = part_revision_form.save(commit=False)
+                subpart = subpart_form.save(commit=False)
+
+                reference_list = listify_string(reference) if reference else []
+                if len(reference_list) != len(set(reference_list)):
+                    self.add_warning(None, f"Row {row_count} -Duplicate reference designators '{reference}' for subpart on row {row_count}.")
+                if len(reference_list) != subpart.count and len(reference_list) > 0:
+                    self.add_warning(None, f"Row {row_count} -The quantity of reference designators for {part_number} on row {row_count} does not match the subpart quantity ({len(reference_list)} != {subpart.count})")
+
+                if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+                    part_class.save()
+                    part.number_class = part_class
+
+                part.organization = self.organization
+                part.save()
+                part_revision.part = part
+                part_revision.save()
+                if parent_part_revision:
+                    subpart.count += existing_subpart_count  # append or create
+                    subpart.reference = existing_subpart_references + ', ' + subpart.reference if existing_subpart_references else subpart.reference
+                    subpart.part_revision = part_revision
+                    subpart.save()
+                    AssemblySubparts.objects.get_or_create(assembly=parent_part_revision.assembly, subpart=subpart)
+
+                info_msg = f"Row {row_count}: Added subpart {part_number}"
+                if reference:
+                    info_msg += f" with reference designators {reference}"
+                if parent_part_revision:
+                    info_msg += f" to parent part {parent_part_revision.part.full_part_number()}"
+                self.successes.append(info_msg + ".")
+
+                # Now validate & save optional fields - Manufacturer, ManufacturerPart, SellerParts
+                existing_manufacturer = Manufacturer.objects.filter(name=manufacturer_name, organization=self.organization).first()
+                manufacturer_form = ManufacturerForm({'name': manufacturer_name}, instance=existing_manufacturer)
+                if not manufacturer_form.is_valid():
+                    add_nonfield_error_from_existing(manufacturer_form, self, f'Row {row_count} - ')
+
+                manufacturer_part_data = {'manufacturer_part_number': manufacturer_part_number}
+                manufacturer_part_form = ManufacturerPartForm(manufacturer_part_data)
+                if not manufacturer_part_form.is_valid():
+                    add_nonfield_error_from_existing(manufacturer_part_form, self, f'Row {row_count} - ')
+
+                manufacturer = manufacturer_form.save(commit=False)
+                manufacturer.organization = self.organization
+                manufacturer.save()
+
+                manufacturer_part = manufacturer_part_form.save(commit=False)
+                existing_manufacturer_part = ManufacturerPart.objects.filter(part=part, manufacturer=manufacturer, manufacturer_part_number=manufacturer_part.manufacturer_part_number).first()
+                manufacturer_part.id = existing_manufacturer_part.id if existing_manufacturer_part else None
+                manufacturer_part.manufacturer = manufacturer
+                manufacturer_part.part = part
+                manufacturer_part.save()
+
+                part.primary_manufacturer_part = manufacturer_part
+                part.save()
+
+                last_part_revision = part_revision
+                last_level = level
+
+                # TODO: Add SellerParts
         except UnicodeDecodeError as e:
             self.add_error(None, forms.ValidationError("CSV File Encoding error, try encoding your file as utf-8, and upload again. \
                 If this keeps happening, reach out to info@indabom.com with your csv file and we'll do our best to \
                 fix your issue!", code='invalid'))
             logger.warning("UnicodeDecodeError: {}".format(e))
-            raise ValidationError("Specific Error: {}".format(e),
-                                  code='invalid')
+            raise ValidationError("Specific Error: {}".format(e), code='invalid')
 
         return cleaned_data
 
 
 class FileForm(forms.Form):
     file = forms.FileField()
+
+def part_form_from_organization(organization):
+    return PartFormSemiIntelligent if organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT else PartFormIntelligent
+
+def add_nonfield_error_from_existing(from_form, to_form, prefix=''):
+    for field, errors in from_form.errors.as_data().items():
+        for error in errors:
+            for msg in error.messages:
+                to_form.add_error(None, f'{prefix}{field}: {msg}')
+
+def add_nonfield_warning_from_existing(from_form, to_form, prefix=''):
+    for field, errors in from_form.errors.as_data().items():
+        for error in errors:
+            for msg in error.messages:
+                to_form.add_warning(None, f'{prefix}{field}: {msg}')

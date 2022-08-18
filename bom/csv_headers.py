@@ -1,4 +1,5 @@
 from abc import ABC
+
 from .utils import get_from_dict
 
 
@@ -143,6 +144,13 @@ class CSVHeaders(ABC):
                         c = evaluate(headers, operand, operator, c, i + 1 == num_asserts)
                         i += 2
 
+    def validate_header_in(self, headers, header):
+        header_synonyms = self.get_synoynms(header)
+        for hs in header_synonyms:
+            if hs in headers:
+                return True
+        raise CSVHeaderError(f'Missing column named {header}')
+
 
 #
 # For each CSV header class, a static data member dictionary uses the key as the default name for the header while the
@@ -244,11 +252,12 @@ class PartsListCSVHeadersSemiIntelligent(PartsListCSVHeaders):
 class BOMFlatCSVHeaders(CSVHeaders):
     all_headers_defns = [
         CSVHeader('part_number', name_options=['part number', 'part no', ]),
-        CSVHeader('quantity', name_options=['count', 'qty', ]),
+        CSVHeader('quantity', name_options=['count', 'qty', 'quantity', ]),
         CSVHeader('do_not_load', name_options=['dnl', 'dnp', 'do_not_populate', 'do_not_load', 'do not load', 'do not populate', ]),
         CSVHeader('part_class', name_options=['class', 'part_category']),
         CSVHeader('references', name_options=['designator', 'designators', 'reference', ]),
         CSVHeader('synopsis', name_options=['part_synopsis', ]),
+        CSVHeader('description', name_options=['part_description', 'desc', ]),
         CSVHeader('revision', name_options=['rev', 'part_revision', 'rev.']),
     ] + ManufacturerPartCSVHeaders.all_headers_defns \
       + SellerPartCSVHeaders.all_headers_defns + [
