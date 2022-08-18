@@ -79,6 +79,7 @@ bom/static/bom/css/treetable-theme.css
 bom/static/bom/doc/sample_part_classes.csv
 bom/static/bom/doc/test_bom.csv
 bom/static/bom/doc/test_bom_5_intelligent.csv
+bom/static/bom/doc/test_full_bom.csv
 bom/static/bom/doc/test_new_parts.csv
 bom/static/bom/doc/test_new_parts_5_intelligent.csv
 bom/static/bom/img/.DS_Store
