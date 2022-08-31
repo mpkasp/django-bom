@@ -66,7 +66,7 @@ bom/migrations/0040_alter_organization_currency.py
 bom/migrations/0041_organization_subscription_quantity.py
 bom/migrations/0042_auto_20210720_2137.py
 bom/migrations/0043_auto_20211123_0157.py
-bom/migrations/0044_alter_partclass_comment.py
+bom/migrations/0044_auto_20220831_1241.py
 bom/migrations/__init__.py
 bom/static/.DS_Store
 bom/static/bom/.DS_Store
