@@ -32,6 +32,7 @@ from bom.csv_headers import (
     PartsListCSVHeadersSemiIntelligent,
     SellerPartCSVHeaders,
 )
+from bom.decorators import organization_admin
 from bom.forms import (
     AddSubpartForm,
     BOMCSVForm,
@@ -596,6 +597,7 @@ def manufacturer_edit(request, manufacturer_id):
 
 
 @login_required
+@organization_admin
 def manufacturer_delete(request, manufacturer_id):
     manufacturer = get_object_or_404(Manufacturer, pk=manufacturer_id)
     manufacturer.delete()
@@ -1106,6 +1108,7 @@ def manage_bom(request, part_id, part_revision_id):
 
 
 @login_required
+@organization_admin
 def part_delete(request, part_id):
     part = get_object_or_404(Part, part_id)
     part.delete()
@@ -1162,11 +1165,8 @@ def add_subpart(request, part_id, part_revision_id):
 
 
 @login_required
+@organization_admin
 def remove_subpart(request, part_id, part_revision_id, subpart_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
     subpart = get_object_or_404(Subpart, pk=subpart_id)
     subpart.delete()
     return HttpResponseRedirect(
@@ -1226,6 +1226,7 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
 
 
 @login_required
+@organization_admin
 def remove_all_subparts(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
@@ -1354,15 +1355,11 @@ def manufacturer_part_edit(request, manufacturer_part_id):
 
 
 @login_required
+@organization_admin
 def manufacturer_part_delete(request, manufacturer_part_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     part = manufacturer_part.part
     manufacturer_part.delete()
-
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
 
 
@@ -1388,11 +1385,8 @@ def sellerpart_edit(request, sellerpart_id):
 
 
 @login_required
+@organization_admin
 def sellerpart_delete(request, sellerpart_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
     sellerpart = get_object_or_404(SellerPart, pk=sellerpart_id)
     part = sellerpart.manufacturer_part.part
     sellerpart.delete()
@@ -1517,17 +1511,8 @@ def part_revision_edit(request, part_id, part_revision_id):
 
 
 @login_required
+@organization_admin
 def part_revision_delete(request, part_id, part_revision_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
-    part = get_object_or_404(Part, pk=part_id)
-
-    if profile.role != 'A':
-        messages.error(request, 'Only an admin can perform this action.')
-        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}))
-
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     part = part_revision.part
     part_revision.delete()
