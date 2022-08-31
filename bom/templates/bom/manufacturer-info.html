@@ -18,6 +18,47 @@
                 <h3 class="light">{{ manufacturer.name }}</h3>
             </div>
         </div>
+        <div class="col {% if manufacturer %}m3 s1{% else %}m3 s12{% endif %}">
+            {% if profile.role == 'A' and manufacturer %}
+                <div style="margin-top: 1.5rem;">
+                    <!-- Dropdown Trigger -->
+                    <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light grey lighten-4 btn-flat'
+                            href='#' data-target='dropdown-revision'><i class="material-icons right">arrow_drop_down</i>Manage
+                    </button>
+                    <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
+                            class="material-icons green-text text-lighten-1">more_vert</i></a>
+                    <!-- Dropdown Structure -->
+                    <ul id='dropdown-revision' class='dropdown-content'>
+                        <li>
+                            <a class="green-text text-lighten-1"
+                               href="{% url 'bom:manufacturer-edit' manufacturer_id=manufacturer.id %}">
+                                <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
+                        </li>
+                        <li class="divider" tabindex="-1"></li>
+                        <li>
+                            <a class="red-text text-lighten-1" onclick="deleteManufacturer()">
+                                <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
+                        </li>
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+
         {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=manufacturer_parts profile=profile show_part=True %}
     </div>
+{% endblock %}
+
+{% block bom-script %}
+<script>
+    function deleteManufacturer() {
+        {% if manufacturer is not None %}
+            let url = "{% url 'bom:manufacturer-delete' manufacturer_id=manufacturer.id %}";
+            if (confirm("Warning! Are you sure you want to delete this manufacturer?\n\n{{ manufacturer_parts.count }} of its manufacturer parts will also be permanently deleted.")) {
+                window.location.href = url;
+            }
+        {% else %}
+            confirm("No manufacturer to delete!");
+        {% endif %}
+    }
+</script>
 {% endblock %}

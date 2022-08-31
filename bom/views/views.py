@@ -575,6 +575,34 @@ def manufacturer_info(request, manufacturer_id):
 
 
 @login_required
+def manufacturer_edit(request, manufacturer_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    manufacturer = get_object_or_404(Manufacturer, pk=manufacturer_id)
+    title = 'Edit Manufacturer'
+    action = reverse('bom:manufacturer-edit', kwargs={'manufacturer_id': manufacturer_id})
+
+    if request.method == 'POST':
+        form = ManufacturerForm(request.POST, instance=manufacturer)
+        if form.is_valid():
+            form.save()
+            return HttpResponseRedirect(reverse('bom:manufacturer-info', kwargs={'manufacturer_id': manufacturer_id}))
+    else:
+        form = ManufacturerForm(instance=manufacturer)
+
+    return TemplateResponse(request, 'bom/bom-form.html', locals())
+
+
+@login_required
+def manufacturer_delete(request, manufacturer_id):
+    manufacturer = get_object_or_404(Manufacturer, pk=manufacturer_id)
+    manufacturer.delete()
+    return HttpResponseRedirect(reverse('bom:manufacturers'))
+
+
+@login_required
 def user_meta_edit(request, user_meta_id):
     user = request.user
     profile = user.bom_profile()
@@ -1079,18 +1107,8 @@ def manage_bom(request, part_id, part_revision_id):
 
 @login_required
 def part_delete(request, part_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
-    try:
-        part = Part.objects.get(id=part_id)
-    except Part.DoesNotExist:
-        messages.error(request, "No part found with given part_id {}.".format(part_id))
-        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
-
+    part = get_object_or_404(Part, part_id)
     part.delete()
-
     return HttpResponseRedirect(reverse('bom:home'))
 
 

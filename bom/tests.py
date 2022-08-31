@@ -920,6 +920,18 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:manufacturer-info', kwargs={'manufacturer_id': p1.primary_manufacturer_part.manufacturer.id}))
         self.assertEqual(response.status_code, 200)
 
+    def test_manufacturer_edit(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.post(reverse('bom:manufacturer-edit', kwargs={'manufacturer_id': p1.primary_manufacturer_part.manufacturer.id}))
+        self.assertEqual(response.status_code, 302)
+
+    def test_manufacturer_delete(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.post(reverse('bom:manufacturer-delete', kwargs={'manufacturer_id': p1.primary_manufacturer_part.manufacturer.id}))
+        self.assertEqual(response.status_code, 302)
+
     def test_manufacturer_part_edit(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(
