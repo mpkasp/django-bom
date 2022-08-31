@@ -657,6 +657,7 @@ class ManufacturerPart(models.Model, AsDictModel):
     manufacturer_part_number = models.CharField(max_length=128, default='', blank=True)
     manufacturer = models.ForeignKey(Manufacturer, default=None, blank=True, null=True, on_delete=models.CASCADE)
     mouser_disable = models.BooleanField(default=False)
+    link = models.URLField(null=True, blank=True)
 
     class Meta:
         unique_together = [

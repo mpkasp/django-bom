@@ -162,7 +162,7 @@
                         <li class="collection-item">
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Primary Manufacturer Part:</div>
-                                <div class="col s8 l10">{{ part.primary_manufacturer_part.manufacturer.name }} - {{ part.primary_manufacturer_part.manufacturer_part_number }}
+                                <div class="col s8 l10">{% if part.primary_manufacturer_part.link %}<a href="{{ part.primary_manufacturer_part.link }}" target="_blank">{% endif %}{{ part.primary_manufacturer_part.manufacturer.name }} - {{ part.primary_manufacturer_part.manufacturer_part_number }}{% if part.primary_manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}
                                     {% if profile.role == 'A' %}
                                         <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[change]</a>
                                     {% endif %}
@@ -314,7 +314,7 @@
                             <tbody>
                             {% for manufacturer_part in part.manufacturer_parts %}
                                 <tr id="sourcing-mp-{{ manufacturer_part.id }}" data-tt-id="{{ manufacturer_part.id }}">
-                                    <td>{{ manufacturer_part.manufacturer_part_number }}</td>
+                                    <td>{% if manufacturer_part.link %}<a href="{{ manufacturer_part.link }}" target="_blank">{% endif %}{{ manufacturer_part.manufacturer_part_number }}{% if manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}</td>
                                     <td>{{ manufacturer_part.manufacturer }}</td>
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-name">{{ manufacturer_part.optimal_seller.seller.name }}</td>
                                     <td id="sourcing-mp-{{ manufacturer_part.id }}-moq">{{ manufacturer_part.optimal_seller.minimum_order_quantity }}</td>

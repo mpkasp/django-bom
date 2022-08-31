@@ -47,6 +47,11 @@
                         {{ manufacturer_part_form.manufacturer_part_number.errors }}
                         {{ manufacturer_part_form.manufacturer_part_number }}
                     </div>
+                    <div class="fieldWrapper col s6">
+                        <label for="{{ manufacturer_part_form.link.id_for_label }}"><b>Manufacturer Part Link</b></label>
+                        {{ manufacturer_part_form.link.errors }}
+                        {{ manufacturer_part_form.link }}
+                    </div>
                     {% if part.number_class.mouser_enabled %}
                     <label for="{{ manufacturer_part_form.source_mouser.id_for_label }}"><b>Disable sourcing info from Mouser</b></label>
                     {{ manufacturer_part_form.mouser_disable.errors }}
