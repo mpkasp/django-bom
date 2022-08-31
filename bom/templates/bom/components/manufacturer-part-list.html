@@ -84,30 +84,12 @@
             {% endfor %}
         {% empty %}
             <tr>
-                <td colspan="99" style="text-align: center; height: 20vh;"><i>This part has no manufacturer parts.</i></td>
+                <td colspan="99" style="text-align: center; height: 20vh;"><i>None found.</i></td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
 </div>
-
-<!-- Handle if there's an anchor, select tab -->
-<script type='text/javascript'>
-    // For dropdown menu
-    $(document).ready(function () {
-        $('.dropdown-trigger').dropdown({
-                inDuration: 300,
-                outDuration: 225,
-                constrainWidth: false, // Does not change width of dropdown to that of the activator
-                hover: false, // Activate on hover
-                gutter: 0, // Spacing from edge
-                alignment: 'left', // Displays dropdown with edge aligned to the left of button
-                stopPropagation: false, // Stops event propagation
-                coverTrigger: false
-            }
-        );
-    });
-</script>
 
 <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
 <script>

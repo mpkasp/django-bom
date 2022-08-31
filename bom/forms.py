@@ -284,6 +284,12 @@ class ManufacturerPartForm(forms.ModelForm):
         self.fields['mouser_disable'].initial = True
 
 
+class SellerForm(forms.ModelForm):
+    class Meta:
+        model = Seller
+        exclude = ['organization', ]
+
+
 class SellerPartForm(forms.ModelForm):
     class Meta:
         model = SellerPart

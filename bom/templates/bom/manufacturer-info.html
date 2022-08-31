@@ -15,7 +15,8 @@
     <div class="container-app">
         <div class="row" style="margin-bottom: 5px;">
             <div class="col m8 hide-on-small-and-down">
-                <h3 class="light">{{ manufacturer.name }}</h3>
+                <h3 class="light">Manufacturer / {{ manufacturer.name }}</h3>
+                <a href="{% url 'bom:manufacturers' %}">Back to manufacturers</a>
             </div>
         </div>
         <div class="col {% if manufacturer %}m3 s1{% else %}m3 s12{% endif %}">
@@ -60,5 +61,23 @@
             confirm("No manufacturer to delete!");
         {% endif %}
     }
+</script>
+
+    <!-- Handle if there's an anchor, select tab -->
+<script type='text/javascript'>
+    // For dropdown menu
+    $(document).ready(function () {
+        $('.dropdown-trigger').dropdown({
+                inDuration: 300,
+                outDuration: 225,
+                constrainWidth: false, // Does not change width of dropdown to that of the activator
+                hover: false, // Activate on hover
+                gutter: 0, // Spacing from edge
+                alignment: 'left', // Displays dropdown with edge aligned to the left of button
+                stopPropagation: false, // Stops event propagation
+                coverTrigger: false
+            }
+        );
+    });
 </script>
 {% endblock %}

@@ -2,10 +2,10 @@ import csv
 import logging
 import operator
 from functools import reduce
-from json import dumps, loads
+from json import dumps
 
 from django.contrib import messages
-from django.contrib.auth import authenticate, get_user_model, login
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
@@ -25,11 +25,8 @@ import bom.constants as constants
 from bom.csv_headers import (
     BOMFlatCSVHeaders,
     BOMIndentedCSVHeaders,
-    CSVHeader,
     ManufacturerPartCSVHeaders,
     PartClassesCSVHeaders,
-    PartsListCSVHeaders,
-    PartsListCSVHeadersSemiIntelligent,
     SellerPartCSVHeaders,
 )
 from bom.decorators import organization_admin
@@ -40,19 +37,17 @@ from bom.forms import (
     ManufacturerForm,
     ManufacturerPartForm,
     OrganizationCreateForm,
-    OrganizationForm,
     OrganizationFormEditSettings,
     OrganizationNumberLenForm,
     PartClassCSVForm,
     PartClassForm,
-    PartClassFormSet,
     PartClassSelectionForm,
     PartCSVForm,
-    PartFormIntelligent,
-    PartFormSemiIntelligent,
     PartInfoForm,
     PartRevisionForm,
     PartRevisionNewForm,
+    Seller,
+    SellerForm,
     SellerPartForm,
     SubpartForm,
     UploadBOMForm,
@@ -67,7 +62,6 @@ from bom.models import (
     AssemblySubparts,
     Manufacturer,
     ManufacturerPart,
-    Organization,
     Part,
     PartClass,
     PartRevision,
@@ -76,7 +70,7 @@ from bom.models import (
     User,
     UserMeta,
 )
-from bom.utils import check_references_for_duplicates, listify_string, prep_for_sorting_nicely, stringify_list
+from bom.utils import check_references_for_duplicates, listify_string, prep_for_sorting_nicely
 
 
 logger = logging.getLogger(__name__)
@@ -531,30 +525,27 @@ def manufacturers(request):
         return HttpResponseRedirect(reverse('bom:organization-create'))
 
     query = request.GET.get('q', '')
-    title = f'{organization.name}\'s'
+    title = f'{organization.name}\'s Manufacturer'
 
     if query:
-        title += f' - Search Results'
-    else:
-        title += f' Manufacturer List'
+        title += ' - Search Results'
 
     manufacturers = Manufacturer.objects.filter(organization=organization, name__icontains=query).annotate(manufacturerpart_count=Count('manufacturerpart')).order_by('name')
 
     autocomplete_dict = {}
     for manufacturer in manufacturers:
         autocomplete_dict.update({manufacturer.name: None})
-
     autocomplete = dumps(autocomplete_dict)
 
     paginator = Paginator(manufacturers, 50)
 
     page = request.GET.get('page')
     try:
-        part_revs = paginator.page(page)
+        manufacturers = paginator.page(page)
     except PageNotAnInteger:
-        part_revs = paginator.page(1)
+        manufacturers = paginator.page(1)
     except EmptyPage:
-        part_revs = paginator.page(paginator.num_pages)
+        manufacturers = paginator.page(paginator.num_pages)
 
     return TemplateResponse(request, 'bom/manufacturers.html', locals())
 
@@ -603,6 +594,86 @@ def manufacturer_delete(request, manufacturer_id):
     manufacturer.delete()
     return HttpResponseRedirect(reverse('bom:manufacturers'))
 
+
+@login_required
+def sellers(request):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    name = 'sellers'
+    query = request.GET.get('q', '')
+    title = f'{organization.name}\'s Sellers'
+
+    if query:
+        title += ' - Search Results'
+
+    sellers = Seller.objects.filter(organization=organization, name__icontains=query).annotate(sellerpart_count=Count('sellerpart')).order_by('name')
+
+    autocomplete_dict = {}
+    for seller in sellers:
+        autocomplete_dict.update({seller.name: None})
+
+    autocomplete = dumps(autocomplete_dict)
+
+    paginator = Paginator(sellers, 50)
+    page = request.GET.get('page')
+    try:
+        sellers = paginator.page(page)
+    except PageNotAnInteger:
+        sellers = paginator.page(1)
+    except EmptyPage:
+        sellers = paginator.page(paginator.num_pages)
+
+    return TemplateResponse(request, 'bom/sellers.html', locals())
+
+@login_required
+def seller_info(request, seller_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    seller = get_object_or_404(Seller, pk=seller_id)
+
+    if seller.organization != organization:
+        messages.error(request, "Can't access a seller that is not yours!")
+        return HttpResponseRedirect(reverse('bom:home'))
+
+    seller_parts = SellerPart.objects.filter(seller=seller).order_by('manufacturer_part__part__number_class',
+                                                                     'manufacturer_part__part__number_item',
+                                                                     'manufacturer_part__part__number_variation',
+                                                                     'manufacturer_part__manufacturer__name',
+                                                                     'manufacturer_part__manufacturer_part_number',
+                                                                     'seller__name',
+                                                                     'minimum_order_quantity')
+    return TemplateResponse(request, 'bom/seller-info.html', locals())
+
+
+@login_required
+def seller_edit(request, seller_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    seller = get_object_or_404(Seller, pk=seller_id)
+    title = 'Edit Seller'
+    action = reverse('bom:seller-edit', kwargs={'seller_id': seller_id})
+
+    if request.method == 'POST':
+        form = SellerForm(request.POST, instance=seller)
+        if form.is_valid():
+            form.save()
+            return HttpResponseRedirect(reverse('bom:seller-info', kwargs={'seller_id': seller_id}))
+    else:
+        form = SellerForm(instance=seller)
+
+    return TemplateResponse(request, 'bom/bom-form.html', locals())
+
+
+@login_required
+@organization_admin
+def seller_delete(request, seller_id):
+    seller = get_object_or_404(Seller, pk=seller_id)
+    seller.delete()
+    return HttpResponseRedirect(reverse('bom:sellers'))
 
 @login_required
 def user_meta_edit(request, user_meta_id):
