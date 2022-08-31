@@ -1,6 +1,18 @@
-from bom.models import Part, PartClass, Seller, SellerPart, Subpart, \
-    Manufacturer, Organization, ManufacturerPart, PartRevision, Assembly, User, AssemblySubparts
 from bom import constants
+from bom.models import (
+    Assembly,
+    AssemblySubparts,
+    Manufacturer,
+    ManufacturerPart,
+    Organization,
+    Part,
+    PartClass,
+    PartRevision,
+    Seller,
+    SellerPart,
+    Subpart,
+    User,
+)
 
 
 def create_a_fake_organization(user, free=False, number_scheme=constants.NUMBER_SCHEME_SEMI_INTELLIGENT, number_variation_len=constants.NUMBER_VARIATION_LEN_DEFAULT):
@@ -154,8 +166,10 @@ def create_some_fake_parts(organization):
     assy = create_a_fake_assembly()
     pr1 = create_a_fake_part_revision(part=pt1, assembly=None)
 
-    mp2 = ManufacturerPart(part=pt2, manufacturer=None, manufacturer_part_number='GRM1555C1H100JA01D')
+    mp2 = ManufacturerPart(part=pt2, manufacturer=m2, manufacturer_part_number='GRM1555C1H100JA01D')
     mp2.save()
+    mp22 = ManufacturerPart(part=pt2, manufacturer=None, manufacturer_part_number='ThisPartHasNoManufacturer')
+    mp22.save()
     pt2.primary_manufacturer_part = mp2
     pt2.save()
     assy2 = create_a_fake_assembly_with_subpart(part_revision=pr1)
