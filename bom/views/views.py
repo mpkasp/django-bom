@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import IntegrityError
-from django.db.models import ProtectedError, Q, prefetch_related_objects
+from django.db.models import Count, ProtectedError, Q, prefetch_related_objects
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -522,6 +522,59 @@ def bom_settings(request, tab_anchor=None):
 
 
 @login_required
+def manufacturers(request):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    name = 'manufacturers'
+    if not organization:
+        return HttpResponseRedirect(reverse('bom:organization-create'))
+
+    query = request.GET.get('q', '')
+    title = f'{organization.name}\'s'
+
+    if query:
+        title += f' - Search Results'
+    else:
+        title += f' Manufacturer List'
+
+    manufacturers = Manufacturer.objects.filter(organization=organization, name__icontains=query).annotate(manufacturerpart_count=Count('manufacturerpart')).order_by('name')
+
+    autocomplete_dict = {}
+    for manufacturer in manufacturers:
+        autocomplete_dict.update({manufacturer.name: None})
+
+    autocomplete = dumps(autocomplete_dict)
+
+    paginator = Paginator(manufacturers, 50)
+
+    page = request.GET.get('page')
+    try:
+        part_revs = paginator.page(page)
+    except PageNotAnInteger:
+        part_revs = paginator.page(1)
+    except EmptyPage:
+        part_revs = paginator.page(paginator.num_pages)
+
+    return TemplateResponse(request, 'bom/manufacturers.html', locals())
+
+@login_required
+def manufacturer_info(request, manufacturer_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    manufacturer = get_object_or_404(Manufacturer, pk=manufacturer_id)
+
+    if manufacturer.organization != organization:
+        messages.error(request, "Can't access a manufacturer that is not yours!")
+        return HttpResponseRedirect(reverse('bom:home'))
+
+    manufacturer_parts = ManufacturerPart.objects.filter(manufacturer=manufacturer).order_by('manufacturer_part_number')
+
+    return TemplateResponse(request, 'bom/manufacturer-info.html', locals())
+
+
+@login_required
 def user_meta_edit(request, user_meta_id):
     user = request.user
     profile = user.bom_profile()
@@ -599,7 +652,7 @@ def part_info(request, part_id, part_revision_id=None):
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         indented_bom = []
     except AttributeError as err:
-        messages.error(request, err)
+        # No part revision found, that's OK
         indented_bom = []
 
     try:
@@ -608,7 +661,7 @@ def part_info(request, part_id, part_revision_id=None):
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         flat_bom = []
     except AttributeError as err:
-        messages.error(request, err)
+        # No part revision found, that's OK
         flat_bom = []
 
     try:

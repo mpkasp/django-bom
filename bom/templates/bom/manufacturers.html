@@ -1,0 +1,96 @@
+{% extends 'bom/bom-base.html' %}
+
+{% load static %}
+{% load materializecss %}
+
+{% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
+
+{% block main %}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/dashboard.css' %}"/>
+{% endblock %}
+
+{% block content %}
+    <div class="container-app">
+        <form id="searchForm" name="search-form" action="{% url 'bom:manufacturers' %}" method="get" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="row">
+                <div class="input-field col s12 m10">
+                    <i class="material-icons prefix">search</i>
+                    <input type="search" id="autocomplete-input" autocomplete="off" class="text autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
+                    <label for="autocomplete-input">Search for manufacturers:</label>
+                </div>
+                <div class="col s12 m2 text-center">
+                    <button type="submit" class="waves-effect waves-green btn green lighten-1 input-field" name="action">Submit</button>
+                    {% if query %}
+                        <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+            <div class="part-list push-footer">
+                <div class="responsive-table-wrapper">
+                    <table class="highlight part-list tight single-line" style="margin-bottom: 14px;">
+                        <thead>
+                        <tr>
+                            {% if profile.role == 'A' %}
+                                <th class="text-normal td-small action-checkbox-column" style="display: none;"><label><input type="checkbox" id="action-select-all"><span></span></label></th>
+                            {% endif %}
+                            <th class="text-normal td-med">Manufacturer</th>
+                            <th class="text-normal td-med">Manufacturer Parts</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for manufacturer in manufacturers %}
+                            <tr>
+                                {% if profile.role == 'A' %}
+                                    <td class="action-checkbox-column" style="display: none;"><label>{% if part_rev.part.id %}
+                                        <input type="checkbox" class="checkbox-array" name="actions" value="{{ part_rev.part.id }}">{% endif %}<span></span></label></td>
+                                {% endif %}
+                                <td class="text-normal td-med"><a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer.id %}">{{ manufacturer.name|default:"<i>No name</i>" }}</a></td>
+                                <td class="text-normal td-med">{{ manufacturer.manufacturerpart_count }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="99" style="text-align: center; padding: 5%;"><i>No manufacturers found. To add your first manufacturer, first create a part on the <a
+                                        href="{% url 'bom:home' %}">home</a> page, then go to the sourcing tab to create a manufacturer and manufacturer part.</i></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if manufacturers.has_other_pages %}
+                    <ul class="pagination center" style="padding-top: 24px;">
+                        {% if manufacturers.has_previous %}
+                            <li><a href="?page={{ manufacturers.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
+                        {% else %}
+                            <li class="disabled"><i class="material-icons">chevron_left</i></li>
+                        {% endif %}
+                        {% for i in manufacturers.paginator.page_range %}
+                            {% if manufacturers.number == i %}
+                                <li class="active green lighten-2"><a>{{ i }}</a></li>
+                            {% else %}
+                                <li class="waves-effect waves-green"><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        {% if manufacturers.has_next %}
+                            <li><a href="?page={{ manufacturers.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
+                        {% else %}
+                            <li class="disabled"><i class="material-icons">chevron_right</i></li>
+                        {% endif %}
+                    </ul>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block bom-script %}
+    <!-- Floating Horizontal Scrollbar -->
+    <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
+    <script>
+        $(function () {
+            $('.responsive-table-wrapper').floatingScrollbar();
+        });
+    </script>
+{% endblock bom-script %}

@@ -908,6 +908,18 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': p1.id}), mfg_form_data)
         self.assertEqual(response.status_code, 302)
 
+    def test_manufacturers(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.post(reverse('bom:manufacturers'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_manufacturer_info(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.post(reverse('bom:manufacturer-info', kwargs={'manufacturer_id': p1.primary_manufacturer_part.manufacturer.id}))
+        self.assertEqual(response.status_code, 200)
+
     def test_manufacturer_part_edit(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.post(

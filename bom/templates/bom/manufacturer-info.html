@@ -1,0 +1,23 @@
+{% extends 'bom/bom-base.html' %}
+
+{% load static %}
+{% load djmoney %}
+
+{% block head-title %}{{ part.full_part_number }}{% if part_revision %} {{ part_revision.synopsis }}{% endif %}{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/part-info.css' %}"/>
+{% endblock %}
+
+{% block content %}
+    {% include 'bom/bom-action-btn.html' with profile=profile %}
+    <div class="container-app">
+        <div class="row" style="margin-bottom: 5px;">
+            <div class="col m8 hide-on-small-and-down">
+                <h3 class="light">{{ manufacturer.name }}</h3>
+            </div>
+        </div>
+        {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=manufacturer_parts profile=profile show_part=True %}
+    </div>
+{% endblock %}
