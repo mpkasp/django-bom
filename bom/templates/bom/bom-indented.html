@@ -115,7 +115,7 @@
                 <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}
                     {% if subpart.part.manufacturer_parts.count > 1 %}
                         <i>(+{{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
-                <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+                <td class="text-normal">{% if subpart.part.primary_manufacturer_part.link %}<a href="{{ subpart.part.primary_manufacturer_part.link }}" target="_blank">{% endif %}{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}{% if subpart.part.primary_manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}</td>
                 <td class="text-normal" id="bom-indented-seller-name-{{ subpart.part_revision.id }}">{{ subpart.seller_part.seller.name | default:"-" }}</td>
                 <td class="text-normal" id="bom-indented-unit-cost-{{ subpart.part_revision.id }}">{{ subpart.seller_part.unit_cost | default:"-" }}</td>
                 <td class="text-normal">{{ subpart.seller_part.nre_cost | default:"-" }}</td>
