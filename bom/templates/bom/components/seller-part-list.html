@@ -1,0 +1,61 @@
+{# To include this widget, make sure to pass: `manufacturer_parts`, `profile`, (optional, for mouser) `part_revision` variables  #}
+{% load static %}
+
+{% block head %}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/treetable-theme.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
+{% endblock %}
+
+<div class="responsive-table-wrapper">
+    <table id="seller-parts" class="highlight tight treetable">
+        <thead>
+        <tr>
+            <th>Part</th>
+            <th>Manufacturer</th>
+            <th>MPN</th>
+            <th>Seller</th>
+            <th>MOQ</th>
+            <th>MPQ</th>
+            <th>Price</th>
+            <th>Lead Time (days)</th>
+            <th>NRE</th>
+            <th>NCNR</th>
+            <th colspan="2">Manage</th>
+        </tr>
+        </thead>
+        <tbody>
+            {% for seller_part in seller_parts %}
+                <tr data-tt-id="0" data-tt-parent-id="{{ seller_part.id }}" {% if forloop.last %}id="sourcing-{{ seller_part.id }}-last"{% endif %}>
+                    <td><a href="{% url 'bom:part-info' part_id=seller_part.manufacturer_part.part_id %}">{{ seller_part.manufacturer_part.part }}</a></td>
+                    <td>{% if seller_part.manufacturer_part.manufacturer %}<a href="{% url 'bom:manufacturer-info' manufacturer_id=seller_part.manufacturer_part.manufacturer_id %}">{% endif %}{{ seller_part.manufacturer_part.manufacturer }}{% if seller_part.manufacturer_part.manufacturer %}</a>{% endif %}</td>
+                    <td>{{ seller_part.manufacturer_part.manufacturer_part_number }}</td>
+                    <td>{{ seller_part.seller.name }}</td>
+                    <td>{{ seller_part.minimum_order_quantity }}</td>
+                    <td>{{ seller_part.minimum_pack_quantity }}</td>
+                    <td>{{ seller_part.unit_cost }}</td>
+                    <td>{{ seller_part.lead_time_days }}</td>
+                    <td>{{ seller_part.nre_cost }}</td>
+                    <td>{{ seller_part.ncnr }}</td>
+                    <td>{% if profile.role == 'A' %}
+                        <a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a> |
+                        <a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
+                    {% endif %}</td>
+                </tr>
+            {% empty %}
+                <tr data-tt-id="0" data-tt-parent-id="{{ seller_part.id }}">
+                    <td colspan="99" style="text-align: center;"><i>No seller parts found.</i></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+
+<!-- Floating Horizontal Scrollbar -->
+<script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
+<script>
+    $(function () {
+        $('.responsive-table-wrapper').floatingScrollbar();
+    });
+</script>

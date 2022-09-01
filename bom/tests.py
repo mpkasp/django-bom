@@ -77,6 +77,8 @@ class TestBOM(TransactionTestCase):
         self.client = Client()
         self.user, self.organization = create_user_and_organization()
         self.profile = self.user.bom_profile(organization=self.organization)
+        self.profile.role = 'A'
+        self.profile.save()
         self.client.login(username='kasper', password='ghostpassword')
 
     def test_home(self):
@@ -562,7 +564,6 @@ class TestBOM(TransactionTestCase):
 
     def test_part_delete(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-
         response = self.client.post(reverse('bom:part-delete', kwargs={'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
 
@@ -906,6 +907,46 @@ class TestBOM(TransactionTestCase):
                          'manufacturer_part_number': "a new pn",
                          'part': p2.id}
         response = self.client.post(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': p1.id}), mfg_form_data)
+        self.assertEqual(response.status_code, 302)
+
+    def test_manufacturers(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:manufacturers'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_manufacturer_info(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:manufacturer-info', kwargs={'manufacturer_id': p1.primary_manufacturer_part.manufacturer.id}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_manufacturer_edit(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:manufacturer-edit', kwargs={'manufacturer_id': p1.primary_manufacturer_part.manufacturer.id}))
+        self.assertEqual(response.status_code, 302)
+
+    def test_manufacturer_delete(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:manufacturer-delete', kwargs={'manufacturer_id': p1.primary_manufacturer_part.manufacturer.id}))
+        self.assertEqual(response.status_code, 302)
+
+    def test_sellers(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:sellers'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_seller_info(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:seller-info', kwargs={'seller_id': p2.primary_manufacturer_part.optimal_seller().seller_id}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_seller_edit(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:seller-edit', kwargs={'seller_id': p2.primary_manufacturer_part.optimal_seller().seller_id}), {'name': 'Mousah'})
+        self.assertEqual(response.status_code, 302)
+
+    def test_seller_delete(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        response = self.client.post(reverse('bom:seller-delete', kwargs={'seller_id': p2.primary_manufacturer_part.optimal_seller().seller_id}))
         self.assertEqual(response.status_code, 302)
 
     def test_manufacturer_part_edit(self):

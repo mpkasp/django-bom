@@ -1,4 +1,6 @@
 {% if user.is_authenticated and user.bom_profile.organization %}
+    <li {% if name == "manufacturers" %}class="active"{% endif %}><a title="IndaBOM | Manufacturers" href="{% url 'bom:manufacturers' %}">Manufacturers</a></li>
+    <li {% if name == "sellers" %}class="active"{% endif %}><a title="IndaBOM | Sellers" href="{% url 'bom:sellers' %}">Sellers</a></li>
     <li {% if name == "settings" %}class="active"{% endif %}><a title="IndaBOM | Settings" href="{% url 'bom:settings' tab_anchor='user' %}">Settings</a></li>
 {% endif %}
 <li {% if name == "help" %}class="active"{% endif %}><a title="IndaBOM | Help" href="{% url 'bom:help' %}">Help</a></li>

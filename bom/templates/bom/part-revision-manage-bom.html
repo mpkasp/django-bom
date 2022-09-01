@@ -20,7 +20,7 @@
         <div id="bom" class="col s12">
             <br><h5>Modify Subparts</h5>
 
-            {% include 'bom/bom-indented.html' with order_by='indented' manage=1 bom_items=indented_bom.parts part=part part_revision=part_revision profile=profile %}
+            {% include 'bom/components/bom-indented.html' with order_by='indented' manage=1 bom_items=indented_bom.parts part=part part_revision=part_revision profile=profile %}
 
             <br><h5>Add Subpart</h5>
             <div class="row">
