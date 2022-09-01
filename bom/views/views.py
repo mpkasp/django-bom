@@ -1181,7 +1181,7 @@ def manage_bom(request, part_id, part_revision_id):
 @login_required
 @organization_admin
 def part_delete(request, part_id):
-    part = get_object_or_404(Part, part_id)
+    part = get_object_or_404(Part, pk=part_id)
     part.delete()
     return HttpResponseRedirect(reverse('bom:home'))
 
@@ -1299,13 +1299,8 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
 @login_required
 @organization_admin
 def remove_all_subparts(request, part_id, part_revision_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     part_revision.assembly.subparts.all().delete()
-
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 

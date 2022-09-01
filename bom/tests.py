@@ -77,6 +77,8 @@ class TestBOM(TransactionTestCase):
         self.client = Client()
         self.user, self.organization = create_user_and_organization()
         self.profile = self.user.bom_profile(organization=self.organization)
+        self.profile.role = 'A'
+        self.profile.save()
         self.client.login(username='kasper', password='ghostpassword')
 
     def test_home(self):
@@ -562,7 +564,6 @@ class TestBOM(TransactionTestCase):
 
     def test_part_delete(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-
         response = self.client.post(reverse('bom:part-delete', kwargs={'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
 

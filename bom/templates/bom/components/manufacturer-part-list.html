@@ -28,7 +28,7 @@
         {% for manufacturer_part in manufacturer_parts %}
             <tr id="sourcing-mp-{{ manufacturer_part.id }}" data-tt-id="{{ manufacturer_part.id }}">
                 <td>{% if manufacturer_part.link %}<a href="{{ manufacturer_part.link }}" target="_blank">{% endif %}{{ manufacturer_part.manufacturer_part_number }}{% if manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}</td>
-                <td><a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer_part.manufacturer_id %}">{{ manufacturer_part.manufacturer }}</a></td>
+                <td>{% if manufacturer_part.manufacturer %}<a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer_part.manufacturer_id %}">{% endif %}{{ manufacturer_part.manufacturer }}{% if manufacturer_part.manufacturer %}</a>{% endif %}</td>
                 {% if show_part %}<td><a href="{% url 'bom:part-info' part_id=manufacturer_part.part_id %}">{{ manufacturer_part.part }}</a></td>{% endif %}
                 <td id="sourcing-mp-{{ manufacturer_part.id }}-name">{{ manufacturer_part.optimal_seller.seller.name }}</td>
                 <td id="sourcing-mp-{{ manufacturer_part.id }}-moq">{{ manufacturer_part.optimal_seller.minimum_order_quantity }}</td>
