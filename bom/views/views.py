@@ -525,7 +525,7 @@ def manufacturers(request):
         return HttpResponseRedirect(reverse('bom:organization-create'))
 
     query = request.GET.get('q', '')
-    title = f'{organization.name}\'s Manufacturer'
+    title = f'{organization.name}\'s Manufacturers'
 
     if query:
         title += ' - Search Results'
