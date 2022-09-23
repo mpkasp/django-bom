@@ -35,7 +35,7 @@ packaging==20.9
 paramiko==2.10.1
 pip-autoremove==0.9.1
 pkginfo==1.7.0
-protobuf==3.17.3
+protobuf==3.18.3
 py-moneyed>=1.2,<2.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
