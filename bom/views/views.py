@@ -132,8 +132,8 @@ def home(request):
                      "left join bom_part as p on pr.part_id = p.id " \
                      "left join bom_partclass as pc on pc.id = p.number_class_id " \
                      "where p.id in ({}) " \
-                     "group by pr.part_id " \
-                     "order by pc.code, p.number_item, p.number_variation"
+                     "group by pr.part_id "
+                     # "order by pc.code, p.number_item, p.number_variation"  # FIXME
 
     part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
     q = part_rev_query.format(part_list)

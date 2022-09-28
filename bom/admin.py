@@ -1,8 +1,23 @@
 from django.contrib import admin
+from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 
-from .models import *
+from .models import (
+    Assembly,
+    Manufacturer,
+    ManufacturerPart,
+    Organization,
+    Part,
+    PartClass,
+    PartRevision,
+    Seller,
+    SellerPart,
+    Subpart,
+    UserMeta,
+)
 
+
+User = get_user_model()
 
 class UserMetaInline(admin.TabularInline):
     model = UserMeta
@@ -126,7 +141,11 @@ class AssemblyAdmin(admin.ModelAdmin):
     ]
 
 
-admin.site.unregister(User)
+# Try to unregister User model
+try:
+    admin.site.unregister(User)
+except admin.sites.NotRegistered:
+    pass
 
 admin.site.register(User, UserAdmin)
 admin.site.register(Organization, OrganizationAdmin)
