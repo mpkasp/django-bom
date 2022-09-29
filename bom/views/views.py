@@ -4,13 +4,15 @@ import operator
 from functools import reduce
 from json import dumps
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import IntegrityError
-from django.db.models import Count, ProtectedError, Q, prefetch_related_objects
+from django.db.models import Count, ProtectedError, Q, Subquery, prefetch_related_objects
+from django.db.models.aggregates import Max
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -128,29 +130,32 @@ def home(request):
 
     part_ids = list(parts.values_list('id', flat=True))
 
-    part_rev_query = "select max(pr.id) as id from bom_partrevision as pr " \
-                     "left join bom_part as p on pr.part_id = p.id " \
-                     "left join bom_partclass as pc on pc.id = p.number_class_id " \
-                     "where p.id in ({}) " \
-                     "group by pr.part_id " \
-                     "order by pc.code, p.number_item, p.number_variation"
-
-    part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
-    q = part_rev_query.format(part_list)
-    part_revs = PartRevision.objects.raw(q)
-    prefetch_related_objects(part_revs, 'part')
-    manufacturer_parts = ManufacturerPart.objects.filter(part__in=parts)
+    part_revs = PartRevision.objects\
+        .filter(id__in=Subquery(
+            PartRevision.objects.filter(
+                part_id__in=part_ids
+            ).annotate(max_id=Max('id')).values("id")
+        )).order_by(
+            "part__number_class__code",
+            "part__number_item",
+            "part__number_variation",
+        )
 
     autocomplete_dict = {}
-    for pr in part_revs:
-        autocomplete_dict.update({pr.searchable_synopsis.replace('"', ''): None})
-        autocomplete_dict.update({pr.part.full_part_number(): None})
+    enable_autocomplete = settings.BOM_CONFIG['admin_dashboard']['enable_autocomplete']
+    if enable_autocomplete:
+        prefetch_related_objects(part_revs, 'part')
+        manufacturer_parts = ManufacturerPart.objects.filter(part__in=parts)
 
-    for mpn in manufacturer_parts:
-        if mpn.manufacturer_part_number:
-            autocomplete_dict.update({mpn.manufacturer_part_number.replace('"', ''): None})
-        if mpn.manufacturer is not None and mpn.manufacturer.name:
-            autocomplete_dict.update({mpn.manufacturer.name.replace('"', ''): None})
+        for pr in part_revs:
+            autocomplete_dict.update({pr.searchable_synopsis.replace('"', ''): None})
+            autocomplete_dict.update({pr.part.full_part_number(): None})
+
+        for mpn in manufacturer_parts:
+            if mpn.manufacturer_part_number:
+                autocomplete_dict.update({mpn.manufacturer_part_number.replace('"', ''): None})
+            if mpn.manufacturer is not None and mpn.manufacturer.name:
+                autocomplete_dict.update({mpn.manufacturer.name.replace('"', ''): None})
 
     autocomplete = dumps(autocomplete_dict)
 
@@ -208,9 +213,17 @@ def home(request):
                 q_primary_mfg)
 
         part_ids = list(parts.values_list('id', flat=True))
-        part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
-        q = part_rev_query.format(part_list)
-        part_revs = PartRevision.objects.raw(q)
+
+        part_revs = PartRevision.objects \
+            .filter(id__in=Subquery(
+                PartRevision.objects.filter(
+                    part_id__in=part_ids
+                ).annotate(max_id=Max('id')).values("id")
+            )).order_by(
+                "part__number_class__code",
+                "part__number_item",
+                "part__number_variation"
+            )
 
     if 'download' in request.GET:
         response = HttpResponse(content_type='text/csv')
@@ -259,7 +272,8 @@ def home(request):
                 writer.writerow({k: smart_str(v) for k, v in row.items()})
         return response
 
-    paginator = Paginator(part_revs, 50)
+    page_size = settings.BOM_CONFIG['admin_dashboard']['page_size']
+    paginator = Paginator(part_revs, page_size)
 
     page = request.GET.get('page')
     try:
