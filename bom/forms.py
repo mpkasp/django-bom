@@ -1003,7 +1003,8 @@ class SubpartForm(forms.ModelForm):
     def clean_part_revision(self):
         if self.ignore_part_revision:
             return None
-        return super(SubpartForm, self).clean_part_revision()
+        part_revision = self.cleaned_data['part_revision']
+        return part_revision
 
     def clean(self):
         cleaned_data = super(SubpartForm, self).clean()
