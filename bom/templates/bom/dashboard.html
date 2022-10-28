@@ -172,7 +172,7 @@
                 {% if part_revs.has_other_pages %}
                     <ul class="pagination center" style="padding-top: 24px;">
                         {% if part_revs.has_previous %}
-                            <li><a href="?page={{ part_revs.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
+                            <li><a href="?page={{ part_revs.previous_page_number }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
                         {% else %}
                             <li class="disabled"><i class="material-icons">chevron_left</i></li>
                         {% endif %}
@@ -180,11 +180,11 @@
                             {% if part_revs.number == i %}
                                 <li class="active green lighten-2"><a>{{ i }}</a></li>
                             {% else %}
-                                <li class="waves-effect waves-green"><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
+                                <li class="waves-effect waves-green"><a href="?page={{ i }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
                             {% endif %}
                         {% endfor %}
                         {% if part_revs.has_next %}
-                            <li><a href="?page={{ part_revs.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
+                            <li><a href="?page={{ part_revs.next_page_number }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
                         {% else %}
                             <li class="disabled"><i class="material-icons">chevron_right</i></li>
                         {% endif %}
