@@ -220,3 +220,6 @@ if BOM_CONFIG:
     BOM_CONFIG.update(bom_config_default)
 else:
     BOM_CONFIG = bom_config_default
+
+# Custom login url for BOM_LOGIN
+BOM_LOGIN_URL = None
