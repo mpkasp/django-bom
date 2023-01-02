@@ -4,13 +4,15 @@ import operator
 from functools import reduce
 from json import dumps
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import IntegrityError
-from django.db.models import Count, ProtectedError, Q, prefetch_related_objects
+from django.db.models import Count, ProtectedError, Q, Subquery, prefetch_related_objects
+from django.db.models.aggregates import Max
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -74,6 +76,7 @@ from bom.utils import check_references_for_duplicates, listify_string, prep_for_
 
 
 logger = logging.getLogger(__name__)
+BOM_LOGIN_URL = settings.BOM_LOGIN_URL or settings.LOGIN_URL
 
 def form_error_messages(form_errors) -> [str]:
     error_messages = []
@@ -81,7 +84,7 @@ def form_error_messages(form_errors) -> [str]:
         for error_message in errors:
             error_messages.append(str(error_message.message))
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def home(request):
     profile = request.user.bom_profile()
     organization = profile.organization
@@ -128,29 +131,32 @@ def home(request):
 
     part_ids = list(parts.values_list('id', flat=True))
 
-    part_rev_query = "select max(pr.id) as id from bom_partrevision as pr " \
-                     "left join bom_part as p on pr.part_id = p.id " \
-                     "left join bom_partclass as pc on pc.id = p.number_class_id " \
-                     "where p.id in ({}) " \
-                     "group by pr.part_id " \
-                     "order by pc.code, p.number_item, p.number_variation"
-
-    part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
-    q = part_rev_query.format(part_list)
-    part_revs = PartRevision.objects.raw(q)
-    prefetch_related_objects(part_revs, 'part')
-    manufacturer_parts = ManufacturerPart.objects.filter(part__in=parts)
+    part_revs = PartRevision.objects\
+        .filter(id__in=Subquery(
+            PartRevision.objects.filter(
+                part_id__in=part_ids
+            ).annotate(max_id=Max('id')).values("id")
+        )).order_by(
+            "part__number_class__code",
+            "part__number_item",
+            "part__number_variation",
+        )
 
     autocomplete_dict = {}
-    for pr in part_revs:
-        autocomplete_dict.update({pr.searchable_synopsis.replace('"', ''): None})
-        autocomplete_dict.update({pr.part.full_part_number(): None})
+    enable_autocomplete = settings.BOM_CONFIG['admin_dashboard']['enable_autocomplete']
+    if enable_autocomplete:
+        prefetch_related_objects(part_revs, 'part')
+        manufacturer_parts = ManufacturerPart.objects.filter(part__in=parts)
 
-    for mpn in manufacturer_parts:
-        if mpn.manufacturer_part_number:
-            autocomplete_dict.update({mpn.manufacturer_part_number.replace('"', ''): None})
-        if mpn.manufacturer is not None and mpn.manufacturer.name:
-            autocomplete_dict.update({mpn.manufacturer.name.replace('"', ''): None})
+        for pr in part_revs:
+            autocomplete_dict.update({pr.searchable_synopsis.replace('"', ''): None})
+            autocomplete_dict.update({pr.part.full_part_number(): None})
+
+        for mpn in manufacturer_parts:
+            if mpn.manufacturer_part_number:
+                autocomplete_dict.update({mpn.manufacturer_part_number.replace('"', ''): None})
+            if mpn.manufacturer is not None and mpn.manufacturer.name:
+                autocomplete_dict.update({mpn.manufacturer.name.replace('"', ''): None})
 
     autocomplete = dumps(autocomplete_dict)
 
@@ -208,9 +214,17 @@ def home(request):
                 q_primary_mfg)
 
         part_ids = list(parts.values_list('id', flat=True))
-        part_list = ','.join(map(str, part_ids)) if len(part_ids) > 0 else "NULL"
-        q = part_rev_query.format(part_list)
-        part_revs = PartRevision.objects.raw(q)
+
+        part_revs = PartRevision.objects \
+            .filter(id__in=Subquery(
+                PartRevision.objects.filter(
+                    part_id__in=part_ids
+                ).annotate(max_id=Max('id')).values("id")
+            )).order_by(
+                "part__number_class__code",
+                "part__number_item",
+                "part__number_variation"
+            )
 
     if 'download' in request.GET:
         response = HttpResponse(content_type='text/csv')
@@ -259,7 +273,8 @@ def home(request):
                 writer.writerow({k: smart_str(v) for k, v in row.items()})
         return response
 
-    paginator = Paginator(part_revs, 50)
+    page_size = settings.BOM_CONFIG['admin_dashboard']['page_size']
+    paginator = Paginator(part_revs, page_size)
 
     page = request.GET.get('page')
     try:
@@ -272,7 +287,7 @@ def home(request):
     return TemplateResponse(request, 'bom/dashboard.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def organization_create(request):
     user = request.user
     profile = user.bom_profile()
@@ -297,7 +312,7 @@ def organization_create(request):
     return TemplateResponse(request, 'bom/organization-create.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def search_help(request):
     return TemplateResponse(request, 'bom/search-help.html', locals())
 
@@ -516,7 +531,7 @@ def bom_settings(request, tab_anchor=None):
     return TemplateResponse(request, 'bom/settings.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def manufacturers(request):
     profile = request.user.bom_profile()
     organization = profile.organization
@@ -549,7 +564,7 @@ def manufacturers(request):
 
     return TemplateResponse(request, 'bom/manufacturers.html', locals())
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def manufacturer_info(request, manufacturer_id):
     user = request.user
     profile = user.bom_profile()
@@ -566,7 +581,7 @@ def manufacturer_info(request, manufacturer_id):
     return TemplateResponse(request, 'bom/manufacturer-info.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def manufacturer_edit(request, manufacturer_id):
     user = request.user
     profile = user.bom_profile()
@@ -587,7 +602,7 @@ def manufacturer_edit(request, manufacturer_id):
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 @organization_admin
 def manufacturer_delete(request, manufacturer_id):
     manufacturer = get_object_or_404(Manufacturer, pk=manufacturer_id)
@@ -595,7 +610,7 @@ def manufacturer_delete(request, manufacturer_id):
     return HttpResponseRedirect(reverse('bom:manufacturers'))
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def sellers(request):
     profile = request.user.bom_profile()
     organization = profile.organization
@@ -625,7 +640,7 @@ def sellers(request):
 
     return TemplateResponse(request, 'bom/sellers.html', locals())
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def seller_info(request, seller_id):
     user = request.user
     profile = user.bom_profile()
@@ -647,7 +662,7 @@ def seller_info(request, seller_id):
     return TemplateResponse(request, 'bom/seller-info.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def seller_edit(request, seller_id):
     user = request.user
     profile = user.bom_profile()
@@ -668,14 +683,14 @@ def seller_edit(request, seller_id):
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 @organization_admin
 def seller_delete(request, seller_id):
     seller = get_object_or_404(Seller, pk=seller_id)
     seller.delete()
     return HttpResponseRedirect(reverse('bom:sellers'))
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def user_meta_edit(request, user_meta_id):
     user = request.user
     profile = user.bom_profile()
@@ -703,7 +718,7 @@ def user_meta_edit(request, user_meta_id):
     return TemplateResponse(request, 'bom/edit-user-meta.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def part_info(request, part_id, part_revision_id=None):
     tab_anchor = request.GET.get('tab_anchor', None)
 
@@ -780,7 +795,7 @@ def part_info(request, part_id, part_revision_id=None):
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, sourcing=False, sourcing_detailed=False):
     user = request.user
     profile = user.bom_profile()
@@ -899,7 +914,7 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
 #     return response
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def upload_bom(request):
     user = request.user
     profile = user.bom_profile()
@@ -926,7 +941,7 @@ def upload_bom(request):
     return TemplateResponse(request, 'bom/upload-bom.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def part_upload_bom(request, part_id):
     user = request.user
     profile = user.bom_profile()
@@ -954,12 +969,12 @@ def part_upload_bom(request, part_id):
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')), locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def upload_parts_help(request):
     return TemplateResponse(request, 'bom/upload-parts-help.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def upload_parts(request):
     user = request.user
     profile = user.bom_profile()
@@ -982,7 +997,7 @@ def upload_parts(request):
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def export_part_list(request):
     user = request.user
     profile = user.bom_profile()
@@ -1030,7 +1045,7 @@ def export_part_list(request):
     return response
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def create_part(request):
     user = request.user
     profile = user.bom_profile()
@@ -1111,7 +1126,7 @@ def create_part(request):
     return TemplateResponse(request, 'bom/create-part.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def part_edit(request, part_id):
     user = request.user
     profile = user.bom_profile()
@@ -1135,7 +1150,7 @@ def part_edit(request, part_id):
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def manage_bom(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
@@ -1178,7 +1193,7 @@ def manage_bom(request, part_id, part_revision_id):
     return TemplateResponse(request, 'bom/part-revision-manage-bom.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 @organization_admin
 def part_delete(request, part_id):
     part = get_object_or_404(Part, pk=part_id)
@@ -1186,7 +1201,7 @@ def part_delete(request, part_id):
     return HttpResponseRedirect(reverse('bom:home'))
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def add_subpart(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
@@ -1235,7 +1250,7 @@ def add_subpart(request, part_id, part_revision_id):
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 @organization_admin
 def remove_subpart(request, part_id, part_revision_id, subpart_id):
     subpart = get_object_or_404(Subpart, pk=subpart_id)
@@ -1244,7 +1259,7 @@ def remove_subpart(request, part_id, part_revision_id, subpart_id):
         reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def part_class_edit(request, part_class_id):
     user = request.user
     profile = user.bom_profile()
@@ -1268,7 +1283,7 @@ def part_class_edit(request, part_class_id):
     return TemplateResponse(request, 'bom/edit-part-class.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def edit_subpart(request, part_id, part_revision_id, subpart_id):
     user = request.user
     profile = user.bom_profile()
@@ -1296,7 +1311,7 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 @organization_admin
 def remove_all_subparts(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
@@ -1304,7 +1319,7 @@ def remove_all_subparts(request, part_id, part_revision_id):
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def add_sellerpart(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
@@ -1326,7 +1341,7 @@ def add_sellerpart(request, manufacturer_part_id):
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def add_manufacturer_part(request, part_id):
     user = request.user
     profile = user.bom_profile()
@@ -1369,7 +1384,7 @@ def add_manufacturer_part(request, part_id):
     return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def manufacturer_part_edit(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
@@ -1420,7 +1435,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
     return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 @organization_admin
 def manufacturer_part_delete(request, manufacturer_part_id):
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
@@ -1429,7 +1444,7 @@ def manufacturer_part_delete(request, manufacturer_part_id):
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def sellerpart_edit(request, sellerpart_id):
     user = request.user
     profile = user.bom_profile()
@@ -1450,7 +1465,7 @@ def sellerpart_edit(request, sellerpart_id):
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 @organization_admin
 def sellerpart_delete(request, sellerpart_id):
     sellerpart = get_object_or_404(SellerPart, pk=sellerpart_id)
@@ -1459,7 +1474,7 @@ def sellerpart_delete(request, sellerpart_id):
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def part_revision_release(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
@@ -1481,7 +1496,7 @@ def part_revision_release(request, part_id, part_revision_id):
     return TemplateResponse(request, 'bom/part-revision-release.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def part_revision_revert(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
@@ -1493,7 +1508,7 @@ def part_revision_revert(request, part_id, part_revision_id):
     return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def part_revision_new(request, part_id):
     user = request.user
     profile = user.bom_profile()
@@ -1553,7 +1568,7 @@ def part_revision_new(request, part_id):
     return TemplateResponse(request, 'bom/part-revision-new.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 def part_revision_edit(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
@@ -1576,7 +1591,7 @@ def part_revision_edit(request, part_id, part_revision_id):
     return TemplateResponse(request, 'bom/part-revision-edit.html', locals())
 
 
-@login_required
+@login_required(login_url=BOM_LOGIN_URL)
 @organization_admin
 def part_revision_delete(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)

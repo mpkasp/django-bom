@@ -3,7 +3,9 @@ from __future__ import unicode_literals
 import logging
 from math import ceil
 
-from django.contrib.auth.models import Group, User
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -49,13 +51,14 @@ from .validators import alphanumeric, numeric, validate_pct
 
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 
 class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
     subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
     subscription_quantity = models.IntegerField(default=0)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES, default=NUMBER_SCHEME_SEMI_INTELLIGENT)
     number_class_code_len = models.PositiveIntegerField(default=NUMBER_CLASS_CODE_LEN_DEFAULT,
                                                         validators=[MinValueValidator(NUMBER_CLASS_CODE_LEN_MIN), MaxValueValidator(NUMBER_CLASS_CODE_LEN_MAX)])
@@ -97,7 +100,7 @@ class Organization(models.Model):
 
 
 class UserMeta(models.Model):
-    user = models.OneToOneField(User, db_index=True, on_delete=models.CASCADE)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, db_index=True, on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, blank=True, null=True, on_delete=models.CASCADE)
     role = models.CharField(max_length=1, choices=ROLE_TYPES)
 
