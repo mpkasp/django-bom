@@ -76,7 +76,7 @@ from bom.utils import check_references_for_duplicates, listify_string, prep_for_
 
 
 logger = logging.getLogger(__name__)
-BOM_LOGIN_URL = settings.BOM_LOGIN_URL or settings.LOGIN_URL
+BOM_LOGIN_URL = getattr(settings, "BOM_LOGIN_URL", None) or settings.LOGIN_URL
 
 def form_error_messages(form_errors) -> [str]:
     error_messages = []
