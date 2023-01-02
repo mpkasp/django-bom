@@ -210,16 +210,19 @@ SOCIAL_AUTH_DISCONNECT_PIPELINE = (
 CURRENCY_DECIMAL_PLACES = 4
 EXCHANGE_BACKEND = 'djmoney.contrib.exchange.backends.FixerBackend'
 
-# django-bom config
 # django-bom configuration
-bom_config_default = {
+BOM_CONFIG_DEFAULT = {
     'base_template': 'base.html',
+    'mouser_api_key': None,
+    'admin_dashboard': {
+        'enable_autocomplete': True,
+        'page_size': 50,
+    }
 }
 
-if BOM_CONFIG:
-    BOM_CONFIG.update(bom_config_default)
-else:
-    BOM_CONFIG = bom_config_default
+bom_config_new = BOM_CONFIG_DEFAULT.copy()
+bom_config_new.update(BOM_CONFIG)
+BOM_CONFIG = bom_config_new
 
 # Custom login url for BOM_LOGIN
 BOM_LOGIN_URL = None
