@@ -211,7 +211,7 @@ CURRENCY_DECIMAL_PLACES = 4
 EXCHANGE_BACKEND = 'djmoney.contrib.exchange.backends.FixerBackend'
 
 # django-bom configuration
-bom_config_default = {
+BOM_CONFIG_DEFAULT = {
     'base_template': 'base.html',
     'mouser_api_key': None,
     'admin_dashboard': {
@@ -220,8 +220,9 @@ bom_config_default = {
     }
 }
 
-bom_config_default.update(BOM_CONFIG)
-BOM_CONFIG = bom_config_default
+bom_config_new = BOM_CONFIG_DEFAULT.copy()
+bom_config_new.update(BOM_CONFIG)
+BOM_CONFIG = bom_config_new
 
 # Custom login url for BOM_LOGIN
 BOM_LOGIN_URL = None

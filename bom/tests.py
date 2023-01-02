@@ -2,8 +2,9 @@ import csv
 from re import finditer, search
 from unittest import skip
 
+from django.conf import settings
 from django.contrib.auth.models import User
-from django.test import Client, TestCase, TransactionTestCase
+from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 
 from . import constants
@@ -24,7 +25,7 @@ from .models import ManufacturerPart, Part, PartClass, Seller, SellerPart, Subpa
 
 TEST_FILES_DIR = "bom/test_files"
 
-
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestBomAuth(TransactionTestCase):
     def setUp(self):
         self.client = Client()
@@ -71,7 +72,7 @@ class TestBomAuth(TransactionTestCase):
         response = self.client.post(reverse('bom:organization-create'), organization_form_data)
         self.assertEqual(response.status_code, 302)
 
-
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestBOM(TransactionTestCase):
     def setUp(self):
         self.client = Client()
@@ -1090,7 +1091,7 @@ class TestBOM(TransactionTestCase):
 
         self.assertEqual(response.status_code, 302)
 
-
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestBOMIntelligent(TestBOM):
     def setUp(self):
         self.client = Client()
@@ -1357,7 +1358,7 @@ class TestBOMIntelligent(TestBOM):
         self.assertNotEqual(subparts[1].count, 0)
         self.assertNotEqual(subparts[2].count, 0)
 
-
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestBOMNoVariation(TestBOM):
     def setUp(self):
         self.client = Client()
@@ -1379,6 +1380,7 @@ class TestBOMNoVariation(TestBOM):
     def test_part_upload_bom_corner_cases(self):
         pass
 
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestForms(TestCase):
     def setUp(self):
         self.client = Client()
@@ -1484,7 +1486,7 @@ class TestForms(TestCase):
         self.assertFalse("$10.0" in filled_form.as_ul())
         self.assertFalse("$22.0" in filled_form.as_ul())
 
-
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestJsonViews(TestCase):
     def setUp(self):
         self.client = Client()
