@@ -13,6 +13,10 @@ ALLOWED_HOSTS = ['*']
 
 BOM_CONFIG = {
     'mouser_api_key': 'secretkey',
+    'admin_dashboard': {
+        'enable_autocomplete': True,
+        'page_size': 50,
+    }
 }
 
 # google GoogleOAuth
