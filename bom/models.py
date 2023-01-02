@@ -703,6 +703,7 @@ class SellerPart(models.Model, AsDictModel):
     unit_cost = MoneyField(max_digits=19, decimal_places=4, default_currency='USD')
     lead_time_days = models.PositiveIntegerField(null=True, blank=True)
     nre_cost = MoneyField(max_digits=19, decimal_places=4, default_currency='USD')
+    link = models.URLField(null=True, blank=True)
     ncnr = models.BooleanField(default=False)
 
     class Meta():
