@@ -18,7 +18,7 @@ django-sendgrid-v5==0.9.1
 docutils==0.17.1
 entrypoints==0.3
 Fabric3==1.14.post1
-future==0.18.2
+future==0.18.3
 google-api-core==1.30.0
 google-api-python-client==2.8.0
 google-auth==1.31.0
