@@ -68,6 +68,7 @@ bom/migrations/0042_auto_20210720_2137.py
 bom/migrations/0043_auto_20211123_0157.py
 bom/migrations/0044_auto_20220831_1241.py
 bom/migrations/0045_sellerpart_link.py
+bom/migrations/0046_alter_sellerpart_unique_together.py
 bom/migrations/__init__.py
 bom/static/.DS_Store
 bom/static/bom/.DS_Store
