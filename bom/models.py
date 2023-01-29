@@ -709,13 +709,6 @@ class SellerPart(models.Model, AsDictModel):
     link = models.URLField(null=True, blank=True)
     ncnr = models.BooleanField(default=False)
 
-    class Meta():
-        unique_together = [
-            'seller',
-            'manufacturer_part',
-            'minimum_order_quantity',
-            'unit_cost']
-
     def as_dict(self):
         d = super().as_dict()
         d['unit_cost'] = self.unit_cost.amount

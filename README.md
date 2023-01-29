@@ -19,7 +19,7 @@ If you already have a django project, you can skip to [Add Django Bom To Your Ap
    * [Installation pitfalls](#installation-pitfalls)
    
 ## Start From Scratch: Add to a new Django project
-1. To start from scratch we recommend setting up a virtual environment
+1. To start from scratch we recommend setting up a virtual environment using Python 3.8.13
 ```
 virtualenv -p python3 mysite
 cd mysite
@@ -38,7 +38,7 @@ python manage.py createsuperuser # make a user for your development environment
 3. Continue on to [Add Django Bom To Your App](#add-django-bom-to-your-app).
 
 ## Add Django Bom To Your App
-django-bom is a [reusable django application](https://docs.djangoproject.com/en/1.11/intro/reusable-apps/). If you don't already have a django project, you can follow some quick steps below to get up and running, or read about creating your first django app [here](https://docs.djangoproject.com/en/1.11/intro/tutorial01/). Note that django-bom currently supports python 2.7.
+django-bom is a [reusable django application](https://docs.djangoproject.com/en/1.11/intro/reusable-apps/). If you don't already have a django project, you can follow some quick steps below to get up and running, or read about creating your first django app [here](https://docs.djangoproject.com/en/1.11/intro/tutorial01/).
 
 ```
 pip install django-bom
