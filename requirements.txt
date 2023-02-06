@@ -30,7 +30,7 @@ idna==2.10
 importlib-metadata==4.5.0
 keyring==23.0.1
 mysqlclient==2.0.3
-oauthlib==3.2.1
+oauthlib==3.2.2
 packaging==20.9
 paramiko==2.10.1
 pip-autoremove==0.9.1
