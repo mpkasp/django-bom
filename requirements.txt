@@ -8,7 +8,7 @@ certifi==2022.12.7
 cffi==1.14.5
 chardet==3.0.4
 colorama==0.4.4
-cryptography==3.4.7
+cryptography==39.0.1
 defusedxml==0.7.1
 Django==3.2.16
 django-materializecss-form==1.1.17
