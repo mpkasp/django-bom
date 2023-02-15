@@ -10,7 +10,7 @@ chardet==3.0.4
 colorama==0.4.4
 cryptography==3.4.7
 defusedxml==0.7.1
-Django==3.2.16
+Django==3.2.18
 django-materializecss-form==1.1.17
 django-money==2.0
 django-recaptcha==2.0.6
