@@ -37,6 +37,13 @@
                 </div>
                 <div class="row">
                     <div class="fieldWrapper col m3 s12">
+                        <label for="{{ form.seller_part_number.id_for_label }}">Seller Part Number:</label>
+                        {{ form.seller_part_number.errors }}
+                        {{ form.seller_part_number }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="fieldWrapper col m3 s12">
                         <label for="{{ form.unit_cost.id_for_label }}"><b>Unit Cost:</b></label>
                         {{ form.unit_cost.errors }}
                         {{ form.unit_cost }}

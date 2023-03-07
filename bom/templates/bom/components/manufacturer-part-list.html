@@ -15,6 +15,7 @@
             <th>Manufacturer</th>
             {% if show_part %}<th>Part</th>{% endif %}
             <th>Seller</th>
+            <th>PN</th>
             <th>MOQ</th>
             <th>MPQ</th>
             <th>Price</th>
@@ -31,6 +32,7 @@
                 <td>{% if manufacturer_part.manufacturer %}<a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer_part.manufacturer_id %}">{% endif %}{{ manufacturer_part.manufacturer }}{% if manufacturer_part.manufacturer %}</a>{% endif %}</td>
                 {% if show_part %}<td><a href="{% url 'bom:part-info' part_id=manufacturer_part.part_id %}">{{ manufacturer_part.part }}</a></td>{% endif %}
                 <td id="sourcing-mp-{{ manufacturer_part.id }}-name">{% if manufacturer_part.optimal_seller.link %}<a href="{{ manufacturer_part.optimal_seller.link }}" target="_blank">{% endif %}{{ manufacturer_part.optimal_seller.seller.name }}{% if manufacturer_part.optimal_seller.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}</td>
+                <td id="sourcing-mp-{{ manufacturer_part.id }}-pn">{{ manufacturer_part.optimal_seller.seller_part_number }}</td>
                 <td id="sourcing-mp-{{ manufacturer_part.id }}-moq">{{ manufacturer_part.optimal_seller.minimum_order_quantity }}</td>
                 <td id="sourcing-mp-{{ manufacturer_part.id }}-mpq">{{ manufacturer_part.optimal_seller.minimum_pack_quantity }}</td>
                 <td id="sourcing-mp-{{ manufacturer_part.id }}-cost">{{ manufacturer_part.optimal_seller.unit_cost }}</td>
@@ -66,6 +68,7 @@
                     <td></td>
                     <td></td>
                     <td>{% if seller_part.link %}<a href="{{ seller_part.link }}" target="_blank">{% endif %}{{ seller_part.seller.name }}{% if seller_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}</td>
+                    <td>{{ seller_part.seller_part_number }}</td>
                     <td>{{ seller_part.minimum_order_quantity }}</td>
                     <td>{{ seller_part.minimum_pack_quantity }}</td>
                     <td>{{ seller_part.unit_cost }}</td>
@@ -165,13 +168,14 @@
                     }
                 }
                 if (lastRowDict[manufacturerPartId]) {
+                    const pn = sellerPart['seller_part_number'];
                     const moq = sellerPart['minimum_order_quantity'];
                     const mpq = sellerPart['minimum_pack_quantity'];
                     const price = parseFloat(sellerPart['unit_cost']).toFixed(4);
                     const leadTime = `${sellerPart['lead_time_days']}`;
                     const nre = parseFloat(sellerPart['nre_cost']).toFixed(4);
                     const ncnr = "True";
-                    lastRowDict[manufacturerPartId].after(`<tr data-tt-id="${index + 1}" data-tt-parent-id="${manufacturerPartId}"><td></td><td></td><td>${mouserImage} Mouser</td><td>${moq}</td><td>${mpq}</td><td>${price}</td><td>${leadTime}</td><td>${nre}</td><td>${ncnr}</td><td>(${stock} in stock)</td></tr>`)
+                    lastRowDict[manufacturerPartId].after(`<tr data-tt-id="${index + 1}" data-tt-parent-id="${manufacturerPartId}"><td></td><td></td><td>${mouserImage} Mouser</td><td>${pn}</td><td>${moq}</td><td>${mpq}</td><td>${price}</td><td>${leadTime}</td><td>${nre}</td><td>${ncnr}</td><td>(${stock} in stock)</td></tr>`)
                     const lastRow = lastRowDict[manufacturerPartId].closest('tr').next('tr');
                     lastRowDict[manufacturerPartId] = lastRow;
                     const parentNode = $("#manufacturer-parts").treetable("node", manufacturerPartId);
@@ -185,6 +189,7 @@
             if (optimalSellerPart['seller'] === null) { // TODO need to fix this to get the seller name via the API
                 $(`${mpBaseId}-name`).text(optimalSellerPart['data_source']).prepend(mouserImage);
             }
+            $(`${mpBaseId}-pn`).text(optimalSellerPart['seller_part_number']);
             $(`${mpBaseId}-moq`).text(optimalSellerPart['minimum_order_quantity']);
             $(`${mpBaseId}-mpq`).text(optimalSellerPart['minimum_pack_quantity']);
             $(`${mpBaseId}-cost`).text(optimalSellerPart['unit_cost']);

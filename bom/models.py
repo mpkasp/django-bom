@@ -698,6 +698,7 @@ class Seller(models.Model, AsDictModel):
 
 class SellerPart(models.Model, AsDictModel):
     seller = models.ForeignKey(Seller, on_delete=models.CASCADE)
+    seller_part_number = models.CharField(max_length=64, default='', blank=True, null=True)
     manufacturer_part = models.ForeignKey(ManufacturerPart, on_delete=models.CASCADE)
     minimum_order_quantity = models.PositiveIntegerField(default=1)
     minimum_pack_quantity = models.PositiveIntegerField(default=1)
@@ -720,6 +721,7 @@ class SellerPart(models.Model, AsDictModel):
             'manufacturer_name': self.manufacturer_part.manufacturer.name if self.manufacturer_part.manufacturer is not None else '',
             'manufacturer_part_number': self.manufacturer_part.manufacturer_part_number,
             'seller': self.seller.name,
+            'seller_part_number': self.seller_part_number,
             'unit_cost': self.unit_cost,
             'minimum_order_quantity': self.minimum_order_quantity,
             'nre_cost': self.nre_cost

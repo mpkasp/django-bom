@@ -52,6 +52,7 @@ class SellerPartAdmin(admin.ModelAdmin):
     list_display = (
         'manufacturer_part',
         'seller',
+        'seller_part_number',
         'minimum_order_quantity',
         'minimum_pack_quantity',
         'unit_cost',
