@@ -191,7 +191,8 @@ def create_some_fake_parts(organization):
 
     (s1, s2, s3) = create_some_fake_sellers(organization=organization)
 
-    create_a_fake_seller_part(s1, mp1, moq=1, mpq=1, unit_cost=0, lead_time_days=None, nre_cost=0,)
+    create_a_fake_seller_part(s1, mp1, moq=0, mpq=1, unit_cost=0, lead_time_days=None, nre_cost=0,)
+    create_a_fake_seller_part(s1, mp1, moq=1, mpq=2, unit_cost=10, lead_time_days=None, nre_cost=0, )
     create_a_fake_seller_part(s1, mp1, moq=1, mpq=1, unit_cost=1.2, lead_time_days=20, nre_cost=500)
     create_a_fake_seller_part(s2, mp1, moq=1000, mpq=5000, unit_cost=0.1005, lead_time_days=7, nre_cost=0)
     create_a_fake_seller_part(s2, mp2, moq=200, mpq=200, unit_cost=0.5, lead_time_days=47, nre_cost=1)

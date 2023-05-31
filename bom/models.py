@@ -742,7 +742,7 @@ class SellerPart(models.Model, AsDictModel):
 
     def order_quantity(self, extended_quantity):
         order_qty = extended_quantity
-        if self.minimum_order_quantity is not None and extended_quantity > self.minimum_order_quantity:
+        if self.minimum_order_quantity and extended_quantity > self.minimum_order_quantity:
             order_qty = ceil(extended_quantity / float(self.minimum_order_quantity)) * self.minimum_order_quantity
         return order_qty
 
