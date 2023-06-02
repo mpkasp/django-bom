@@ -70,8 +70,6 @@ bom/migrations/0044_auto_20220831_1241.py
 bom/migrations/0045_sellerpart_link.py
 bom/migrations/0046_alter_sellerpart_unique_together.py
 bom/migrations/__init__.py
-bom/static/.DS_Store
-bom/static/bom/.DS_Store
 bom/static/bom/css/dashboard.css
 bom/static/bom/css/jquery.treetable.css
 bom/static/bom/css/materialize.min.css
@@ -85,7 +83,6 @@ bom/static/bom/doc/test_bom_5_intelligent.csv
 bom/static/bom/doc/test_full_bom.csv
 bom/static/bom/doc/test_new_parts.csv
 bom/static/bom/doc/test_new_parts_5_intelligent.csv
-bom/static/bom/img/.DS_Store
 bom/static/bom/img/_ionicons_svg_md-arrow-dropdown.svg
 bom/static/bom/img/_ionicons_svg_md-arrow-dropright.svg
 bom/static/bom/img/favicon.ico

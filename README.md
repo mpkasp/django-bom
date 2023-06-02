@@ -110,7 +110,7 @@ source bin/activate
 2. From here install django, and set up your project.
 ```
 git clone https://github.com/mpkasp/django-bom.git
-pip install -r requirements.txt
+pipenv install
 python manage.py migrate
 cp bom/local_settings.py.example bom/local_settings.py
 python manage.py runserver
