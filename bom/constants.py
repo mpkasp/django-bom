@@ -92,6 +92,8 @@ PACKAGE_TYPES = (
     ('QFT', 'QFT'),
     ('PLCC', 'PLCC'),
     ('VGA', 'VGA'),
+    ('BGA', 'BGA'),
+    ('CSP', 'CSP'),
     ('Other', 'Other'),
 )
 
