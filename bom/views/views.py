@@ -992,6 +992,8 @@ def upload_parts(request):
             messages.error(request, form.errors)
     else:
         form = FileForm()
+        if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT and organization.partclass_set.count() <= 0:
+            messages.warning(request, f'!! Warning !! Before you upload parts, you must create any part classes. You can do this in Settings > Indabom.')
         return TemplateResponse(request, 'bom/upload-parts.html', locals())
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
