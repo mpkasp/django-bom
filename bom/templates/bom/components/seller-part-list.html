@@ -15,6 +15,7 @@
             <th>Manufacturer</th>
             <th>MPN</th>
             <th>Seller</th>
+            <th>PN</th>
             <th>MOQ</th>
             <th>MPQ</th>
             <th>Price</th>
@@ -31,6 +32,7 @@
                     <td>{% if seller_part.manufacturer_part.manufacturer %}<a href="{% url 'bom:manufacturer-info' manufacturer_id=seller_part.manufacturer_part.manufacturer_id %}">{% endif %}{{ seller_part.manufacturer_part.manufacturer }}{% if seller_part.manufacturer_part.manufacturer %}</a>{% endif %}</td>
                     <td>{{ seller_part.manufacturer_part.manufacturer_part_number }}</td>
                     <td>{{ seller_part.seller.name }}</td>
+                    <td>{{ seller_part.seller_part_number }}</td>
                     <td>{{ seller_part.minimum_order_quantity }}</td>
                     <td>{{ seller_part.minimum_pack_quantity }}</td>
                     <td>{{ seller_part.unit_cost }}</td>

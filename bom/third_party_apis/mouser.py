@@ -110,6 +110,7 @@ class Mouser:
                         unit_cost = convert_money(unit_cost, currency)
                     seller_part = SellerPart(
                         seller=seller,
+                        seller_part_number=part['MouserPartNumber'],
                         manufacturer_part=manufacturer_part,
                         minimum_order_quantity=moq,
                         minimum_pack_quantity=1,

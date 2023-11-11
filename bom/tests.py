@@ -856,6 +856,7 @@ class TestBOM(TransactionTestCase):
 
         new_sellerpart_form_data = {
             'seller': p1.optimal_seller().seller.id,
+            'seller_part_number': p1.optimal_seller().seller_part_number,
             'minimum_order_quantity': 1000,
             'minimum_pack_quantity': 500,
             'unit_cost': '1.23',
@@ -875,6 +876,7 @@ class TestBOM(TransactionTestCase):
 
         edit_sellerpart_form_data = {
             'new_seller': 'indabom',
+            'seller_part_number': '123-45678',
             'minimum_order_quantity': 100,
             'minimum_pack_quantity': 200,
             'unit_cost': '1.2',
@@ -1465,6 +1467,7 @@ class TestForms(TestCase):
 
         form_data = {
             'seller': seller.id,
+            'seller_part_number': '123-45678',
             'minimum_order_quantity': 1000,
             'minimum_pack_quantity': 100,
             'unit_cost': 1.2332,

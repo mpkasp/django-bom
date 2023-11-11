@@ -69,6 +69,7 @@ bom/migrations/0043_auto_20211123_0157.py
 bom/migrations/0044_auto_20220831_1241.py
 bom/migrations/0045_sellerpart_link.py
 bom/migrations/0046_alter_sellerpart_unique_together.py
+bom/migrations/0047_sellerpart_seller_part_number.py
 bom/migrations/__init__.py
 bom/static/bom/css/dashboard.css
 bom/static/bom/css/jquery.treetable.css

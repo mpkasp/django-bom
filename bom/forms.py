@@ -571,6 +571,7 @@ class PartCSVForm(forms.Form):
                 value = csv_headers.get_val_from_row(part_data, 'value')
                 value_units = csv_headers.get_val_from_row(part_data, 'value_units')
                 seller_name = csv_headers.get_val_from_row(part_data, 'seller')
+                seller_part_number = csv_headers.get_val_from_row(part_data, 'seller_part_number')
                 unit_cost = csv_headers.get_val_from_row(part_data, 'unit_cost')
                 nre_cost = csv_headers.get_val_from_row(part_data, 'part_nre_cost')
                 moq = csv_headers.get_val_from_row(part_data, 'moq')
@@ -746,7 +747,7 @@ class PartCSVForm(forms.Form):
 
                         if seller_name and unit_cost and nre_cost:
                             seller, created = Seller.objects.get_or_create(name__iexact=seller_name, organization=self.organization, defaults={'name': seller_name})
-                            seller_part, created = SellerPart.objects.get_or_create(manufacturer_part=manufacturer_part, seller=seller, unit_cost=unit_cost, nre_cost=nre_cost, minimum_order_quantity=moq, minimum_pack_quantity=mpq)
+                            seller_part, created = SellerPart.objects.get_or_create(manufacturer_part=manufacturer_part, seller=seller, seller_part_number=seller_part_number, unit_cost=unit_cost, nre_cost=nre_cost, minimum_order_quantity=moq, minimum_pack_quantity=mpq)
 
                     self.successes.append("Part {0} on row {1} created.".format(part.full_part_number(), row_count))
                 else:
