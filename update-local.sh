@@ -1,5 +1,6 @@
 #!/bin/bash
-rm dist/*
-rm build/*
-python setup.py sdist
-source ~/Code/mpkasp/indabom/venv/bin/activate && pip uninstall django_bom -y && python setup.py install
+set -euo pipefail
+cd ../indabom
+pipenv uninstall django-bom --skip-lock
+pipenv install -e ../django-bom
+pipenv lock
