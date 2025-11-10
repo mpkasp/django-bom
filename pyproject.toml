@@ -1,0 +1,70 @@
+[build-system]
+requires = [
+  "setuptools>=69",
+  "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-bom"
+version = "1.234"
+description = "A simple Django app to manage a bill of materials."
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.10"
+license = {text = "GPL-3.0-only"}
+authors = [
+  { name = "Mike Kasparian", email = "mpkasp@gmail.com" }
+]
+urls = { Homepage = "https://www.indabom.com/" }
+classifiers = [
+  "Environment :: Web Environment",
+  "Framework :: Django",
+  "Framework :: Django :: 5",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Internet :: WWW/HTTP",
+  "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+dependencies = [
+  "Django>=5.2,<5.3",
+  "social-auth-app-django>=5,<6",
+  "social-auth-core>=4,<6",
+  "google-api-python-client>=2",
+  "django-materializecss-form",
+  "django-money>=3,<5",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["bom*"]
+
+[tool.isort]
+line_length = 120
+combine_as_imports = true
+known_django = ["django"]
+known_first_party = ["bom", ]
+known_third_party = ["pytest", "setuptools"]
+sections = ["FUTURE", "STDLIB", "DJANGO", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+include_trailing_comma = true
+multi_line_output = 3
+lines_after_imports = 2
+
+[tool.flake8]
+ignore = ["E226", "E302", "E41", "W503"]
+max-line-length = 120
+max-complexity = 10
+exclude = ["migrations"]
+
+[tool.pycodestyle]
+ignore = ["E226", "E302", "E41", "E402"]
+max-line-length = 120
