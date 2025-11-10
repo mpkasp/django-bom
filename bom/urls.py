@@ -1,7 +1,7 @@
-from django.conf.urls import include
+from django.urls import include, path
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
-from django.urls import path
+from django.views.generic import TemplateView
 
 from bom.third_party_apis import google_drive
 from bom.views import json_views, views
@@ -83,6 +83,7 @@ urlpatterns = [
     # you will likely have your own implementation of these in your app
     path('admin/', admin.site.urls),
     path('signup/', views.signup, name='signup'),
-    path('login/', auth_views.LoginView.as_view(), {'redirect_authenticated_user': True, }, name='login'),
-    path('logout/', auth_views.LogoutView.as_view(), {'next_page': '/'}, name='logout'),
+    path('login/', auth_views.LoginView.as_view(redirect_authenticated_user=True), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
+    path('account/delete/', TemplateView.as_view(template_name='bom/account-delete.html'), name='account-delete'),
 ]

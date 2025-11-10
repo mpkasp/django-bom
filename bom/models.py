@@ -144,7 +144,9 @@ class PartClass(models.Model):
     class Meta:
         unique_together = [['code', 'organization', ], ]
         ordering = ['code']
-        index_together = [['organization', 'code', ], ]
+        indexes = [
+            models.Index(fields=['organization', 'code']),
+        ]
 
     def __str__(self):
         return f'{self.code}: {self.name}'
@@ -175,7 +177,9 @@ class Part(models.Model):
 
     class Meta:
         unique_together = ['number_class', 'number_item', 'number_variation', 'organization', ]
-        index_together = ['organization', 'number_class']
+        indexes = [
+            models.Index(fields=['organization', 'number_class']),
+        ]
 
     def full_part_number(self):
         if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
