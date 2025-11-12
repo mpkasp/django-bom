@@ -25,4 +25,6 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 
   # Post-release local update script (if any)
   ./update-local.sh
+
+  echo "Done. Don't forget to commit and push changes."
 fi

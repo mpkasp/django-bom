@@ -11,7 +11,7 @@ sqlparse = ">=0.4.4,<0.6"
 
 # Database
 mysqlclient = ">=2.2,<3"
-python-memcached = "*"
+pymemcache = ">=4.0"
 
 # Auth and social
 social-auth-app-django = ">=5,<6"
