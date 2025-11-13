@@ -5,7 +5,6 @@ from math import ceil
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -195,10 +194,14 @@ class Part(OrganizationScopedModel):
             return self.number_item
 
     @staticmethod
+    def _expect_length(value, expected_len, units_word, label):
+        if len(value) != expected_len:
+            raise AttributeError(f"Expect {expected_len} {units_word} for {label}")
+
+    @staticmethod
     def verify_format_number_class(number_class, organization):
-        if len(number_class) != organization.number_class_code_len:
-            raise AttributeError(f"Expect {organization.number_class_code_len} digits for number class")
-        elif number_class is not None:
+        Part._expect_length(number_class, organization.number_class_code_len, 'digits', 'number class')
+        if number_class is not None:
             for c in number_class:
                 if not (c.isdigit() or c.isalpha()):
                     raise AttributeError(f"{c} is not a proper character for a number class")
@@ -206,9 +209,8 @@ class Part(OrganizationScopedModel):
 
     @staticmethod
     def verify_format_number_item(number_item, organization):
-        if len(number_item) != organization.number_item_len:
-            raise AttributeError(f"Expect {organization.number_item_len} digits for number item")
-        elif number_item is not None:
+        Part._expect_length(number_item, organization.number_item_len, 'digits', 'number item')
+        if number_item is not None:
             for c in number_item:
                 if not c.isdigit():
                     raise AttributeError(f"{c} is not a proper character for a number item")
@@ -216,9 +218,8 @@ class Part(OrganizationScopedModel):
 
     @staticmethod
     def verify_format_number_variation(number_variation, organization):
-        if len(number_variation) != organization.number_variation_len:
-            raise AttributeError(f"Expect {organization.number_variation_len} characters for number variation")
-        elif number_variation is not None:
+        Part._expect_length(number_variation, organization.number_variation_len, 'characters', 'number variation')
+        if number_variation is not None:
             for c in number_variation:
                 if not c.isalnum():
                     raise AttributeError(f"{c} is not a proper character for a number variation. Must be alphanumeric.")
@@ -356,30 +357,27 @@ class Part(OrganizationScopedModel):
         if self.number_item is None or self.number_item == '':
             last_number_item = Part.objects.filter(
                 number_class=self.number_class,
-                organization=self.organization).order_by('number_item').last()
+                organization=self.organization
+            ).order_by('number_item').last()
             if not last_number_item:
-                self.number_item = '1'
-                for i in range(self.organization.number_item_len - 1):
-                    self.number_item = '0' + self.number_item
+                self.number_item = str(1).zfill(self.organization.number_item_len)
             else:
-                FORMATS = {
-                    1: '{0:0=1d}', 2: '{0:0=2d}', 3: '{0:0=3d}', 4: '{0:0=4d}', 5: '{0:0=5d}',
-                    6: '{0:0=6d}', 7: '{0:0=7d}', 8: '{0:0=8d}', 9: '{0:0=9d}', 10: '{0:0=10d}'
-                }
-                self.number_item = FORMATS[self.organization.number_item_len].format(
-                    int(last_number_item.number_item) + 1)
+                next_num = int(last_number_item.number_item) + 1
+                self.number_item = str(next_num).zfill(self.organization.number_item_len)
         if (self.number_variation is None or self.number_variation == '') and self.organization.number_variation_len > 0:
-            last_number_variation = Part.objects.all().filter(
+            last_number_variation = Part.objects.filter(
                 number_class=self.number_class,
-                number_item=self.number_item).order_by('number_variation').last()
+                number_item=self.number_item
+            ).order_by('number_variation').last()
 
             if not last_number_variation:
-                self.number_variation = '00'
+                self.number_variation = '0'.zfill(self.organization.number_variation_len)
             else:
                 try:
-                    self.number_variation = "{0:0=2d}".format(int(last_number_variation.number_variation) + 1)
-                except ValueError as e:
-                    self.number_variation = "{}".format(increment_str(last_number_variation.number_variation))
+                    next_var = int(last_number_variation.number_variation) + 1
+                    self.number_variation = str(next_var).zfill(self.organization.number_variation_len)
+                except ValueError:
+                    self.number_variation = f"{increment_str(last_number_variation.number_variation)}"
 
     def save(self, *args, **kwargs):
         if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
