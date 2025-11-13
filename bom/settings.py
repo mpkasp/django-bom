@@ -70,7 +70,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'bom.urls'
 WSGI_APPLICATION = 'bom.wsgi.application'
-DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # --------------------------------------------------------------------------

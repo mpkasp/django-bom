@@ -54,6 +54,13 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
+class OrganizationScopedModel(models.Model):
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, db_index=True)
+
+    class Meta:
+        abstract = True
+
+
 class Organization(models.Model):
     name = models.CharField(max_length=255, default=None)
     subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
@@ -134,14 +141,13 @@ class UserMeta(models.Model):
     User.add_to_class('bom_profile', _user_meta)
 
 
-class PartClass(models.Model):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
+class PartClass(OrganizationScopedModel):
     code = models.CharField(max_length=NUMBER_CLASS_CODE_LEN_MAX, validators=[alphanumeric])
     name = models.CharField(max_length=255, default=None)
     comment = models.CharField(max_length=255, default='', blank=True)
     mouser_enabled = models.BooleanField(default=False)
 
-    class Meta:
+    class Meta(OrganizationScopedModel.Meta):
         unique_together = [['code', 'organization', ], ]
         ordering = ['code']
         indexes = [
@@ -152,11 +158,10 @@ class PartClass(models.Model):
         return f'{self.code}: {self.name}'
 
 
-class Manufacturer(models.Model, AsDictModel):
+class Manufacturer(OrganizationScopedModel, AsDictModel):
     name = models.CharField(max_length=128, default=None)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
 
-    class Meta:
+    class Meta(OrganizationScopedModel.Meta):
         ordering = ['name']
 
     def __str__(self):
@@ -166,8 +171,7 @@ class Manufacturer(models.Model, AsDictModel):
 # Part contains the root information for a component. Parts have attributes that can be changed over time
 # (see PartRevision). Part numbers can be changed over time, but these cannot be tracked, as it is not a practice
 # that should be done often.
-class Part(models.Model):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
+class Part(OrganizationScopedModel):
     number_class = models.ForeignKey(PartClass, default=None, blank=True, null=True, related_name='number_class', on_delete=models.CASCADE, db_index=True)
     number_item = models.CharField(max_length=NUMBER_ITEM_LEN_MAX, default=None, blank=True)
     number_variation = models.CharField(max_length=NUMBER_VARIATION_LEN_MAX, default=None, blank=True, null=True, validators=[alphanumeric])
@@ -175,7 +179,7 @@ class Part(models.Model):
                                                   on_delete=models.SET_NULL, related_name='primary_manufacturer_part')
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
 
-    class Meta:
+    class Meta(OrganizationScopedModel.Meta):
         unique_together = ['number_class', 'number_item', 'number_variation', 'organization', ]
         indexes = [
             models.Index(fields=['organization', 'number_class']),
@@ -692,8 +696,7 @@ class ManufacturerPart(models.Model, AsDictModel):
         return u'%s' % (self.manufacturer_part_number)
 
 
-class Seller(models.Model, AsDictModel):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+class Seller(OrganizationScopedModel, AsDictModel):
     name = models.CharField(max_length=128, default=None)
 
     def __str__(self):

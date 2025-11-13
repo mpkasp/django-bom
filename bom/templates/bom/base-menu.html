@@ -1,6 +1,15 @@
 <li><a title="IndaBOM | Feedback" href="https://forms.gle/4CUQuBcfBJ4eGXDW8" target="_blank">Feedback</a></li>
 {% if user.is_superuser and user.is_authenticated %}<li><a title="IndaBOM | Admin" href="/admin/" target="_blank">Admin</a></li>{% endif %}
-{% if user.is_authenticated %}<li><a title="IndaBOM | Log Out" href="{% url 'logout' %}">Logout [{{ user.username}}]</a></li>{% endif %}
+{% if user.is_authenticated %}
+<li>
+    <form method="post" action="{% url 'logout' %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" title="IndaBOM | Log Out" style="background:none;border:none;padding:0;margin:0;color:inherit;cursor:pointer;">
+            Logout [{{ user.username }}]
+        </button>
+    </form>
+</li>
+{% endif %}
 {% if not user.is_authenticated %}
     <li><a title="IndaBOM | Log In" href="{% url 'login' %}">Login</a></li>
     <li><a title="IndaBOM | Sign Up" href="{% url 'signup' %}">Sign Up</a></li>
