@@ -197,6 +197,17 @@ table.treetable tr.expanded span.indenter a {
     background-color: #66BB6A;
 }
 
+.btn-flat {
+    background-color: #f5f5f5;
+}
+
+.btn-primary {
+    background-color: #66BB6A;
+}
+
+.btn-warning {
+    background-color: #F44336;
+}
 
 a.anchor {
     display: block;

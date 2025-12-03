@@ -6,7 +6,6 @@
 {% block head-title %}{{ part.full_part_number }}{% if part_revision %} {{ part_revision.synopsis }}{% endif %}{% endblock %}
 
 {% block head %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/part-info.css' %}"/>
 {% endblock %}
 
@@ -23,7 +22,7 @@
             {% if profile.role == 'A' and manufacturer %}
                 <div style="margin-top: 1.5rem;">
                     <!-- Dropdown Trigger -->
-                    <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light grey lighten-4 btn-flat'
+                    <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
                             href='#' data-target='dropdown-revision'><i class="material-icons right">arrow_drop_down</i>Manage
                     </button>
                     <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i

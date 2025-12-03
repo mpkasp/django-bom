@@ -1,7 +1,7 @@
-from django.urls import include, path
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
+from django.urls import include, path
 from django.views.generic import TemplateView
 
 from bom.third_party_apis import google_drive

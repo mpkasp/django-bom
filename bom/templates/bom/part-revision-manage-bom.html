@@ -6,7 +6,6 @@
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
     {{ add_subpart_form.media }}
 {% endblock %}
 
@@ -32,7 +31,7 @@
                     {{ add_subpart_form.do_not_load|materializecss:'m2 s12 input-field materialize-checkbox-padding' }}
                     {{ add_subpart_form.reference|materializecss:'m4 s12' }}
                     <div class="fieldWrapper">
-                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">add
+                        <button class="waves-effect waves-light btn btn-primary" type="submit" name="action">add
                         </button>
                     </div>
                 </form>

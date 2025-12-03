@@ -5,10 +5,6 @@
 
 {% block head-title %}Create Your Organization{% endblock %}
 
-{% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
-{% endblock %}
-
 {% block content %}
     <div class="container">
         <h1 class="light header center">Welcome to IndaBOM!</h1>
@@ -90,7 +86,8 @@
                 </div>
                 <div class="row">
                     <div class="col s12 center-align">
-                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Let's Go!</button>
+                        <button class="waves-effect waves-light btn btn-primary" type="submit" name="action">Let's Go!
+                        </button>
                     </div>
                 </div>
             </form>

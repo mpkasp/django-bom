@@ -8,13 +8,13 @@
     </div>
     <div class="col s6 right-align">
         {% if manage and profile.role == 'A' %}
-            <a class="waves-effect waves-green grey lighten-4 btn-flat red-text"
+            <a class="waves-effect waves-green btn-flat red-text"
                href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
                onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts
             </a>
         {% else %}
             <!-- Dropdown Trigger -->
-            <button class="dropdown-trigger-flat waves-effect waves-green grey lighten-4 btn-flat" href='#' data-target='manage-bom-{{ part.id }}-flat'>
+            <button class="dropdown-trigger-flat waves-effect waves-green btn-flat" href='#' data-target='manage-bom-{{ part.id }}-flat'>
                 <i class="material-icons right">arrow_drop_down</i>Manage
             </button>
             <!-- Dropdown Structure -->

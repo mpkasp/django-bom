@@ -4,10 +4,6 @@
 {% load materializecss %}
 {% block head-title %}{{ title }}{% endblock %}
 
-{% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
-{% endblock %}
-
 {% block bom-menu %}
     <li><a href="{% url 'bom:part-info' part_id=part.id %}">Cancel</a></li>
 {% endblock %}
@@ -57,7 +53,8 @@
                         <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
                     </div>
                     <div class="col s6 right-align">
-                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Save</button>
+                        <button class="waves-effect waves-light btn btn-primary" type="submit" name="action">Save
+                        </button>
                     </div>
                 </div>
             </form>

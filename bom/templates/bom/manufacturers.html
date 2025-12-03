@@ -6,7 +6,6 @@
 {% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/dashboard.css' %}"/>
 {% endblock %}
 
@@ -21,7 +20,9 @@
                     <label for="autocomplete-input">Search for manufacturers:</label>
                 </div>
                 <div class="col s12 m2 text-center">
-                    <button type="submit" class="waves-effect waves-green btn green lighten-1 input-field" name="action">Submit</button>
+                    <button type="submit" class="waves-effect waves-green btn btn-primary input-field" name="action">
+                        Submit
+                    </button>
                     {% if query %}
                         <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
                     {% endif %}
