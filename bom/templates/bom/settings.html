@@ -207,7 +207,6 @@
                 <div class="row">
                     <div class="col s12">
                         <h3>Users</h3>
-                        {% if users_in_organization.count > 0 %}
                             <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
                                 {% csrf_token %}
                                 <table>
@@ -237,6 +236,13 @@
                                                         class="material-icons left">edit</i>Edit</a>
                                             </td>
                                         </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="5" style="font-style: italic;">There are no additional
+                                                users in this
+                                                organization.
+                                            </td>
+                                        </tr>
                                     {% endfor %}
                                     </tbody>
                                 </table>
@@ -247,26 +253,10 @@
                                         </button>
                                     </div>
                                     <div class="col s6 right-align">
-                                        {% include 'bom/bom-form-modal.html' with modal_title='Add User' form=user_add_form action=user_add_form_action name='submit-add-user' modal_description='Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.' %}
+                                        {% include 'bom/bom-modal-add-users.html' with modal_title='Add User' form=user_add_form action=user_add_form_action name='submit-add-user' %}
                                     </div>
                                 </div>
                             </form>
-                        {% else %}
-                            <div class="row" style="padding-left: .75rem;">
-                                <div class="col s12">
-                                    <p>There are no additional users in this organization: {{ organization }}.</p>
-                                    {% if organization.subscription == 'F' %}
-                                        {% include 'bom/bom-form-modal.html' with modal_title='Add User' name='submit-add-user-free' modal_description='Adding users to your organization is a paid feature, but is free for a limited time while we are still developing the tool. Contact <a href="mailto:info@indabom.com">info@indabom.com</a> if you are interested.' %}
-                                    {% else %}
-                                        {% if organization.subscription_quantity == 0 or users_in_organization.count < organization.subscription_quantity %}
-                                            {% include 'bom/bom-form-modal.html' with modal_title='Add User' form=user_add_form action=user_add_form_action name='submit-add-user' modal_description='Add a user to your organization.' %}
-                                        {% else %}
-                                            <p>You've added the maximum number of users to this organization. Update your subscription to add more.</p>
-                                        {% endif %}
-                                    {% endif %}
-                                </div>
-                            </div>
-                        {% endif %}
                     </div>
                 </div>
                 <div class="row">

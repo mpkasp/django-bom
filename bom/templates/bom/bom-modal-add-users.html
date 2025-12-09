@@ -1,0 +1,49 @@
+{% load materializecss %}
+{% load static %}
+
+<a class="waves-effect waves-light btn btn-primary modal-trigger modal-{{ name }}"
+   href="#modal-{{ name }}">{{ modal_title }}</a>
+
+<div id="modal-{{ name }}" class="modal left-align">
+    <form name="seller" action="{{ action }}" method="post" class="col s12" enctype="multipart/form-data">
+        <div class="modal-content">
+            <div class="row">
+                {% if modal_title %}<h2 class="light" style="margin-top: 0;">{{ modal_title }}</h2>{% endif %}
+                <div class="col s12">
+                    {% if is_pro and user_can_manage_members %}
+                        {% csrf_token %}
+                        <p class="flow-text-small grey-text text-darken-2">To add a user, ensure they have already
+                            created an IndaBOM account and are not currently part of another organization.
+                            Then, enter their <b>username</b> (not email) and select their role below.</p>
+                        {{ form|materializecss:'m6 s12' }}
+                    {% elif is_pro and not user_can_manage_members %}
+                        <p class="flow-text-small red-text text-darken-1">
+                            <b>Access Restricted:</b> Please contact an organization administrator to add new members to
+                            your team.
+                        </p>
+                    {% else %}
+                        <p>Upgrade your organization subscription to professional to manage members.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-green btn-flat">Cancel</a>
+            {% if is_pro and user_can_manage_members %}
+                <button class="waves-effect waves-light btn btn-primary" type="submit" name="{{ name }}">Submit</button>
+            {% elif is_pro and not user_can_manage_members %}
+                <a href="#!" class="modal-close waves-effect green lighten-1 waves-green btn-flat">Ok</a>
+            {% else %}
+                <a href="#!" class="modal-close waves-effect green lighten-1 waves-green btn-flat">Ok</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+{% block script %}
+    <script>
+        $(document).ready(function () {
+            $('.modal').modal();
+        });
+    </script>
+{% endblock %}

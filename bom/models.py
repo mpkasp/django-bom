@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 import logging
-from math import ceil
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -9,45 +8,16 @@ from django.core.cache import cache
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
-
 from djmoney.models.fields import CURRENCY_CHOICES, CurrencyField, MoneyField
+from math import ceil
 from social_django.models import UserSocialAuth
 
 from .base_classes import AsDictModel
-from .constants import (
-    CONFIGURATION_TYPES,
-    CURRENT_UNITS,
-    DISTANCE_UNITS,
-    FREQUENCY_UNITS,
-    INTERFACE_TYPES,
-    MEMORY_UNITS,
-    NUMBER_CLASS_CODE_LEN_DEFAULT,
-    NUMBER_CLASS_CODE_LEN_MAX,
-    NUMBER_CLASS_CODE_LEN_MIN,
-    NUMBER_ITEM_LEN_DEFAULT,
-    NUMBER_ITEM_LEN_MAX,
-    NUMBER_ITEM_LEN_MIN,
-    NUMBER_SCHEME_INTELLIGENT,
-    NUMBER_SCHEME_SEMI_INTELLIGENT,
-    NUMBER_SCHEMES,
-    NUMBER_VARIATION_LEN_DEFAULT,
-    NUMBER_VARIATION_LEN_MAX,
-    NUMBER_VARIATION_LEN_MIN,
-    PACKAGE_TYPES,
-    POWER_UNITS,
-    ROLE_TYPES,
-    SUBSCRIPTION_TYPES,
-    TEMPERATURE_UNITS,
-    VALUE_UNITS,
-    VOLTAGE_UNITS,
-    WAVELENGTH_UNITS,
-    WEIGHT_UNITS,
-)
+from .constants import *
 from .csv_headers import PartsListCSVHeaders, PartsListCSVHeadersSemiIntelligent
 from .part_bom import PartBom, PartBomItem, PartIndentedBomItem
 from .utils import increment_str, listify_string, prep_for_sorting_nicely, stringify_list, strip_trailing_zeros
-from .validators import alphanumeric, numeric, validate_pct
-
+from .validators import alphanumeric, validate_pct
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -74,6 +44,11 @@ class Organization(models.Model):
                                                        validators=[MinValueValidator(NUMBER_VARIATION_LEN_MIN), MaxValueValidator(NUMBER_VARIATION_LEN_MAX)])
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
     currency = CurrencyField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
+
+    class Meta:
+        permissions = (
+            ("manage_members", "Can manage organization members"),
+        )
 
     def number_cs(self):
         return "C" * self.number_class_code_len

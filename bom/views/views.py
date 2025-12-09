@@ -20,7 +20,6 @@ from django.urls import reverse
 from django.utils.encoding import smart_str
 from django.utils.text import smart_split
 from django.views.generic.base import TemplateView
-
 from social_django.models import UserSocialAuth
 
 import bom.constants as constants
@@ -73,7 +72,6 @@ from bom.models import (
     UserMeta,
 )
 from bom.utils import check_references_for_duplicates, listify_string, prep_for_sorting_nicely
-
 
 logger = logging.getLogger(__name__)
 BOM_LOGIN_URL = getattr(settings, "BOM_LOGIN_URL", None) or settings.LOGIN_URL
@@ -361,6 +359,10 @@ def bom_settings(request, tab_anchor=None):
     users_in_organization = User.objects.filter(
         id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).exclude(id__in=[organization.owner.id]).order_by(
         'first_name', 'last_name', 'email')
+    users_in_organization_count = users_in_organization.count()
+    has_member_capacity = users_in_organization_count < organization.subscription_quantity
+    is_pro = organization.subscription == constants.SUBSCRIPTION_TYPE_PRO
+    user_can_manage_members = request.user.has_perm('bom.manage_members', organization)
     google_authentication = UserSocialAuth.objects.filter(user=user).first()
 
     organization_parts_count = Part.objects.filter(organization=organization).count()
@@ -386,8 +388,10 @@ def bom_settings(request, tab_anchor=None):
 
         elif 'submit-add-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
-            if organization.subscription == 'F':
-                messages.error(request, "Error: You must have a paid account to add users.")
+            if not is_pro:
+                messages.error(request, "You need a Pro subscription to add users.")
+            elif not user_can_manage_members:
+                messages.error(request, "You are not allowed to manage users, contact your organization admin.")
             else:
                 user_add_form = UserAddForm(request.POST, organization=organization)
                 if user_add_form.is_valid():
