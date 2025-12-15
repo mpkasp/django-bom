@@ -186,6 +186,7 @@
         <div id="organization" class="col s12">
             {% if user.bom_profile.role == 'A' %}
                 <h3>Organization</h3>
+                {% include 'bom/_subscription_panel.html' %}
                 <div class="row">
                     <div class="col s12">
                         <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">

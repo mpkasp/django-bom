@@ -361,6 +361,8 @@ def bom_settings(request, tab_anchor=None):
         'first_name', 'last_name', 'email')
     users_in_organization_count = users_in_organization.count()
     has_member_capacity = users_in_organization_count < organization.subscription_quantity
+    # Seats available for adding new members (never negative)
+    seats_available = max(organization.subscription_quantity - users_in_organization_count, 0)
     is_pro = organization.subscription == constants.SUBSCRIPTION_TYPE_PRO
     user_can_manage_members = request.user.has_perm('bom.manage_members', organization)
     google_authentication = UserSocialAuth.objects.filter(user=user).first()
