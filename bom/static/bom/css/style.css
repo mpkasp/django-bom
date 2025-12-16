@@ -8,24 +8,38 @@ main {
     min-height: 100vh;
 }
 
+p {
+    font-size: 1.2em;
+    font-weight: 300;
+}
+
+li {
+    font-size: 1.2em;
+    font-weight: 300;
+}
+
 h1 {
-    font-size: 3.3rem;
+    font-size: 3.5rem;
+    font-weight: 300;
 }
 
 h2 {
-    font-size: 2.8rem;
+    font-size: 3.0rem;
+    font-weight: 300;
 }
 
 h3 {
-    font-size: 2.2rem;
+    font-size: 1.6rem;
+    font-weight: 300;
 }
 
 h4 {
-    font-size: 1.8rem;
+    font-size: 1.3rem;
+    font-weight: 300;
 }
 
 h5 {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
 }
 
 .tabs {
@@ -316,4 +330,70 @@ a.anchor {
     .pagination {
         display: none;
     }
+}
+
+/* --- Settings & Admin Layout Refinements (flat, Material-inspired) --- */
+/* Scoped to .container-app so marketing pages and legacy views remain unchanged. */
+
+/* Section spacing for denser admin/settings layouts */
+.container-app .section {
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+/* Consistent section headers with optional leading/trailing icons */
+.container-app .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px 0;
+    letter-spacing: 0.2px;
+    font-weight: 500;
+}
+
+.container-app .section-title .material-icons {
+    line-height: 1;
+}
+
+.container-app .section-title img {
+    height: 1.8rem;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* When a service logo/image is used as a leading icon, adjust spacing */
+.container-app .section-title img:first-child {
+    margin-left: 0;
+    margin-right: 6px;
+}
+
+/* Comfortable dividers between blocks */
+.container-app .divider {
+    margin: 16px 0;
+}
+
+/* Slightly smaller paragraph text and tighter rhythm in settings */
+.container-app .section p {
+    margin: 0 0 12px 0;
+}
+
+/* Tabs separation from content */
+.container-app .tabs {
+    margin-bottom: 12px;
+}
+
+/* Flat collections (used as key-value lists in settings) */
+.container-app .collection.z-depth-0 {
+    border: none;
+}
+
+.container-app .collection.z-depth-0 .collection-item {
+    border: none;
+    padding-left: 0;
+}
+
+/* Button group spacing in aligned action rows */
+.container-app .right-align .btn,
+.container-app .right-align .btn-flat {
+    margin-left: 4px;
 }

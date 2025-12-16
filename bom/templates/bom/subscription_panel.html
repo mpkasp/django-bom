@@ -1,0 +1,16 @@
+{# Placeholder for subscription/billing UI. Host apps can override this template. Flat layout (no cards). #}
+<div class="section">
+    <h4 class="section-title" style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <i class="material-icons teal-text text-darken-1">credit_card</i>
+        Subscription & Billing
+    </h4>
+    <p class="grey-text" style="margin-top:8px;">
+        This self-hosted instance of django-bom does not include a billing portal. To change an organization's plan or
+        seat count,
+        use the Django admin: edit the Organization object and adjust the <b>Subscription</b> related fields.
+    </p>
+    <div class="right-align" style="margin-top: 8px;">
+        <a class="btn waves-effect" href="/admin/">Open Admin</a>
+    </div>
+    <div class="divider" style="margin-top:16px;"></div>
+</div>
