@@ -462,8 +462,7 @@ def bom_settings(request, tab_anchor=None):
             tab_anchor = INDABOM_TAB
             part_class_csv_form = PartClassCSVForm(request.POST, request.FILES, organization=organization)
             if part_class_csv_form.is_valid():
-                for success in part_class_csv_form.successes:
-                    messages.info(request, success)
+                messages.info(request, f'Successfully uploaded {len(part_class_csv_form.successes)} part classes.')
                 for warning in part_class_csv_form.warnings:
                     messages.warning(request, warning)
             else:

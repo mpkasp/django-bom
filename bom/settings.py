@@ -1,16 +1,12 @@
-import os
 import logging
+import os
 from pathlib import Path
-from django.utils.log import DEFAULT_LOGGING
 
-# --------------------------------------------------------------------------
-# BASE CONFIGURATION & LOCAL SETTINGS
-# --------------------------------------------------------------------------
+from django.utils.log import DEFAULT_LOGGING
 
 logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Attempt to load local settings (similar pattern to your original, but clean)
 try:
     from .local_settings import *
 except ImportError:

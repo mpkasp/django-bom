@@ -7,7 +7,7 @@
 
 {% block content %}
     <div class="row container-app">
-        <div class="col s12">
+        <div class="col s8 offset-s2">
             <ul id="tabs" class="tabs tabs-fixed-width">
                 <li class="tab"><a id="user-tab" href="#user">User</a></li>
                 <li class="tab"><a id="indabom-tab" href="#indabom">IndaBOM</a></li>
@@ -15,7 +15,7 @@
             </ul>
         </div>
 
-        <div id="user" class="col s12">
+        <div id="user" class="col l8 offset-l2 s12">
             <div class="section">
                 <h4 class="section-title"><i class="material-icons teal-text text-darken-1">person</i>User</h4>
                 <form name="seller" action="{% url 'bom:settings' tab_anchor=USER_TAB %}" method="post">
@@ -30,9 +30,9 @@
                         </div>
                     </div>
                     <div class="row">
-                        {{ user_form.first_name|materializecss:'s12 m4' }}
-                        {{ user_form.last_name|materializecss:'s12 m4' }}
-                        {{ user_form.email|materializecss:'s12 m4' }}
+                        {{ user_form.first_name|materializecss:'s12 l6' }}
+                        {{ user_form.last_name|materializecss:'s12 l6' }}
+                        {{ user_form.email|materializecss:'s12' }}
                     </div>
                     <div class="row">
                         <div class="col s12 right-align">
@@ -57,18 +57,17 @@
             </div>
         </div>
 
-        <div id="indabom" class="col s12">
+        <div id="indabom" class="col s12 l8 offset-l2">
             {% if profile.role == 'A' %}
                 {% if organization.number_scheme == 'S' %}
                     <div class="section">
                         <h4 class="section-title"><i class="material-icons teal-text text-darken-1">category</i>Part
                             Classes</h4>
-                        <p><a href="{% url 'bom:help' %}#part-numbering" target="_blank">What is a part class?</a></p>
                         <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
                             {% csrf_token %}
                             {% if part_classes.count > 0 %}
                                 <div class="row" style="margin-bottom: 0;">
-                                    <div class="input-field col s8 m4">
+                                    <div class="input-field col s8 l4">
                                         <select name="part-class-action">
                                             <option value="" disabled selected>Choose your action</option>
                                             <option value="submit-part-class-enable-mouser">Enable Mouser</option>
@@ -77,13 +76,13 @@
                                         </select>
                                         <label>Action</label>
                                     </div>
-                                    <div class="col s2 m2">
+                                    <div class="col s2 l2">
                                         <div class="input-field">
                                             <button class="waves-effect waves-light btn btn-primary" type="submit">Go
                                             </button>
                                         </div>
                                     </div>
-                                    <div class="col s2 m6 right-align">
+                                    <div class="col s2 l6 right-align">
                                         <div class="input-field">
                                             <button class="waves-effect btn-flat btn-icon-round tooltipped"
                                                     type="submit" name="submit-part-class-export"
@@ -130,18 +129,15 @@
                                     </tbody>
                                 </table>
                             {% else %}
-                                <p>No part classes have been defined yet.</p>
+                                <p>No part classes have been defined yet. <a href="{% url 'bom:help' %}#part-numbering"
+                                                                             target="_blank">What is a part class?</a>
+                                </p>
+                                <p>To get started, add your first part class, or upload some here. To help, here is <a
+                                        href="{% static 'bom/doc/sample_part_classes.csv' %}">a sample
+                                    CSV file</a>.</p>
                             {% endif %}
                         </form>
-                        <div class="right-align" style="margin-top: 8px;">
-                            {% if part_classes.count == 0 %}
-                                <div class="left-align" style="margin-bottom: 8px;">
-                                    <a href="{% url 'bom:help' %}#part-numbering" target="_blank">What is a part
-                                        class?</a>
-                                    <p>You may also use <a href="{% static 'bom/doc/sample_part_classes.csv' %}">this
-                                        sample CSV file</a>.</p>
-                                </div>
-                            {% endif %}
+                        <div class="right-align" style="margin-top: 16px;">
                             {% include 'bom/bom-form-modal.html' with modal_title='Upload Part Classes' form=part_class_csv_form action=part_class_form_action name='submit-part-class-upload' modal_description='To batch add part classes, upload a csv that contains columns with the headers<b>`name`</b> and <b>`code`</b>. You may optionally specify a description or comment by including a column with the header <b>`description`</b> or <b>`comment`</b>.' %}
                             {% include 'bom/bom-form-modal.html' with modal_title='Add Part Class' form=part_class_form action=part_class_form_action name='submit-part-class-create' %}
                         </div>
@@ -161,8 +157,8 @@
                                 <b>{{ organization.number_cs }}-{{ organization.number_ns }}
                                     {% if organization.number_vs %}-{{ organization.number_vs }}{% endif %}</b></p>
                             <div class="row">
-                                {{ organization_number_len_form|materializecss:'s4 m2' }}
-                                <div class="col s12 m6 input-field">
+                                {{ organization_number_len_form|materializecss:'s4 l2' }}
+                                <div class="col s12 l6 input-field right-align">
                                     <button class="waves-effect waves-light btn btn-primary" type="submit"
                                             name="submit-number-item-len"
                                             onclick="return confirm('Are you sure you want to change the number of digits?')">
@@ -223,7 +219,7 @@
             {% endif %}
         </div>
 
-        <div id="organization" class="col s12">
+        <div id="organization" class="col s12 l8 offset-l2">
             {% if user.bom_profile.role == 'A' %}
                 <div class="section">
                     <h4 class="section-title"><i class="material-icons teal-text text-darken-1">business</i>Organization
@@ -232,7 +228,7 @@
                           enctype="multipart/form-data">
                         {% csrf_token %}
                         <div class="row">
-                            {{ organization_form|materializecss:'s12 m4' }}
+                            {{ organization_form|materializecss:'s12 l4' }}
                         </div>
                         <div class="row">
                             <div class="col s12 right-align">
@@ -311,54 +307,59 @@
                 <div class="section">
                     <h4 class="section-title"><i
                             class="material-icons teal-text text-darken-1">integration_instructions</i>Integrations</h4>
-                </div>
-
-                <div class="section">
-                    <h5 class="section-title"><img title="Via Google Drive"
-                                                   src="{% static 'bom/img/google_drive_logo.svg' %}">Part File Storage
-                        with Google Drive</h5>
-                    {% if not google_authentication %}
-                        <p>Connect your Google account to access Google Drive features.
-                            {% if not organization.google_drive_parent %}Organization owners can enable file storage
-                                using Google Drive. {% if organization.owner == user %}Since you are the owner, you are
-                                able to enable file storage!{% else %}Contact your organization owner to enable.
-                            {% endif %}{% endif %}</p>
-                        <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root of
-                            Google Drive (and it can be moved anywhere in your drive). To add files to a part, navigate
-                            to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img
-                                    title="Via Google Drive" style="width: 16px; vertical-align: middle;"
-                                    src="{% static 'bom/img/google_drive_logo.svg' %}"> Google Drive link. This will
-                            create a folder for your part in your root IndaBOM directory, or take you there if it
-                            already exists.</p>
-                        <p>You'll be able to access the files directly through Google Drive, and through IndaBOM.</p>
-                    {% else %}
-                        <p>You're connected with Google and can access Google Drive features.</p>
-                    {% endif %}
-                    <div>
-                        {% if google_authentication %}
-                            <p>Logged in to Google as: {{ google_authentication.uid }}</p>
-                            <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
-                                {% csrf_token %}
-                                <button class="waves-effect waves-light btn btn-primary" type="submit">Disconnect
-                                </button>
-                            </form>
+                    <div class="section">
+                        <h5 class="section-title"><img title="Via Google Drive"
+                                                       src="{% static 'bom/img/google_drive_logo.svg' %}">Part File
+                            Storage
+                            with Google Drive</h5>
+                        {% if not google_authentication %}
+                            <p>Connect your Google account to access Google Drive features.
+                                {% if not organization.google_drive_parent %}Organization owners can enable file storage
+                                    using Google Drive. {% if organization.owner == user %}Since you are the owner, you
+                                    are
+                                    able to enable file storage!{% else %}Contact your organization owner to enable.
+                                {% endif %}{% endif %}</p>
+                            <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root
+                                of
+                                Google Drive (and it can be moved anywhere in your drive). To add files to a part,
+                                navigate
+                                to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img
+                                        title="Via Google Drive" style="width: 16px; vertical-align: middle;"
+                                        src="{% static 'bom/img/google_drive_logo.svg' %}"> Google Drive link. This will
+                                create a folder for your part in your root IndaBOM directory, or take you there if it
+                                already exists.</p>
+                            <p>You'll be able to access the files directly through Google Drive, and through
+                                IndaBOM.</p>
                         {% else %}
-                            <p>To get started, sign in with Google:</p>
-                            <a href="{% url "social:begin" "google-oauth2" %}">
-                                <img title="Google sign-in."
-                                     src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}">
-                            </a>
+                            <p>You're connected with Google and can access Google Drive features.</p>
                         {% endif %}
+                        <div>
+                            {% if google_authentication %}
+                                <p>Logged in to Google as: {{ google_authentication.uid }}</p>
+                                <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
+                                    {% csrf_token %}
+                                    <button class="waves-effect waves-light btn btn-primary" type="submit">Disconnect
+                                    </button>
+                                </form>
+                            {% else %}
+                                <p>To get started, sign in with Google:</p>
+                                <a href="{% url "social:begin" "google-oauth2" %}">
+                                    <img title="Google sign-in."
+                                         src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}">
+                                </a>
+                            {% endif %}
+                        </div>
                     </div>
-                </div>
-                <div class="section">
-                    <h5 class="section-title"><img title="Sourcing via Mouser.com"
-                                                   src="{% static 'bom/img/mouser.png' %}">Automagic Sourcing via Mouser
-                    </h5>
-                    <!--<p>No connection required. To enable sourcing via Mouser, select which part classes you'd like
-                        enabled on the Settings IndaBOM tab. Once enabled, sourcing information will appear on part
-                        detail pages in which there are parts sourced via Mouser.</p>-->
-                    <p>Currently under construction.</p>
+                    <div class="section">
+                        <h5 class="section-title"><img title="Sourcing via Mouser.com"
+                                                       src="{% static 'bom/img/mouser.png' %}">Automagic Sourcing via
+                            Mouser
+                        </h5>
+                        <!--<p>No connection required. To enable sourcing via Mouser, select which part classes you'd like
+                            enabled on the Settings IndaBOM tab. Once enabled, sourcing information will appear on part
+                            detail pages in which there are parts sourced via Mouser.</p>-->
+                        <p>Currently under construction.</p>
+                    </div>
                 </div>
             {% endif %}
 
