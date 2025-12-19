@@ -1,41 +1,27 @@
 import codecs
 import csv
 import logging
-from typing import Type, TypeVar
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxLengthValidator, MaxValueValidator, MinLengthValidator, MinValueValidator
+from django.core.validators import MaxLengthValidator, MinLengthValidator
 from django.db import IntegrityError
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
-
 from djmoney.money import Money
 
 from .constants import (
-    CONFIGURATION_TYPES,
     CURRENT_UNITS,
     DISTANCE_UNITS,
     FREQUENCY_UNITS,
     INTERFACE_TYPES,
     MEMORY_UNITS,
-    NUMBER_CLASS_CODE_LEN_DEFAULT,
-    NUMBER_CLASS_CODE_LEN_MAX,
-    NUMBER_CLASS_CODE_LEN_MIN,
-    NUMBER_ITEM_LEN_DEFAULT,
-    NUMBER_ITEM_LEN_MAX,
-    NUMBER_ITEM_LEN_MIN,
     NUMBER_SCHEME_INTELLIGENT,
     NUMBER_SCHEME_SEMI_INTELLIGENT,
-    NUMBER_VARIATION_LEN_DEFAULT,
-    NUMBER_VARIATION_LEN_MAX,
-    NUMBER_VARIATION_LEN_MIN,
     PACKAGE_TYPES,
     POWER_UNITS,
     ROLE_TYPE_VIEWER,
-    ROLE_TYPES,
-    SUBSCRIPTION_TYPES,
     TEMPERATURE_UNITS,
     VALUE_UNITS,
     VOLTAGE_UNITS,
@@ -43,11 +29,9 @@ from .constants import (
     WEIGHT_UNITS,
 )
 from .csv_headers import (
-    BOMFlatCSVHeaders,
     BOMIndentedCSVHeaders,
     CSVHeaderError,
     PartClassesCSVHeaders,
-    PartsListCSVHeaders,
 )
 from .form_fields import AutocompleteTextInput
 from .models import (
@@ -66,14 +50,10 @@ from .models import (
     UserMeta,
 )
 from .utils import (
-    check_references_for_duplicates,
-    get_from_dict,
     listify_string,
-    prep_for_sorting_nicely,
     stringify_list,
 )
-from .validators import alphanumeric, decimal, numeric
-
+from .validators import alphanumeric
 
 logger = logging.getLogger(__name__)
 

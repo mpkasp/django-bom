@@ -357,7 +357,7 @@ def bom_settings(request, tab_anchor=None):
     part_classes = PartClass.objects.all().filter(organization=organization)
 
     users_in_organization = User.objects.filter(
-        id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).exclude(id__in=[organization.owner.id]).order_by(
+        id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).order_by(
         'first_name', 'last_name', 'email')
     users_in_organization_count = users_in_organization.count()
     has_member_capacity = users_in_organization_count < organization.subscription_quantity

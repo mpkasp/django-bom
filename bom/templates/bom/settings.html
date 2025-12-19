@@ -242,6 +242,9 @@
                     </form>
                 </div>
 
+                {# Subscription & Billing placed after Users for a more natural flow #}
+                {% include 'bom/subscription_panel.html' %}
+
                 <div class="section">
                     <h4 class="section-title"><i class="material-icons teal-text text-darken-1">group</i>Users</h4>
                     <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post"
@@ -300,9 +303,6 @@
                         </div>
                     </form>
                 </div>
-
-                {# Subscription & Billing placed after Users for a more natural flow #}
-                {% include 'bom/subscription_panel.html' %}
 
                 <div class="section">
                     <h4 class="section-title"><i
