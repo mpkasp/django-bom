@@ -16,17 +16,13 @@ from .models import (
     UserMeta,
 )
 
-
 User = get_user_model()
 
 class UserMetaInline(admin.TabularInline):
     model = UserMeta
+    verbose_name = 'BOM User Meta'
     raw_id_fields = ('organization',)
     can_delete = False
-
-
-class UserAdmin(UserAdmin):
-    inlines = (UserMetaInline,)
 
 
 class OrganizationAdmin(admin.ModelAdmin):
@@ -142,13 +138,21 @@ class AssemblyAdmin(admin.ModelAdmin):
     ]
 
 
-# Try to unregister User model
-try:
-    admin.site.unregister(User)
-except admin.sites.NotRegistered:
-    pass
+current_admin = admin.site._registry.get(User)
 
-admin.site.register(User, UserAdmin)
+if current_admin:
+    admin_class = current_admin.__class__
+    inlines = list(admin_class.inlines or [])
+    if UserMetaInline not in inlines:
+        inlines.append(UserMetaInline)
+        admin_class.inlines = inlines
+else:
+    class BomUserAdmin(UserAdmin):
+        inlines = [UserMetaInline]
+
+
+    admin.site.register(User, BomUserAdmin)
+
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Seller, SellerAdmin)
 admin.site.register(SellerPart, SellerPartAdmin)
