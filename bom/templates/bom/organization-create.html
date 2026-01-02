@@ -40,9 +40,12 @@
 
         <div id="join-organization" style="display: none;">
             <h3 class="center">Join an existing Organization</h3>
-            <h5 class="center" style="padding-top: 36px;">To join an existing organization, you must provide the e-mail address you signed up with to your IndaBOM organization owner. <br><br>Your e-mail address is {{ user.email }}, click
-                <a href="mailto:?subject=Add me to your IndaBOM Organization&body=Hi,%0D%0A%0D%0APlease add me to your IndaBOM organization. To do so, log in, go to Settings > Organization and add me via my e-mail address {{ user.email }}">here</a>
-                to send an email.</h5>
+            <h5 class="center" style="padding-top: 36px;">To join an existing organization, you must provide your
+                username (not e-mail) to your IndaBOM organization owner. <br><br>Your username is
+                <b>{{ user.username }}</b>
+                click
+                <a href="mailto:?subject=Add me to your IndaBOM Organization&body=Hi,%0D%0A%0D%0APlease add me to your IndaBOM organization. To do so, log in, go to Settings > Organization and add me via my username {{ user.username }}">here</a>
+                to send an e-mail to your organization owner with instructions.</h5>
             <br><br>
             <p class="center">Oops! I meant to <a class="modal-trigger" onclick="resetView()">create a new organization</a>.</p>
         </div>
