@@ -400,7 +400,9 @@ def bom_settings(request, tab_anchor=None):
                     added_user_profile = user_add_form.save()
                     messages.info(request, f"Added {added_user_profile.user.first_name} {added_user_profile.user.last_name} to your organization.")
                 else:
-                    messages.error(request, user_add_form.errors)
+                    for field, errors in user_add_form.errors.items():
+                        for error in errors:
+                            messages.error(request, f"{field.capitalize()}: {error}")
 
         elif 'clear-add-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
@@ -521,6 +523,8 @@ def bom_settings(request, tab_anchor=None):
                 profile.save()
                 if users_in_organization == 0:
                     organization.delete()
+        else:
+            messages.warning(request, "No action was taken because no form field was submitted.")
 
     user_form = UserForm(instance=user)
     user_add_form = UserAddForm()
