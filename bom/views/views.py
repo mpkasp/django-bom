@@ -403,7 +403,10 @@ def bom_settings(request, tab_anchor=None):
                     for field, errors in user_add_form.errors.items():
                         for error in errors:
                             messages.error(request, f"{field.capitalize()}: {error}")
-
+            users_in_organization.all()
+            users_in_organization_count = users_in_organization.count()
+            has_member_capacity = users_in_organization_count < organization.subscription_quantity
+            seats_available = max(organization.subscription_quantity - users_in_organization_count, 0)
         elif 'clear-add-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             user_add_form = UserAddForm()
@@ -423,7 +426,10 @@ def bom_settings(request, tab_anchor=None):
                             user_meta.save()
                     except UserMeta.DoesNotExist:
                         messages.error(request, "No user found with given id {}.".format(user_meta_id))
-
+            users_in_organization.all()
+            users_in_organization_count = users_in_organization.count()
+            has_member_capacity = users_in_organization_count < organization.subscription_quantity
+            seats_available = max(organization.subscription_quantity - users_in_organization_count, 0)
         elif 'submit-edit-organization' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             organization_form = OrganizationFormEditSettings(request.POST, instance=organization, user=user)
