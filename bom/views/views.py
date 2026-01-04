@@ -395,6 +395,9 @@ def bom_settings(request, tab_anchor=None):
                 messages.error(request, "You need a Pro subscription to add users.")
             elif not user_can_manage_members:
                 messages.error(request, "You are not allowed to manage users, contact your organization admin.")
+            elif not has_member_capacity:
+                messages.error(request,
+                               "You have reached your organization's member capacity. Manage subscription to add more members.")
             else:
                 user_add_form = UserAddForm(request.POST, organization=organization)
                 if user_add_form.is_valid():
