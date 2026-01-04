@@ -23,6 +23,8 @@ BOM_CONFIG_DEFAULT = {
         'page_size': 50,
     }
 }
+BOM_ORGANIZATION_MODEL = 'bom.Organization'
+BOM_USER_META_MODEL = 'bom.UserMeta'
 
 # Apply custom settings over defaults
 bom_config_new = BOM_CONFIG_DEFAULT.copy()

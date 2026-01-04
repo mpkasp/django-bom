@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import logging
 
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -23,32 +24,42 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
+def _user_meta(self, organization=None):
+    from django.apps import apps
+    from django.conf import settings
+    UserMetaModel = apps.get_model(settings.BOM_USER_META_MODEL)
+    meta, created = UserMetaModel.objects.get_or_create(
+        user=self,
+        defaults={'organization': organization}
+    )
+    return meta
+
+
 class OrganizationScopedModel(models.Model):
-    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, db_index=True)
+    organization = models.ForeignKey(settings.BOM_ORGANIZATION_MODEL, on_delete=models.CASCADE, db_index=True)
 
     class Meta:
         abstract = True
 
 
-class Organization(models.Model):
+class AbstractOrganization(models.Model):
     name = models.CharField(max_length=255, default=None)
-    subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
-    subscription_quantity = models.IntegerField(default=0)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     number_scheme = models.CharField(max_length=1, choices=NUMBER_SCHEMES, default=NUMBER_SCHEME_SEMI_INTELLIGENT)
     number_class_code_len = models.PositiveIntegerField(default=NUMBER_CLASS_CODE_LEN_DEFAULT,
-                                                        validators=[MinValueValidator(NUMBER_CLASS_CODE_LEN_MIN), MaxValueValidator(NUMBER_CLASS_CODE_LEN_MAX)])
+                                                        validators=[MinValueValidator(NUMBER_CLASS_CODE_LEN_MIN),
+                                                                    MaxValueValidator(NUMBER_CLASS_CODE_LEN_MAX)])
     number_item_len = models.PositiveIntegerField(default=NUMBER_ITEM_LEN_DEFAULT,
-                                                  validators=[MinValueValidator(NUMBER_ITEM_LEN_MIN), MaxValueValidator(NUMBER_ITEM_LEN_MAX)])
+                                                  validators=[MinValueValidator(NUMBER_ITEM_LEN_MIN),
+                                                              MaxValueValidator(NUMBER_ITEM_LEN_MAX)])
     number_variation_len = models.PositiveIntegerField(default=NUMBER_VARIATION_LEN_DEFAULT,
-                                                       validators=[MinValueValidator(NUMBER_VARIATION_LEN_MIN), MaxValueValidator(NUMBER_VARIATION_LEN_MAX)])
+                                                       validators=[MinValueValidator(NUMBER_VARIATION_LEN_MIN),
+                                                                   MaxValueValidator(NUMBER_VARIATION_LEN_MAX)])
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
     currency = CurrencyField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
 
-    class Meta:
-        permissions = (
-            ("manage_members", "Can manage organization members"),
-        )
+    subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
+    subscription_quantity = models.IntegerField(default=0)
 
     def number_cs(self):
         return "C" * self.number_class_code_len
@@ -76,13 +87,25 @@ class Organization(models.Model):
         return self.owner.email
 
     def save(self, *args, **kwargs):
-        super(Organization, self).save()
-        SellerPart.objects.filter(seller__organization=self).update(unit_cost_currency=self.currency, nre_cost_currency=self.currency)
+        super(AbstractOrganization, self).save()
+        SellerPart.objects.filter(seller__organization=self).update(unit_cost_currency=self.currency,
+                                                                    nre_cost_currency=self.currency)
+
+    class Meta:
+        abstract = True
 
 
-class UserMeta(models.Model):
+class Organization(AbstractOrganization):
+    class Meta:
+        swappable = 'BOM_ORGANIZATION_MODEL'
+        permissions = (
+            ("manage_members", "Can manage organization members"),
+        )
+
+
+class AbstractUserMeta(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, db_index=True, on_delete=models.CASCADE)
-    organization = models.ForeignKey(Organization, blank=True, null=True, on_delete=models.CASCADE)
+    organization = models.ForeignKey(settings.BOM_ORGANIZATION_MODEL, blank=True, null=True, on_delete=models.CASCADE)
     role = models.CharField(max_length=1, choices=ROLE_TYPES)
 
     def get_or_create_organization(self):
@@ -92,7 +115,9 @@ class UserMeta(models.Model):
             else:
                 org_name = self.user.first_name + ' ' + self.user.last_name
 
-            organization, created = Organization.objects.get_or_create(owner=self.user, defaults={'name': org_name, 'subscription': 'F'})
+            OrganizationModel = apps.get_model(settings.BOM_ORGANIZATION_MODEL)
+            organization, created = OrganizationModel.objects.get_or_create(owner=self.user, defaults={'name': org_name,
+                                                                                                       'subscription': 'F'})
 
             self.organization = organization
             self.role = 'A'
@@ -109,10 +134,13 @@ class UserMeta(models.Model):
     def is_organization_owner(self) -> bool:
         return self.organization.owner == self.user if self.organization else False
 
-    def _user_meta(self, organization=None):
-        return UserMeta.objects.get_or_create(user=self, defaults={'organization': organization})[0]
+    class Meta:
+        abstract = True
 
-    User.add_to_class('bom_profile', _user_meta)
+
+class UserMeta(AbstractUserMeta):
+    class Meta:
+        swappable = 'BOM_USER_META_MODEL'
 
 
 class PartClass(OrganizationScopedModel):
@@ -730,3 +758,6 @@ class SellerPart(models.Model, AsDictModel):
 
     def __str__(self):
         return u'%s' % (self.manufacturer_part.part.full_part_number() + ' ' + self.seller.name)
+
+
+User.add_to_class('bom_profile', _user_meta)
