@@ -6,17 +6,19 @@ from .models import (
     Assembly,
     Manufacturer,
     ManufacturerPart,
-    Organization,
     Part,
     PartClass,
     PartRevision,
     Seller,
     SellerPart,
     Subpart,
-    UserMeta,
+    get_organization_model,
+    get_user_meta_model
 )
 
 User = get_user_model()
+UserMeta = get_user_meta_model()
+Organization = get_organization_model()
 
 class UserMetaInline(admin.TabularInline):
     model = UserMeta

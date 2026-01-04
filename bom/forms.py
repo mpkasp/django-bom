@@ -39,7 +39,6 @@ from .models import (
     AssemblySubparts,
     Manufacturer,
     ManufacturerPart,
-    Organization,
     Part,
     PartClass,
     PartRevision,
@@ -47,7 +46,8 @@ from .models import (
     SellerPart,
     Subpart,
     User,
-    UserMeta,
+    get_user_meta_model,
+    get_organization_model,
 )
 from .utils import (
     listify_string,
@@ -56,7 +56,8 @@ from .utils import (
 from .validators import alphanumeric
 
 logger = logging.getLogger(__name__)
-
+Organization = get_organization_model()
+UserMeta = get_user_meta_model()
 
 class UserModelChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, user):

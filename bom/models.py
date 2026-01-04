@@ -24,6 +24,18 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
+def get_user_meta_model():
+    from django.apps import apps
+    from django.conf import settings
+    return apps.get_model(settings.BOM_USER_META_MODEL)
+
+
+def get_organization_model():
+    from django.apps import apps
+    from django.conf import settings
+    return apps.get_model(settings.BOM_ORGANIZATION_MODEL)
+
+
 def _user_meta(self, organization=None):
     from django.apps import apps
     from django.conf import settings

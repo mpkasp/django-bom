@@ -1,7 +1,9 @@
 from typing import Optional
 
 from . import constants
-from .models import Organization
+from .models import get_organization_model
+
+Organization = get_organization_model()
 
 
 class OrganizationPermissionBackend:

@@ -5,9 +5,9 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from bom.models import Part, PartClass, Subpart, SellerPart, Organization, Manufacturer, ManufacturerPart, User, UserMeta, PartRevision, Assembly, AssemblySubparts
-from bom.third_party_apis.mouser import Mouser
+from bom.models import PartRevision
 from bom.third_party_apis.base_api import BaseApiError
+from bom.third_party_apis.mouser import Mouser
 
 
 class BomJsonResponse(View):
