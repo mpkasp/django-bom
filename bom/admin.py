@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
@@ -140,22 +141,27 @@ class AssemblyAdmin(admin.ModelAdmin):
     ]
 
 
-current_admin = admin.site._registry.get(User)
+if settings.BOM_USER_META_MODEL == 'bom.UserMeta':
+    current_user_admin = admin.site._registry.get(User)
 
-if current_admin:
-    admin_class = current_admin.__class__
-    inlines = list(admin_class.inlines or [])
-    if UserMetaInline not in inlines:
-        inlines.append(UserMetaInline)
-        admin_class.inlines = inlines
-else:
-    class BomUserAdmin(UserAdmin):
-        inlines = [UserMetaInline]
+    if current_user_admin:
+        user_admin_class = current_user_admin.__class__
+        existing_inlines = list(user_admin_class.inlines or [])
+        if UserMetaInline not in existing_inlines:
+            existing_inlines.append(UserMetaInline)
+            user_admin_class.inlines = existing_inlines
+    else:
+        class BomUserAdmin(UserAdmin):
+            inlines = [UserMetaInline]
 
 
-    admin.site.register(User, BomUserAdmin)
+        admin.site.register(User, BomUserAdmin)
 
-admin.site.register(Organization, OrganizationAdmin)
+if settings.BOM_ORGANIZATION_MODEL == 'bom.Organization':
+    from .models import Organization
+
+    admin.site.register(Organization, OrganizationAdmin)
+
 admin.site.register(Seller, SellerAdmin)
 admin.site.register(SellerPart, SellerPartAdmin)
 admin.site.register(ManufacturerPart, ManufacturerPartAdmin)
