@@ -186,7 +186,8 @@ class OrganizationCreateForm(forms.ModelForm):
 class OrganizationForm(forms.ModelForm):
     class Meta:
         model = Organization
-        exclude = ['owner', 'subscription', 'subscription_quantity', 'google_drive_parent', 'number_scheme', ]
+        # exclude = ['owner', 'subscription', 'subscription_quantity', 'google_drive_parent', 'number_scheme', ]
+        fields = ['name', 'number_class_code_len', 'number_item_len', 'number_variation_len', ]
         labels = {
             "name": "Organization Name",
             "number_class_code_len": "Number Class Code Length (C)",
@@ -211,7 +212,7 @@ class OrganizationFormEditSettings(OrganizationForm):
 
     class Meta:
         model = Organization
-        exclude = ['subscription', 'subscription_quantity', 'google_drive_parent', 'number_scheme', 'number_item_len', 'number_class_code_len', 'number_variation_len', 'owner', ]
+        fields = ['name', 'owner', 'currency']
         labels = {
             "name": "Organization Name",
         }
