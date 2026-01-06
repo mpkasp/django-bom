@@ -1,38 +1,70 @@
 {% extends 'bom/bom-base.html' %}
 
-{% load static %}
 {% load materializecss %}
+{% load static %}
 
 {% block head-title %}{{ title }}{% endblock %}
 
+{% block bom-menu %}
+    <li><a href="javascript:history.back()">Cancel</a></li>
+{% endblock %}
+
 {% block content %}
-    <div class="container-app">
-        {% if profile.role == 'A' %}
-            <div class="row">
-                <form action="{% url 'bom:user-meta-edit' user_meta_id=user_meta.id %}" method="post" class="col s12">
-                    {% csrf_token %}
-                    {{ user_meta_form.non_field_errors }}
-                    <div class="row">
-                        {{ user_meta_user_form.first_name|materializecss:'s12 m6' }}
-                        {{ user_meta_user_form.last_name|materializecss:'s12 m6' }}
-                    </div>
-                    <div class="row">
-                        {{ user_meta_user_form.email|materializecss:'s12 m6' }}
-                        {{ user_meta_form.role|materializecss:'s12 m6' }}
-                    </div>
-                    <div class="row">
-                        <div class="col s6">
-                            <a href="{% url 'bom:settings' tab_anchor='organization' %}" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
+    <div class="container container-app">
+        <div class="row">
+            <div class="col s12 m8 offset-m2">
+                <div class="card">
+                    <div class="card-content">
+                        {% if h1 %}<span class="card-title">{{ h1 }}</span>{% endif %}
+
+                        <div class="row" style="margin-bottom: 30px;">
+                            <div class="col s12">
+                                <ul class="collection" style="border: none;">
+                                    <li class="collection-item avatar"
+                                        style="border-bottom: 1px solid #e0e0e0; min-height: 64px;">
+                                        <i class="material-icons circle">business</i>
+                                        <span class="title">Organization</span>
+                                        <p class="grey-text">{{ organization }}</p>
+                                    </li>
+                                    <li class="collection-item avatar"
+                                        style="border-bottom: 1px solid #e0e0e0; min-height: 64px;">
+                                        <i class="material-icons circle">person</i>
+                                        <span class="title">Username</span>
+                                        <p class="grey-text">{{ user.username }}</p>
+                                    </li>
+                                    <li class="collection-item avatar" style="min-height: 64px;">
+                                        <i class="material-icons circle">email</i>
+                                        <span class="title">Email</span>
+                                        <p class="grey-text">{{ user.email }}</p>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
-                        <div class="col s6 right-align">
-                            <button class="waves-effect waves-light btn btn-primary" type="submit" name="action">Save
-                            </button>
-                        </div>
+
+                        <form name="seller" action="{{ action }}" method="post">
+                            {% csrf_token %}
+                            <div class="row">
+                                {{ form|materializecss:'s12' }}
+                            </div>
+
+                            <div class="card-action"
+                                 style="padding: 16px 0 0 0; border-top: 1px solid rgba(160,160,160,0.2);">
+                                <div class="row" style="margin-bottom: 0;">
+                                    <div class="col s6">
+                                        <a href="javascript:history.back()"
+                                           class="waves-effect waves-teal btn-flat grey-text">Cancel</a>
+                                    </div>
+                                    <div class="col s6 right-align">
+                                        <button class="waves-effect waves-light btn btn-primary" type="submit"
+                                                name="action">Save Changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
                     </div>
-                </form>
+                </div>
             </div>
-        {% else %}
-            {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
-        {% endif %}
+        </div>
     </div>
 {% endblock %}

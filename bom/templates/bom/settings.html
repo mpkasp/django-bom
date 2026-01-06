@@ -45,10 +45,9 @@
                 </form>
             </div>
 
-            <div class="section"
-                 style="background: #ffebee; border: 1px solid #ffcdd2; padding: 16px; border-radius: 6px;">
-                <h5 class="section-title red-text text-darken-2" style="margin-top:0;"><i
-                        class="material-icons red-text text-darken-2">warning</i>Danger Zone</h5>
+            <div class="section" style="padding: 16px; border-radius: 6px;">
+                <h4 class="section-title red-text text-darken-2" style="margin-top:0;"><i
+                        class="material-icons red-text text-darken-2">warning</i>Danger Zone</h4>
                 <p>Deleting your account is permanent. If you are the organization owner, your organization will also be
                     deleted unless you transfer ownership before proceeding.</p>
                 <div class="right-align" style="margin-top: 8px;">
@@ -266,15 +265,17 @@
                             {% for org_user in users_in_organization %}
                                 <tr>
                                     <td>
-                                        <label><input type="checkbox" class="filled-in"
-                                                      name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>
+                                        {% if org_user != organization.owner %}
+                                            <label><input type="checkbox" class="filled-in"
+                                                          name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>{% endif %}
                                     </td>
-                                    <td class="text-normal">{{ org_user.bom_profile.get_role_display }}</td>
+                                    <td class="text-normal">{% if org_user == organization.owner %}Owner{% else %}
+                                        {{ org_user.bom_profile.get_role_display }}{% endif %}</td>
                                     <td class="text-normal">{{ org_user.username }}</td>
                                     <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
                                     <td class="text-normal"><a href="mailto:{{ user.email }}">{{ org_user.email }}</a>
                                     </td>
-                                    <td>
+                                    <td class="right-align">
                                         <a class="waves-effect btn-flat"
                                            href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
                                                 class="material-icons left">edit</i>Edit</a>

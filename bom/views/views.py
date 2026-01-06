@@ -711,29 +711,19 @@ def seller_delete(request, seller_id):
 
 @login_required(login_url=BOM_LOGIN_URL)
 def user_meta_edit(request, user_meta_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
     user_meta = get_object_or_404(UserMeta, pk=user_meta_id)
-    user_meta_user = get_object_or_404(User, pk=user_meta.user.id)
-    title = 'Edit User {}'.format(user_meta.user.__str__())
+    user = user_meta.user
+    organization = user_meta.organization
+    title = f'Manage Member'
 
     if request.method == 'POST':
-        user_meta_user_form = UserForm(request.POST, instance=user_meta_user)
-        if user_meta_user_form.is_valid():
-            user_meta_form = UserMetaForm(request.POST, instance=user_meta, organization=organization)
-            if user_meta_form.is_valid():
-                user_meta_user_form.save()
-                user_meta_form.save()
-                return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
-
+        form = UserAddForm(request.POST, instance=user_meta, organization=organization, exclude_username=True)
+        if form.is_valid():
+            form.save()
+            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
         return TemplateResponse(request, 'bom/edit-user-meta.html', locals())
-
     else:
-        user_meta_user_form = UserForm(instance=user_meta_user)
-        user_meta_form = UserMetaForm(instance=user_meta, organization=organization)
-
+        form = UserAddForm(instance=user_meta, organization=organization, exclude_username=True)
     return TemplateResponse(request, 'bom/edit-user-meta.html', locals())
 
 

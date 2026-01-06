@@ -108,15 +108,19 @@ class UserAddForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        hide_username = kwargs.pop('exclude_username', False)
         super(UserAddForm, self).__init__(*args, **kwargs)
         self.fields['role'].required = False
+        if hide_username:
+            self.fields['username'].widget = forms.HiddenInput()
+            self.fields['username'].initial = self.instance.user.username
 
     def clean_username(self):
         cleaned_data = super(UserAddForm, self).clean()
         username = cleaned_data.get('username')
         try:
             user = User.objects.get(username=username)
-            user_meta = UserMeta.objects.get(user=user)
+            user_meta = user.bom_profile()
             if user_meta.organization == self.organization:
                 validation_error = forms.ValidationError("User '{0}' already belongs to {1}.".format(username, self.organization), code='invalid')
                 self.add_error('username', validation_error)
