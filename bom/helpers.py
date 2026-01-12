@@ -1,13 +1,16 @@
 from bom import constants
 from bom.models import (
     Assembly,
-    AssemblySubparts,
     Manufacturer,
     ManufacturerPart,
     Organization,
     Part,
     PartClass,
     PartRevision,
+    QuantityOfMeasure,
+    UnitDefinition,
+    PartRevisionProperty,
+    PartRevisionPropertyDefinition,
     Seller,
     SellerPart,
     Subpart,
@@ -64,14 +67,86 @@ def create_a_fake_assembly_with_subpart(part_revision, reference="D4", count=4):
     return assy
 
 
-def create_a_fake_part_revision(part, assembly, description="Brown dog", revision="1"):
+def create_some_fake_quantities_of_measure(organization=None):
+    qom_each, _ = QuantityOfMeasure.objects.get_or_create(name='Each')
+    qom_volt, _ = QuantityOfMeasure.objects.get_or_create(name='Voltage')
+    qom_custom = None
+    if organization is not None:
+        qom_custom, _ = QuantityOfMeasure.objects.get_or_create(name='Custom', organization=organization)
+    return qom_each, qom_volt, qom_custom
+
+
+def create_some_fake_unit_definitions(organization=None):
+    qom_each, qom_volt, qom_custom = create_some_fake_quantities_of_measure(organization)
+    v, _ = UnitDefinition.objects.get_or_create(name='Volts', symbol='V', quantity_of_measure=qom_volt,
+                                                base_multiplier=1.0)
+    mv, _ = UnitDefinition.objects.get_or_create(name='Millivolts', symbol='mV', quantity_of_measure=qom_volt,
+                                                 base_multiplier=0.001)
+    uv, _ = UnitDefinition.objects.get_or_create(name='Microvolts', symbol='uV', quantity_of_measure=qom_volt,
+                                                 base_multiplier=0.000001)
+    kv, _ = UnitDefinition.objects.get_or_create(name='Kilovolts', symbol='kV', quantity_of_measure=qom_volt,
+                                                 base_multiplier=1000)
+    sv = None
+    if organization is not None:
+        sv, _ = UnitDefinition.objects.get_or_create(name='Supervolts', symbol='SV', quantity_of_measure=qom_custom,
+                                                     base_multiplier=1000000)
+    return v, mv, uv, kv, sv
+
+
+def create_some_fake_part_revision_property_definitions(organization=None, some_required=True, part_class=None):
+    qom_each, qom_volt, qom_custom = create_some_fake_quantities_of_measure(organization)
+    sheen, _ = PartRevisionPropertyDefinition.objects.get_or_create(name='Sheen', code='sheen',
+                                                                    type=constants.PART_REVISION_PROPERTY_TYPE_STRING,
+                                                                    quantity_of_measure=None,
+                                                                    defaults={'required': some_required})
+    voltage, _ = PartRevisionPropertyDefinition.objects.get_or_create(name='Voltage', code='voltage',
+                                                                      type=constants.PART_REVISION_PROPERTY_TYPE_FLOAT,
+                                                                      quantity_of_measure=qom_volt,
+                                                                      defaults={'required': some_required})
+    max_voltage, _ = PartRevisionPropertyDefinition.objects.get_or_create(name='Max Voltage', code='max_voltage',
+                                                                          type=constants.PART_REVISION_PROPERTY_TYPE_FLOAT,
+                                                                          required=False, quantity_of_measure=qom_volt)
+    count, _ = PartRevisionPropertyDefinition.objects.get_or_create(name='Count', code='count',
+                                                                    type=constants.PART_REVISION_PROPERTY_TYPE_FLOAT,
+                                                                    required=False, quantity_of_measure=qom_each)
+
+    defs = [sheen, voltage, max_voltage, count]
+
+    custom = None
+    if organization is not None:
+        custom, _ = PartRevisionPropertyDefinition.objects.get_or_create(name='Custom', code='custom',
+                                                                         type=constants.PART_REVISION_PROPERTY_TYPE_BOOLEAN,
+                                                                         required=False, quantity_of_measure=qom_custom)
+        defs.append(custom)
+
+    if part_class is not None:
+        part_class.property_definitions.add(*defs)
+
+    return sheen, voltage, max_voltage, count, custom
+
+
+def create_a_fake_part_revision(part, assembly, description="Brown dog", revision="1", some_required_definitions=True):
     pch, created = PartRevision.objects.get_or_create(part=part, revision=revision, defaults={
         'description': description,
         'revision': revision,
-        'attribute': "Voltage",
-        'value': "3.3",
         'assembly': assembly,
     })
+
+    organization = part.organization
+    part_class = part.number_class if part else None
+    _, voltage, max_voltage, count, custom = create_some_fake_part_revision_property_definitions(organization,
+                                                                                                 some_required_definitions,
+                                                                                                 part_class=part_class)
+    v, mv, _, _, sv = create_some_fake_unit_definitions(organization)
+
+    PartRevisionProperty.objects.get_or_create(part_revision=pch, property_definition=voltage, unit_definition=v,
+                                               value_raw=".01")
+    PartRevisionProperty.objects.get_or_create(part_revision=pch, property_definition=max_voltage, unit_definition=v,
+                                               value_raw="3.5")
+    PartRevisionProperty.objects.get_or_create(part_revision=pch, property_definition=count, value_raw="5.2")
+    PartRevisionProperty.objects.get_or_create(part_revision=pch, property_definition=custom, unit_definition=sv,
+                                               value_raw="True")
+
     return pch
 
 

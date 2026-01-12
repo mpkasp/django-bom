@@ -10,9 +10,13 @@ from .models import (
     Part,
     PartClass,
     PartRevision,
+    PartRevisionProperty,
+    PartRevisionPropertyDefinition,
     Seller,
     SellerPart,
     Subpart,
+    UnitDefinition,
+    QuantityOfMeasure,
     get_organization_model,
     get_user_meta_model
 )
@@ -109,10 +113,21 @@ class PartAdmin(admin.ModelAdmin):
     get_full_part_number.admin_order_field = 'number_class__part_number'
 
 
+class QuantityOfMeasureAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+
+
+class PartRevisionPropertyInline(admin.TabularInline):
+    model = PartRevisionProperty
+    extra = 1
+    raw_id_fields = ('property_definition', 'part_revision', 'unit_definition')
+
+
 class PartRevisionAdmin(admin.ModelAdmin):
     list_display = ('part', 'revision', 'description', 'get_assembly_size', 'timestamp',)
     raw_id_fields = ('assembly',)
     readonly_fields = ('timestamp',)
+    inlines = [PartRevisionPropertyInline]
 
     def get_assembly_size(self, obj):
         return None if obj.assembly is None else obj.assembly.subparts.count()
@@ -139,6 +154,14 @@ class AssemblyAdmin(admin.ModelAdmin):
     inlines = [
         SubpartsInline,
     ]
+
+
+class UnitDefinitionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'symbol', 'quantity_of_measure', 'base_multiplier')
+
+
+class PartRevisionPropertyDefinitionAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'type', 'organization', 'quantity_of_measure')
 
 
 if settings.BOM_USER_META_MODEL == 'bom.UserMeta':
@@ -171,3 +194,6 @@ admin.site.register(PartRevision, PartRevisionAdmin)
 admin.site.register(Manufacturer, ManufacturerAdmin)
 admin.site.register(Assembly, AssemblyAdmin)
 admin.site.register(Subpart, SubpartAdmin)
+admin.site.register(UnitDefinition, UnitDefinitionAdmin)
+admin.site.register(PartRevisionPropertyDefinition, PartRevisionPropertyDefinitionAdmin)
+admin.site.register(QuantityOfMeasure, QuantityOfMeasureAdmin)

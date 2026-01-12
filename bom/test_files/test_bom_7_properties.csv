@@ -1,0 +1,6 @@
+part_number,quantity,manufacturer_part_number,dnp,reference,description,junk,property_Sheen,property_voltage
+500-5555-00,1,abc123,,U3,abc123,,Flat,1
+500-5555-00,2,abc123,,IC2; IC3,abc123,,Gloss,2
+500-5555-00,2,abc123,dnp,"R1, R2",abc123,,Gloss,2
+200-3333-00,1,testing,,,test,,Matte,0
+200-3333-00,99,hi,,,hihihi,,None,-2

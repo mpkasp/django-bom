@@ -245,7 +245,7 @@ def home(request):
                 for field_name in csv_headers.get_default_all():
                     if field_name not in csv_headers.get_defaults_list(['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer', 'part_manufacturer_part_number', ]
                                                                        + seller_csv_headers.get_default_all()):
-                        attr = getattr(part_rev, field_name)
+                        attr = part_rev.get_field_value(field_name)
                         row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
             else:
                 row = {
@@ -258,7 +258,7 @@ def home(request):
                 for field_name in csv_headers.get_default_all():
                     if field_name not in csv_headers.get_defaults_list(['part_number', 'part_synopsis', 'part_revision', 'part_manufacturer', 'part_manufacturer_part_number', ]
                                                                        + seller_csv_headers.get_default_all()):
-                        attr = getattr(part_rev, field_name)
+                        attr = part_rev.get_field_value(field_name)
                         row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
 
             sellerparts = part_rev.part.seller_parts()
@@ -944,7 +944,7 @@ def upload_bom(request):
         else:
             messages.error(request, upload_bom_form.errors)
     else:
-        upload_bom_form = UploadBOMForm(initial={'organization': organization})
+        upload_bom_form = UploadBOMForm(organization=organization, initial={'organization': organization})
         bom_csv_form = BOMCSVForm()
 
     return TemplateResponse(request, 'bom/upload-bom.html', locals())
@@ -1023,22 +1023,15 @@ def export_part_list(request):
         'number_item',
         'number_variation')
 
-    fieldnames = [
-        'part_number',
-        'part_synopsis',
-        'part_revision',
-        'part_manufacturer',
-        'part_manufacturer_part_number',
-    ]
-
     csv_headers = organization.part_list_csv_headers()
-    writer = csv.DictWriter(response, fieldnames=fieldnames)
+    writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
     writer.writeheader()
     for item in parts:
         try:
+            latest_rev = item.latest()
             row = {
                 csv_headers.get_default('part_number'): item.full_part_number(),
-                csv_headers.get_default('part_revision'): item.latest().revision,
+                csv_headers.get_default('part_revision'): latest_rev.revision if latest_rev else '',
                 csv_headers.get_default('part_manufacturer'): item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
                 csv_headers.get_default('part_manufacturer_part_number'): item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
             }
@@ -1046,7 +1039,7 @@ def export_part_list(request):
                 if field_name not in csv_headers.get_defaults_list(
                         ['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer',
                          'part_manufacturer_part_number', ]):
-                    attr = getattr(item, field_name)
+                    attr = latest_rev.get_field_value(field_name) if latest_rev else None
                     row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
             writer.writerow({k: smart_str(v) for k, v in row.items()})
 
@@ -1075,7 +1068,7 @@ def create_part(request):
         part_form = PartForm(request.POST, organization=organization)
         manufacturer_form = ManufacturerForm(request.POST)
         manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
-        part_revision_form = PartRevisionForm(request.POST)
+        part_revision_form = PartRevisionForm(request.POST, organization=organization)
         # Checking if part form is valid checks for number uniqueness
         if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
             mpn = manufacturer_part_form.cleaned_data['manufacturer_part_number']
@@ -1100,6 +1093,8 @@ def create_part(request):
                 new_part.number_class = None
                 new_part.number_variation = None
 
+            part_revision_form = PartRevisionForm(request.POST, part_class=new_part.number_class,
+                                                  organization=organization)
             if part_revision_form.is_valid():
                 # Save the Part before the PartRevision, as this will again check for part
                 # number uniqueness. This way if someone else(s) working concurrently is also 
@@ -1110,7 +1105,8 @@ def create_part(request):
                     pr.part = new_part  # Associate PartRevision with Part
                     pr.save()
                 except IntegrityError as err:
-                    messages.error(request, "Error! Already created a part with part number {0}-{1}-{3}}".format(new_part.number_class.code, new_part.number_item, new_part.number_variation))
+                    messages.error(request, "Error! Already created a part with part number {0}-{1}-{2}}".format(
+                        new_part.number_class.code, new_part.number_item, new_part.number_variation))
                     return TemplateResponse(request, 'bom/create-part.html', locals())
             else:
                 messages.error(request, part_revision_form.errors)
@@ -1130,7 +1126,8 @@ def create_part(request):
     else:
         # Initialize organization in the form's model and in the form itself:
         part_form = PartForm(initial={'organization': organization}, organization=organization)
-        part_revision_form = PartRevisionForm(initial={'revision': 1, 'organization': organization})
+        part_revision_form = PartRevisionForm(initial={'revision': 1, 'organization': organization},
+                                              organization=organization)
         manufacturer_form = ManufacturerForm(initial={'organization': organization})
         manufacturer_part_form = ManufacturerPartForm(organization=organization)
 
@@ -1540,7 +1537,8 @@ def part_revision_new(request, part_id):
     used_part_revisions = all_used_in_prs.filter(configuration='W')
 
     if request.method == 'POST':
-        part_revision_new_form = PartRevisionNewForm(request.POST, part=part, revision=next_revision_number, assembly=latest_revision.assembly)
+        part_revision_new_form = PartRevisionNewForm(request.POST, part=part, revision=next_revision_number,
+                                                     assembly=latest_revision.assembly, organization=organization)
         if part_revision_new_form.is_valid():
             new_part_revision = part_revision_new_form.save()
 
@@ -1572,9 +1570,9 @@ def part_revision_new(request, part_id):
         if latest_revision:
             messages.info(request, 'New revision automatically incremented to `{}` from your last revision `{}`.'.format(next_revision_number, latest_revision.revision))
             latest_revision.revision = next_revision_number  # use updated object to populate form but don't save changes
-            part_revision_new_form = PartRevisionNewForm(instance=latest_revision)
+            part_revision_new_form = PartRevisionNewForm(instance=latest_revision, organization=organization)
         else:
-            part_revision_new_form = PartRevisionNewForm()
+            part_revision_new_form = PartRevisionNewForm(organization=organization)
 
     return TemplateResponse(request, 'bom/part-revision-new.html', locals())
 
@@ -1592,12 +1590,12 @@ def part_revision_edit(request, part_id, part_revision_id):
     action = reverse('bom:part-revision-edit', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id})
 
     if request.method == 'POST':
-        form = PartRevisionForm(request.POST, instance=part_revision)
+        form = PartRevisionForm(request.POST, instance=part_revision, organization=organization)
         if form.is_valid():
             form.save()
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
-        form = PartRevisionForm(instance=part_revision)
+        form = PartRevisionForm(instance=part_revision, organization=organization)
 
     return TemplateResponse(request, 'bom/part-revision-edit.html', locals())
 

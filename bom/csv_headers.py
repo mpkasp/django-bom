@@ -35,8 +35,11 @@ class CSVHeader:
 class CSVHeaders(ABC):
     all_headers_defns = []
 
+    def __init__(self, *args, **kwargs):
+        self.headers_defns = list(self.all_headers_defns)
+
     def get_synoynms(self, hdr_name):
-        for defn in self.all_headers_defns:
+        for defn in self.headers_defns:
             if hdr_name in defn:
                 return defn.synonyms()
             else:
@@ -53,7 +56,7 @@ class CSVHeaders(ABC):
 
     # Preserves order of definitions as listed in all_header_defns:
     def get_default_all(self):
-        return [d.name for d in self.all_headers_defns]
+        return [d.name for d in self.headers_defns]
 
     # Given a list of header names returns the default name for each. The return list
     # matches the order of the input list. If a name is not recognized, then returns
@@ -151,6 +154,9 @@ class CSVHeaders(ABC):
                 return True
         raise CSVHeaderError(f'Missing column named {header}')
 
+    def add_header(self, header):
+        self.headers_defns.append(header)
+
 
 #
 # For each CSV header class, a static data member dictionary uses the key as the default name for the header while the
@@ -190,52 +196,25 @@ class PartClassesCSVHeaders(CSVHeaders):
     ]
 
 
-class PartsListCSVHeaders(CSVHeaders):
-    part_attributes = [
-        CSVHeader('value', name_options=['val', 'val.', ]),
-        CSVHeader('value_units', name_options=['value units', 'val. units', 'val units', ]),
-        CSVHeader('tolerance', name_options=[]),
-        CSVHeader('attribute', name_options=[]),
-        CSVHeader('package', name_options=[]),
-        CSVHeader('pin_count', name_options=[]),
-        CSVHeader('frequency', name_options=[]),
-        CSVHeader('frequency_units', name_options=[]),
-        CSVHeader('wavelength', name_options=[]),
-        CSVHeader('wavelength_units', name_options=[]),
-        CSVHeader('memory', name_options=[]),
-        CSVHeader('memory_units', name_options=[]),
-        CSVHeader('interface', name_options=[]),
-        CSVHeader('supply_voltage', name_options=[]),
-        CSVHeader('supply_voltage_units', name_options=[]),
-        CSVHeader('temperature_rating', name_options=[]),
-        CSVHeader('temperature_rating_units', name_options=[]),
-        CSVHeader('power_rating', name_options=[]),
-        CSVHeader('power_rating_units', name_options=[]),
-        CSVHeader('voltage_rating', name_options=[]),
-        CSVHeader('voltage_rating_units', name_options=[]),
-        CSVHeader('current_rating', name_options=[]),
-        CSVHeader('current_rating_units', name_options=[]),
-        CSVHeader('material', name_options=[]),
-        CSVHeader('color', name_options=[]),
-        CSVHeader('finish', name_options=[]),
-        CSVHeader('length', name_options=[]),
-        CSVHeader('length_units', name_options=[]),
-        CSVHeader('width', name_options=[]),
-        CSVHeader('width_units', name_options=[]),
-        CSVHeader('height', name_options=[]),
-        CSVHeader('height_units', name_options=[]),
-        CSVHeader('weight', name_options=[]),
-        CSVHeader('weight_units', name_options=[]),
-    ]
+class PartRevisionPropertyCSVHeaders(CSVHeaders):
+    def add_dynamic_headers(self, definitions):
+        for defn in definitions:
+            self.add_header(
+                CSVHeader(defn.form_field_name,
+                          name_options=[defn.name, f'property_{defn.code}', f'property_{defn.name}', 'p']))
+            if defn.quantity_of_measure:
+                self.add_header(
+                    CSVHeader(defn.form_unit_field_name, name_options=[f'{defn.name} Units', f'{defn.code}_units']))
 
+
+class PartsListCSVHeaders(PartRevisionPropertyCSVHeaders):
     all_headers_defns = [
         CSVHeader('description', name_options=['desc', 'desc.', ]),
         CSVHeader('manufacturer_name', name_options=['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]),
         CSVHeader('manufacturer_part_number', name_options=['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']),
         CSVHeader('part_number', name_options=['part number', 'part no', ]),
         CSVHeader('revision', name_options=['rev', 'part_revision', ]),
-    ] + part_attributes \
-      + SellerPartCSVHeaders.all_headers_defns
+                        ] + SellerPartCSVHeaders.all_headers_defns
 
 
 class PartsListCSVHeadersSemiIntelligent(PartsListCSVHeaders):
@@ -246,11 +225,10 @@ class PartsListCSVHeadersSemiIntelligent(PartsListCSVHeaders):
         CSVHeader('part_class', name_options=['class', 'part_category']),
         CSVHeader('part_number', name_options=['part number', 'part no', ]),
         CSVHeader('revision', name_options=['rev', 'part_revision', ]),
-    ] + PartsListCSVHeaders.part_attributes \
-      + SellerPartCSVHeaders.all_headers_defns
+                        ] + SellerPartCSVHeaders.all_headers_defns
 
 
-class BOMFlatCSVHeaders(CSVHeaders):
+class BOMFlatCSVHeaders(PartRevisionPropertyCSVHeaders):
     all_headers_defns = [
         CSVHeader('part_number', name_options=['part number', 'part no', ]),
         CSVHeader('quantity', name_options=['count', 'qty', 'quantity', ]),
