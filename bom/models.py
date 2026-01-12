@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import logging
+from decimal import Decimal, InvalidOperation
 
 from django.apps import apps
 from django.conf import settings
@@ -471,7 +472,7 @@ class UnitDefinition(OrganizationOptionalModel):
     name = models.CharField(max_length=64)  # e.g. Millivolt
     symbol = models.CharField(max_length=16)  # e.g. mV
     quantity_of_measure = models.ForeignKey(QuantityOfMeasure, on_delete=models.CASCADE, related_name='units')
-    base_multiplier = models.FloatField(default=1.0)  # e.g. 0.001
+    base_multiplier = models.DecimalField(default=Decimal('1.0'), max_digits=40, decimal_places=20)
 
     class Meta:
         unique_together = (('organization', 'quantity_of_measure', 'symbol'),)
@@ -710,7 +711,7 @@ class PartRevisionProperty(models.Model):
     property_definition = models.ForeignKey(PartRevisionPropertyDefinition, on_delete=models.CASCADE)
     value_raw = models.CharField(max_length=255)  # Base unit value, e.g. 0.01 (to describe 10mV)
     unit_definition = models.ForeignKey(UnitDefinition, null=True, blank=True, on_delete=models.SET_NULL)
-    value_normalized = models.FloatField(null=True, blank=True)
+    value_normalized = models.DecimalField(null=True, blank=True, max_digits=40, decimal_places=20)
 
     def clean(self):
         super().clean()
@@ -732,9 +733,10 @@ class PartRevisionProperty(models.Model):
     def save(self, *args, **kwargs):
         if self.unit_definition and self.value_raw:
             try:
-                val = float(self.value_raw)
-                self.value_normalized = val * self.unit_definition.base_multiplier
-            except ValueError:
+                val = Decimal(str(self.value_raw))
+                multiplier = Decimal(str(self.unit_definition.base_multiplier))
+                self.value_normalized = val * multiplier
+            except (ValueError, InvalidOperation):
                 self.value_normalized = None
         else:
             self.value_normalized = None

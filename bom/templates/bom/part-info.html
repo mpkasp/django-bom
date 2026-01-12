@@ -142,10 +142,13 @@
                                     ){% endif %}
                                 </i></div>
                             </div>
-                            {% for prop in part_revision.properties.all %}
+                            {% for property in part_revision.properties.all %}
                                 <div class="row">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">{{ prop.definition.label }}:</div>
-                                    <div class="col s8 l10">{{ prop.value_raw }}{% if prop.unit_ref %} {{ prop.unit_ref.symbol }}{% endif %}</div>
+                                    <div class="col s4 l2 text-right"
+                                         style="padding-left: 0px;">{{ property.property_definition.name }}:
+                                    </div>
+                                    <div class="col s8 l10">{{ property.value_raw }}{% if property.unit_definition %}
+                                        {{ property.unit_definition.symbol }}{% endif %}</div>
                                 </div>
                             {% endfor %}
                             <div class="row">

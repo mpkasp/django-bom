@@ -91,7 +91,10 @@ class PartClassAdmin(admin.ModelAdmin):
 
 class PartRevisionAdminInline(admin.TabularInline):
     model = PartRevision
+    extra = 0
     raw_id_fields = ('assembly',)
+    readonly_fields = ('timestamp',)
+    show_change_link = True
 
 
 class PartAdmin(admin.ModelAdmin):
@@ -103,6 +106,7 @@ class PartAdmin(admin.ModelAdmin):
     )
     raw_id_fields = ('number_class', 'primary_manufacturer_part',)
     inlines = [
+        PartRevisionAdminInline,
         ManufacturerPartAdminInline,
     ]
 
