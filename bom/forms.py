@@ -15,7 +15,7 @@ from .constants import (
     NUMBER_SCHEME_INTELLIGENT,
     NUMBER_SCHEME_SEMI_INTELLIGENT,
     ROLE_TYPE_VIEWER,
-    PART_REVISION_PROPERTY_TYPE_FLOAT,
+    PART_REVISION_PROPERTY_TYPE_DECIMAL,
     PART_REVISION_PROPERTY_TYPE_BOOLEAN,
 )
 from .csv_headers import (
@@ -589,9 +589,10 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
             self.part_class = self.instance.part.number_class
 
         if self.part_class:
-            self.property_definitions = self.part_class.property_definitions.all()
+            self.property_definitions = self.part_class.property_definitions.all().order_by('name')
         else:
-            self.property_definitions = PartRevisionPropertyDefinition.objects.available_to(self.organization)
+            self.property_definitions = PartRevisionPropertyDefinition.objects.available_to(self.organization).order_by(
+                'name')
 
         self._init_dynamic_properties()
 
@@ -605,8 +606,8 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
             else:
                 req = pd.required
 
-            if pd.type == PART_REVISION_PROPERTY_TYPE_FLOAT:
-                self.fields[field_name] = forms.FloatField(label=pd.name, required=req)
+            if pd.type == PART_REVISION_PROPERTY_TYPE_DECIMAL:
+                self.fields[field_name] = forms.DecimalField(label=pd.name, required=req)
             elif pd.type == PART_REVISION_PROPERTY_TYPE_BOOLEAN:
                 self.fields[field_name] = forms.BooleanField(label=pd.name, required=req)
             else:
@@ -621,7 +622,7 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
                 prop = self.instance.properties.filter(property_definition=pd).first()
                 if prop: self.fields[field_name].initial = prop.value_raw
 
-            # Unit Logic(
+            # Unit Logic
             if pd.quantity_of_measure:
                 unit_field = pd.form_unit_field_name
                 units = UnitDefinition.objects.filter(quantity_of_measure=pd.quantity_of_measure)
@@ -629,6 +630,24 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
                 self.fields[unit_field] = forms.ChoiceField(choices=choices, required=False, label=f"{pd.name} Unit")
                 if self.instance.pk and prop and prop.unit_definition:
                     self.fields[unit_field].initial = prop.unit_definition.id
+
+    def property_fields(self):
+        """Yields property fields grouped with their corresponding unit fields."""
+        for pd in self.property_definitions:
+            yield {
+                'property': self[pd.form_field_name],
+                'unit': self[pd.form_unit_field_name] if pd.quantity_of_measure else None,
+            }
+
+    @property
+    def property_field_names(self):
+        """Returns a list of all field names associated with dynamic properties."""
+        names = []
+        for pd in self.property_definitions:
+            names.append(pd.form_field_name)
+            if pd.quantity_of_measure:
+                names.append(pd.form_unit_field_name)
+        return names
 
     def save_properties(self):
         for defn in self.property_definitions:

@@ -100,14 +100,14 @@ def create_some_fake_part_revision_property_definitions(organization=None, some_
                                                                     quantity_of_measure=None,
                                                                     defaults={'required': some_required})
     voltage, _ = PartRevisionPropertyDefinition.objects.get_or_create(name='Voltage', code='voltage',
-                                                                      type=constants.PART_REVISION_PROPERTY_TYPE_FLOAT,
+                                                                      type=constants.PART_REVISION_PROPERTY_TYPE_DECIMAL,
                                                                       quantity_of_measure=qom_volt,
                                                                       defaults={'required': some_required})
     max_voltage, _ = PartRevisionPropertyDefinition.objects.get_or_create(name='Max Voltage', code='max_voltage',
-                                                                          type=constants.PART_REVISION_PROPERTY_TYPE_FLOAT,
+                                                                          type=constants.PART_REVISION_PROPERTY_TYPE_DECIMAL,
                                                                           required=False, quantity_of_measure=qom_volt)
     count, _ = PartRevisionPropertyDefinition.objects.get_or_create(name='Count', code='count',
-                                                                    type=constants.PART_REVISION_PROPERTY_TYPE_FLOAT,
+                                                                    type=constants.PART_REVISION_PROPERTY_TYPE_DECIMAL,
                                                                     required=False, quantity_of_measure=qom_each)
 
     defs = [sheen, voltage, max_voltage, count]
