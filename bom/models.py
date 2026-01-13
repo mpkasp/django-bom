@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 from djmoney.models.fields import CURRENCY_CHOICES, CurrencyField, MoneyField
 from math import ceil
 from social_django.models import UserSocialAuth
@@ -483,8 +484,7 @@ class UnitDefinition(OrganizationOptionalModel):
 
 
 class PartRevisionPropertyDefinition(OrganizationOptionalModel):
-    code = models.CharField(
-        max_length=64)  # The internal slug used for system keys, database lookups, or API integrations (e.g., max_operating_temp).
+    code = models.CharField(max_length=64, blank=True)  # The internal slug (e.g., max_operating_temp).
     name = models.CharField(max_length=64)  # The user-friendly text displayed in the UI
     type = models.CharField(max_length=1, choices=PART_REVISION_PROPERTY_TYPES)
     required = models.BooleanField(default=False)
@@ -492,7 +492,7 @@ class PartRevisionPropertyDefinition(OrganizationOptionalModel):
                                             help_text="If set, this property is numeric and restricted to units of this quantity.")
 
     class Meta:
-        unique_together = ('organization', 'name')
+        unique_together = ('organization', 'code',)
 
     @property
     def form_field_name(self):
@@ -504,6 +504,12 @@ class PartRevisionPropertyDefinition(OrganizationOptionalModel):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = slugify(self.name)
+
+        super(PartRevisionPropertyDefinition, self).save(*args, **kwargs)
 
 
 # Below are attributes of a part that can be changed, but it's important to trace the change over time

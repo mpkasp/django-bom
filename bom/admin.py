@@ -104,6 +104,7 @@ class PartAdmin(admin.ModelAdmin):
         'organization',
         'get_full_part_number',
     )
+    list_filter = ('organization', 'number_class',)
     raw_id_fields = ('number_class', 'primary_manufacturer_part',)
     inlines = [
         PartRevisionAdminInline,
@@ -118,7 +119,8 @@ class PartAdmin(admin.ModelAdmin):
 
 
 class QuantityOfMeasureAdmin(admin.ModelAdmin):
-    list_display = ('name',)
+    list_display = ('name', 'organization')
+    list_filter = ('organization',)
 
 
 class PartRevisionPropertyInline(admin.TabularInline):
@@ -161,11 +163,13 @@ class AssemblyAdmin(admin.ModelAdmin):
 
 
 class UnitDefinitionAdmin(admin.ModelAdmin):
-    list_display = ('name', 'symbol', 'quantity_of_measure', 'base_multiplier')
+    list_display = ('name', 'symbol', 'quantity_of_measure', 'base_multiplier', 'organization')
+    list_filter = ('organization',)
 
 
 class PartRevisionPropertyDefinitionAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'type', 'organization', 'quantity_of_measure')
+    list_filter = ('organization',)
 
 
 if settings.BOM_USER_META_MODEL == 'bom.UserMeta':
