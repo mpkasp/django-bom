@@ -42,6 +42,7 @@ from bom.forms import (
     OrganizationNumberLenForm,
     PartClassCSVForm,
     PartClassForm,
+    PartRevisionPropertyDefinitionFormSet,
     PartClassSelectionForm,
     PartCSVForm,
     PartInfoForm,
@@ -1278,15 +1279,41 @@ def part_class_edit(request, part_class_id):
 
     if request.method == 'POST':
         part_class_form = PartClassForm(request.POST, instance=part_class, organization=organization)
-        if part_class_form.is_valid():
-            part_class_form.save()
+        property_definitions_formset = PartRevisionPropertyDefinitionFormSet(
+            request.POST,
+            queryset=part_class.property_definitions.all().order_by('name'),
+            form_kwargs={'organization': organization},
+            prefix='prop-def'
+        )
+
+        if part_class_form.is_valid() and property_definitions_formset.is_valid():
+            part_class = part_class_form.save()
+
+            definitions = property_definitions_formset.save(commit=False)
+            for definition in definitions:
+                definition.organization = organization
+                definition.save()
+                part_class.property_definitions.add(definition)
+
+            for obj in property_definitions_formset.deleted_objects:
+                part_class.property_definitions.remove(obj)
+
             return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
 
         else:
+            if not part_class_form.is_valid():
+                messages.error(request, part_class_form.errors)
+            if not property_definitions_formset.is_valid():
+                messages.error(request, property_definitions_formset.errors)
             return TemplateResponse(request, 'bom/edit-part-class.html', locals())
 
     else:
         part_class_form = PartClassForm(instance=part_class, organization=organization)
+        property_definitions_formset = PartRevisionPropertyDefinitionFormSet(
+            queryset=part_class.property_definitions.all().order_by('name'),
+            form_kwargs={'organization': organization},
+            prefix='prop-def',
+        )
 
     return TemplateResponse(request, 'bom/edit-part-class.html', locals())
 

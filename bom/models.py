@@ -488,8 +488,7 @@ class PartRevisionPropertyDefinition(OrganizationOptionalModel):
     name = models.CharField(max_length=64)  # The user-friendly text displayed in the UI
     type = models.CharField(max_length=1, choices=PART_REVISION_PROPERTY_TYPES)
     required = models.BooleanField(default=False)
-    quantity_of_measure = models.ForeignKey(QuantityOfMeasure, on_delete=models.SET_NULL, null=True, blank=True,
-                                            help_text="If set, this property is numeric and restricted to units of this quantity.")
+    quantity_of_measure = models.ForeignKey(QuantityOfMeasure, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         unique_together = ('organization', 'code',)

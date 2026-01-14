@@ -6,7 +6,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxLengthValidator, MinLengthValidator
-from django.db import IntegrityError
+from django.db import IntegrityError, models
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
 from djmoney.money import Money
@@ -33,6 +33,7 @@ from .models import (
     PartRevision,
     PartRevisionProperty,
     PartRevisionPropertyDefinition,
+    QuantityOfMeasure,
     Seller,
     SellerPart,
     Subpart,
@@ -402,6 +403,26 @@ class SellerPartForm(OrganizationFormMixin, forms.ModelForm):
             raise forms.ValidationError("Must specify a seller.")
 
         return cleaned_data
+
+
+class PartRevisionPropertyDefinitionForm(OrganizationFormMixin, forms.ModelForm):
+    class Meta:
+        model = PartRevisionPropertyDefinition
+        fields = ['name', 'type', 'required', 'quantity_of_measure']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['quantity_of_measure'].queryset = QuantityOfMeasure.objects.filter(
+            models.Q(organization=self.organization) | models.Q(organization__isnull=True)
+        ).order_by('name')
+
+
+PartRevisionPropertyDefinitionFormSet = forms.modelformset_factory(
+    PartRevisionPropertyDefinition,
+    form=PartRevisionPropertyDefinitionForm,
+    can_delete=True,
+    extra=0
+)
 
 
 class PartClassForm(OrganizationFormMixin, forms.ModelForm):

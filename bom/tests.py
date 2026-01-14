@@ -396,14 +396,39 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(part_classes.count(), 1)
         part_class = part_classes[0]
 
-        # Test edit
+        # Test edit with property definitions
         part_class_form_data['name'] = 'edited test part name'
+        part_class_form_data.update({
+            'prop-def-TOTAL_FORMS': '1',
+            'prop-def-INITIAL_FORMS': '0',
+            'prop-def-MIN_NUM_FORMS': '0',
+            'prop-def-MAX_NUM_FORMS': '1000',
+            'prop-def-0-name': 'Voltage',
+            'prop-def-0-code': 'voltage',
+            'prop-def-0-type': 'D',
+            'prop-def-0-required': 'on',
+        })
 
         response = self.client.post(reverse('bom:part-class-edit', kwargs={'part_class_id': part_class.id}), part_class_form_data)
         self.assertEqual(response.status_code, 302)
 
-        part_class = PartClass.objects.get(id=part_class.id)
+        part_class.refresh_from_db()
         self.assertEqual(part_class.name, part_class_form_data['name'])
+        self.assertEqual(part_class.property_definitions.count(), 1)
+        prop_def = part_class.property_definitions.first()
+        self.assertEqual(prop_def.name, 'Voltage')
+
+        # Test deleting property definition
+        part_class_form_data.update({
+            'prop-def-INITIAL_FORMS': '1',
+            'prop-def-0-id': prop_def.id,
+            'prop-def-0-DELETE': 'on',
+        })
+        response = self.client.post(reverse('bom:part-class-edit', kwargs={'part_class_id': part_class.id}),
+                                    part_class_form_data)
+        self.assertEqual(response.status_code, 302)
+        part_class.refresh_from_db()
+        self.assertEqual(part_class.property_definitions.count(), 0)
 
     def test_create_part(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
