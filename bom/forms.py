@@ -6,7 +6,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxLengthValidator, MinLengthValidator
-from django.db import IntegrityError, models
+from django.db import IntegrityError
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
 from djmoney.money import Money
@@ -442,14 +442,21 @@ class PartRevisionPropertyDefinitionForm(OrganizationFormMixin, forms.ModelForm)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['quantity_of_measure'].queryset = QuantityOfMeasure.objects.filter(
-            models.Q(organization=self.organization) | models.Q(organization__isnull=True)
-        ).order_by('name')
+        self.fields['quantity_of_measure'].queryset = QuantityOfMeasure.objects.available_to(
+            self.organization).order_by('name')
 
 
-PartRevisionPropertyDefinitionFormSet = forms.modelformset_factory(
-    PartRevisionPropertyDefinition,
-    form=PartRevisionPropertyDefinitionForm,
+class PartRevisionPropertyDefinitionSelectForm(OrganizationFormMixin, forms.Form):
+    property_definition = forms.ModelChoiceField(queryset=PartRevisionPropertyDefinition.objects.none())
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['property_definition'].queryset = PartRevisionPropertyDefinition.objects.available_to(
+            self.organization).order_by('name')
+
+
+PartRevisionPropertyDefinitionFormSet = forms.formset_factory(
+    PartRevisionPropertyDefinitionSelectForm,
     can_delete=True,
     extra=0
 )

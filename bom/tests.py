@@ -20,7 +20,7 @@ from .helpers import (
     create_some_fake_parts,
     create_user_and_organization,
 )
-from .models import Part, PartClass, Seller, Subpart
+from .models import Part, PartClass, Seller, Subpart, PartRevisionPropertyDefinition
 
 TEST_FILES_DIR = "bom/test_files"
 
@@ -397,16 +397,15 @@ class TestBOM(TransactionTestCase):
         part_class = part_classes[0]
 
         # Test edit with property definitions
+        prop_def = PartRevisionPropertyDefinition.objects.create(name='Voltage', organization=self.organization,
+                                                                 attribute='voltage', attribute_type='D')
         part_class_form_data['name'] = 'edited test part name'
         part_class_form_data.update({
             'prop-def-TOTAL_FORMS': '1',
             'prop-def-INITIAL_FORMS': '0',
             'prop-def-MIN_NUM_FORMS': '0',
             'prop-def-MAX_NUM_FORMS': '1000',
-            'prop-def-0-name': 'Voltage',
-            'prop-def-0-code': 'voltage',
-            'prop-def-0-type': 'D',
-            'prop-def-0-required': 'on',
+            'prop-def-0-property_definition': prop_def.id,
         })
 
         response = self.client.post(reverse('bom:part-class-edit', kwargs={'part_class_id': part_class.id}), part_class_form_data)
@@ -421,7 +420,7 @@ class TestBOM(TransactionTestCase):
         # Test deleting property definition
         part_class_form_data.update({
             'prop-def-INITIAL_FORMS': '1',
-            'prop-def-0-id': prop_def.id,
+            'prop-def-0-property_definition': prop_def.id,
             'prop-def-0-DELETE': 'on',
         })
         response = self.client.post(reverse('bom:part-class-edit', kwargs={'part_class_id': part_class.id}),

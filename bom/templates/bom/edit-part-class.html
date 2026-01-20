@@ -38,10 +38,7 @@
                         <table class="highlight" style="border-bottom: 1px solid #e0e0e0;">
                             <thead>
                             <tr class="grey-text">
-                                <th style="width: 30%;">Name</th>
-                                <th style="width: 25%;">Type</th>
-                                <th style="width: 15%;" class="center-align">Required</th>
-                                <th style="width: 20%;">Unit</th>
+                                <th style="width: 90%;">Property Definition</th>
                                 <th style="width: 10%;" class="center-align">Action</th>
                             </tr>
                             </thead>
@@ -52,12 +49,9 @@
                                         {{ hidden }}
                                     {% endfor %}
 
-                                    <td>{{ form.name|materializecss }}</td>
-                                    <td>{{ form.type|materializecss }}</td>
-                                    <td class="center-align">{{ form.required|materializecss }}</td>
-                                    <td>{{ form.quantity_of_measure|materializecss }}</td>
+                                    <td>{{ form.property_definition|materializecss }}</td>
                                     <td class="center-align">
-                                        {% if form.instance.pk %}
+                                        {% if forloop.counter0 < property_definitions_formset.initial_form_count %}
                                             <div style="display:none;">{{ form.DELETE }}</div>
                                             <a href="#!" class="btn-flat btn-small red-text delete-existing-row">
                                                 <i class="material-icons">delete</i>
@@ -102,10 +96,7 @@
 
     <script type="text/template" id="empty-form-template">
         <tr class="property-definition-row">
-            <td>{{ property_definitions_formset.empty_form.name|materializecss }}</td>
-            <td>{{ property_definitions_formset.empty_form.type|materializecss }}</td>
-            <td class="center-align">{{ property_definitions_formset.empty_form.required|materializecss }}</td>
-            <td>{{ property_definitions_formset.empty_form.quantity_of_measure|materializecss }}</td>
+            <td>{{ property_definitions_formset.empty_form.property_definition|materializecss }}</td>
             <td class="center-align">
                 <a href="#!" class="btn-flat btn-small red-text remove-new-row">
                     <i class="material-icons">close</i>
@@ -114,67 +105,15 @@
         </tr>
     </script>
 
+    <script src="{% static 'bom/js/formset-handler.js' %}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const totalForms = document.getElementById('id_{{ property_definitions_formset.prefix }}-TOTAL_FORMS');
-            const formsetContainer = document.getElementById('property-definitions-body');
-            const emptyFormTemplate = document.getElementById('empty-form-template').innerHTML;
-            const formPrefix = '{{ property_definitions_formset.prefix }}'; // Usually 'form' or 'prop-def'
-
-            // ADD ROW
-            document.getElementById('add-property-definition').addEventListener('click', function () {
-                const currentFormCount = parseInt(totalForms.value);
-
-                // 1. Get the template and replace __prefix__ with the current index
-                // This regex replaces all instances of 'prefix' in ID and Name attributes
-                const newRowHtml = emptyFormTemplate.replace(/__prefix__/g, currentFormCount);
-
-                // 2. Append the new row
-                // We use insertAdjacentHTML for better performance than jQuery append
-                formsetContainer.insertAdjacentHTML('beforeend', newRowHtml);
-
-                // 3. Update the management form count
-                totalForms.value = currentFormCount + 1;
-
-                // 4. Re-initialize Materialize Selects for the new row
-                const newRow = formsetContainer.lastElementChild;
-                const selects = newRow.querySelectorAll('select');
-                M.FormSelect.init(selects);
-
-                // Re-initialize text inputs (for label floating effects)
-                M.updateTextFields();
-            });
-
-            // REMOVE NEW ROW (Client-side only)
-            formsetContainer.addEventListener('click', function (e) {
-                // Check if the clicked element or its parent is the remove button
-                const removeBtn = e.target.closest('.remove-new-row');
-                if (removeBtn) {
-                    e.preventDefault();
-                    const row = removeBtn.closest('tr');
-                    row.remove();
-
-                    // Note: We generally don't decrement TOTAL_FORMS because Django
-                    // ignores gaps in indices if you handle it right, or you can
-                    // re-index. For simplicity in dynamic forms, leaving the count high
-                    // is safer than decrementing and causing collisions, UNLESS you re-index.
-                    // If you want to be strict, you can re-index here.
-                }
-            });
-
-            // DELETE EXISTING ROW (Server-side logic)
-            formsetContainer.addEventListener('click', function (e) {
-                const deleteBtn = e.target.closest('.delete-existing-row');
-                if (deleteBtn) {
-                    e.preventDefault();
-                    const row = deleteBtn.closest('tr');
-                    const checkbox = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-
-                    if (checkbox) {
-                        checkbox.checked = true;
-                        row.style.display = 'none';
-                    }
-                }
+            initFormset({
+                prefix: '{{ property_definitions_formset.prefix }}',
+                addBtnId: 'add-property-definition',
+                formContainerId: 'property-definitions-body',
+                emptyFormTemplateId: 'empty-form-template',
+                rowSelector: '.property-definition-row'
             });
         });
     </script>

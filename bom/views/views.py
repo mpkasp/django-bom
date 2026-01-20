@@ -1401,7 +1401,6 @@ def part_class_edit(request, part_class_id):
         part_class_form = PartClassForm(request.POST, instance=part_class, organization=organization)
         property_definitions_formset = PartRevisionPropertyDefinitionFormSet(
             request.POST,
-            queryset=part_class.property_definitions.all().order_by('name'),
             form_kwargs={'organization': organization},
             prefix='prop-def'
         )
@@ -1409,14 +1408,13 @@ def part_class_edit(request, part_class_id):
         if part_class_form.is_valid() and property_definitions_formset.is_valid():
             part_class = part_class_form.save()
 
-            definitions = property_definitions_formset.save(commit=False)
-            for definition in definitions:
-                definition.organization = organization
-                definition.save()
-                part_class.property_definitions.add(definition)
-
-            for obj in property_definitions_formset.deleted_objects:
-                part_class.property_definitions.remove(obj)
+            # Clear current associations and re-add from formset
+            part_class.property_definitions.clear()
+            for form in property_definitions_formset:
+                if form.cleaned_data and not form.cleaned_data.get('DELETE'):
+                    definition = form.cleaned_data.get('property_definition')
+                    if definition:
+                        part_class.property_definitions.add(definition)
 
             return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
 
@@ -1429,8 +1427,9 @@ def part_class_edit(request, part_class_id):
 
     else:
         part_class_form = PartClassForm(instance=part_class, organization=organization)
+        initial = [{'property_definition': pd} for pd in part_class.property_definitions.all().order_by('name')]
         property_definitions_formset = PartRevisionPropertyDefinitionFormSet(
-            queryset=part_class.property_definitions.all().order_by('name'),
+            initial=initial,
             form_kwargs={'organization': organization},
             prefix='prop-def',
         )

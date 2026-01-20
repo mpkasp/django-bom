@@ -104,42 +104,15 @@
         </tr>
     </script>
 
+    <script src="{% static 'bom/js/formset-handler.js' %}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const totalForms = document.getElementById('id_{{ unit_formset.prefix }}-TOTAL_FORMS');
-            const formsetContainer = document.getElementById('unit-definitions-body');
-            const emptyFormTemplate = document.getElementById('empty-form-template').innerHTML;
-
-            // ADD ROW
-            document.getElementById('add-unit-definition').addEventListener('click', function () {
-                const currentFormCount = parseInt(totalForms.value);
-                const newRowHtml = emptyFormTemplate.replace(/__prefix__/g, currentFormCount);
-                formsetContainer.insertAdjacentHTML('beforeend', newRowHtml);
-                totalForms.value = currentFormCount + 1;
-                M.updateTextFields();
-            });
-
-            // REMOVE NEW ROW
-            formsetContainer.addEventListener('click', function (e) {
-                const removeBtn = e.target.closest('.remove-new-row');
-                if (removeBtn) {
-                    e.preventDefault();
-                    removeBtn.closest('tr').remove();
-                }
-            });
-
-            // DELETE EXISTING ROW
-            formsetContainer.addEventListener('click', function (e) {
-                const deleteBtn = e.target.closest('.delete-existing-row');
-                if (deleteBtn) {
-                    e.preventDefault();
-                    const row = deleteBtn.closest('tr');
-                    const checkbox = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-                    if (checkbox) {
-                        checkbox.checked = true;
-                        row.style.display = 'none';
-                    }
-                }
+            initFormset({
+                prefix: '{{ unit_formset.prefix }}',
+                addBtnId: 'add-unit-definition',
+                formContainerId: 'unit-definitions-body',
+                emptyFormTemplateId: 'empty-form-template',
+                rowSelector: '.unit-definition-row'
             });
         });
     </script>
