@@ -20,7 +20,7 @@ from .helpers import (
     create_some_fake_parts,
     create_user_and_organization,
 )
-from .models import Part, PartClass, Seller, Subpart, PartRevisionPropertyDefinition
+from .models import Part, PartClass, Seller, Subpart
 
 TEST_FILES_DIR = "bom/test_files"
 
@@ -397,8 +397,7 @@ class TestBOM(TransactionTestCase):
         part_class = part_classes[0]
 
         # Test edit with property definitions
-        prop_def = PartRevisionPropertyDefinition.objects.create(name='Voltage', organization=self.organization,
-                                                                 attribute='voltage', attribute_type='D')
+        _, prop_def, _, _, _ = create_some_fake_part_revision_property_definitions(self.organization, False)
         part_class_form_data['name'] = 'edited test part name'
         part_class_form_data.update({
             'prop-def-TOTAL_FORMS': '1',

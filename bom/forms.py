@@ -652,15 +652,6 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
             self.property_definitions = PartRevisionPropertyDefinition.objects.available_to(self.organization).order_by(
                 'name')
 
-        if self.organization.number_scheme == NUMBER_SCHEME_INTELLIGENT:
-            # For intelligent organizations, also include global property definitions that might not be in the part class
-            global_defs = PartRevisionPropertyDefinition.objects.filter(organization=self.organization).order_by('name')
-            if self.part_class:
-                # Merge and unique
-                self.property_definitions = (self.property_definitions | global_defs).distinct()
-            else:
-                self.property_definitions = global_defs
-
         self._init_dynamic_properties()
 
     def _init_dynamic_properties(self):
