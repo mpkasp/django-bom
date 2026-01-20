@@ -143,7 +143,134 @@
                     </div>
 
                     <div class="divider"></div>
+                {% endif %}
 
+                <div class="section">
+                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">list_alt</i>Property
+                        Definitions</h4>
+                    <p>Define part properties (e.g. Capacitance, Length, Sheen), their data type, and their
+                        associated quantity of measure.</p>
+                    {% if property_definitions.count > 0 %}
+                        <table class="striped tight">
+                            <thead>
+                            <tr>
+                                <th class="text-normal">Name</th>
+                                <th class="text-normal">Type</th>
+                                <th class="text-normal">Required</th>
+                                <th class="text-normal">Quantity of Measure</th>
+                                <th class="text-normal">Options</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for prop in property_definitions %}
+                                <tr>
+                                    <td class="text-normal">{{ prop.name }}</td>
+                                    <td class="text-normal">{{ prop.get_type_display }}</td>
+                                    <td class="text-normal">{% if prop.required %}Yes{% else %}No{% endif %}</td>
+                                    <td class="text-normal">{{ prop.quantity_of_measure.name|default:"-" }}</td>
+                                    <td>
+                                        {% if prop.organization == organization %}
+                                            <a class="table-action"
+                                               href="{% url 'bom:property-definition-edit' property_definition_id=prop.id %}"><i
+                                                    class="material-icons left">edit</i>Edit</a>
+                                            <a class="table-action red-text"
+                                               href="{% url 'bom:property-definition-delete' property_definition_id=prop.id %}"
+                                               onclick="return confirm('Are you sure you want to delete this property definition?')"><i
+                                                    class="material-icons left">delete</i></a>
+                                        {% else %}
+                                            <span class="table-action tooltipped grey-text d-flex-inline align-center"
+                                                  data-position="top"
+                                                  data-tooltip="System Default: Cannot be modified">
+                                                <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p>No global property definitions defined.</p>
+                    {% endif %}
+                    <div class="right-align" style="margin-top: 16px;">
+                        <a href="{% url 'bom:property-definition-add' %}"
+                           class="waves-effect waves-light btn btn-primary">
+                            <i class="material-icons left">add</i>Add Property Definition
+                        </a>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">straighten</i>Units &
+                        Quantities</h4>
+                    <p>Define quantities of measure (e.g. Length, Resistance) and their associated units (e.g. m, mm,
+                        Ohm, kOhm).</p>
+                    {% if quantities_of_measure.count > 0 %}
+                        <table class="striped tight">
+                            <thead>
+                            <tr>
+                                <th class="text-normal">Quantity</th>
+                                <th class="text-normal">Units</th>
+                                <th class="text-normal">Options</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for qom in quantities_of_measure %}
+                                <tr>
+                                    <td class="text-normal">{{ qom.name }}</td>
+                                    <td class="text-normal">
+                                        {% for unit in qom.units.all|slice:":3" %}
+                                            {{ unit.symbol }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+
+                                        {% if qom.units.count > 3 %}
+                                            <span class="grey-text text-darken-1 tooltipped"
+                                                  data-tooltip="
+
+
+
+
+                                                          {% for unit in qom.units.all %}{{ unit.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+            (+{{ qom.units.count|add:"-3" }} more)
+        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if qom.organization == organization %}
+                                            <a class="table-action"
+                                               href="{% url 'bom:quantity-of-measure-edit' quantity_of_measure_id=qom.id %}"><i
+                                                    class="material-icons left">edit</i>Edit</a>
+                                            <a class="table-action red-text"
+                                               href="{% url 'bom:quantity-of-measure-delete' quantity_of_measure_id=qom.id %}"
+                                               onclick="return confirm('Are you sure you want to delete this quantity of measure and all its units?')"><i
+                                                    class="material-icons left">delete</i></a>
+                                        {% else %}
+                                            <span class="table-action tooltipped grey-text d-flex-inline align-center"
+                                                  data-position="top"
+                                                  data-tooltip="System Default: Cannot be modified">
+                                            <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p>No quantities of measure defined.</p>
+                    {% endif %}
+                    <div class="right-align" style="margin-top: 16px;">
+                        <a href="{% url 'bom:quantity-of-measure-add' %}"
+                           class="waves-effect waves-light btn btn-primary">
+                            <i class="material-icons left">add</i>Add Quantity of Measure
+                        </a>
+                    </div>
+                </div>
+
+                {% if organization.number_scheme == 'S' %}
+                    <div class="divider"></div>
                     <div class="section">
                         <h4 class="section-title" id="indabom-part-number"><i
                                 class="material-icons teal-text text-darken-1">format_list_numbered</i>Part Number</h4>
@@ -275,9 +402,8 @@
                                     <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
                                     <td class="text-normal"><a href="mailto:{{ user.email }}">{{ org_user.email }}</a>
                                     </td>
-                                    <td class="right-align">
-                                        <a class="waves-effect btn-flat"
-                                           href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
+                                    <td class="table-action right-align">
+                                        <a href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
                                                 class="material-icons left">edit</i>Edit</a>
                                     </td>
                                 </tr>

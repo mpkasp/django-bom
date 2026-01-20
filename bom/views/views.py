@@ -42,16 +42,19 @@ from bom.forms import (
     OrganizationNumberLenForm,
     PartClassCSVForm,
     PartClassForm,
-    PartRevisionPropertyDefinitionFormSet,
     PartClassSelectionForm,
     PartCSVForm,
     PartInfoForm,
     PartRevisionForm,
     PartRevisionNewForm,
+    PartRevisionPropertyDefinitionForm,
+    PartRevisionPropertyDefinitionFormSet,
+    QuantityOfMeasureForm,
     Seller,
     SellerForm,
     SellerPartForm,
     SubpartForm,
+    UnitDefinitionFormSet,
     UploadBOMForm,
     UserAddForm,
     UserCreateForm,
@@ -67,8 +70,11 @@ from bom.models import (
     Part,
     PartClass,
     PartRevision,
+    PartRevisionPropertyDefinition,
+    QuantityOfMeasure,
     SellerPart,
     Subpart,
+    UnitDefinition,
     User,
     get_user_meta_model
 )
@@ -357,6 +363,9 @@ def bom_settings(request, tab_anchor=None):
     name = 'settings'
 
     part_classes = PartClass.objects.all().filter(organization=organization)
+    property_definitions = PartRevisionPropertyDefinition.objects.available_to(organization=organization).order_by(
+        'name')
+    quantities_of_measure = QuantityOfMeasure.objects.available_to(organization=organization).order_by('name')
 
     users_in_organization = User.objects.filter(
         id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).order_by(
@@ -1266,6 +1275,117 @@ def remove_subpart(request, part_id, part_revision_id, subpart_id):
     subpart.delete()
     return HttpResponseRedirect(
         reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def property_definition_edit(request, property_definition_id=None):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    if property_definition_id:
+        property_definition = get_object_or_404(PartRevisionPropertyDefinition, pk=property_definition_id)
+        if property_definition.organization != organization:
+            messages.error(request, "Can't access a property definition that is not yours!")
+            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+        title = f'Edit Property Definition {property_definition.name}'
+    else:
+        property_definition = None
+        title = 'Add Property Definition'
+
+    if request.method == 'POST':
+        form = PartRevisionPropertyDefinitionForm(request.POST, instance=property_definition, organization=organization)
+        if form.is_valid():
+            property_definition = form.save(commit=False)
+            property_definition.organization = organization
+            property_definition.save()
+            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+    else:
+        form = PartRevisionPropertyDefinitionForm(instance=property_definition, organization=organization)
+
+    return TemplateResponse(request, 'bom/bom-form.html', locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@organization_admin
+def property_definition_delete(request, property_definition_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+    property_definition = get_object_or_404(PartRevisionPropertyDefinition, pk=property_definition_id)
+    if property_definition.organization != organization:
+        messages.error(request, "Can't delete a property definition that is not yours!")
+    else:
+        property_definition.delete()
+    return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def quantity_of_measure_edit(request, quantity_of_measure_id=None):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    if quantity_of_measure_id:
+        quantity_of_measure = get_object_or_404(QuantityOfMeasure, pk=quantity_of_measure_id)
+        if quantity_of_measure.organization != organization:
+            messages.error(request, "Can't access a quantity of measure that is not yours!")
+            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+        title = f'Edit Quantity of Measure {quantity_of_measure.name}'
+    else:
+        quantity_of_measure = None
+        title = 'Add Quantity of Measure'
+
+    if request.method == 'POST':
+        form = QuantityOfMeasureForm(request.POST, instance=quantity_of_measure, organization=organization)
+        unit_formset = UnitDefinitionFormSet(
+            request.POST,
+            queryset=quantity_of_measure.units.all() if quantity_of_measure else UnitDefinition.objects.none(),
+            form_kwargs={'organization': organization},
+            prefix='units'
+        )
+
+        if form.is_valid() and unit_formset.is_valid():
+            quantity_of_measure = form.save()
+            units = unit_formset.save(commit=False)
+            base_multipliers = [float(unit.base_multiplier) for unit in units]
+            if 1.0 not in base_multipliers:
+                messages.error(request, "Must have a base multiplier of 1.0 for at least 1 unit.")
+                return TemplateResponse(request, 'bom/edit-quantity-of-measure.html', locals())
+
+            for unit in units:
+                unit.organization = organization
+                unit.quantity_of_measure = quantity_of_measure
+                unit.save()
+            for obj in unit_formset.deleted_objects:
+                obj.delete()
+            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+        else:
+            messages.error(request, form.errors)
+            messages.error(request, unit_formset.errors)
+    else:
+        form = QuantityOfMeasureForm(instance=quantity_of_measure, organization=organization)
+        unit_formset = UnitDefinitionFormSet(
+            queryset=quantity_of_measure.units.all() if quantity_of_measure else UnitDefinition.objects.none(),
+            form_kwargs={'organization': organization},
+            prefix='units'
+        )
+
+    return TemplateResponse(request, 'bom/edit-quantity-of-measure.html', locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@organization_admin
+def quantity_of_measure_delete(request, quantity_of_measure_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+    quantity_of_measure = get_object_or_404(QuantityOfMeasure, pk=quantity_of_measure_id)
+    if quantity_of_measure.organization != organization:
+        messages.error(request, "Can't delete a quantity of measure that is not yours!")
+    else:
+        quantity_of_measure.delete()
+    return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
 
 
 @login_required(login_url=BOM_LOGIN_URL)

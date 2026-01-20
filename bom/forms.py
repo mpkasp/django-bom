@@ -405,6 +405,36 @@ class SellerPartForm(OrganizationFormMixin, forms.ModelForm):
         return cleaned_data
 
 
+class QuantityOfMeasureForm(OrganizationFormMixin, forms.ModelForm):
+    class Meta:
+        model = QuantityOfMeasure
+        fields = ['name']
+
+    def clean(self):
+        cleaned_data = super().clean()
+        self.instance.organization = self.organization
+        return cleaned_data
+
+
+class UnitDefinitionForm(OrganizationFormMixin, forms.ModelForm):
+    class Meta:
+        model = UnitDefinition
+        fields = ['name', 'symbol', 'base_multiplier', ]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        self.instance.organization = self.organization
+        return cleaned_data
+
+
+UnitDefinitionFormSet = forms.modelformset_factory(
+    UnitDefinition,
+    form=UnitDefinitionForm,
+    can_delete=True,
+    extra=0
+)
+
+
 class PartRevisionPropertyDefinitionForm(OrganizationFormMixin, forms.ModelForm):
     class Meta:
         model = PartRevisionPropertyDefinition
@@ -614,6 +644,15 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
         else:
             self.property_definitions = PartRevisionPropertyDefinition.objects.available_to(self.organization).order_by(
                 'name')
+
+        if self.organization.number_scheme == NUMBER_SCHEME_INTELLIGENT:
+            # For intelligent organizations, also include global property definitions that might not be in the part class
+            global_defs = PartRevisionPropertyDefinition.objects.filter(organization=self.organization).order_by('name')
+            if self.part_class:
+                # Merge and unique
+                self.property_definitions = (self.property_definitions | global_defs).distinct()
+            else:
+                self.property_definitions = global_defs
 
         self._init_dynamic_properties()
 
