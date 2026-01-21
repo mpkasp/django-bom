@@ -121,6 +121,14 @@
 
 <script type="text/javascript" src="{% static 'bom/js/materialize.min.js' %}"></script>
 
+<script>
+    $(document).ready(function () {
+        $('.sidenav').sidenav();
+        $('select').formSelect();
+        M.updateTextFields();
+    });
+</script>
+
 <!-- Github star link -->
 <script async defer src="https://buttons.github.io/buttons.js"></script>
 

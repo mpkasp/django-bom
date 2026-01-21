@@ -395,7 +395,7 @@
             if (selectedIndex === 0) {
                 var value = "{% if revision == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=part_revision.id %}{% endif %}";
                 $("#select-revision")[0].selectedIndex = selectRevisionSelectedIndex;
-                $("#select-revision").formSelect();
+                M.FormSelect.init($("#select-revision")[0]);
             }
             window.location.href = url;
         });
