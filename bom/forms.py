@@ -648,9 +648,11 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
 
         if self.part_class:
             self.property_definitions = self.part_class.property_definitions.all().order_by('name')
-        else:
+        elif self.organization.number_scheme == NUMBER_SCHEME_INTELLIGENT:
             self.property_definitions = PartRevisionPropertyDefinition.objects.available_to(self.organization).order_by(
                 'name')
+        else:
+            self.property_definitions = PartRevisionPropertyDefinition.objects.none()
 
         self._init_dynamic_properties()
 
@@ -739,9 +741,16 @@ class PartRevisionNewForm(PartRevisionForm):
         super().__init__(*args, **kwargs)
 
     def save(self, commit=True):
-        self.instance.part = self.part
-        self.instance.revision = self.revision
-        self.instance.assembly = self.assembly
+        if not self.instance.pk:
+            self.instance.part = self.part
+            self.instance.revision = self.revision
+            self.instance.assembly = self.assembly
+        else:
+            # If we are incrementing from an existing instance, we want to create a NEW record
+            self.instance.pk = None
+            self.instance.part = self.part
+            self.instance.revision = self.revision
+            self.instance.assembly = self.assembly
         return super().save(commit=commit)
 
 

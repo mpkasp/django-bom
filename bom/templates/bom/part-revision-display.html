@@ -11,7 +11,6 @@ all of the properties of a part revision, as follows:
 where XXX should be the name of the includee's object that represent its PartRevisionForm.
 
 {% endcomment %}
-<p>Must include a either a description or electronics value, and value units. The remaining fields are optional.</p>
 <div class="row">
     <div class="fieldWrapper">
         {{ part_revision_form.revision|materializecss:'m2 s12' }}
@@ -23,12 +22,17 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="col s12">
-        <h4>Properties</h4>
+        {% if part_revision_form.property_definitions %}
+            <h4>Properties</h4>
+        {% else %}
+            <p><i>You can add part class specific properties (e.g. voltage, width, sheen, etc) after creating the
+                part.</i></p>
+        {% endif %}
     </div>
 </div>
 
 <div class="row">
-    {% for group in form.property_fields %}
+    {% for group in part_revision_form.property_fields %}
         <div class="row">
             <div class="fieldWrapper">
                 {{ group.property|materializecss:'m3 s6' }}
