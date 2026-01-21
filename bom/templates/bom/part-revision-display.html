@@ -24,9 +24,12 @@ where XXX should be the name of the includee's object that represent its PartRev
     <div class="col s12">
         {% if part_revision_form.property_definitions %}
             <h4>Properties</h4>
-        {% else %}
+        {% elif not part_revision_form.instance.pk %}
             <p><i>You can add part class specific properties (e.g. voltage, width, sheen, etc) after creating the
                 part.</i></p>
+        {% else %}
+            <p><i>This part has no properties assigned. The organization admin can assign properties to this part class
+                in settings.</i></p>
         {% endif %}
     </div>
 </div>
