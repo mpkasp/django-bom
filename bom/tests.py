@@ -1,5 +1,5 @@
 import csv
-from re import finditer, search
+from re import finditer
 from unittest import skip
 
 from django.conf import settings
@@ -16,12 +16,11 @@ from .helpers import (
     create_a_fake_subpart,
     create_some_fake_manufacturers,
     create_some_fake_part_classes,
+    create_some_fake_part_revision_property_definitions,
     create_some_fake_parts,
-    create_some_fake_sellers,
     create_user_and_organization,
 )
-from .models import ManufacturerPart, Part, PartClass, Seller, SellerPart, Subpart
-
+from .models import Part, PartClass, Seller, Subpart
 
 TEST_FILES_DIR = "bom/test_files"
 
@@ -186,6 +185,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_part_upload_bom(self):
+        sheen, voltage, _, _, _ = create_some_fake_part_revision_property_definitions(self.organization, False)
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         test_file = 'test_bom.csv' if self.organization.number_variation_len > 0 else 'test_bom_6_no_variations.csv'
@@ -195,7 +195,7 @@ class TestBOM(TransactionTestCase):
 
         messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertNotEqual(msg.tags, "error")
+            self.assertNotEqual(msg.tags, "error", msg.message)
 
         subparts = p2.latest().assembly.subparts.all()
 
@@ -227,7 +227,21 @@ class TestBOM(TransactionTestCase):
         bom = p1.latest().indented()
         self.assertEqual(len(bom.parts), 3)
 
+    def test_part_upload_bom_with_properties(self):
+        sheen, voltage, _, _, _ = create_some_fake_part_revision_property_definitions(self.organization)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        with open(f'{TEST_FILES_DIR}/test_bom_7_properties.csv') as test_csv:
+            response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv},
+                                        follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        messages = list(response.context.get('messages'))
+        for msg in messages:
+            self.assertNotEqual(msg.tags, "error", msg.message)
+
     def test_upload_bom(self):
+        create_some_fake_part_revision_property_definitions(self.organization, some_required=False)
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         # Test OK page visit
@@ -253,7 +267,8 @@ class TestBOM(TransactionTestCase):
         parent_part = Part.from_part_number(parent_part_number, organization=self.organization)
         bom = parent_part.indented()
         bom_list = list(bom.parts.values())
-        self.assertEqual(len(bom.parts), len(test_list))
+        for idx, row in enumerate(test_list):
+            self.assertEqual(row['part_number'], bom_list[idx].part.full_part_number(), f'Row {idx + 1}')
 
         # Check that we successfully updated an existing part (only tested for semi-intelligent scheme for now)
         if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
@@ -330,7 +345,17 @@ class TestBOM(TransactionTestCase):
             self.assertTrue("it would cause infinite recursion. Uploading of this subpart skipped." in str(msg.message))
             self.assertTrue("Row 15" in str(msg.message))
 
+    def test_upload_bom_with_properties(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        # Test OK upload
+        test_file = 'test_full_bom.csv'
+        with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
+            response = self.client.post(reverse('bom:upload-bom'), {'file': test_csv}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
     def test_part_upload_bom_corner_cases(self):
+        create_some_fake_part_revision_property_definitions(self.organization, False)
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         with open(f'{TEST_FILES_DIR}/test_bom_3_recursion.csv') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
@@ -347,7 +372,7 @@ class TestBOM(TransactionTestCase):
 
         messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertNotEqual(msg.tags, "error")  # Should be OK since we will default revision to 1
+            self.assertNotEqual(msg.tags, "error", msg.message)  # Should be OK since we will default revision to 1
 
     def test_export_part_list(self):
         create_some_fake_parts(organization=self.organization)
@@ -371,14 +396,37 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(part_classes.count(), 1)
         part_class = part_classes[0]
 
-        # Test edit
+        # Test edit with property definitions
+        _, prop_def, _, _, _ = create_some_fake_part_revision_property_definitions(self.organization, False)
         part_class_form_data['name'] = 'edited test part name'
+        part_class_form_data.update({
+            'prop-def-TOTAL_FORMS': '1',
+            'prop-def-INITIAL_FORMS': '0',
+            'prop-def-MIN_NUM_FORMS': '0',
+            'prop-def-MAX_NUM_FORMS': '1000',
+            'prop-def-0-property_definition': prop_def.id,
+        })
 
         response = self.client.post(reverse('bom:part-class-edit', kwargs={'part_class_id': part_class.id}), part_class_form_data)
         self.assertEqual(response.status_code, 302)
 
-        part_class = PartClass.objects.get(id=part_class.id)
+        part_class.refresh_from_db()
         self.assertEqual(part_class.name, part_class_form_data['name'])
+        self.assertEqual(part_class.property_definitions.count(), 1)
+        prop_def = part_class.property_definitions.first()
+        self.assertEqual(prop_def.name, 'Voltage')
+
+        # Test deleting property definition
+        part_class_form_data.update({
+            'prop-def-INITIAL_FORMS': '1',
+            'prop-def-0-property_definition': prop_def.id,
+            'prop-def-0-DELETE': 'on',
+        })
+        response = self.client.post(reverse('bom:part-class-edit', kwargs={'part_class_id': part_class.id}),
+                                    part_class_form_data)
+        self.assertEqual(response.status_code, 302)
+        part_class.refresh_from_db()
+        self.assertEqual(part_class.property_definitions.count(), 0)
 
     def test_create_part(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
@@ -393,8 +441,8 @@ class TestBOM(TransactionTestCase):
             'configuration': 'W',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
-            'attribute': '',
-            'value': ''
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -417,6 +465,8 @@ class TestBOM(TransactionTestCase):
             'number_item': '9999',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         if self.organization.number_variation_len > 0:
@@ -434,6 +484,8 @@ class TestBOM(TransactionTestCase):
             'number_variation': '',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -447,6 +499,8 @@ class TestBOM(TransactionTestCase):
             'number_item': '1234',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         if self.organization.number_variation_len > 0:
@@ -464,6 +518,8 @@ class TestBOM(TransactionTestCase):
             'number_variation': '',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -479,6 +535,8 @@ class TestBOM(TransactionTestCase):
             'number_variation': '',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -506,8 +564,8 @@ class TestBOM(TransactionTestCase):
             'configuration': 'W',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
-            'attribute': '',
-            'value': ''
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -535,8 +593,8 @@ class TestBOM(TransactionTestCase):
             'configuration': 'W',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
-            'attribute': '',
-            'value': ''
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         number_variation = None
@@ -709,17 +767,20 @@ class TestBOM(TransactionTestCase):
                 found_error = True
         self.assertTrue(found_error)
 
-    def test_upload_parts_break_tolerance(self):
-        create_some_fake_part_classes(self.organization)
+    def test_upload_parts_break_too_many_characters(self):
+        pc1, _, _ = create_some_fake_part_classes(self.organization)
+        create_some_fake_part_revision_property_definitions(self.organization, part_class=pc1)
 
         # Should break with data error
         with open(f'{TEST_FILES_DIR}/test_new_parts_broken.csv') as test_csv:
             response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
         messages = list(response.context.get('messages'))
 
-        self.assertTrue(len(messages) > 0)
-        for msg in messages:
-            self.assertEqual(msg.tags, 'error')
+        self.assertTrue(len(messages) == 1)
+        msg = messages[0]
+        self.assertEqual(msg.tags, 'error', msg.message)
+        self.assertIn('Error on Row 2, property_sheen: Ensure this value has at most 255 characters (it has 483)',
+                      msg.message)
 
     def test_upload_part_with_sellers(self):
         create_some_fake_part_classes(self.organization)
@@ -750,14 +811,14 @@ class TestBOM(TransactionTestCase):
         with open(f'{TEST_FILES_DIR}/test_part_classes_no_comment.csv') as test_csv:
             response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
         self.assertEqual(response.status_code, 200)
-        self.assertTrue('Part class 102 Resistor on row 3 is already defined. Uploading of this part class skipped.' in str(response.content))
+        self.assertTrue('Row 3: Part class 102 Resistor already defined.' in str(response.content))
 
         # Submit with a weird csv file that sort of works
         with open(f'{TEST_FILES_DIR}/test_part_classes_blank_rows.csv') as test_csv:
             response = self.client.post(reverse('bom:settings'), {'file': test_csv, 'submit-part-class-upload': ''})
         self.assertEqual(response.status_code, 200)
-        self.assertTrue('in row 3 does not have a value. Uploading of this part class skipped.' in str(response.content))
-        self.assertTrue('in row 4 does not have a value. Uploading of this part class skipped.' in str(response.content))
+        self.assertTrue('Row 3: Missing code.' in str(response.content))
+        self.assertTrue('Row 4: Missing code.' in str(response.content))
 
         # Submit with a csv file exported with a byte order mask, typically from MS word I think
         with open(f'{TEST_FILES_DIR}/test_part_classes_byte_order.csv') as test_csv:
@@ -1033,7 +1094,9 @@ class TestBOM(TransactionTestCase):
             'value': '10k',
             'part': p1.id,
             'configuration': 'W',
-            'copy_assembly': 'False'
+            'copy_assembly': 'False',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(
@@ -1048,7 +1111,9 @@ class TestBOM(TransactionTestCase):
             'revision': '5',
             'part': p3.id,
             'configuration': 'W',
-            'copy_assembly': 'true'
+            'copy_assembly': 'true',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(
@@ -1077,7 +1142,9 @@ class TestBOM(TransactionTestCase):
             'revision': '4',
             'attribute': 'resistance',
             'value': '10k',
-            'part': p1.id
+            'part': p1.id,
+            'property_sheen': 'Flat',
+            'property_voltage': '0',
         }
 
         response = self.client.post(
@@ -1114,8 +1181,8 @@ class TestBOMIntelligent(TestBOM):
             'configuration': 'W',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
-            'attribute': '',
-            'value': ''
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -1137,6 +1204,8 @@ class TestBOMIntelligent(TestBOM):
             'number_item': '9999',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -1149,6 +1218,8 @@ class TestBOMIntelligent(TestBOM):
             'number_item': '5432',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -1161,6 +1232,8 @@ class TestBOMIntelligent(TestBOM):
             'number_item': '1234A',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -1173,6 +1246,8 @@ class TestBOMIntelligent(TestBOM):
             'number_item': '1235',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -1186,6 +1261,8 @@ class TestBOMIntelligent(TestBOM):
             'number_item': p1.number_item,
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -1214,8 +1291,8 @@ class TestBOMIntelligent(TestBOM):
             'configuration': 'W',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
-            'attribute': '',
-            'value': ''
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
         }
 
         response = self.client.post(reverse('bom:create-part'), new_part_form_data)
@@ -1252,7 +1329,7 @@ class TestBOMIntelligent(TestBOM):
 
         messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertNotEqual(msg.tags, "error")  # Error loading 200-3333-00 via CSV because already in parent's BOM and has empty ref designators
+            self.assertNotEqual(msg.tags, "error", msg.message)
 
         subparts = p2.latest().assembly.subparts.all()
 
@@ -1381,6 +1458,15 @@ class TestBOMNoVariation(TestBOM):
     @skip('not applicable')
     def test_part_upload_bom_corner_cases(self):
         pass
+
+    @skip('too specific of a test case for now...')
+    def test_part_upload_bom_with_properties(self):
+        pass
+
+    @skip('too specific of a test case for now...')
+    def test_upload_parts_break_too_many_characters(self):
+        pass
+
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestForms(TestCase):

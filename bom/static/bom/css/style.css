@@ -89,6 +89,25 @@ td, tr {
     white-space: nowrap;
 }
 
+.table-action {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* 2. Tighten icons so they don't stretch the row height */
+.table-action .material-icons {
+    font-size: 1.1rem !important;
+    margin-right: 4px;
+}
+
+/* 3. Give consecutive actions a little breathing room */
+.table-action + .table-action {
+    margin-left: 12px;
+}
+
 .responsive-table-wrapper {
     overflow-x: auto;
     padding-bottom: 16px;

@@ -1,24 +1,28 @@
 from __future__ import unicode_literals
 
 import logging
+from decimal import Decimal, InvalidOperation
 
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 from djmoney.models.fields import CURRENCY_CHOICES, CurrencyField, MoneyField
 from math import ceil
 from social_django.models import UserSocialAuth
 
 from .base_classes import AsDictModel
 from .constants import *
-from .csv_headers import PartsListCSVHeaders, PartsListCSVHeadersSemiIntelligent
+from .csv_headers import PartsListCSVHeaders, PartsListCSVHeadersSemiIntelligent, BOMIndentedCSVHeaders, \
+    BOMFlatCSVHeaders
 from .part_bom import PartBom, PartBomItem, PartIndentedBomItem
 from .utils import increment_str, listify_string, prep_for_sorting_nicely, stringify_list, strip_trailing_zeros
-from .validators import alphanumeric, validate_pct
+from .validators import alphanumeric
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -47,8 +51,28 @@ def _user_meta(self, organization=None):
     return meta
 
 
+class OrganizationManager(models.Manager):
+    def available_to(self, organization):
+        return self.get_queryset().filter(
+            models.Q(organization=organization) |
+            models.Q(organization__isnull=True)
+        )
+
+
 class OrganizationScopedModel(models.Model):
     organization = models.ForeignKey(settings.BOM_ORGANIZATION_MODEL, on_delete=models.CASCADE, db_index=True)
+
+    objects = OrganizationManager()
+
+    class Meta:
+        abstract = True
+
+
+class OrganizationOptionalModel(models.Model):
+    organization = models.ForeignKey(settings.BOM_ORGANIZATION_MODEL, on_delete=models.CASCADE, db_index=True,
+                                     null=True, blank=True, help_text="Leave empty for a Global/System record.")
+
+    objects = OrganizationManager()
 
     class Meta:
         abstract = True
@@ -90,9 +114,26 @@ class AbstractOrganization(models.Model):
 
     def part_list_csv_headers(self):
         if self.number_scheme == NUMBER_SCHEME_INTELLIGENT:
-            return PartsListCSVHeaders()
+            headers = PartsListCSVHeaders()
         else:
-            return PartsListCSVHeadersSemiIntelligent()
+            headers = PartsListCSVHeadersSemiIntelligent()
+
+        # Add dynamic headers
+        definitions = PartRevisionPropertyDefinition.objects.available_to(self).all()
+        headers.add_dynamic_headers(definitions)
+        return headers
+
+    def bom_indented_csv_headers(self):
+        headers = BOMIndentedCSVHeaders()
+        definitions = PartRevisionPropertyDefinition.objects.available_to(self).all()
+        headers.add_dynamic_headers(definitions)
+        return headers
+
+    def bom_flat_csv_headers(self):
+        headers = BOMFlatCSVHeaders()
+        definitions = PartRevisionPropertyDefinition.objects.available_to(self).all()
+        headers.add_dynamic_headers(definitions)
+        return headers
 
     @property
     def email(self):
@@ -160,6 +201,8 @@ class PartClass(OrganizationScopedModel):
     name = models.CharField(max_length=255, default=None)
     comment = models.CharField(max_length=255, default='', blank=True)
     mouser_enabled = models.BooleanField(default=False)
+    property_definitions = models.ManyToManyField('PartRevisionPropertyDefinition', blank=True,
+                                                  related_name='part_classes')
 
     class Meta(OrganizationScopedModel.Meta):
         unique_together = [['code', 'organization', ], ]
@@ -329,7 +372,7 @@ class Part(OrganizationScopedModel):
 
     def manufacturer_parts(self, exclude_primary=False):
         q = ManufacturerPart.objects.filter(part=self).select_related('manufacturer')
-        if exclude_primary and self.primary_manufacturer_part is not None and self.primary_manufacturer_part.optimal_seller():
+        if exclude_primary and self.primary_manufacturer_part is not None and self.primary_manufacturer_part.id is not None:
             return q.exclude(id=self.primary_manufacturer_part.id)
         return q
 
@@ -406,6 +449,68 @@ class Part(OrganizationScopedModel):
         return u'%s' % (self.full_part_number())
 
 
+class QuantityOfMeasure(OrganizationOptionalModel):
+    """
+    Defines the physical dimension (e.g., Length, Voltage, Mass).
+    Acts as the 'bucket' for compatible units.
+    """
+    name = models.CharField(max_length=64, help_text="e.g. Voltage")
+
+    def get_base_unit(self):
+        return self.units.filter(base_multiplier=1.0).first()
+
+    class Meta:
+        unique_together = (('organization', 'name',),)
+
+    def __str__(self):
+        return self.name
+
+
+class UnitDefinition(OrganizationOptionalModel):
+    """
+    Defines valid units.
+    """
+    name = models.CharField(max_length=64)  # e.g. Millivolt
+    symbol = models.CharField(max_length=16)  # e.g. mV
+    quantity_of_measure = models.ForeignKey(QuantityOfMeasure, on_delete=models.CASCADE, related_name='units')
+    base_multiplier = models.DecimalField(default=Decimal('1.0'), max_digits=40, decimal_places=20)
+
+    class Meta:
+        unique_together = (('organization', 'quantity_of_measure', 'symbol'),)
+        ordering = ['base_multiplier']
+
+    def __str__(self):
+        return f"{self.symbol}"
+
+
+class PartRevisionPropertyDefinition(OrganizationOptionalModel):
+    code = models.CharField(max_length=64, blank=True)  # The internal slug (e.g., max_operating_temp).
+    name = models.CharField(max_length=64)  # The user-friendly text displayed in the UI
+    type = models.CharField(max_length=1, choices=PART_REVISION_PROPERTY_TYPES)
+    required = models.BooleanField(default=False)
+    quantity_of_measure = models.ForeignKey(QuantityOfMeasure, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('organization', 'code',)
+
+    @property
+    def form_field_name(self):
+        return f'property_{self.code}'
+
+    @property
+    def form_unit_field_name(self):
+        return f'{self.form_field_name}_unit'
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = slugify(self.name)
+
+        super(PartRevisionPropertyDefinition, self).save(*args, **kwargs)
+
+
 # Below are attributes of a part that can be changed, but it's important to trace the change over time
 class PartRevision(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
@@ -415,54 +520,11 @@ class PartRevision(models.Model):
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.CASCADE, db_index=True)
     displayable_synopsis = models.CharField(editable=False, default="", null=True, blank=True, max_length=255, db_index=True)
     searchable_synopsis = models.CharField(editable=False, default="", null=True, blank=True, max_length=255, db_index=True)
+    description = models.CharField(max_length=255, default="", null=True, blank=True)
 
     class Meta:
         unique_together = (('part', 'revision'),)
         ordering = ['part']
-
-    # Part Revision Specification Properties:
-
-    description = models.CharField(max_length=255, default="", null=True, blank=True)
-
-    # By convention for IndaBOM, for part revision properties below, if a property value has
-    # an associated units of measure, and if the property value field name is 'vvv' then the
-    # associated units of measure field name must be 'vvv_units'.
-    value_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VALUE_UNITS)
-    value = models.CharField(max_length=255, default=None, null=True, blank=True)
-    attribute = models.CharField(max_length=255, default=None, null=True, blank=True)
-    pin_count = models.DecimalField(max_digits=3, decimal_places=0, default=None, null=True, blank=True)
-    tolerance = models.CharField(max_length=6, validators=[validate_pct], default=None, null=True, blank=True)
-    package = models.CharField(max_length=16, default=None, null=True, blank=True, choices=PACKAGE_TYPES)
-    material = models.CharField(max_length=32, default=None, null=True, blank=True)
-    finish = models.CharField(max_length=32, default=None, null=True, blank=True)
-    color = models.CharField(max_length=32, default=None, null=True, blank=True)
-    length_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=DISTANCE_UNITS)
-    length = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    width_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=DISTANCE_UNITS)
-    width = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    height_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=DISTANCE_UNITS)
-    height = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    weight_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=WEIGHT_UNITS)
-    weight = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    temperature_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=TEMPERATURE_UNITS)
-    temperature_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    temperature_rating_range_max = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    temperature_rating_range_min = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    wavelength_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=WAVELENGTH_UNITS)
-    wavelength = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    frequency_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=FREQUENCY_UNITS)
-    frequency = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    memory_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=MEMORY_UNITS)
-    memory = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    interface = models.CharField(max_length=12, default=None, null=True, blank=True, choices=INTERFACE_TYPES)
-    power_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=POWER_UNITS)
-    power_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    supply_voltage_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VOLTAGE_UNITS)
-    supply_voltage = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    voltage_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=VOLTAGE_UNITS)
-    voltage_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
-    current_rating_units = models.CharField(max_length=5, default=None, null=True, blank=True, choices=CURRENT_UNITS)
-    current_rating = models.DecimalField(max_digits=7, decimal_places=3, default=None, null=True, blank=True)
 
     def generate_synopsis(self, make_searchable=False):
         def verbosify(val, units=None, pre=None, pre_whitespace=True, post=None, post_whitespace=True):
@@ -480,47 +542,52 @@ class PartRevision(models.Model):
             return elaborated
 
         s = ""
-        s += verbosify(self.value, units=self.value_units if make_searchable else self.get_value_units_display())
         s += verbosify(self.description)
-        tolerance = self.tolerance.replace('%', '') if self.tolerance else ''
-        s += verbosify(tolerance, post='%', post_whitespace=False)
-        s += verbosify(self.attribute)
-        s += verbosify(self.package if make_searchable else self.get_package_display())
-        s += verbosify(self.pin_count, post='pins')
-        s += verbosify(self.frequency, units=self.frequency_units if make_searchable else self.get_frequency_units_display())
-        s += verbosify(self.wavelength, units=self.wavelength_units if make_searchable else self.get_wavelength_units_display())
-        s += verbosify(self.memory, units=self.memory_units if make_searchable else self.get_memory_units_display())
-        s += verbosify(self.interface if make_searchable else self.get_interface_display())
-        s += verbosify(self.supply_voltage, units=self.supply_voltage_units if make_searchable else self.get_supply_voltage_units_display(), post='supply')
-        s += verbosify(self.temperature_rating, units=self.temperature_rating_units if make_searchable else self.get_temperature_rating_units_display(), post='rating')
-        s += verbosify(self.power_rating, units=self.power_rating_units if make_searchable else self.get_power_rating_units_display(), post='rating')
-        s += verbosify(self.voltage_rating, units=self.voltage_rating_units if make_searchable else self.get_voltage_rating_units_display(), post='rating')
-        s += verbosify(self.current_rating, units=self.current_rating_units if make_searchable else self.get_current_rating_units_display(), post='rating')
-        s += verbosify(self.material)
-        s += verbosify(self.color)
-        s += verbosify(self.finish)
-        s += verbosify(self.length, units=self.length_units if make_searchable else self.get_length_units_display(), pre='L')
-        s += verbosify(self.width, units=self.width_units if make_searchable else self.get_width_units_display(), pre='W')
-        s += verbosify(self.height, units=self.height_units if make_searchable else self.get_height_units_display(), pre='H')
-        s += verbosify(self.weight, units=self.weight_units if make_searchable else self.get_weight_units_display())
+
+        # TODO: We no longer order these, in the future we will add a template / inheritance type pattern like
+        #   Capacitor: {Capacitance} {Units}, {Voltage}, {Package}
+        for prop in self.properties.all().select_related('property_definition', 'unit_definition'):
+            val = prop.value_raw
+            units = prop.unit_definition.symbol if prop.unit_definition else None
+            s += verbosify(val, units=units)
+
         return s[:255]
 
     def synopsis(self, return_displayable=True):
         return self.displayable_synopsis if return_displayable else self.searchable_synopsis
 
-    def save(self, *args, **kwargs):
-        if self.tolerance:
-            self.tolerance = self.tolerance.replace('%', '')
-        if self.assembly is None:
-            assy = Assembly.objects.create()
-            self.assembly = assy
-        # if self.id:
-        #     previous_configuration = PartRevision.objects.get(id=self.id).configuration
-        #     if self.configuration != previous_configuration:
-        #         self.timestamp = timezone.now()
+    def update_synopsis(self):
         self.searchable_synopsis = self.generate_synopsis(True)
         self.displayable_synopsis = self.generate_synopsis(False)
+        # Use update() to avoid triggering save() again and potentially recursion
+        PartRevision.objects.filter(id=self.id).update(
+            searchable_synopsis=self.searchable_synopsis,
+            displayable_synopsis=self.displayable_synopsis
+        )
+
+    def save(self, *args, **kwargs):
+        if self.assembly is None:
+            self.assembly = Assembly.objects.create()
+
         super(PartRevision, self).save(*args, **kwargs)
+
+        self.searchable_synopsis = self.generate_synopsis(True)
+        self.displayable_synopsis = self.generate_synopsis(False)
+
+    def get_field_value(self, field_name):
+        if hasattr(self, field_name):
+            return getattr(self, field_name)
+
+        is_unit = field_name.endswith('_units')
+        prop_name = field_name[:-6] if is_unit else field_name
+
+        for prop in self.properties.all():
+            if prop.property_definition.name == prop_name:
+                if is_unit:
+                    return prop.unit_definition.symbol if prop.unit_definition else ''
+                else:
+                    return prop.value_raw
+        return None
 
     def indented(self, top_level_quantity=100):
         def indented_given_bom(bom, part_revision, parent_id=None, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None, reference='', do_not_load=False):
@@ -642,6 +709,50 @@ class PartRevision(models.Model):
 
     def __str__(self):
         return u'{}, Rev {}'.format(self.part.full_part_number(), self.revision)
+
+
+class PartRevisionProperty(models.Model):
+    part_revision = models.ForeignKey(PartRevision, on_delete=models.CASCADE, related_name='properties')
+    property_definition = models.ForeignKey(PartRevisionPropertyDefinition, on_delete=models.CASCADE)
+    value_raw = models.CharField(max_length=255)  # Base unit value, e.g. 0.01 (to describe 10mV)
+    unit_definition = models.ForeignKey(UnitDefinition, null=True, blank=True, on_delete=models.SET_NULL)
+    value_normalized = models.DecimalField(null=True, blank=True, max_digits=40, decimal_places=20)
+
+    def clean(self):
+        super().clean()
+
+        if self.unit_definition and self.property_definition.quantity_of_measure:
+            if self.unit_definition.quantity_of_measure != self.property_definition.quantity_of_measure:
+                raise ValidationError(
+                    f"Unit '{self.unit_definition}' matches {self.unit_definition.quantity_of_measure}, but property requires {self.property_definition.quantity_of_measure}")
+
+        # Validate property is allowed for this part class
+        part = self.part_revision.part
+        if part.number_class:
+            allowed_definitions = part.number_class.property_definitions.all()
+            if not allowed_definitions.filter(id=self.property_definition.id).exists():
+                raise ValidationError(
+                    f"The property '{self.property_definition.name}' is not valid for the Part Class '{part.number_class.name}'."
+                )
+
+    def save(self, *args, **kwargs):
+        if self.unit_definition and self.value_raw:
+            try:
+                val = Decimal(str(self.value_raw))
+                multiplier = Decimal(str(self.unit_definition.base_multiplier))
+                self.value_normalized = val * multiplier
+            except (ValueError, InvalidOperation):
+                self.value_normalized = None
+        else:
+            self.value_normalized = None
+        super(PartRevisionProperty, self).save(*args, **kwargs)
+
+        if self.part_revision:
+            self.part_revision.update_synopsis()
+
+    def __str__(self):
+        unit_sym = self.unit_definition.symbol if self.unit_definition else ""
+        return f"{self.property_definition.name}: {self.value_raw} {unit_sym}"
 
 
 class AssemblySubparts(models.Model):

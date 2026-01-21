@@ -11,7 +11,6 @@ all of the properties of a part revision, as follows:
 where XXX should be the name of the includee's object that represent its PartRevisionForm.
 
 {% endcomment %}
-<p>Must include a either a description or electronics value, and value units. The remaining fields are optional.</p>
 <div class="row">
     <div class="fieldWrapper">
         {{ part_revision_form.revision|materializecss:'m2 s12' }}
@@ -23,162 +22,26 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="col s12">
-        <h4>Electronics</h4>
+        {% if part_revision_form.property_definitions %}
+            <h4>Properties</h4>
+        {% else %}
+            <p><i>You can add part class specific properties (e.g. voltage, width, sheen, etc) after creating the
+                part.</i></p>
+        {% endif %}
     </div>
 </div>
 
 <div class="row">
-    <div class="fieldWrapper">
-        {{ part_revision_form.value|materializecss:'m2 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.value_units|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.tolerance|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.package|materializecss:'m2 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.pin_count|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.supply_voltage|materializecss:'m1 s12' }}
-    </div>
-     <div class="fieldWrapper">
-        {{ part_revision_form.supply_voltage_units|materializecss:'m1 s12' }}
-    </div>
-</div>
-
-<div class="row">
-    <div class="col s12">
-        <h4>Ratings</h4>
-    </div>
-</div>
-
-<div class="row">
-    <div class="fieldWrapper">
-        {{ part_revision_form.power_rating|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.power_rating_units|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.voltage_rating|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.voltage_rating_units|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.current_rating|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.current_rating_units|materializecss:'m1 s12' }}
-    </div>
-   <div class="fieldWrapper">
-        {{ part_revision_form.temperature_rating|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.temperature_rating_range_max|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.temperature_rating_range_min|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.temperature_rating_units|materializecss:'m1 s12' }}
-    </div>
-</div>
-
-<div class="row">
-    <div class="col s12">
-        <h4>Miscellaneous</h4>
-    </div>
-</div>
-
-<div class="row">
-    <div class="fieldWrapper">
-        {{ part_revision_form.memory|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.memory_units|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.interface|materializecss:'m2 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.frequency|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.frequency_units|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.wavelength|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.wavelength_units|materializecss:'m1 s12' }}
-    </div>
-</div>
-
-<div class="row">
-    <div class="col s12">
-        <h4>Appearance</h4>
-    </div>
-</div>
-
-<div class="row">
-   <div class="fieldWrapper">
-        {{ part_revision_form.color|materializecss:'m2 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.material|materializecss:'m2 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.finish|materializecss:'m2 s12' }}
-    </div>
-</div>
-
-<div class="row">
-    <div class="col s12">
-        <h4>Dimensions</h4>
-    </div>
-</div>
-
-<div class="row">
-    <div class="fieldWrapper">
-        {{ part_revision_form.length|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.length_units|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.width|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.width_units|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.height|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.height_units|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.weight|materializecss:'m1 s12' }}
-    </div>
-    <div class="fieldWrapper">
-        {{ part_revision_form.weight_units|materializecss:'m1 s12' }}
-    </div>
-</div>
-
-<div class="row">
-    <div class="col s12">
-        <h4>Other Attributes</h4>
-    </div>
-</div>
-
-<div class="row">
-    <div class="fieldWrapper">
-        {{ part_revision_form.attribute|materializecss:'m12 s12' }}
-    </div>
+    {% for group in part_revision_form.property_fields %}
+        <div class="row">
+            <div class="fieldWrapper">
+                {{ group.property|materializecss:'m3 s6' }}
+            </div>
+            {% if group.unit %}
+                <div class="fieldWrapper">
+                    {{ group.unit|materializecss:'m3 s6' }}
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
 </div>

@@ -47,10 +47,14 @@ from bom.forms import (
     PartInfoForm,
     PartRevisionForm,
     PartRevisionNewForm,
+    PartRevisionPropertyDefinitionForm,
+    PartRevisionPropertyDefinitionFormSet,
+    QuantityOfMeasureForm,
     Seller,
     SellerForm,
     SellerPartForm,
     SubpartForm,
+    UnitDefinitionFormSet,
     UploadBOMForm,
     UserAddForm,
     UserCreateForm,
@@ -66,8 +70,11 @@ from bom.models import (
     Part,
     PartClass,
     PartRevision,
+    PartRevisionPropertyDefinition,
+    QuantityOfMeasure,
     SellerPart,
     Subpart,
+    UnitDefinition,
     User,
     get_user_meta_model
 )
@@ -245,7 +252,7 @@ def home(request):
                 for field_name in csv_headers.get_default_all():
                     if field_name not in csv_headers.get_defaults_list(['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer', 'part_manufacturer_part_number', ]
                                                                        + seller_csv_headers.get_default_all()):
-                        attr = getattr(part_rev, field_name)
+                        attr = part_rev.get_field_value(field_name)
                         row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
             else:
                 row = {
@@ -258,7 +265,7 @@ def home(request):
                 for field_name in csv_headers.get_default_all():
                     if field_name not in csv_headers.get_defaults_list(['part_number', 'part_synopsis', 'part_revision', 'part_manufacturer', 'part_manufacturer_part_number', ]
                                                                        + seller_csv_headers.get_default_all()):
-                        attr = getattr(part_rev, field_name)
+                        attr = part_rev.get_field_value(field_name)
                         row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
 
             sellerparts = part_rev.part.seller_parts()
@@ -356,6 +363,9 @@ def bom_settings(request, tab_anchor=None):
     name = 'settings'
 
     part_classes = PartClass.objects.all().filter(organization=organization)
+    property_definitions = PartRevisionPropertyDefinition.objects.available_to(organization=organization).order_by(
+        'name')
+    quantities_of_measure = QuantityOfMeasure.objects.available_to(organization=organization).order_by('name')
 
     users_in_organization = User.objects.filter(
         id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).order_by(
@@ -944,7 +954,7 @@ def upload_bom(request):
         else:
             messages.error(request, upload_bom_form.errors)
     else:
-        upload_bom_form = UploadBOMForm(initial={'organization': organization})
+        upload_bom_form = UploadBOMForm(organization=organization, initial={'organization': organization})
         bom_csv_form = BOMCSVForm()
 
     return TemplateResponse(request, 'bom/upload-bom.html', locals())
@@ -1023,22 +1033,15 @@ def export_part_list(request):
         'number_item',
         'number_variation')
 
-    fieldnames = [
-        'part_number',
-        'part_synopsis',
-        'part_revision',
-        'part_manufacturer',
-        'part_manufacturer_part_number',
-    ]
-
     csv_headers = organization.part_list_csv_headers()
-    writer = csv.DictWriter(response, fieldnames=fieldnames)
+    writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
     writer.writeheader()
     for item in parts:
         try:
+            latest_rev = item.latest()
             row = {
                 csv_headers.get_default('part_number'): item.full_part_number(),
-                csv_headers.get_default('part_revision'): item.latest().revision,
+                csv_headers.get_default('part_revision'): latest_rev.revision if latest_rev else '',
                 csv_headers.get_default('part_manufacturer'): item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
                 csv_headers.get_default('part_manufacturer_part_number'): item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
             }
@@ -1046,7 +1049,7 @@ def export_part_list(request):
                 if field_name not in csv_headers.get_defaults_list(
                         ['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer',
                          'part_manufacturer_part_number', ]):
-                    attr = getattr(item, field_name)
+                    attr = latest_rev.get_field_value(field_name) if latest_rev else None
                     row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
             writer.writerow({k: smart_str(v) for k, v in row.items()})
 
@@ -1075,7 +1078,7 @@ def create_part(request):
         part_form = PartForm(request.POST, organization=organization)
         manufacturer_form = ManufacturerForm(request.POST)
         manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
-        part_revision_form = PartRevisionForm(request.POST)
+        part_revision_form = PartRevisionForm(request.POST, organization=organization)
         # Checking if part form is valid checks for number uniqueness
         if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
             mpn = manufacturer_part_form.cleaned_data['manufacturer_part_number']
@@ -1100,6 +1103,8 @@ def create_part(request):
                 new_part.number_class = None
                 new_part.number_variation = None
 
+            part_revision_form = PartRevisionForm(request.POST, part_class=new_part.number_class,
+                                                  organization=organization)
             if part_revision_form.is_valid():
                 # Save the Part before the PartRevision, as this will again check for part
                 # number uniqueness. This way if someone else(s) working concurrently is also 
@@ -1110,7 +1115,8 @@ def create_part(request):
                     pr.part = new_part  # Associate PartRevision with Part
                     pr.save()
                 except IntegrityError as err:
-                    messages.error(request, "Error! Already created a part with part number {0}-{1}-{3}}".format(new_part.number_class.code, new_part.number_item, new_part.number_variation))
+                    messages.error(request, "Error! Already created a part with part number {0}-{1}-{2}}".format(
+                        new_part.number_class.code, new_part.number_item, new_part.number_variation))
                     return TemplateResponse(request, 'bom/create-part.html', locals())
             else:
                 messages.error(request, part_revision_form.errors)
@@ -1130,7 +1136,8 @@ def create_part(request):
     else:
         # Initialize organization in the form's model and in the form itself:
         part_form = PartForm(initial={'organization': organization}, organization=organization)
-        part_revision_form = PartRevisionForm(initial={'revision': 1, 'organization': organization})
+        part_revision_form = PartRevisionForm(initial={'revision': 1, 'organization': organization},
+                                              organization=organization)
         manufacturer_form = ManufacturerForm(initial={'organization': organization})
         manufacturer_part_form = ManufacturerPartForm(organization=organization)
 
@@ -1271,6 +1278,117 @@ def remove_subpart(request, part_id, part_revision_id, subpart_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+def property_definition_edit(request, property_definition_id=None):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    if property_definition_id:
+        property_definition = get_object_or_404(PartRevisionPropertyDefinition, pk=property_definition_id)
+        if property_definition.organization != organization:
+            messages.error(request, "Can't access a property definition that is not yours!")
+            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+        title = f'Edit Property Definition {property_definition.name}'
+    else:
+        property_definition = None
+        title = 'Add Property Definition'
+
+    if request.method == 'POST':
+        form = PartRevisionPropertyDefinitionForm(request.POST, instance=property_definition, organization=organization)
+        if form.is_valid():
+            property_definition = form.save(commit=False)
+            property_definition.organization = organization
+            property_definition.save()
+            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+    else:
+        form = PartRevisionPropertyDefinitionForm(instance=property_definition, organization=organization)
+
+    return TemplateResponse(request, 'bom/bom-form.html', locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@organization_admin
+def property_definition_delete(request, property_definition_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+    property_definition = get_object_or_404(PartRevisionPropertyDefinition, pk=property_definition_id)
+    if property_definition.organization != organization:
+        messages.error(request, "Can't delete a property definition that is not yours!")
+    else:
+        property_definition.delete()
+    return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def quantity_of_measure_edit(request, quantity_of_measure_id=None):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+
+    if quantity_of_measure_id:
+        quantity_of_measure = get_object_or_404(QuantityOfMeasure, pk=quantity_of_measure_id)
+        if quantity_of_measure.organization != organization:
+            messages.error(request, "Can't access a quantity of measure that is not yours!")
+            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+        title = f'Edit Quantity of Measure {quantity_of_measure.name}'
+    else:
+        quantity_of_measure = None
+        title = 'Add Quantity of Measure'
+
+    if request.method == 'POST':
+        form = QuantityOfMeasureForm(request.POST, instance=quantity_of_measure, organization=organization)
+        unit_formset = UnitDefinitionFormSet(
+            request.POST,
+            queryset=quantity_of_measure.units.all() if quantity_of_measure else UnitDefinition.objects.none(),
+            form_kwargs={'organization': organization},
+            prefix='units'
+        )
+
+        if form.is_valid() and unit_formset.is_valid():
+            quantity_of_measure = form.save()
+            units = unit_formset.save(commit=False)
+            base_multipliers = [float(unit.base_multiplier) for unit in units]
+            if 1.0 not in base_multipliers:
+                messages.error(request, "Must have a base multiplier of 1.0 for at least 1 unit.")
+                return TemplateResponse(request, 'bom/edit-quantity-of-measure.html', locals())
+
+            for unit in units:
+                unit.organization = organization
+                unit.quantity_of_measure = quantity_of_measure
+                unit.save()
+            for obj in unit_formset.deleted_objects:
+                obj.delete()
+            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+        else:
+            messages.error(request, form.errors)
+            messages.error(request, unit_formset.errors)
+    else:
+        form = QuantityOfMeasureForm(instance=quantity_of_measure, organization=organization)
+        unit_formset = UnitDefinitionFormSet(
+            queryset=quantity_of_measure.units.all() if quantity_of_measure else UnitDefinition.objects.none(),
+            form_kwargs={'organization': organization},
+            prefix='units'
+        )
+
+    return TemplateResponse(request, 'bom/edit-quantity-of-measure.html', locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@organization_admin
+def quantity_of_measure_delete(request, quantity_of_measure_id):
+    user = request.user
+    profile = user.bom_profile()
+    organization = profile.organization
+    quantity_of_measure = get_object_or_404(QuantityOfMeasure, pk=quantity_of_measure_id)
+    if quantity_of_measure.organization != organization:
+        messages.error(request, "Can't delete a quantity of measure that is not yours!")
+    else:
+        quantity_of_measure.delete()
+    return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
 def part_class_edit(request, part_class_id):
     user = request.user
     profile = user.bom_profile()
@@ -1281,15 +1399,40 @@ def part_class_edit(request, part_class_id):
 
     if request.method == 'POST':
         part_class_form = PartClassForm(request.POST, instance=part_class, organization=organization)
-        if part_class_form.is_valid():
-            part_class_form.save()
+        property_definitions_formset = PartRevisionPropertyDefinitionFormSet(
+            request.POST,
+            form_kwargs={'organization': organization},
+            prefix='prop-def'
+        )
+
+        if part_class_form.is_valid() and property_definitions_formset.is_valid():
+            part_class = part_class_form.save()
+
+            # Clear current associations and re-add from formset
+            part_class.property_definitions.clear()
+            for form in property_definitions_formset:
+                if form.cleaned_data and not form.cleaned_data.get('DELETE'):
+                    definition = form.cleaned_data.get('property_definition')
+                    if definition:
+                        part_class.property_definitions.add(definition)
+
             return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
 
         else:
+            if not part_class_form.is_valid():
+                messages.error(request, part_class_form.errors)
+            if not property_definitions_formset.is_valid():
+                messages.error(request, property_definitions_formset.errors)
             return TemplateResponse(request, 'bom/edit-part-class.html', locals())
 
     else:
         part_class_form = PartClassForm(instance=part_class, organization=organization)
+        initial = [{'property_definition': pd} for pd in part_class.property_definitions.all().order_by('name')]
+        property_definitions_formset = PartRevisionPropertyDefinitionFormSet(
+            initial=initial,
+            form_kwargs={'organization': organization},
+            prefix='prop-def',
+        )
 
     return TemplateResponse(request, 'bom/edit-part-class.html', locals())
 
@@ -1540,7 +1683,8 @@ def part_revision_new(request, part_id):
     used_part_revisions = all_used_in_prs.filter(configuration='W')
 
     if request.method == 'POST':
-        part_revision_new_form = PartRevisionNewForm(request.POST, part=part, revision=next_revision_number, assembly=latest_revision.assembly)
+        part_revision_new_form = PartRevisionNewForm(request.POST, part=part, revision=next_revision_number,
+                                                     assembly=latest_revision.assembly, organization=organization)
         if part_revision_new_form.is_valid():
             new_part_revision = part_revision_new_form.save()
 
@@ -1572,9 +1716,9 @@ def part_revision_new(request, part_id):
         if latest_revision:
             messages.info(request, 'New revision automatically incremented to `{}` from your last revision `{}`.'.format(next_revision_number, latest_revision.revision))
             latest_revision.revision = next_revision_number  # use updated object to populate form but don't save changes
-            part_revision_new_form = PartRevisionNewForm(instance=latest_revision)
+            part_revision_new_form = PartRevisionNewForm(instance=latest_revision, organization=organization)
         else:
-            part_revision_new_form = PartRevisionNewForm()
+            part_revision_new_form = PartRevisionNewForm(organization=organization)
 
     return TemplateResponse(request, 'bom/part-revision-new.html', locals())
 
@@ -1592,12 +1736,12 @@ def part_revision_edit(request, part_id, part_revision_id):
     action = reverse('bom:part-revision-edit', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id})
 
     if request.method == 'POST':
-        form = PartRevisionForm(request.POST, instance=part_revision)
+        form = PartRevisionForm(request.POST, instance=part_revision, organization=organization)
         if form.is_valid():
             form.save()
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
-        form = PartRevisionForm(instance=part_revision)
+        form = PartRevisionForm(instance=part_revision, organization=organization)
 
     return TemplateResponse(request, 'bom/part-revision-edit.html', locals())
 

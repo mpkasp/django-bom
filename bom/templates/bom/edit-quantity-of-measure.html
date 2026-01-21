@@ -8,50 +8,47 @@
     <div class="container" style="padding-top: 40px; max-width: 1000px;">
         {% if profile.role == 'A' %}
             <div class="row">
-                <form action="{% url 'bom:part-class-edit' part_class_id=part_class.id %}" method="post"
+                <form action="{% if quantity_of_measure %}{% url 'bom:quantity-of-measure-edit' quantity_of_measure_id=quantity_of_measure.id %}{% else %}{% url 'bom:quantity-of-measure-add' %}{% endif %}" method="post"
                       class="col s12">
                     {% csrf_token %}
                 
                     <div class="row">
-                        <div class="col s12 m3">
-                            {{ part_class_form.code|materializecss }}
-                        </div>
-                        <div class="col s12 m9">
-                            {{ part_class_form.name|materializecss }}
-                        </div>
                         <div class="col s12">
-                            {{ part_class_form.comment|materializecss }}
+                            {{ form.name|materializecss }}
                         </div>
                     </div>
 
                     <div class="row" style="margin-top: 40px; margin-bottom: 20px;">
                         <div class="col s12">
-                            <h5>Property Definitions</h5>
-                            <p class="grey-text text-darken-1">Define the custom fields available to parts in this
-                                class.</p>
+                            <h5>Units</h5>
+                            <p class="grey-text text-darken-1">Define the units belonging to this quantity of measure. Base multiplier is relative to the base unit (multiplier 1.0).<br><br>For example, Voltage would have a base multiplier of 1.0, and millivolts would have a base multiplier of 0.001.</p>
                         </div>
                     </div>
 
-                    <div id="property-definitions-wrapper">
-                        {{ property_definitions_formset.management_form }}
+                    <div id="unit-definitions-wrapper">
+                        {{ unit_formset.management_form }}
 
                         <table class="highlight" style="border-bottom: 1px solid #e0e0e0;">
                             <thead>
                             <tr class="grey-text">
-                                <th style="width: 90%;">Property Definition</th>
+                                <th style="width: 35%;">Name</th>
+                                <th style="width: 20%;">Symbol</th>
+                                <th style="width: 35%;">Base Multiplier</th>
                                 <th style="width: 10%;" class="center-align">Action</th>
                             </tr>
                             </thead>
-                            <tbody id="property-definitions-body">
-                            {% for form in property_definitions_formset %}
-                                <tr class="property-definition-row">
+                            <tbody id="unit-definitions-body">
+                            {% for form in unit_formset %}
+                                <tr class="unit-definition-row">
                                     {% for hidden in form.hidden_fields %}
                                         {{ hidden }}
                                     {% endfor %}
 
-                                    <td>{{ form.property_definition|materializecss }}</td>
+                                    <td>{{ form.name|materializecss }}</td>
+                                    <td>{{ form.symbol|materializecss }}</td>
+                                    <td>{{ form.base_multiplier|materializecss }}</td>
                                     <td class="center-align">
-                                        {% if forloop.counter0 < property_definitions_formset.initial_form_count %}
+                                        {% if form.instance.pk %}
                                             <div style="display:none;">{{ form.DELETE }}</div>
                                             <a href="#!" class="btn-flat btn-small red-text delete-existing-row">
                                                 <i class="material-icons">delete</i>
@@ -70,8 +67,8 @@
                         <div class="row" style="margin-top: 15px;">
                             <div class="col s12">
                                 <button type="button" class="btn-flat waves-effect"
-                                        id="add-property-definition" style="padding-left: 0;">
-                                    <i class="material-icons left">add</i> Add Property
+                                        id="add-unit-definition" style="padding-left: 0;">
+                                    <i class="material-icons left">add</i> Add Unit
                                 </button>
                             </div>
                         </div>
@@ -79,7 +76,7 @@
 
                     <div class="row" style="margin-top: 50px;">
                         <div class="col s12 right-align">
-                            <a href="{% url 'bom:settings' %}indabom"
+                            <a href="{% url 'bom:settings' tab_anchor='indabom' %}"
                                class="btn btn-flat waves-effect"
                                style="margin-right: 10px;">Cancel</a>
                             <button class="waves-effect waves-light btn btn-primary" type="submit" name="action">
@@ -95,8 +92,10 @@
     </div>
 
     <script type="text/template" id="empty-form-template">
-        <tr class="property-definition-row">
-            <td>{{ property_definitions_formset.empty_form.property_definition|materializecss }}</td>
+        <tr class="unit-definition-row">
+            <td>{{ unit_formset.empty_form.name|materializecss }}</td>
+            <td>{{ unit_formset.empty_form.symbol|materializecss }}</td>
+            <td>{{ unit_formset.empty_form.base_multiplier|materializecss }}</td>
             <td class="center-align">
                 <a href="#!" class="btn-flat btn-small red-text remove-new-row">
                     <i class="material-icons">close</i>
@@ -109,11 +108,11 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             initFormset({
-                prefix: '{{ property_definitions_formset.prefix }}',
-                addBtnId: 'add-property-definition',
-                formContainerId: 'property-definitions-body',
+                prefix: '{{ unit_formset.prefix }}',
+                addBtnId: 'add-unit-definition',
+                formContainerId: 'unit-definitions-body',
                 emptyFormTemplateId: 'empty-form-template',
-                rowSelector: '.property-definition-row'
+                rowSelector: '.unit-definition-row'
             });
         });
     </script>
