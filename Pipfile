@@ -4,38 +4,22 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-# Core framework
-django = "==5.2.8"
 asgiref = ">=3.8.1,<4"
 sqlparse = ">=0.4.4,<0.6"
-
-# Database
 mysqlclient = ">=2.2,<3"
 pymemcache = ">=4.0"
-
-# Auth and social
 social-auth-app-django = ">=5,<6"
 social-auth-core = ">=4,<6"
 python3-openid = ">=3.2"
-
-# Forms / UI helpers
 django-materializecss-form = "*"
-
-# Email / sendgrid
 sendgrid = ">=6.10"
 django-sendgrid-v5 = "*"
-
-# Money support
 django-money = ">=3,<5"
 py-moneyed = ">=3,<4"
-
-# Google APIs
 google-api-python-client = ">=2.0"
 google-auth = ">=2.0"
 google-auth-httplib2 = ">=0.2"
 httplib2 = ">=0.22"
-
-# Utilities
 requests = ">=2.31"
 urllib3 = ">=2,<3"
 cryptography = ">=42"
@@ -46,9 +30,8 @@ bleach = ">=6.0"
 babel = ">=2.12"
 packaging = ">=23.0"
 pyjwt = ">=2.7"
-
-# Optional/legacy compat where still used
 pytz = ">=2024.1"
+django = "*"
 
 [dev-packages]
 
