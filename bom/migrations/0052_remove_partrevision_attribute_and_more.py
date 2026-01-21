@@ -215,9 +215,17 @@ def migrate_part_revision_data(apps, schema_editor):
         if quantity_name:
             qom_obj = QuantityOfMeasure.objects.get(name=quantity_name)
 
+        # Map long type names to single character codes
+        type_mapping = {
+            'number': 'D',
+            'string': 'S',
+            'boolean': 'B',
+        }
+        mapped_type = type_mapping.get(type_val, type_val)
+
         definition, created = PartRevisionPropertyDefinition.objects.get_or_create(
             code=code,
-            defaults={'name': name, 'type': type_val, 'quantity_of_measure': qom_obj, 'organization': None}
+            defaults={'name': name, 'type': mapped_type, 'quantity_of_measure': qom_obj, 'organization': None}
         )
         definitions[old_field] = definition
 
@@ -226,25 +234,25 @@ def migrate_part_revision_data(apps, schema_editor):
     qom_res = QuantityOfMeasure.objects.get(name='Resistance')
     def_resistance, _ = PartRevisionPropertyDefinition.objects.get_or_create(
         code='resistance',
-        defaults={'name': 'Resistance', 'type': 'number', 'quantity_of_measure': qom_res, 'organization': None}
+        defaults={'name': 'Resistance', 'type': 'D', 'quantity_of_measure': qom_res, 'organization': None}
     )
 
     qom_cap = QuantityOfMeasure.objects.get(name='Capacitance')
     def_capacitance, _ = PartRevisionPropertyDefinition.objects.get_or_create(
         code='capacitance',
-        defaults={'name': 'Capacitance', 'type': 'number', 'quantity_of_measure': qom_cap, 'organization': None}
+        defaults={'name': 'Capacitance', 'type': 'D', 'quantity_of_measure': qom_cap, 'organization': None}
     )
 
     qom_ind = QuantityOfMeasure.objects.get(name='Inductance')
     def_inductance, _ = PartRevisionPropertyDefinition.objects.get_or_create(
         code='inductance',
-        defaults={'name': 'Inductance', 'type': 'number', 'quantity_of_measure': qom_ind, 'organization': None}
+        defaults={'name': 'Inductance', 'type': 'D', 'quantity_of_measure': qom_ind, 'organization': None}
     )
 
     # Fallback for Generic Parts (ICs, etc) that have a 'value' but no specific type
     def_value, _ = PartRevisionPropertyDefinition.objects.get_or_create(
         code='value',
-        defaults={'name': 'Value', 'type': 'string', 'quantity_of_measure': None, 'organization': None}
+        defaults={'name': 'Value', 'type': 'S', 'quantity_of_measure': None, 'organization': None}
     )
 
     # 3. Helper for Unit Lookup
