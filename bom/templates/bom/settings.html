@@ -6,63 +6,221 @@
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block content %}
-    <div class="row container-app">
-        <div class="col s12 l8 offset-l2">
-            <ul id="tabs" class="tabs tabs-fixed-width">
-                <li class="tab"><a id="user-tab" href="#user">User</a></li>
-                <li class="tab"><a id="indabom-tab" href="#indabom">IndaBOM</a></li>
-                <li class="tab"><a id="organization-tab" href="#organization">Organization</a></li>
-            </ul>
+    <div class="container-app settings-grid row">
+        <div class="col s12 m3 l2 settings-nav">
+            <div class="collection">
+                <a href="#user" class="collection-item primary-color" id="user-nav">
+                    <i class="material-icons">person</i>User
+                </a>
+                <a href="#organization" class="collection-item" id="organization-nav">
+                    <i class="material-icons">business</i>Organization
+                </a>
+                <a href="#users" class="collection-item" id="users-nav">
+                    <i class="material-icons">group</i>Organization Users
+                </a>
+                <a href="#part-classes" class="collection-item" id="part-classes-nav">
+                    <i class="material-icons">category</i>Part Classes
+                </a>
+                <a href="#property-definitions" class="collection-item" id="property-definitions-nav">
+                    <i class="material-icons">list_alt</i>Property Definitions
+                </a>
+                <a href="#units" class="collection-item" id="units-nav">
+                    <i class="material-icons">straighten</i>Units & Quantities
+                </a>
+                <a href="#part-number" class="collection-item" id="part-number-nav">
+                    <i class="material-icons">format_list_numbered</i>Part Numbers
+                </a>
+                <a href="#integrations" class="collection-item" id="integrations-nav">
+                    <i class="material-icons">integration_instructions</i>Integrations
+                </a>
+            </div>
         </div>
 
-        <div id="user" class="col l8 offset-l2 s12">
-            <div class="section">
-                <h4 class="section-title"><i class="material-icons teal-text text-darken-1">person</i>User</h4>
-                <form name="seller" action="{% url 'bom:settings' tab_anchor=USER_TAB %}" method="post">
-                    {% csrf_token %}
-                    <div class="row">
-                        <div class="col s12">
-                            <p>Your role is: <b>{{ user.bom_profile.get_role_display }}</b></p>
-                            <p>Your username is: <b>{{ user.username }}</b></p>
-                            <p>To request a change in role please contact <a
-                                    href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a> for
-                                assistance.</p>
+        <div class="col s12 m9 l10 settings-content">
+            <div id="user" class="settings-section">
+                <div class="section">
+                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">person</i>User</h4>
+                    <form name="seller" action="{% url 'bom:settings' tab_anchor='user' %}" method="post">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col s12">
+                                <p>Your role is: <b>{{ user.bom_profile.get_role_display }}</b></p>
+                                <p>Your username is: <b>{{ user.username }}</b></p>
+                                <p>To request a change in role please contact <a
+                                        href="mailto:{{ organization.owner.email }}">{{ organization.owner.email }}</a>
+                                    for
+                                    assistance.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="row">
-                        {{ user_form.first_name|materializecss:'s12 l6' }}
-                        {{ user_form.last_name|materializecss:'s12 l6' }}
-                        {{ user_form.email|materializecss:'s12' }}
-                    </div>
-                    <div class="row">
-                        <div class="col s12 right-align">
-                            <button class="waves-effect waves-light btn btn-primary" type="submit"
-                                    name="submit-edit-user">
-                                Save
-                            </button>
+                        <div class="row">
+                            {{ user_form.first_name|materializecss:'s12 l6' }}
+                            {{ user_form.last_name|materializecss:'s12 l6' }}
+                            {{ user_form.email|materializecss:'s12' }}
                         </div>
-                    </div>
-                </form>
-            </div>
+                        <div class="row">
+                            <div class="col s12 right-align">
+                                <button class="waves-effect waves-light btn btn-primary" type="submit"
+                                        name="submit-edit-user">
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
 
-            <div class="section" style="padding: 16px; border-radius: 6px;">
-                <h4 class="section-title red-text text-darken-2" style="margin-top:0;"><i
-                        class="material-icons red-text text-darken-2">warning</i>Danger Zone</h4>
-                <p>Deleting your account is permanent. If you are the organization owner, your organization will also be
-                    deleted unless you transfer ownership before proceeding.</p>
-                <div class="right-align" style="margin-top: 8px;">
-                    <a href="{% url 'account-delete' %}" class="btn red lighten-1">Delete My Account</a>
+                <div class="section" style="padding: 16px; border-radius: 6px;">
+                    <h4 class="section-title red-text text-darken-2" style="margin-top:0;"><i
+                            class="material-icons red-text text-darken-2">warning</i>Danger Zone</h4>
+                    <p>Deleting your account is permanent. If you are the organization owner, your organization will
+                        also be
+                        deleted unless you transfer ownership before proceeding.</p>
+                    <div class="right-align" style="margin-top: 8px;">
+                        <a href="{% url 'account-delete' %}" class="btn red lighten-1">Delete My Account</a>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div id="indabom" class="col s12 l8 offset-l2">
-            {% if profile.role == 'A' %}
-                {% if organization.number_scheme == 'S' %}
+            <div id="organization" class="settings-section">
+                {% if user.bom_profile.role == 'A' %}
+                    <div class="section">
+                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">business</i>Organization
+                        </h4>
+                        <form name="seller" action="{% url 'bom:settings' tab_anchor='organization' %}" method="post"
+                              enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="row">
+                                {{ organization_form|materializecss:'s12' }}
+                            </div>
+                            <div class="row">
+                                <div class="col s12 right-align">
+                                    <button class="waves-effect waves-light btn btn-primary" type="submit"
+                                            name="submit-edit-organization"
+                                            onclick="return confirm('Are you sure you want to change the organization information?')">
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    {% include 'bom/subscription_panel.html' %}
+
+                    <div class="section">
+                        <h4 class="section-title"><i class="material-icons red-text text-darken-1">exit_to_app</i>Leave
+                            Your Organization</h4>
+                        <p>Warning, the only way back in to {{ organization.name }} is if you are invited by an
+                            organization administrator.</p>
+                        <form name="leave-organization" action="{% url 'bom:settings' tab_anchor='organization' %}"
+                              method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="right-align">
+                                <button class="waves-effect waves-light btn red lighten-1" type="submit"
+                                        name="submit-leave-organization">
+                                    <i class="material-icons left">exit_to_app</i>Leave Organization
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                {% else %}
+                    <div class="section">
+                        <h4 class="section-title">Organization</h4>
+                        <p>You are a member of <b>{{ organization.name }}</b>.</p>
+                        <div class="section">
+                            <h4 class="section-title"><i class="material-icons red-text text-darken-1">exit_to_app</i>Leave
+                                Your Organization</h4>
+                            <p>Warning, the only way back in to {{ organization.name }} is if you are invited by an
+                                organization administrator.</p>
+                            <form name="leave-organization" action="{% url 'bom:settings' tab_anchor='organization' %}"
+                                  method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <div class="right-align">
+                                    <button class="waves-effect waves-light btn red lighten-1" type="submit"
+                                            name="submit-leave-organization">
+                                        <i class="material-icons left">exit_to_app</i>Leave Organization
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div id="users" class="settings-section">
+                {% if user.bom_profile.role == 'A' %}
+                    <div class="section">
+                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">group</i>Users</h4>
+                        <form name="seller" action="{% url 'bom:settings' tab_anchor='organization' %}" method="post"
+                              enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th class="text-normal"><label><input type="checkbox"
+                                                                          id="user-select-all"><span></span></label>
+                                    </th>
+                                    <th class="text-normal">Role</th>
+                                    <th class="text-normal">User Name</th>
+                                    <th class="text-normal">Full Name</th>
+                                    <th class="text-normal">Email</th>
+                                    <th class="text-normal"></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for org_user in users_in_organization %}
+                                    <tr>
+                                        <td>
+                                            {% if org_user != organization.owner %}
+                                                <label><input type="checkbox" class="filled-in"
+                                                              name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>{% endif %}
+                                        </td>
+                                        <td class="text-normal">{% if org_user == organization.owner %}Owner{% else %}
+                                            {{ org_user.bom_profile.get_role_display }}{% endif %}</td>
+                                        <td class="text-normal">{{ org_user.username }}</td>
+                                        <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
+                                        <td class="text-normal"><a
+                                                href="mailto:{{ user.email }}">{{ org_user.email }}</a>
+                                        </td>
+                                        <td class="table-action right-align">
+                                            <a href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
+                                                    class="material-icons left">edit</i>Edit</a>
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="5" style="font-style: italic;">There are no additional users in
+                                            this
+                                            organization.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                            <div class="row" style="padding-top: 16px;">
+                                <div class="col s6">
+                                    <button class="waves-effect waves-light btn red lighten-1" type="submit"
+                                            name="submit-remove-user"
+                                            onclick="return confirm('Are you sure you want to remove the selected users from {{ organization }}?')">
+                                        Remove Selected
+                                    </button>
+                                </div>
+                                <div class="col s6 right-align">
+                                    {% include 'bom/bom-modal-add-users.html' with modal_title='Add User' form=user_add_form action=user_add_form_action name='submit-add-user' %}
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                {% else %}
+                    {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+                {% endif %}
+            </div>
+
+            <div id="part-classes" class="settings-section">
+                {% if profile.role == 'A' %}
                     <div class="section">
                         <h4 class="section-title"><i class="material-icons teal-text text-darken-1">category</i>Part
                             Classes</h4>
-                        <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
+                        <form name="seller" action="{% url 'bom:settings' tab_anchor='indabom' %}" method="post"
+                              enctype="multipart/form-data">
                             {% csrf_token %}
                             {% if part_classes.count > 0 %}
                                 <div class="row" style="margin-bottom: 0;">
@@ -141,399 +299,383 @@
                             {% include 'bom/bom-form-modal.html' with modal_title='Add Part Class' form=part_class_form action=part_class_form_action name='submit-part-class-create' %}
                         </div>
                     </div>
-
-                    <div class="divider"></div>
+                {% else %}
+                    {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
                 {% endif %}
+            </div>
 
-                <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">list_alt</i>Property
-                        Definitions</h4>
-                    <p>Define part properties (e.g. Capacitance, Length, Sheen), their data type, and their
-                        associated quantity of measure.</p>
-                    {% if property_definitions.count > 0 %}
-                        <table class="striped tight">
-                            <thead>
-                            <tr>
-                                <th class="text-normal">Name</th>
-                                <th class="text-normal">Type</th>
-                                <th class="text-normal">Required</th>
-                                <th class="text-normal">Quantity of Measure</th>
-                                <th class="text-normal">Options</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {% for prop in property_definitions %}
+            <div id="property-definitions" class="settings-section">
+                {% if profile.role == 'A' %}
+                    <div class="section">
+                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">list_alt</i>Property
+                            Definitions</h4>
+                        <p>Define part properties (e.g. Capacitance, Length, Sheen), their data type, and their
+                            associated quantity of measure.</p>
+                        {% if property_definitions.count > 0 %}
+                            <table class="striped tight">
+                                <thead>
                                 <tr>
-                                    <td class="text-normal">{{ prop.name }}</td>
-                                    <td class="text-normal">{{ prop.get_type_display }}</td>
-                                    <td class="text-normal">{% if prop.required %}Yes{% else %}No{% endif %}</td>
-                                    <td class="text-normal">{{ prop.quantity_of_measure.name|default:"-" }}</td>
-                                    <td>
-                                        {% if prop.organization == organization %}
-                                            <a class="table-action"
-                                               href="{% url 'bom:property-definition-edit' property_definition_id=prop.id %}"><i
-                                                    class="material-icons left">edit</i>Edit</a>
-                                            <a class="table-action red-text"
-                                               href="{% url 'bom:property-definition-delete' property_definition_id=prop.id %}"
-                                               onclick="return confirm('Are you sure you want to delete this property definition?')"><i
-                                                    class="material-icons left">delete</i></a>
-                                        {% else %}
-                                            <span class="table-action tooltipped grey-text d-flex-inline align-center"
-                                                  data-position="top"
-                                                  data-tooltip="System Default: Cannot be modified">
+                                    <th class="text-normal">Name</th>
+                                    <th class="text-normal">Type</th>
+                                    <th class="text-normal">Required</th>
+                                    <th class="text-normal">Quantity of Measure</th>
+                                    <th class="text-normal">Options</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for prop in property_definitions %}
+                                    <tr>
+                                        <td class="text-normal">{{ prop.name }}</td>
+                                        <td class="text-normal">{{ prop.get_type_display }}</td>
+                                        <td class="text-normal">{% if prop.required %}Yes{% else %}No{% endif %}</td>
+                                        <td class="text-normal">{{ prop.quantity_of_measure.name|default:"-" }}</td>
+                                        <td>
+                                            {% if prop.organization == organization %}
+                                                <a class="table-action"
+                                                   href="{% url 'bom:property-definition-edit' property_definition_id=prop.id %}"><i
+                                                        class="material-icons left">edit</i>Edit</a>
+                                                <a class="table-action red-text"
+                                                   href="{% url 'bom:property-definition-delete' property_definition_id=prop.id %}"
+                                                   onclick="return confirm('Are you sure you want to delete this property definition?')"><i
+                                                        class="material-icons left">delete</i></a>
+                                            {% else %}
+                                                <span class="table-action tooltipped grey-text d-flex-inline align-center"
+                                                      data-position="top"
+                                                      data-tooltip="System Default: Cannot be modified">
+                                                    <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>No global property definitions defined.</p>
+                        {% endif %}
+                        <div class="right-align" style="margin-top: 16px;">
+                            <a href="{% url 'bom:property-definition-add' %}"
+                               class="waves-effect waves-light btn btn-primary">
+                                <i class="material-icons left">add</i>Add Property Definition
+                            </a>
+                        </div>
+                    </div>
+                {% else %}
+                    {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+                {% endif %}
+            </div>
+
+            <div id="units" class="settings-section">
+                {% if profile.role == 'A' %}
+                    <div class="section">
+                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">straighten</i>Units
+                            & Quantities</h4>
+                        <p>Define quantities of measure (e.g. Length, Resistance) and their associated units (e.g. m,
+                            mm, Ohm, kOhm).</p>
+                        {% if quantities_of_measure.count > 0 %}
+                            <table class="striped tight">
+                                <thead>
+                                <tr>
+                                    <th class="text-normal">Quantity</th>
+                                    <th class="text-normal">Units</th>
+                                    <th class="text-normal">Options</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for qom in quantities_of_measure %}
+                                    <tr>
+                                        <td class="text-normal">{{ qom.name }}</td>
+                                        <td class="text-normal">
+                                            {% for unit in qom.units.all|slice:":3" %}
+                                                {{ unit.symbol }}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+
+                                            {% if qom.units.count > 3 %}
+                                                <span class="grey-text text-darken-1 tooltipped"
+                                                      data-tooltip="
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                              {% for unit in qom.units.all %}{{ unit.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                                                (+{{ qom.units.count|add:"-3" }} more)
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if qom.organization == organization %}
+                                                <a class="table-action"
+                                                   href="{% url 'bom:quantity-of-measure-edit' quantity_of_measure_id=qom.id %}"><i
+                                                        class="material-icons left">edit</i>Edit</a>
+                                                <a class="table-action red-text"
+                                                   href="{% url 'bom:quantity-of-measure-delete' quantity_of_measure_id=qom.id %}"
+                                                   onclick="return confirm('Are you sure you want to delete this quantity of measure and all its units?')"><i
+                                                        class="material-icons left">delete</i></a>
+                                            {% else %}
+                                                <span class="table-action tooltipped grey-text d-flex-inline align-center"
+                                                      data-position="top"
+                                                      data-tooltip="System Default: Cannot be modified">
                                                 <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
                                             </span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
-                    {% else %}
-                        <p>No global property definitions defined.</p>
-                    {% endif %}
-                    <div class="right-align" style="margin-top: 16px;">
-                        <a href="{% url 'bom:property-definition-add' %}"
-                           class="waves-effect waves-light btn btn-primary">
-                            <i class="material-icons left">add</i>Add Property Definition
-                        </a>
-                    </div>
-                </div>
-
-                <div class="divider"></div>
-
-                <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">straighten</i>Units &
-                        Quantities</h4>
-                    <p>Define quantities of measure (e.g. Length, Resistance) and their associated units (e.g. m, mm,
-                        Ohm, kOhm).</p>
-                    {% if quantities_of_measure.count > 0 %}
-                        <table class="striped tight">
-                            <thead>
-                            <tr>
-                                <th class="text-normal">Quantity</th>
-                                <th class="text-normal">Units</th>
-                                <th class="text-normal">Options</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {% for qom in quantities_of_measure %}
-                                <tr>
-                                    <td class="text-normal">{{ qom.name }}</td>
-                                    <td class="text-normal">
-                                        {% for unit in qom.units.all|slice:":3" %}
-                                            {{ unit.symbol }}{% if not forloop.last %}, {% endif %}
-                                        {% endfor %}
-
-                                        {% if qom.units.count > 3 %}
-                                            <span class="grey-text text-darken-1 tooltipped"
-                                                  data-tooltip="
-
-
-
-
-                                                          {% for unit in qom.units.all %}{{ unit.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
-            (+{{ qom.units.count|add:"-3" }} more)
-        </span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if qom.organization == organization %}
-                                            <a class="table-action"
-                                               href="{% url 'bom:quantity-of-measure-edit' quantity_of_measure_id=qom.id %}"><i
-                                                    class="material-icons left">edit</i>Edit</a>
-                                            <a class="table-action red-text"
-                                               href="{% url 'bom:quantity-of-measure-delete' quantity_of_measure_id=qom.id %}"
-                                               onclick="return confirm('Are you sure you want to delete this quantity of measure and all its units?')"><i
-                                                    class="material-icons left">delete</i></a>
-                                        {% else %}
-                                            <span class="table-action tooltipped grey-text d-flex-inline align-center"
-                                                  data-position="top"
-                                                  data-tooltip="System Default: Cannot be modified">
-                                            <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
-                    {% else %}
-                        <p>No quantities of measure defined.</p>
-                    {% endif %}
-                    <div class="right-align" style="margin-top: 16px;">
-                        <a href="{% url 'bom:quantity-of-measure-add' %}"
-                           class="waves-effect waves-light btn btn-primary">
-                            <i class="material-icons left">add</i>Add Quantity of Measure
-                        </a>
-                    </div>
-                </div>
-
-                {% if organization.number_scheme == 'S' %}
-                    <div class="divider"></div>
-                    <div class="section">
-                        <h4 class="section-title" id="indabom-part-number"><i
-                                class="material-icons teal-text text-darken-1">format_list_numbered</i>Part Number</h4>
-                        <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post"
-                              enctype="multipart/form-data">
-                            {% csrf_token %}
-                            <p>You may only increase the number of digits for each component of the part number: the
-                                part class code (C), part item number (N), and the part variation (V).</p>
-                            <p>Your organization's current configuration is
-                                <b>{{ organization.number_cs }}-{{ organization.number_ns }}
-                                    {% if organization.number_vs %}-{{ organization.number_vs }}{% endif %}</b></p>
-                            <div class="row">
-                                {{ organization_number_len_form|materializecss:'s4 l2' }}
-                                <div class="col s12 l6 input-field right-align">
-                                    <button class="waves-effect waves-light btn btn-primary" type="submit"
-                                            name="submit-number-item-len"
-                                            onclick="return confirm('Are you sure you want to change the number of digits?')">
-                                        Save
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                {% endif %}
-
-                <div class="divider"></div>
-
-                <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">swap_horiz</i>Change
-                        Organization Number Scheme</h4>
-                    <p>Your organization's number scheme is currently:
-                        <b>{{ organization.get_number_scheme_display }}</b></p>
-                    <ul class="browser-default">
-                        {% if organization.number_scheme == 'S'  or organization_parts_count == 0 %}
-                            <li style="padding-bottom: 16px;"><b>Semi-intelligent</b> e.g. CCC-NNNN-YY<br>Consists of 3
-                                components: a 3-digit part class, a N-digit part number, and a 2-digit variation.
-                                IndaBOM part numbers are designed to be simple to assign and simple to subsequently
-                                write, type, or speak. You define the part classes in your organization, and how long
-                                your N-digit part number is below.
-                            </li>
-                        {% endif %}
-                        {% if organization.number_scheme == 'I' or organization_parts_count == 0 %}
-                            <li><b>Intelligent</b> You control your numbers.<br>Intelligent part numbering on IndaBOM
-                                allows the user to assign any part number to a part. The part number contains
-                                descriptive details embedded within that provides noteworthy information about the part.
-                                For example, a capacitor may be named C0402X5R33PF to indicate that it is a capacitor of
-                                size "0402", using a X5R dialectric, and is 33pF.
-                            </li>
-                        {% endif %}
-                    </ul>
-                    <p style="font-size: 15px;">You can read more about the options <a
-                            href="{% url 'bom:help' %}#part-numbering" target="_blank">here</a>.</p>
-                    {% if organization_parts_count > 0 %}
-                        <p><b>You've already created {{ organization_parts_count }}
-                            part{{ organization_parts_count|pluralize }}.</b> Since changing your organization number
-                            scheme requires changing your parts numbers, please manually delete your parts then come
-                            back here to change your organization number scheme. Alternatively we can help delete your
-                            parts if you reach out to info@indabom.com.</p>
-                    {% else %}
-                        <form name="number-scheme" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}"
-                              method="post">
-                            {% csrf_token %}
-                            <button type="submit" name="change-number-scheme"
-                                    class="waves-effect waves-light btn red lighten-1">Change Scheme to
-                                {% if organization.number_scheme == 'S' %}Intelligent{% else %}
-                                    Semi-Intelligent{% endif %}</button>
-                        </form>
-                    {% endif %}
-                </div>
-            {% else %}
-                {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
-            {% endif %}
-        </div>
-
-        <div id="organization" class="col s12 l8 offset-l2">
-            {% if user.bom_profile.role == 'A' %}
-                <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">business</i>Organization
-                    </h4>
-                    <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post"
-                          enctype="multipart/form-data">
-                        {% csrf_token %}
-                        <div class="row">
-                            {{ organization_form|materializecss:'s12' }}
-                        </div>
-                        <div class="row">
-                            <div class="col s12 right-align">
-                                <button class="waves-effect waves-light btn btn-primary" type="submit"
-                                        name="submit-edit-organization"
-                                        onclick="return confirm('Are you sure you want to change the organization information?')">
-                                    Save
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-
-                {# Subscription & Billing placed after Users for a more natural flow #}
-                {% include 'bom/subscription_panel.html' %}
-
-                <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">group</i>Users</h4>
-                    <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post"
-                          enctype="multipart/form-data">
-                        {% csrf_token %}
-                        <table>
-                            <thead>
-                            <tr>
-                                <th class="text-normal"><label><input type="checkbox" id="user-select-all"><span></span></label>
-                                </th>
-                                <th class="text-normal">Role</th>
-                                <th class="text-normal">User Name</th>
-                                <th class="text-normal">Full Name</th>
-                                <th class="text-normal">Email</th>
-                                <th class="text-normal"></th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {% for org_user in users_in_organization %}
-                                <tr>
-                                    <td>
-                                        {% if org_user != organization.owner %}
-                                            <label><input type="checkbox" class="filled-in"
-                                                          name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>{% endif %}
-                                    </td>
-                                    <td class="text-normal">{% if org_user == organization.owner %}Owner{% else %}
-                                        {{ org_user.bom_profile.get_role_display }}{% endif %}</td>
-                                    <td class="text-normal">{{ org_user.username }}</td>
-                                    <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
-                                    <td class="text-normal"><a href="mailto:{{ user.email }}">{{ org_user.email }}</a>
-                                    </td>
-                                    <td class="table-action right-align">
-                                        <a href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
-                                                class="material-icons left">edit</i>Edit</a>
-                                    </td>
-                                </tr>
-                            {% empty %}
-                                <tr>
-                                    <td colspan="5" style="font-style: italic;">There are no additional users in this
-                                        organization.
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
-                        <div class="row" style="padding-top: 16px;">
-                            <div class="col s6">
-                                <button class="waves-effect waves-light btn red lighten-1" type="submit"
-                                        name="submit-remove-user"
-                                        onclick="return confirm('Are you sure you want to remove the selected users from {{ organization }}?')">
-                                    Remove Selected
-                                </button>
-                            </div>
-                            <div class="col s6 right-align">
-                                {% include 'bom/bom-modal-add-users.html' with modal_title='Add User' form=user_add_form action=user_add_form_action name='submit-add-user' %}
-                            </div>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="section">
-                    <h4 class="section-title"><i
-                            class="material-icons teal-text text-darken-1">integration_instructions</i>Integrations</h4>
-                    <div class="section">
-                        <h5 class="section-title"><img title="Via Google Drive"
-                                                       src="{% static 'bom/img/google_drive_logo.svg' %}">Part File
-                            Storage
-                            with Google Drive</h5>
-                        {% if not google_authentication %}
-                            <p>Connect your Google account to access Google Drive features.
-                                {% if not organization.google_drive_parent %}Organization owners can enable file storage
-                                    using Google Drive. {% if organization.owner == user %}Since you are the owner, you
-                                    are
-                                    able to enable file storage!{% else %}Contact your organization owner to enable.
-                                {% endif %}{% endif %}</p>
-                            <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your root
-                                of
-                                Google Drive (and it can be moved anywhere in your drive). To add files to a part,
-                                navigate
-                                to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img
-                                        title="Via Google Drive" style="width: 16px; vertical-align: middle;"
-                                        src="{% static 'bom/img/google_drive_logo.svg' %}"> Google Drive link. This will
-                                create a folder for your part in your root IndaBOM directory, or take you there if it
-                                already exists.</p>
-                            <p>You'll be able to access the files directly through Google Drive, and through
-                                IndaBOM.</p>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
                         {% else %}
-                            <p>You're connected with Google and can access Google Drive features.</p>
+                            <p>No quantities of measure defined.</p>
                         {% endif %}
-                        <div>
-                            {% if google_authentication %}
-                                <p>Logged in to Google as: {{ google_authentication.uid }}</p>
-                                <div class="right-align">
-                                    <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
-                                        {% csrf_token %}
-                                        <button class="waves-effect waves-light btn btn-primary" type="submit">
-                                            Disconnect
+                        <div class="right-align" style="margin-top: 16px;">
+                            <a href="{% url 'bom:quantity-of-measure-add' %}"
+                               class="waves-effect waves-light btn btn-primary">
+                                <i class="material-icons left">add</i>Add Quantity of Measure
+                            </a>
+                        </div>
+                    </div>
+                {% else %}
+                    {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+                {% endif %}
+            </div>
+
+            <div id="part-number" class="settings-section">
+                {% if profile.role == 'A' %}
+                    <div class="section">
+                        <h4 class="section-title" id="indabom-part-number-header"><i
+                                class="material-icons teal-text text-darken-1">format_list_numbered</i>Part Number</h4>
+                        {% if organization.number_scheme == 'S' %}
+                            <form name="seller" action="{% url 'bom:settings' tab_anchor='indabom' %}" method="post"
+                                  enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <p>You may only increase the number of digits for each component of the part number: the
+                                    part class code (C), part item number (N), and the part variation (V).</p>
+                                <p>Your organization's current configuration is
+                                    <b>{{ organization.number_cs }}-{{ organization.number_ns }}
+                                        {% if organization.number_vs %}-{{ organization.number_vs }}{% endif %}</b></p>
+                                <div class="row">
+                                    {{ organization_number_len_form|materializecss:'s4 l2' }}
+                                    <div class="col s12 l6 input-field right-align">
+                                        <button class="waves-effect waves-light btn btn-primary" type="submit"
+                                                name="submit-number-item-len"
+                                                onclick="return confirm('Are you sure you want to change the number of digits?')">
+                                            Save
                                         </button>
-                                    </form>
+                                    </div>
                                 </div>
+                            </form>
+                            <div class="divider"></div>
+                        {% endif %}
+
+                        <div class="section">
+                            <h4 class="section-title"><i class="material-icons teal-text text-darken-1">swap_horiz</i>Change
+                                Organization Number Scheme</h4>
+                            <p>Your organization's number scheme is currently:
+                                <b>{{ organization.get_number_scheme_display }}</b></p>
+                            <ul class="browser-default">
+                                {% if organization.number_scheme == 'S'  or organization_parts_count == 0 %}
+                                    <li style="padding-bottom: 16px;"><b>Semi-intelligent</b> e.g. CCC-NNNN-YY<br>Consists
+                                        of 3
+                                        components: a 3-digit part class, a N-digit part number, and a 2-digit
+                                        variation.
+                                        IndaBOM part numbers are designed to be simple to assign and simple to
+                                        subsequently
+                                        write, type, or speak. You define the part classes in your organization, and how
+                                        long
+                                        your N-digit part number is below.
+                                    </li>
+                                {% endif %}
+                                {% if organization.number_scheme == 'I' or organization_parts_count == 0 %}
+                                    <li><b>Intelligent</b> You control your numbers.<br>Intelligent part numbering on
+                                        IndaBOM
+                                        allows the user to assign any part number to a part. The part number contains
+                                        descriptive details embedded within that provides noteworthy information about
+                                        the part.
+                                        For example, a capacitor may be named C0402X5R33PF to indicate that it is a
+                                        capacitor of
+                                        size "0402", using a X5R dialectric, and is 33pF.
+                                    </li>
+                                {% endif %}
+                            </ul>
+                            <p style="font-size: 15px;">You can read more about the options <a
+                                    href="{% url 'bom:help' %}#part-numbering" target="_blank">here</a>.</p>
+                            {% if organization_parts_count > 0 %}
+                                <p><b>You've already created {{ organization_parts_count }}
+                                    part{{ organization_parts_count|pluralize }}.</b> Since changing your organization
+                                    number
+                                    scheme requires changing your parts numbers, please manually delete your parts then
+                                    come
+                                    back here to change your organization number scheme. Alternatively we can help
+                                    delete your
+                                    parts if you reach out to info@indabom.com.</p>
                             {% else %}
-                                <p>To get started, sign in with Google:</p>
-                                <div class="right-align">
-                                    <a href="{% url "social:begin" "google-oauth2" %}">
-                                        <img title="Google sign-in."
-                                             src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}">
-                                    </a>
-                                </div>
+                                <form name="number-scheme" action="{% url 'bom:settings' tab_anchor='indabom' %}"
+                                      method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" name="change-number-scheme"
+                                            class="waves-effect waves-light btn red lighten-1">Change Scheme to
+                                        {% if organization.number_scheme == 'S' %}Intelligent{% else %}
+                                            Semi-Intelligent{% endif %}</button>
+                                </form>
                             {% endif %}
                         </div>
                     </div>
-                    <div class="section">
-                        <h5 class="section-title"><img title="Sourcing via Mouser.com"
-                                                       src="{% static 'bom/img/mouser.png' %}">Automagic Sourcing via
-                            Mouser
-                        </h5>
-                        <!--<p>No connection required. To enable sourcing via Mouser, select which part classes you'd like
-                            enabled on the Settings IndaBOM tab. Once enabled, sourcing information will appear on part
-                            detail pages in which there are parts sourced via Mouser.</p>-->
-                        <p>Currently under construction.</p>
-                    </div>
-                </div>
-            {% endif %}
+                {% else %}
+                    {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+                {% endif %}
+            </div>
 
-            {% if profile.organization %}
-                <div class="section">
-                    <h4 class="section-title"><i class="material-icons red-text text-darken-1">exit_to_app</i>Leave Your
-                        Organization</h4>
-                    <p>Warning, the only way back in to {{ organization.name }} is if you are invited by an organization
-                        administrator.</p>
-                    <form name="leave-organization" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}"
-                          method="post" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        <div class="right-align">
-                            <button class="waves-effect waves-light btn red lighten-1" type="submit"
-                                    name="submit-leave-organization">
-                                <i class="material-icons left">exit_to_app</i>Leave Organization
-                            </button>
+            <div id="integrations" class="settings-section">
+                {% if user.bom_profile.role == 'A' %}
+                    <div class="section">
+                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">integration_instructions</i>Integrations
+                        </h4>
+                        <div class="section">
+                            <h5 class="section-title"><img style="height: 1em; margin-right: 4px;"
+                                                           title="Via Google Drive"
+                                                           src="{% static 'bom/img/google_drive_logo.svg' %}">Part File
+                                Storage with Google Drive</h5>
+                            {% if not google_authentication %}
+                                <p>Connect your Google account to access Google Drive features.
+                                    {% if not organization.google_drive_parent %}Organization owners can enable file
+                                        storage
+                                        using Google Drive. {% if organization.owner == user %}Since you are the owner,
+                                        you are
+                                        able to enable file storage!{% else %}Contact your organization owner to enable.
+                                    {% endif %}{% endif %}</p>
+                                <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your
+                                    root of
+                                    Google Drive (and it can be moved anywhere in your drive). To add files to a part,
+                                    navigate
+                                    to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img
+                                            title="Via Google Drive" style="width: 16px; vertical-align: middle;"
+                                            src="{% static 'bom/img/google_drive_logo.svg' %}"> Google Drive link. This
+                                    will
+                                    create a folder for your part in your root IndaBOM directory, or take you there if
+                                    it
+                                    already exists.</p>
+                                <p>You'll be able to access the files directly through Google Drive, and through
+                                    IndaBOM.</p>
+                            {% else %}
+                                <p>You're connected with Google and can access Google Drive features.</p>
+                            {% endif %}
+                            <div>
+                                {% if google_authentication %}
+                                    <p>Logged in to Google as: {{ google_authentication.uid }}</p>
+                                    <div class="right-align">
+                                        <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
+                                            {% csrf_token %}
+                                            <button class="waves-effect waves-light btn btn-primary" type="submit">
+                                                Disconnect
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% else %}
+                                    <p>To get started, sign in with Google:</p>
+                                    <div class="right-align">
+                                        <a href="{% url "social:begin" "google-oauth2" %}">
+                                            <img title="Google sign-in."
+                                                 src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}">
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
-                    </form>
-                </div>
-            {% else %}
-                <div class="section">
-                    <h4 class="section-title">You're not part of any organization</h4>
-                    <p>To create your organization, start <a href="{% url 'bom:home' %}">here</a>.</p>
-                </div>
-            {% endif %}
+                        <div class="section">
+                            <h5 class="section-title"><img style="height: 1em; margin-right: 4px;"
+                                                           title="Sourcing via Mouser.com"
+                                                           src="{% static 'bom/img/mouser.png' %}">Automagic Sourcing
+                                via Mouser</h5>
+                            <p>Currently under construction.</p>
+                        </div>
+                    </div>
+                {% else %}
+                    {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
+                {% endif %}
+            </div>
         </div>
     </div>
-
 {% endblock %}
 
 {% block bom-script %}
+    <style>
+        .settings-section {
+            display: none;
+        }
 
-    <!-- Handle if there's an anchor, select tab -->
+        .settings-section.active {
+            display: block;
+        }
+    </style>
+
+    <!-- Handle navigation -->
     <script type='text/javascript'>
-        var tabsElem = document.querySelector('.tabs');
+        $(document).ready(function () {
+            function showSection(sectionId) {
+                if (!sectionId) sectionId = '#user';
+                if (!sectionId.startsWith('#')) sectionId = '#' + sectionId;
 
-        {% if tab_anchor %}
-            $('#{{ tab_anchor }}-tab').addClass('active');
-        {% endif %}
+                $('.settings-section').removeClass('active');
+                $(sectionId).addClass('active');
 
-        var tabs = M.Tabs.init(tabsElem);
+                $('.settings-nav .collection-item').removeClass('active');
+                $('.settings-nav .collection-item[href="' + sectionId + '"]').addClass('active');
+
+                // Update URL without jumping
+                if (window.location.hash !== sectionId) {
+                    history.pushState(null, null, sectionId);
+                }
+            }
+
+            $('.settings-nav .collection-item').on('click', function (e) {
+                e.preventDefault();
+                var sectionId = $(this).attr('href');
+                showSection(sectionId);
+            });
+
+            // Initial section based on hash or tab_anchor
+            var initialSection = window.location.hash;
+            {% if tab_anchor %}
+                if (!initialSection) {
+                    {% if tab_anchor == 'indabom' %}
+                        initialSection = '#part-classes';
+                    {% elif tab_anchor == 'organization' %}
+                        initialSection = '#organization';
+                    {% elif tab_anchor == 'user' %}
+                        initialSection = '#user';
+                    {% else %}
+                        initialSection = '#{{ tab_anchor }}';
+                    {% endif %}
+                }
+            {% endif %}
+
+            showSection(initialSection);
+
+            // Handle back/forward buttons
+            window.onpopstate = function () {
+                showSection(window.location.hash);
+            };
+        });
     </script>
 
     <script type='text/javascript'>
