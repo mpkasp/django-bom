@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-bom"
-version = "1.262"
+version = "1.263"
 description = "A simple Django app to manage a bill of materials."
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
@@ -19,7 +19,7 @@ urls = { Homepage = "https://www.indabom.com/" }
 classifiers = [
   "Environment :: Web Environment",
   "Framework :: Django",
-  "Framework :: Django :: 5",
+    "Framework :: Django :: 6",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
   "Operating System :: OS Independent",
