@@ -12,36 +12,46 @@ class OrganizationPermissionBackend:
 
     - Uses Django's has_perm(user, perm, obj) to evaluate permissions tied to an Organization.
     - Superusers are granted all permissions.
-    - For `bom.manage_members`: User must be owner or admin within the organization.
+    - Owners and Admins are granted all permissions within their organization.
+    - Viewers are granted view-only permissions within their organization.
     """
 
     def authenticate(self, request, **credentials):  # pragma: no cover - not used for auth
         return None
 
     def has_perm(self, user_obj, perm: str, obj: Optional[object] = None):
-        # Only handle our specific object-level permission. Let other backends process others.
         if not user_obj or not user_obj.is_authenticated:
             return False
 
         if user_obj.is_superuser:
             return True
 
-        if perm != 'bom.manage_members':
+        # Only handle 'bom' app permissions.
+        if not perm.startswith('bom.'):
             return None
 
-        if obj is None or not isinstance(obj, Organization):
-            return False
-
         profile = user_obj.bom_profile()
-        if not profile or profile.organization_id != obj.id:
+        if not profile or not profile.organization:
             return False
 
-        if obj.subscription != constants.SUBSCRIPTION_TYPE_PRO:
-            return False
+        # If an object is provided, ensure it belongs to the user's organization.
+        if obj is not None:
+            obj_org = None
+            if isinstance(obj, Organization):
+                obj_org = obj
+            elif hasattr(obj, 'organization'):
+                obj_org = obj.organization
 
-        is_owner = obj.owner_id == user_obj.id
-        is_admin = getattr(profile, 'role', None) == constants.ROLE_TYPE_ADMIN
-        if not (is_owner or is_admin):
-            return False
+            if obj_org and obj_org.id != profile.organization_id:
+                return False
 
-        return True
+        # Owners and Admins can do everything within their organization
+        if profile.can_manage_organization():
+            return True
+
+        # Viewers can only view within their organization
+        if profile.role == constants.ROLE_TYPE_VIEWER:
+            if perm.startswith('bom.view_'):
+                return True
+
+        return False

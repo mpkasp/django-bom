@@ -16,7 +16,7 @@
                     <i class="material-icons">business</i>Organization
                 </a>
                 <a href="#users" class="collection-item" id="users-nav">
-                    <i class="material-icons">group</i>Organization Users
+                    <i class="material-icons">group</i>Members
                 </a>
                 <a href="#part-classes" class="collection-item" id="part-classes-nav">
                     <i class="material-icons">category</i>Part Classes
@@ -81,7 +81,7 @@
             </div>
 
             <div id="organization" class="settings-section">
-                {% if user.bom_profile.role == 'A' %}
+                {% if perms.bom.manage_members %}
                     <div class="section">
                         <h4 class="section-title"><i class="material-icons teal-text text-darken-1">business</i>Organization
                         </h4>
@@ -146,9 +146,11 @@
             </div>
 
             <div id="users" class="settings-section">
-                {% if user.bom_profile.role == 'A' %}
+                {% if perms.bom.manage_members %}
                     <div class="section">
-                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">group</i>Users</h4>
+                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">group</i>Organization
+                            Members
+                        </h4>
                         <form name="seller" action="{% url 'bom:settings' tab_anchor='organization' %}" method="post"
                               enctype="multipart/form-data">
                             {% csrf_token %}
@@ -215,7 +217,7 @@
             </div>
 
             <div id="part-classes" class="settings-section">
-                {% if profile.role == 'A' %}
+                {% if perms.bom.manage_members %}
                     <div class="section">
                         <h4 class="section-title"><i class="material-icons teal-text text-darken-1">category</i>Part
                             Classes</h4>
@@ -305,7 +307,7 @@
             </div>
 
             <div id="property-definitions" class="settings-section">
-                {% if profile.role == 'A' %}
+                {% if perms.bom.manage_members %}
                     <div class="section">
                         <h4 class="section-title"><i class="material-icons teal-text text-darken-1">list_alt</i>Property
                             Definitions</h4>
@@ -366,7 +368,7 @@
             </div>
 
             <div id="units" class="settings-section">
-                {% if profile.role == 'A' %}
+                {% if perms.bom.manage_members %}
                     <div class="section">
                         <h4 class="section-title"><i class="material-icons teal-text text-darken-1">straighten</i>Units
                             & Quantities</h4>
@@ -460,7 +462,7 @@
             </div>
 
             <div id="part-number" class="settings-section">
-                {% if profile.role == 'A' %}
+                {% if perms.bom.manage_members %}
                     <div class="section">
                         <h4 class="section-title" id="indabom-part-number-header"><i
                                 class="material-icons teal-text text-darken-1">format_list_numbered</i>Part Number</h4>
@@ -546,7 +548,7 @@
             </div>
 
             <div id="integrations" class="settings-section">
-                {% if user.bom_profile.role == 'A' %}
+                {% if perms.bom.manage_members %}
                     <div class="section">
                         <h4 class="section-title"><i class="material-icons teal-text text-darken-1">integration_instructions</i>Integrations
                         </h4>

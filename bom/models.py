@@ -187,6 +187,9 @@ class AbstractUserMeta(models.Model):
     def is_organization_owner(self) -> bool:
         return self.organization.owner == self.user if self.organization else False
 
+    def can_manage_organization(self) -> bool:
+        return self.role == ROLE_TYPE_ADMIN or self.is_organization_owner()
+
     class Meta:
         abstract = True
 

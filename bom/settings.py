@@ -103,6 +103,7 @@ TEMPLATES = [
 
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',
+    'bom.auth_backends.OrganizationPermissionBackend',
     'django.contrib.auth.backends.ModelBackend',
 )
 

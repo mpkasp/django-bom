@@ -1,5 +1,4 @@
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 
@@ -22,9 +21,10 @@ def google_authenticated(function):
 
 def organization_admin(function):
     def wrap(request, *args, **kwargs):
-        if request.user.bom_profile().role != 'A':
+        organization = request.user.bom_profile().organization
+        if not request.user.has_perm('bom.manage_members', organization):
             messages.error(request, "You don't have permission to perform this action.")
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER'), reverse('bom:home'))
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER') or reverse('bom:home'))
         return function(request, *args, **kwargs)
 
     wrap.__doc__ = function.__doc__
