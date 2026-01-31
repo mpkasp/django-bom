@@ -549,10 +549,11 @@ class PartRevision(models.Model):
 
         # TODO: We no longer order these, in the future we will add a template / inheritance type pattern like
         #   Capacitor: {Capacitance} {Units}, {Voltage}, {Package}
-        for prop in self.properties.all().select_related('property_definition', 'unit_definition'):
-            val = prop.value_raw
-            units = prop.unit_definition.symbol if prop.unit_definition else None
-            s += verbosify(val, units=units)
+        if self.id:
+            for prop in self.properties.all().select_related('property_definition', 'unit_definition'):
+                val = prop.value_raw
+                units = prop.unit_definition.symbol if prop.unit_definition else None
+                s += verbosify(val, units=units)
 
         return s[:255]
 
@@ -572,10 +573,10 @@ class PartRevision(models.Model):
         if self.assembly is None:
             self.assembly = Assembly.objects.create()
 
-        super(PartRevision, self).save(*args, **kwargs)
-
         self.searchable_synopsis = self.generate_synopsis(True)
         self.displayable_synopsis = self.generate_synopsis(False)
+
+        super(PartRevision, self).save(*args, **kwargs)
 
     def get_field_value(self, field_name):
         if hasattr(self, field_name):

@@ -269,6 +269,7 @@ class TestBOM(TransactionTestCase):
         bom_list = list(bom.parts.values())
         for idx, row in enumerate(test_list):
             self.assertEqual(row['part_number'], bom_list[idx].part.full_part_number(), f'Row {idx + 1}')
+            self.assertIsNot(bom_list[idx].part.latest().synopsis(), '')
 
         # Check that we successfully updated an existing part (only tested for semi-intelligent scheme for now)
         if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
