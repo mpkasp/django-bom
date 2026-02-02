@@ -415,6 +415,13 @@ class QuantityOfMeasureForm(OrganizationFormMixin, forms.ModelForm):
         self.instance.organization = self.organization
         return cleaned_data
 
+    def clean_name(self):
+        name = self.cleaned_data.get('name')
+        if QuantityOfMeasure.objects.filter(name__iexact=name, organization=self.organization).exclude(
+                pk=self.instance.pk).exists():
+            raise forms.ValidationError(f"A quantity of measure with the name '{name}' already exists.")
+        return name
+
 
 class UnitDefinitionForm(OrganizationFormMixin, forms.ModelForm):
     class Meta:

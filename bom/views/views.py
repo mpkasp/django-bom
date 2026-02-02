@@ -1361,8 +1361,10 @@ def quantity_of_measure_edit(request, quantity_of_measure_id=None):
                 obj.delete()
             return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
         else:
-            messages.error(request, form.errors)
-            messages.error(request, unit_formset.errors)
+            if not form.is_valid():
+                messages.error(request, form.errors)
+            if not unit_formset.is_valid():
+                messages.error(request, unit_formset.errors)
     else:
         form = QuantityOfMeasureForm(instance=quantity_of_measure, organization=organization)
         unit_formset = UnitDefinitionFormSet(
