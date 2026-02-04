@@ -13,37 +13,46 @@
     {% include 'bom/bom-action-btn.html' with profile=profile %}
     <div class="container-app">
         <div class="part-info">
-            <div class="row" style="margin-bottom: 5px;">
-                <div class="col m8 hide-on-small-and-down">
-                    <h3 class="light">{{ part.full_part_number }}</h3>
-                    {% if part_revision %}
-                        {% if profile.role == 'A' %}
-                            <p class="printer-hide">Select latest revision to edit, add a new revision, etc., or select an earlier revision for viewing only</p>
-                        {% else %}
-                            <p class="printer-hide">Select a revision for viewing</p>
-                        {% endif %}
-                    {% endif %}
-                </div>
+            <div class="part-header-title-row">
+                <h1 style="margin: 0;">{{ part.full_part_number }}</h1>
+
+                {% if part_revision %}
+                    <div class="input-field">
+                        <select id="select-revision">
+                            {% for r in revisions.all %}
+                                <!--@formatter:off-->
+                                <option {% if part_revision.id == r.id %}selected{% endif %} value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}{% endif %}">Rev {{ r.revision }}{% if part_revision.id != r.id %} ({{ r.get_configuration_display }}){% endif %}</option>
+                                <!--@formatter:on-->
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <span class="chip bg-accent">{{ part_revision.get_configuration_display }}</span>
+                {% endif %}
             </div>
 
             <div class="row printer-hide">
                 {% if part_revision %}
-                    <div class="col l2 m3 s5">
-                        <div class="input-field">
-                            <select id="select-revision">
-                                {% for r in revisions.all %}
-                                    <option {% if part_revision.id == r.id %}selected{% endif %}
-                                            value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}
-                                                    {% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}
-                                                    {% endif %}">Rev {{ r.revision }}{% if r.configuration == 'W' %} (working){% endif %}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="col m3 s6 left-align part-info-form">
+                        <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
+                            {% csrf_token %}
+                            <div class="row">
+                                <div class="col s10" style="padding-right: 0; display: inline-flex;">
+                                    {{ part_info_form.quantity.label }}
+                                    {{ part_info_form.quantity }}
+                                </div>
+                                <div class="col s2">
+                                    <button type="submit"
+                                            class="waves-effect waves-green btn-flat input-field btn-icon-round"><i
+                                            class="material-icons green-text">refresh</i></button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 {% endif %}
-                <div class="col {% if part_revision %}m3 s1{% else %}m3 s12{% endif %}">
+                <div class="col m3 s12 push-m6 right-align">
                     {% if profile.role == 'A' and part_revision %}
-                        <div style="margin-top: 1.5rem;">
+                        <div style="margin-top: .75rem;">
                             <!-- Dropdown Trigger -->
                             <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
                                     href='#' data-target='dropdown-revision'><i class="material-icons right">arrow_drop_down</i>Manage
@@ -52,7 +61,7 @@
                                     class="material-icons green-text text-lighten-1">more_vert</i></a>
                             <!-- Dropdown Structure -->
                             <ul id='dropdown-revision' class='dropdown-content'>
-                                {% if part_revision.configuration == 'W' %}
+                                {% if part_revision.configuration == 'D' %}
                                     <li>
                                         <a class="green-text text-lighten-1"
                                            href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">
@@ -85,21 +94,6 @@
                            href='{% url 'bom:part-revision-new' part_id=part.id %}'><i class="material-icons left">add</i>Create Revision</a>
                     {% endif %}
                 </div>
-                {% if part_revision %}
-                    <div class="col m2 push-l5 push-m4 s6 right-align part-info-form">
-                        <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
-                            {% csrf_token %}
-                            <div class="row">
-                                <div class="col s9" style="padding-right: 0;">
-                                    {{ part_info_form }}
-                                </div>
-                                <div class="col s3">
-                                    <button type="submit" class="waves-effect waves-green btn-flat input-field btn-icon-round"><i class="material-icons green-text">send</i></button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                {% endif %}
             </div>
 
             <div class="row">

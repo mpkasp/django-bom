@@ -14,9 +14,9 @@ from djmoney.money import Money
 from .constants import (
     NUMBER_SCHEME_INTELLIGENT,
     NUMBER_SCHEME_SEMI_INTELLIGENT,
-    ROLE_TYPE_VIEWER,
-    PART_REVISION_PROPERTY_TYPE_DECIMAL,
     PART_REVISION_PROPERTY_TYPE_BOOLEAN,
+    PART_REVISION_PROPERTY_TYPE_DECIMAL,
+    ROLE_TYPE_VIEWER,
 )
 from .csv_headers import (
     CSVHeaderError,
@@ -663,6 +663,12 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
 
         self._init_dynamic_properties()
 
+        if self.instance.pk and self.instance.is_immutable():
+            for field_name, field in self.fields.items():
+                field.disabled = True
+                state_name = self.instance.get_configuration_display()
+                field.help_text = f'This PartRevision is {state_name} and cannot be modified. Create a new revision, or revert this one to draft to make changes.'
+
     def _init_dynamic_properties(self):
         """Dynamically add fields based on Property Definitions."""
         model_field = PartRevisionProperty._meta.get_field('value_raw')
@@ -784,6 +790,21 @@ class SubpartForm(OrganizationFormMixin, forms.ModelForm):
         if self.ignore_part_revision:
             self.fields['part_revision'].required = False
 
+        # Disable all fields if this subpart belongs to a Released PartRevision's assembly
+        if self.instance.pk:
+            locked_parent = self.instance.get_parent_part_revisions().filter(
+                configuration__in=PartRevision.IMMUTABLE_STATES).first()
+
+            if locked_parent:
+                msg = (
+                    f"Locked by {locked_parent.get_configuration_display()} "
+                    f"PartRevision {locked_parent} as it is not in draft."
+                )
+
+                for field in self.fields.values():
+                    field.disabled = True
+                    field.help_text = f"{msg} {field.help_text or ''}"
+
     def clean_count(self):
         return self.cleaned_data['count'] or 0
 
@@ -806,14 +827,15 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
     do_not_load = forms.BooleanField(required=False, label="do_not_load")
 
     def __init__(self, *args, **kwargs):
-        self.part_id = kwargs.pop('part_id', None)
+        self.part_revision_id = kwargs.pop('part_revision_id', None)
         super().__init__(*args, **kwargs)
 
-        self.part = Part.objects.get(id=self.part_id)
+        self.part_revision = PartRevision.objects.get(id=self.part_revision_id)
+        self.part = self.part_revision.part
         # Filter logic
         self.fields['subpart_part_number'].widget = AutocompleteTextInput(
             attrs={'placeholder': 'Select a part.'},
-            queryset=Part.objects.filter(organization=self.organization).exclude(id=self.part_id),
+            queryset=Part.objects.filter(organization=self.organization).exclude(id=self.part.id),
             verbose_string_function=Part.verbose_str
         )
 
@@ -834,7 +856,7 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
                 self.add_error('subpart_part_number', f"No part revision exists for part {part.full_part_number()}. Create a revision before adding to an assembly.")
                 return subpart_part_number
 
-            unusable_ids = [pr.id for pr in self.part.latest().where_used_full()] + [self.part.latest().id]
+            unusable_ids = [pr.id for pr in self.part_revision.where_used_full()] + [self.part_revision.id]
             if self.subpart_part.id in unusable_ids:
                 raise ValidationError("Infinite recursion! Can't add a part to itself.")
 
@@ -855,6 +877,13 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
         count = cleaned.get('count')
         if len(refs) > 0 and len(refs) != count:
             raise ValidationError(f"Reference count ({len(refs)}) mismatch quantity ({count}).")
+
+        if self.part_revision.is_immutable():
+            raise ValidationError(
+                f"Cannot add subparts to PartRevision {self.part_revision} in {self.part_revision.get_configuration_display()}. "
+                f"Create a new revision, or revert this revision to Draft to make changes."
+            )
+
         return cleaned
 
 

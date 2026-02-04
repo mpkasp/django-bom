@@ -13,3 +13,11 @@
         margin-top: 12px;
     }
 }
+
+.part-header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
