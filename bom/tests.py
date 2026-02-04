@@ -1071,10 +1071,10 @@ class TestBOM(TransactionTestCase):
 
         self.assertEqual(response.status_code, 302)
 
-    def test_part_revision_revert(self):
+    def test_part_revision_draft(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.get(
-            reverse('bom:part-revision-revert', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
+            reverse('bom:part-revision-draft', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
 
         self.assertEqual(response.status_code, 302)
 
