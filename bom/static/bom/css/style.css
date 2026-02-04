@@ -51,12 +51,8 @@ td, tr {
     min-width: 40px;
 }
 
-/*.help-block {*/
-/*    color: red;*/
-/*}*/
-
 .tight td, .tight th {
-    padding: 8px 4px;
+    padding: 6px 4px;
     font-size: 13px;
 }
 
