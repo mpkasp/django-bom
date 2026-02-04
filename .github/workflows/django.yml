@@ -16,11 +16,12 @@ jobs:
         python-version: [ 3.12, ]
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pipenv'
     - name: Copy Local Settings
       shell: bash
       run: |
@@ -32,3 +33,35 @@ jobs:
     - name: Run Tests
       run: |
         pipenv run python manage.py test
+
+  tag-release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Version Bump
+        id: check
+        run: |
+          NEW_VER=$(grep -m 1 'version =' pyproject.toml | tr -d '"' | tr -d "'" | cut -d'=' -f2 | xargs)
+          OLD_VER=$(git show HEAD~1:pyproject.toml | grep -m 1 'version =' | tr -d '"' | tr -d "'" | cut -d'=' -f2 | xargs)
+          
+          if [ "$NEW_VER" != "$OLD_VER" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VER" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.changed == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.check.outputs.version }}
+          name: Release v${{ steps.check.outputs.version }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
