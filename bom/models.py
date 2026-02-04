@@ -514,16 +514,30 @@ class PartRevisionPropertyDefinition(OrganizationOptionalModel):
         super(PartRevisionPropertyDefinition, self).save(*args, **kwargs)
 
 
-# Below are attributes of a part that can be changed, but it's important to trace the change over time
 class PartRevision(models.Model):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
     timestamp = models.DateTimeField(default=timezone.now)
-    configuration = models.CharField(max_length=1, choices=CONFIGURATION_TYPES, default='W')
+    configuration = models.CharField(max_length=1, choices=CONFIGURATION_TYPES, default='D')
     revision = models.CharField(max_length=4, db_index=True, default='1')
     assembly = models.ForeignKey('Assembly', default=None, null=True, on_delete=models.CASCADE, db_index=True)
     displayable_synopsis = models.CharField(editable=False, default="", null=True, blank=True, max_length=255, db_index=True)
     searchable_synopsis = models.CharField(editable=False, default="", null=True, blank=True, max_length=255, db_index=True)
     description = models.CharField(max_length=255, default="", null=True, blank=True)
+
+    IMMUTABLE_STATES = [
+        CONFIGURATION_TYPE_IN_REVIEW,
+        CONFIGURATION_TYPE_RELEASED,
+        CONFIGURATION_TYPE_OBSOLETE
+    ]
+
+    VALID_STATE_TRANSITIONS = {
+        CONFIGURATION_TYPE_DRAFT: [CONFIGURATION_TYPE_IN_REVIEW, CONFIGURATION_TYPE_RELEASED,
+                                   CONFIGURATION_TYPE_OBSOLETE],
+        CONFIGURATION_TYPE_IN_REVIEW: [CONFIGURATION_TYPE_DRAFT, CONFIGURATION_TYPE_RELEASED,
+                                       CONFIGURATION_TYPE_OBSOLETE],
+        CONFIGURATION_TYPE_RELEASED: [CONFIGURATION_TYPE_OBSOLETE],
+        CONFIGURATION_TYPE_OBSOLETE: [],
+    }
 
     class Meta:
         unique_together = (('part', 'revision'),)
@@ -569,7 +583,47 @@ class PartRevision(models.Model):
             displayable_synopsis=self.displayable_synopsis
         )
 
+    def is_immutable(self):
+        return self.configuration in PartRevision.IMMUTABLE_STATES
+
+    def is_obsolete(self):
+        return self.configuration == CONFIGURATION_TYPE_OBSOLETE
+
+    def get_allowed_transitions(self):
+        return self.VALID_STATE_TRANSITIONS.get(self.configuration, [])
+
     def save(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+
+        if self.pk:  # Only check immutability for existing instances (updates)
+            try:
+                old_instance = PartRevision.objects.get(pk=self.pk)
+                fields_to_check = ['revision', 'description', 'assembly_id']
+                data_changed = any(getattr(old_instance, field) != getattr(self, field) for field in fields_to_check)
+
+                if old_instance.is_immutable() and data_changed:
+                    raise ValidationError(
+                        f"Cannot modify {old_instance.get_configuration_display()} PartRevision {old_instance}. "
+                        f"Create a new revision, or revert to Draft to make changes."
+                    )
+
+                # Check if configuration transition is valid
+                if old_instance.configuration != self.configuration:
+                    allowed = self.VALID_STATE_TRANSITIONS.get(old_instance.configuration, [])
+                    if self.configuration not in allowed:
+                        is_admin = False
+                        if user:
+                            profile = user.bom_profile(self.part.organization)
+                            if profile and profile.role == 'A':
+                                is_admin = True
+                        if not is_admin:
+                            raise ValidationError(
+                                f"Cannot change configuration from {old_instance.get_configuration_display()} "
+                                f"to {self.get_configuration_display()}. Only Admins can override this"
+                            )
+            except PartRevision.DoesNotExist:
+                pass  # New instance, allow save
+
         if self.assembly is None:
             self.assembly = Assembly.objects.create()
 
@@ -740,6 +794,13 @@ class PartRevisionProperty(models.Model):
                 )
 
     def save(self, *args, **kwargs):
+        # Enforce immutability for properties of immutable PartRevisions
+        if self.part_revision and self.part_revision.is_immutable():
+            raise ValidationError(
+                f"Cannot modify properties of {self.part_revision.get_configuration_display()} "
+                f"PartRevision {self.part_revision}. Create a new revision, or revert to draft to make changes."
+            )
+
         if self.unit_definition and self.value_raw:
             try:
                 val = Decimal(str(self.value_raw))
@@ -753,6 +814,14 @@ class PartRevisionProperty(models.Model):
 
         if self.part_revision:
             self.part_revision.update_synopsis()
+
+    def delete(self, *args, **kwargs):
+        if self.part_revision and self.part_revision.is_immutable():
+            raise ValidationError(
+                f"Cannot delete properties from Released PartRevision {self.part_revision}. "
+                f"Create a new revision to make changes."
+            )
+        super(PartRevisionProperty, self).delete(*args, **kwargs)
 
     def __str__(self):
         unit_sym = self.unit_definition.symbol if self.unit_definition else ""
@@ -774,7 +843,30 @@ class Subpart(models.Model):
     reference = models.TextField(default='', blank=True, null=True)
     do_not_load = models.BooleanField(default=False, verbose_name='Do Not Load')
 
+    def get_parent_part_revisions(self):
+        """Get all PartRevisions that contain this subpart in their assembly."""
+        if not self.pk:
+            return PartRevision.objects.none()
+
+        return PartRevision.objects.filter(assembly__subparts=self).distinct()
+
     def save(self, *args, **kwargs):
+        if self.part_revision and self.part_revision.is_obsolete():
+            if not self.pk:
+                raise ValidationError(
+                    f"Cannot add Obsolete PartRevision {self.part_revision} to BOM. "
+                    f"Obsolete parts cannot be added to new BOMs."
+                )
+
+        immutable_parent = self.get_parent_part_revisions().filter(
+            configuration__in=PartRevision.IMMUTABLE_STATES).first()
+
+        if immutable_parent:
+            raise ValidationError(
+                f"Cannot modify subparts of {immutable_parent.get_configuration_display()} "
+                f"PartRevision {immutable_parent}. Create a new revision, or revert to draft to make changes."
+            )
+
         # Make sure reference designators are formated as a string with comma-separated fields.
         try:
             reference = stringify_list(listify_string(self.reference))
@@ -782,6 +874,17 @@ class Subpart(models.Model):
         except TypeError:
             pass
         super(Subpart, self).save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        immutable_parent = self.get_parent_part_revisions().filter(
+            configuration__in=PartRevision.IMMUTABLE_STATES).first()
+
+        if immutable_parent:
+            raise ValidationError(
+                f"Cannot delete subparts from {immutable_parent.get_configuration_display()} "
+                f"PartRevision {immutable_parent}. Create a new revision to make changes."
+            )
+        super(Subpart, self).delete(*args, **kwargs)
 
     def __str__(self):
         return u'{} {}'.format(self.part_revision, self.count)

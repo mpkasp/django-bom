@@ -13,93 +13,122 @@
     {% include 'bom/bom-action-btn.html' with profile=profile %}
     <div class="container-app">
         <div class="part-info">
-            <div class="row" style="margin-bottom: 5px;">
-                <div class="col m8 hide-on-small-and-down">
-                    <h3 class="light">{{ part.full_part_number }}</h3>
-                    {% if part_revision %}
-                        {% if profile.role == 'A' %}
-                            <p class="printer-hide">Select latest revision to edit, add a new revision, etc., or select an earlier revision for viewing only</p>
-                        {% else %}
-                            <p class="printer-hide">Select a revision for viewing</p>
-                        {% endif %}
-                    {% endif %}
-                </div>
+            <div class="part-header-title-row">
+                <h1 style="margin: 0;">{{ part.full_part_number }}</h1>
+
+                {% if part_revision %}
+                    <div class="input-field">
+                        <select id="select-revision">
+                            {% for r in revisions.all %}
+                                <!--@formatter:off-->
+                                <option {% if part_revision.id == r.id %}selected{% endif %} value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}{% endif %}">Rev {{ r.revision }}{% if part_revision.id != r.id %} ({{ r.get_configuration_display }}){% endif %}</option>
+                                <!--@formatter:on-->
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <span class="chip
+                        {% if part_revision.configuration == 'D' %}grey lighten-2 grey-text text-darken-2
+                        {% elif part_revision.configuration == 'I' %}amber lighten-3 black-text
+                        {% elif part_revision.configuration == 'R' %}teal darken-2 white-text
+                        {% elif part_revision.configuration == 'O' %}red darken-1 white-text
+                        {% else %}grey lighten-4
+                        {% endif %}">
+                        {{ part_revision.get_configuration_display }}
+                    </span>
+                {% endif %}
             </div>
 
-            <div class="row printer-hide">
+            <div class="row printer-hide valign-wrapper-row">
                 {% if part_revision %}
-                    <div class="col l2 m3 s5">
-                        <div class="input-field">
-                            <select id="select-revision">
-                                {% for r in revisions.all %}
-                                    <option {% if part_revision.id == r.id %}selected{% endif %}
-                                            value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}
-                                                    {% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}
-                                                    {% endif %}">Rev {{ r.revision }}{% if r.configuration == 'W' %} (working){% endif %}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="col s6 left-align part-info-form">
+                        <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
+                            {% csrf_token %}
+                            <div class="row" style="margin-bottom: 0; display: flex; align-items: center;">
+                                <div class="part-info-form-wrapper">
+                                    {{ part_info_form }}
+                                </div>
+                                <button type="submit"
+                                        class="waves-effect waves-green btn-flat input-field btn-icon-round"
+                                        style="margin-left: 8px; margin-top: 15px; min-width: 36px;"><i
+                                        class="material-icons green-text">refresh</i></button>
+                            </div>
+                        </form>
                     </div>
                 {% endif %}
-                <div class="col {% if part_revision %}m3 s1{% else %}m3 s12{% endif %}">
+                <div class="col s6 right-align manage-btn-col">
                     {% if profile.role == 'A' and part_revision %}
-                        <div style="margin-top: 1.5rem;">
-                            <!-- Dropdown Trigger -->
-                            <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
-                                    href='#' data-target='dropdown-revision'><i class="material-icons right">arrow_drop_down</i>Manage
-                            </button>
-                            <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
-                                    class="material-icons green-text text-lighten-1">more_vert</i></a>
-                            <!-- Dropdown Structure -->
-                            <ul id='dropdown-revision' class='dropdown-content'>
-                                {% if part_revision.configuration == 'W' %}
+                        <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
+                                href='#' data-target='dropdown-revision'><i
+                                class="material-icons right">arrow_drop_down</i>Manage
+                        </button>
+                        <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
+                                class="material-icons green-text text-lighten-1">more_vert</i></a>
+                        <ul id='dropdown-revision' class='dropdown-content'>
+                            {% if not part_revision.is_immutable %}
+                                <li>
+                                    <a class="green-text text-lighten-1"
+                                       href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">
+                                        <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
+                                </li>
+                            {% endif %}
+                            <li>
+                                <a class="green-text text-lighten-1"
+                                   href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                                    <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
+                            </li>
+                            {% with allowed=part_revision.get_allowed_transitions config='D' %}
+                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
-                                        <a class="green-text text-lighten-1"
-                                           href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">
-                                            <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
-                                    </li>
-                                    <li>
-                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">
-                                            <i class="material-icons green-text text-lighten-1">check</i>Release</a>
+                                        <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                            <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">undo</i>Revert
+                                            to
+                                            Draft</a>
                                     </li>
                                 {% endif %}
-                                <li>
-                                    <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                                        <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
-                                </li>
-                                {% if part_revision.configuration == 'R' %}
+                            {% endwith %}
+                            {% with allowed=part_revision.get_allowed_transitions config='I' %}
+                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
-                                        <a class="green-text text-lighten-1 disabled" onclick="revertPartRevision()">
-                                            <i class="material-icons green-text text-lighten-1">undo</i>Revert to working</a>
+                                        <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                            <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">group</i>Change
+                                            to
+                                            In Review</a>
                                     </li>
                                 {% endif %}
-                                <li class="divider" tabindex="-1"></li>
-                                <li>
-                                    <a class="red-text text-lighten-1" onclick="deletePartRevision()">
-                                        <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
-                                </li>
-                            </ul>
-                        </div>
+                            {% endwith %}
+                            {% with allowed=part_revision.get_allowed_transitions config='R' %}
+                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                    <li>
+                                        <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                            <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">check</i>Release</a>
+                                    </li>
+                                {% endif %}
+                            {% endwith %}
+                            <li class="divider" tabindex="-1"></li>
+                            {% with allowed=part_revision.get_allowed_transitions config='O' %}
+                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                    <li>
+                                        <a class="{% if config in allowed %}orange-text{% else %}grey-text{% endif %}"
+                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                            <i class="material-icons {% if config in allowed %}orange-text{% else %}grey-text{% endif %}">block</i>Mark
+                                            Obsolete</a>
+                                    </li>
+                                {% endif %}
+                            {% endwith %}
+                            <li>
+                                <a class="red-text text-lighten-1" onclick="deletePartRevision()">
+                                    <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
+                            </li>
+                        </ul>
                     {% elif profile.role == 'A' and not part_revision %}
                         <a class='waves-effect waves-light btn-flat'
                            href='{% url 'bom:part-revision-new' part_id=part.id %}'><i class="material-icons left">add</i>Create Revision</a>
                     {% endif %}
                 </div>
-                {% if part_revision %}
-                    <div class="col m2 push-l5 push-m4 s6 right-align part-info-form">
-                        <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
-                            {% csrf_token %}
-                            <div class="row">
-                                <div class="col s9" style="padding-right: 0;">
-                                    {{ part_info_form }}
-                                </div>
-                                <div class="col s3">
-                                    <button type="submit" class="waves-effect waves-green btn-flat input-field btn-icon-round"><i class="material-icons green-text">send</i></button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                {% endif %}
             </div>
 
             <div class="row">
@@ -179,7 +208,7 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Unit Cost:</div>
                                 <div id="specs-unit-cost" class="col s8 l10"><span id="mouser-est-cost"></span><span>{{ indented_bom.unit_cost|default_if_none:'-' }}</span></div>
                             </div>
                             <div class="row">
@@ -187,11 +216,12 @@
                                 <div class="col s8 l10"><span id="mouser-missing-item-costs"></span><span>{{ indented_bom.missing_item_costs }}</span></div>
                             </div>
                             <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Total NRE:</div>
                                 <div class="col s8 l10"><span id="mouser-est-nre"></span><span>{{ indented_bom.nre|default_if_none:'-' }}</span></div>
                             </div>
                             <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost per {{ qty }} Unit Order (Including MOQs):</div>
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Order Total (w/ MOQs):
+                                </div>
                                 <div class="col s8 l10"><span id="mouser-est-cost-per-order"></span><span>{{ indented_bom.out_of_pocket_cost|default_if_none:'-' }}</span></div>
                             </div>
                             <div class="row" id="mouser-stock-wrapper" style="display: none;">
@@ -250,7 +280,9 @@
                                             </tr>
                                         {% empty %}
                                             <tr>
-                                                <td colspan="99" style="text-align: left; height: 20vh;"><i>This part is not currently
+                                                <td colspan="99"
+                                                    style="padding: 40px; text-align: center; color: #757575;"><i>This
+                                                    part is not currently
                                                     used in any of your other parts. To add a part to a subassembly or assembly, go to the
                                                     parent part's Bill of Materials, and click "Manage", then "Edit".</i></td>
                                             </tr>
@@ -422,14 +454,29 @@
             {% endif %}
         }
 
-        function revertPartRevision() {
+        function changePartRevision(c, allowed) {
             {% if part_revision is not None %}
-                let url = "{% url 'bom:part-revision-revert' part_id=part.id part_revision_id=part_revision.id %}";
-                if (confirm("Are you sure you want to revert this revision?\n\n")) {
+                var url = "{% url 'bom:part-revision-draft' part_id=part.id part_revision_id=part_revision.id %}";
+                var confirmText = "Are you sure you want to revert this revision to Draft?\n\n";
+                if (c == 'I') {
+                    url = "{% url 'bom:part-revision-review' part_id=part.id part_revision_id=part_revision.id %}";
+                    confirmText = "Are you sure you want to change this revision to In Review?\n\n";
+                } else if (c == 'R') {
+                    url = "{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}";
+                    window.location.href = url;
+                    return;
+                } else if (c == 'O') {
+                    url = "{% url 'bom:part-revision-obsolete' part_id=part.id part_revision_id=part_revision.id %}";
+                    confirmText = "Are you sure you want to change this revision to Obsolete?\n\n";
+                }
+                if (!allowed) {
+                    confirmText += "WARNING! Transition is not valid, but you have permissions to make the change anyways. Proceed with caution.\n\n";
+                }
+                if (confirm(confirmText)) {
                     window.location.href = url;
                 }
             {% else %}
-                confirm("No part revisions to revert!");
+                confirm("No part revisions to change!");
             {% endif %}
         }
     </script>

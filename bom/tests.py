@@ -439,7 +439,7 @@ class TestBOM(TransactionTestCase):
             'number_class': str(p1.number_class),
             'number_item': '',
             'number_variation': '',
-            'configuration': 'W',
+            'configuration': 'D',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
             'property_sheen': 'flat',
@@ -562,7 +562,7 @@ class TestBOM(TransactionTestCase):
             'number_class': (p1.number_class),
             'number_item': '2000',
             'number_variation': '01',
-            'configuration': 'W',
+            'configuration': 'D',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
             'property_sheen': 'flat',
@@ -591,7 +591,7 @@ class TestBOM(TransactionTestCase):
             'manufacturer': '',
             'number_class': str(p1.number_class),
             'number_item': '2000',
-            'configuration': 'W',
+            'configuration': 'D',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
             'property_sheen': 'flat',
@@ -1071,10 +1071,10 @@ class TestBOM(TransactionTestCase):
 
         self.assertEqual(response.status_code, 302)
 
-    def test_part_revision_revert(self):
+    def test_part_revision_draft(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         response = self.client.get(
-            reverse('bom:part-revision-revert', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
+            reverse('bom:part-revision-draft', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
 
         self.assertEqual(response.status_code, 302)
 
@@ -1094,7 +1094,7 @@ class TestBOM(TransactionTestCase):
             'attribute': 'resistance',
             'value': '10k',
             'part': p1.id,
-            'configuration': 'W',
+            'configuration': 'D',
             'copy_assembly': 'False',
             'property_sheen': 'flat',
             'property_voltage': '1.34',
@@ -1111,7 +1111,7 @@ class TestBOM(TransactionTestCase):
             'description': 'new rev',
             'revision': '5',
             'part': p3.id,
-            'configuration': 'W',
+            'configuration': 'D',
             'copy_assembly': 'true',
             'property_sheen': 'flat',
             'property_voltage': '1.34',
@@ -1179,7 +1179,7 @@ class TestBOMIntelligent(TestBOM):
             'manufacturer_part_number': new_part_mpn,
             'manufacturer': p1.primary_manufacturer_part.manufacturer.id,
             'number_item': 'ABC1',
-            'configuration': 'W',
+            'configuration': 'D',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
             'property_sheen': 'flat',
@@ -1289,7 +1289,7 @@ class TestBOMIntelligent(TestBOM):
             'manufacturer_part_number': '',
             'manufacturer': '',
             'number_item': '2000',
-            'configuration': 'W',
+            'configuration': 'D',
             'description': 'IC, MCU 32 Bit',
             'revision': 'A',
             'property_sheen': 'flat',
@@ -1534,13 +1534,13 @@ class TestForms(TestCase):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         form_data = {'subpart_part_number': p1.full_part_number(), 'count': 10, 'reference': '', 'do_not_load': False}
-        form = AddSubpartForm(organization=self.organization, data=form_data, part_id=p2.id)
+        form = AddSubpartForm(organization=self.organization, data=form_data, part_revision_id=p2.latest().id)
         self.assertTrue(form.is_valid())
 
     def test_add_subpart_form_blank(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
-        form = AddSubpartForm({}, organization=self.organization, part_id=p1.id)
+        form = AddSubpartForm({}, organization=self.organization, part_revision_id=p1.latest().id)
         self.assertFalse(form.is_valid())
         self.assertTrue('subpart_part_number' in str(form.errors))
         self.assertTrue('This field is required.' in str(form.errors))
@@ -1591,3 +1591,99 @@ class TestJsonViews(TestCase):
         response = self.client.get(reverse('json:mouser-part-match-bom', kwargs={'part_revision_id': p3.latest().id}))
 
         self.assertEqual(response.status_code, 200)
+
+
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
+class TestImmutableRevisioning(TransactionTestCase):
+    """Test immutable revisioning feature for Released PartRevisions."""
+
+    def setUp(self):
+        self.client = Client()
+        self.user, self.organization = create_user_and_organization()
+        self.profile = self.user.bom_profile(organization=self.organization)
+        self.profile.role = 'A'
+        self.profile.save()
+
+        self.p1, self.p2, self.p3, self.p4 = create_some_fake_parts(organization=self.organization)
+        self.pr1 = self.p1.latest()
+
+        self.prop_def, _, _, _, _ = create_some_fake_part_revision_property_definitions(self.organization)
+
+    def test_released_parts_are_locked(self):
+        """Confirm Released parts reject changes to attributes, properties, and BOMs."""
+        from django.core.exceptions import ValidationError
+        from .models import PartRevisionProperty
+
+        # 1. Setup a Draft part with data
+        self.pr1.configuration = constants.CONFIGURATION_TYPE_DRAFT
+        self.pr1.save()
+        prop = PartRevisionProperty.objects.create(part_revision=self.pr1, property_definition=self.prop_def,
+                                                   value_raw="10")
+        subpart = self.pr1.assembly.subparts.first()  # Created by fake_parts
+
+        # 2. Lock it (Release)
+        self.pr1.configuration = constants.CONFIGURATION_TYPE_RELEASED
+        self.pr1.save()
+
+        # 3. Assert Attributes are Locked
+        self.pr1.description = "Hacker was here"
+        with self.assertRaisesRegex(ValidationError, "Cannot modify Released PartRevision"):
+            self.pr1.save()
+
+        # 4. Assert Properties are Locked (Edit/Add/Delete)
+        prop.value_raw = "20"
+        with self.assertRaisesRegex(ValidationError, "Cannot modify properties"):
+            prop.save()
+
+        with self.assertRaisesRegex(ValidationError, "Cannot modify properties"):
+            PartRevisionProperty.objects.create(part_revision=self.pr1, property_definition=self.prop_def,
+                                                value_raw="99")
+
+        # 5. Assert BOM is Locked
+        if subpart:
+            subpart.count = 999
+            with self.assertRaisesRegex(ValidationError, "Cannot modify subparts"):
+                subpart.save()
+
+    def test_state_transitions(self):
+        """Test valid and invalid lifecycle movements."""
+        from django.core.exceptions import ValidationError
+
+        self.pr1.configuration = constants.CONFIGURATION_TYPE_RELEASED
+        self.pr1.save()
+
+        # Fail: Released -> Draft (Without Admin user passed)
+        self.pr1.configuration = constants.CONFIGURATION_TYPE_DRAFT
+        with self.assertRaisesRegex(ValidationError, "Only Admins"):
+            self.pr1.save()
+
+        # Pass: Released -> Draft (WITH Admin user passed)
+        self.pr1.configuration = constants.CONFIGURATION_TYPE_DRAFT
+        self.pr1.save(user=self.user)
+        self.assertEqual(self.pr1.configuration, constants.CONFIGURATION_TYPE_DRAFT)
+
+    def test_obsolete_constraints(self):
+        """Test unique logic for Obsolete parts (cant be added to new BOMs)."""
+        from django.core.exceptions import ValidationError
+
+        self.pr1.configuration = constants.CONFIGURATION_TYPE_OBSOLETE
+        self.pr1.save()
+
+        # Try to use this obsolete part in a NEW BOM
+        new_subpart = Subpart(part_revision=self.pr1, count=1)
+        with self.assertRaisesRegex(ValidationError, "Cannot add Obsolete PartRevision"):
+            new_subpart.save()
+
+    def test_immutable_helper(self):
+        """Verify is_immutable returns correct boolean for all states."""
+        # DRAFT = False
+        self.pr1.configuration = constants.CONFIGURATION_TYPE_DRAFT
+        self.assertFalse(self.pr1.is_immutable())
+
+        # IN_REVIEW = True (Fixed from AI's version)
+        self.pr1.configuration = constants.CONFIGURATION_TYPE_IN_REVIEW
+        self.assertTrue(self.pr1.is_immutable())
+
+        # RELEASED = True
+        self.pr1.configuration = constants.CONFIGURATION_TYPE_RELEASED
+        self.assertTrue(self.pr1.is_immutable())

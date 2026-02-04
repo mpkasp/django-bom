@@ -13,3 +13,74 @@
         margin-top: 12px;
     }
 }
+
+.part-header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.part-header-title-row .input-field {
+    margin: 0;
+    width: auto;
+    min-width: 150px;
+}
+
+.part-header-title-row .chip {
+    margin: 0;
+}
+
+/* Tighten the gap between title and action row */
+.part-header-title-row {
+    margin-bottom: 8px;
+}
+
+/* Vertically center the form and the manage button */
+.valign-wrapper-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 12px !important;
+    margin-top: 10px;
+}
+
+.valign-wrapper-row .col {
+    padding: 0 0.75rem !important;
+}
+
+/* Align the quantity label and input nicely */
+.quantity-input-col {
+    display: flex;
+    flex-direction: column;
+    padding-right: 0;
+}
+
+.quantity-input-col label {
+    font-size: 0.8rem;
+    margin-bottom: -5px; /* Pull label closer to input */
+}
+
+/* Fix the refresh button position */
+.refresh-btn {
+    margin-top: 14px; /* Adjust based on your label height */
+}
+
+/* Ensure the Manage button column stays right-aligned in flex */
+.manage-btn-col {
+    margin-left: auto;
+}
+
+.part-info-form-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.part-info-form-wrapper input {
+    margin-bottom: 0;
+    height: 2.5rem;
+    width: 100px;
+    text-align: left;
+}

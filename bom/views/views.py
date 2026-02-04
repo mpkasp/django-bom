@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import IntegrityError
 from django.db.models import Count, ProtectedError, Q, Subquery, prefetch_related_objects
@@ -1184,7 +1185,8 @@ def manage_bom(request, part_id, part_revision_id):
         messages.error(request, "Cant access a part that is not yours!")
         return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
-    add_subpart_form = AddSubpartForm(initial={'count': 1, }, organization=organization, part_id=part_id)
+    add_subpart_form = AddSubpartForm(initial={'count': 1, }, organization=organization,
+                                      part_revision_id=part_revision_id)
     upload_subparts_csv_form = FileForm()
 
     qty_cache_key = str(part_id) + '_qty'
@@ -1228,7 +1230,7 @@ def add_subpart(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
 
     if request.method == 'POST':
-        add_subpart_form = AddSubpartForm(request.POST, organization=organization, part_id=part_id)
+        add_subpart_form = AddSubpartForm(request.POST, organization=organization, part_revision_id=part_revision_id)
         if add_subpart_form.is_valid():
             subpart_part = add_subpart_form.subpart_part
             reference = add_subpart_form.cleaned_data['reference']
@@ -1634,34 +1636,62 @@ def sellerpart_delete(request, sellerpart_id):
 def part_revision_release(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
-    organization = profile.organization
-
     part = get_object_or_404(Part, pk=part_id)
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     action = reverse('bom:part-revision-release', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id})
-    title = 'Promote {} Rev {} {} from <b>Working</b> to <b>Released</b>?'.format(part.full_part_number(), part_revision.revision, part_revision.synopsis())
-
-    subparts = part_revision.assembly.subparts.filter(part_revision__configuration="W")
+    title = f'Promote {part.full_part_number()} Rev {part_revision.revision} {part_revision.synopsis()} to <b>Released</b>?'
+    subparts = part_revision.assembly.subparts.filter(part_revision__configuration=constants.CONFIGURATION_TYPE_DRAFT)
     release_warning = subparts.count() > 0
 
     if request.method == 'POST':
-        part_revision.configuration = 'R'
-        part_revision.save()
+        part_revision.configuration = constants.CONFIGURATION_TYPE_RELEASED
+        try:
+            part_revision.save(user=user)
+        except ValidationError as e:
+            messages.error(request, e.message)
+            return HttpResponseRedirect(request.path_info)
         return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id}))
 
     return TemplateResponse(request, 'bom/part-revision-release.html', locals())
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-def part_revision_revert(request, part_id, part_revision_id):
+def part_revision_draft(request, part_id, part_revision_id):
     user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-    part_revision.configuration = 'W'
-    part_revision.save()
+    part_revision.configuration = constants.CONFIGURATION_TYPE_DRAFT
+    try:
+        part_revision.save(user=user)
+        messages.success(request, "Part revision reverted to Draft.")
+    except ValidationError as e:
+        messages.error(request, e.message)
     return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def part_revision_in_review(request, part_id, part_revision_id):
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id)
+    part_revision.configuration = constants.CONFIGURATION_TYPE_IN_REVIEW
+    try:
+        part_revision.save(user=request.user)
+        messages.success(request, f"{part_revision} is now In Review.")
+    except ValidationError as e:
+        messages.error(request, e.message)
+    return HttpResponseRedirect(
+        reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def part_revision_obsolete(request, part_id, part_revision_id):
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id)
+    part_revision.configuration = constants.CONFIGURATION_TYPE_OBSOLETE
+    try:
+        part_revision.save(user=request.user)
+        messages.warning(request, f"{part_revision} is now Obsolete.")
+    except ValidationError as e:
+        messages.error(request, e.message)
+    return HttpResponseRedirect(
+        reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1682,7 +1712,7 @@ def part_revision_new(request, part_id):
     used_in_subparts = Subpart.objects.filter(part_revision__in=all_used_part_revisions)
     used_in_assembly_ids = AssemblySubparts.objects.filter(subpart__in=used_in_subparts).values_list('assembly', flat=True)
     all_used_in_prs = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)
-    used_part_revisions = all_used_in_prs.filter(configuration='W')
+    used_part_revisions = all_used_in_prs.filter(configuration=constants.CONFIGURATION_TYPE_DRAFT)
 
     if request.method == 'POST':
         part_revision_new_form = PartRevisionNewForm(request.POST, part=part, revision=next_revision_number,
