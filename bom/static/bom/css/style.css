@@ -55,8 +55,9 @@ td, tr {
 /*    color: red;*/
 /*}*/
 
-.tight td {
-    padding: 3px 3px;
+.tight td, .tight th {
+    padding: 8px 4px;
+    font-size: 13px;
 }
 
 .tighter {
@@ -131,6 +132,16 @@ td, tr {
 
 .page-footer {
     margin-top: 50px;
+}
+
+.tabs {
+    height: 40px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.tabs .tab {
+    line-height: 40px;
+    height: 40px;
 }
 
 .tabs .tab a {
@@ -258,12 +269,12 @@ a.anchor {
 
 /* Material dropdowns tighter */
 .dropdown-content li > a, .dropdown-content li > span {
-    padding: 6px;
-    line-height: 16px;
+    padding: 12px 16px; /* Standard Material padding */
+    line-height: 20px;
 }
 
 .dropdown-content li {
-    min-height: 30px;
+    min-height: 40px;
 }
 
 /* table of contents styling */
@@ -438,6 +449,14 @@ a.anchor {
 .settings-nav .collection {
     border: none;
     margin: 0;
+}
+
+.collection-item .row {
+    margin-bottom: 4px;
+}
+
+.collection-item .col {
+    font-size: 13px;
 }
 
 .settings-nav .collection .collection-item {

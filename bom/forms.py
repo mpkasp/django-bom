@@ -314,7 +314,7 @@ class OrganizationNumberLenForm(OrganizationBaseForm):
 # ==========================================
 
 class PartInfoForm(forms.Form):
-    quantity = forms.IntegerField(label='Quantity for Est Cost', min_value=1)
+    quantity = forms.IntegerField(label='Quote Quantity', min_value=1)
 
 
 class ManufacturerForm(forms.ModelForm):

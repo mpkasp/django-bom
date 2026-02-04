@@ -39,95 +39,91 @@
                 {% endif %}
             </div>
 
-            <div class="row printer-hide">
+            <div class="row printer-hide valign-wrapper-row">
                 {% if part_revision %}
-                    <div class="col m3 s6 left-align part-info-form">
+                    <div class="col s6 left-align part-info-form">
                         <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
                             {% csrf_token %}
-                            <div class="row">
-                                <div class="col s10" style="padding-right: 0; display: inline-flex;">
-                                    {{ part_info_form.quantity.label }}
-                                    {{ part_info_form.quantity }}
+                            <div class="row" style="margin-bottom: 0; display: flex; align-items: center;">
+                                <div class="part-info-form-wrapper">
+                                    {{ part_info_form }}
                                 </div>
-                                <div class="col s2">
-                                    <button type="submit"
-                                            class="waves-effect waves-green btn-flat input-field btn-icon-round"
-                                            style="margin-top: 8px;"><i
-                                            class="material-icons green-text">refresh</i></button>
-                                </div>
+                                <button type="submit"
+                                        class="waves-effect waves-green btn-flat input-field btn-icon-round"
+                                        style="margin-left: 8px; margin-top: 15px;"><i
+                                        class="material-icons green-text">refresh</i></button>
                             </div>
                         </form>
                     </div>
                 {% endif %}
-                <div class="col m3 s12 push-m6 right-align">
+                <div class="col s6 right-align manage-btn-col">
                     {% if profile.role == 'A' and part_revision %}
-                        <div style="margin-top: .75rem;">
-                            <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
-                                    href='#' data-target='dropdown-revision'><i class="material-icons right">arrow_drop_down</i>Manage
-                            </button>
-                            <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
-                                    class="material-icons green-text text-lighten-1">more_vert</i></a>
-                            <ul id='dropdown-revision' class='dropdown-content'>
-                                {% if not part_revision.is_immutable %}
-                                    <li>
-                                        <a class="green-text text-lighten-1"
-                                           href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">
-                                            <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
-                                    </li>
-                                {% endif %}
+                        <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
+                                href='#' data-target='dropdown-revision'><i
+                                class="material-icons right">arrow_drop_down</i>Manage
+                        </button>
+                        <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
+                                class="material-icons green-text text-lighten-1">more_vert</i></a>
+                        <ul id='dropdown-revision' class='dropdown-content'>
+                            {% if not part_revision.is_immutable %}
                                 <li>
                                     <a class="green-text text-lighten-1"
-                                       href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                                        <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
+                                       href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">
+                                        <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
                                 </li>
-                                {% with allowed=part_revision.get_allowed_transitions config='D' %}
-                                    {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
-                                        <li>
-                                            <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
-                                               onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                                <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">undo</i>Revert
-                                                to
-                                                Draft</a>
-                                        </li>
-                                    {% endif %}
-                                {% endwith %}
-                                {% with allowed=part_revision.get_allowed_transitions config='I' %}
-                                    {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
-                                        <li>
-                                            <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
-                                               onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                                <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">group</i>Change
-                                                to
-                                                In Review</a>
-                                        </li>
-                                    {% endif %}
-                                {% endwith %}
-                                {% with allowed=part_revision.get_allowed_transitions config='R' %}
-                                    {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
-                                        <li>
-                                            <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
-                                               onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                                <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">check</i>Release</a>
+                            {% endif %}
+                            <li>
+                                <a class="green-text text-lighten-1"
+                                   href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                                    <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
+                            </li>
+                            {% with allowed=part_revision.get_allowed_transitions config='D' %}
+                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                    <li>
+                                        <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                            <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">undo</i>Revert
+                                            to
+                                            Draft</a>
                                     </li>
-                                    {% endif %}
-                                {% endwith %}
-                                <li class="divider" tabindex="-1"></li>
-                                {% with allowed=part_revision.get_allowed_transitions config='O' %}
-                                    {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
-                                        <li>
-                                            <a class="{% if config in allowed %}orange-text{% else %}grey-text{% endif %}"
-                                               onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                                <i class="material-icons {% if config in allowed %}orange-text{% else %}grey-text{% endif %}">block</i>Mark
-                                                Obsolete</a>
+                                {% endif %}
+                            {% endwith %}
+                            {% with allowed=part_revision.get_allowed_transitions config='I' %}
+                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                    <li>
+                                        <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                            <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">group</i>Change
+                                            to
+                                            In Review</a>
                                     </li>
-                                    {% endif %}
-                                {% endwith %}
-                                <li>
-                                    <a class="red-text text-lighten-1" onclick="deletePartRevision()">
-                                        <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
-                                </li>
-                            </ul>
-                        </div>
+                                {% endif %}
+                            {% endwith %}
+                            {% with allowed=part_revision.get_allowed_transitions config='R' %}
+                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                    <li>
+                                        <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                            <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">check</i>Release</a>
+                                    </li>
+                                {% endif %}
+                            {% endwith %}
+                            <li class="divider" tabindex="-1"></li>
+                            {% with allowed=part_revision.get_allowed_transitions config='O' %}
+                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                    <li>
+                                        <a class="{% if config in allowed %}orange-text{% else %}grey-text{% endif %}"
+                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                            <i class="material-icons {% if config in allowed %}orange-text{% else %}grey-text{% endif %}">block</i>Mark
+                                            Obsolete</a>
+                                    </li>
+                                {% endif %}
+                            {% endwith %}
+                            <li>
+                                <a class="red-text text-lighten-1" onclick="deletePartRevision()">
+                                    <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
+                            </li>
+                        </ul>
                     {% elif profile.role == 'A' and not part_revision %}
                         <a class='waves-effect waves-light btn-flat'
                            href='{% url 'bom:part-revision-new' part_id=part.id %}'><i class="material-icons left">add</i>Create Revision</a>
@@ -212,7 +208,7 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost:</div>
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Unit Cost:</div>
                                 <div id="specs-unit-cost" class="col s8 l10"><span id="mouser-est-cost"></span><span>{{ indented_bom.unit_cost|default_if_none:'-' }}</span></div>
                             </div>
                             <div class="row">
@@ -220,11 +216,12 @@
                                 <div class="col s8 l10"><span id="mouser-missing-item-costs"></span><span>{{ indented_bom.missing_item_costs }}</span></div>
                             </div>
                             <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Total NRE:</div>
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Total NRE:</div>
                                 <div class="col s8 l10"><span id="mouser-est-nre"></span><span>{{ indented_bom.nre|default_if_none:'-' }}</span></div>
                             </div>
                             <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Est. Cost per {{ qty }} Unit Order (Including MOQs):</div>
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Order Total (w/ MOQs):
+                                </div>
                                 <div class="col s8 l10"><span id="mouser-est-cost-per-order"></span><span>{{ indented_bom.out_of_pocket_cost|default_if_none:'-' }}</span></div>
                             </div>
                             <div class="row" id="mouser-stock-wrapper" style="display: none;">
@@ -283,7 +280,9 @@
                                             </tr>
                                         {% empty %}
                                             <tr>
-                                                <td colspan="99" style="text-align: left; height: 20vh;"><i>This part is not currently
+                                                <td colspan="99"
+                                                    style="padding: 40px; text-align: center; color: #757575;"><i>This
+                                                    part is not currently
                                                     used in any of your other parts. To add a part to a subassembly or assembly, go to the
                                                     parent part's Bill of Materials, and click "Manage", then "Edit".</i></td>
                                             </tr>
