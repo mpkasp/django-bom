@@ -27,7 +27,15 @@
                         </select>
                     </div>
 
-                    <span class="chip bg-accent">{{ part_revision.get_configuration_display }}</span>
+                    <span class="chip
+                        {% if part_revision.configuration == 'D' %}grey lighten-2 grey-text text-darken-2
+                        {% elif part_revision.configuration == 'I' %}amber lighten-3 black-text
+                        {% elif part_revision.configuration == 'R' %}teal darken-2 white-text
+                        {% elif part_revision.configuration == 'O' %}red darken-1 white-text
+                        {% else %}grey lighten-4
+                        {% endif %}">
+                        {{ part_revision.get_configuration_display }}
+                    </span>
                 {% endif %}
             </div>
 
@@ -72,33 +80,48 @@
                                        href="{% url 'bom:part-revision-new' part_id=part.id %}">
                                         <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
                                 </li>
-                                {% if 'D' in part_revision.get_allowed_transitions or profile.role == 'A' %}
-                                    <li>
-                                        <a class="green-text text-lighten-1" onclick="changePartRevision('D')">
-                                            <i class="material-icons green-text text-lighten-1">undo</i>Revert to
-                                            Draft</a>
+                                {% with allowed=part_revision.get_allowed_transitions config='D' %}
+                                    {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                        <li>
+                                            <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                               onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                                <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">undo</i>Revert
+                                                to
+                                                Draft</a>
+                                        </li>
+                                    {% endif %}
+                                {% endwith %}
+                                {% with allowed=part_revision.get_allowed_transitions config='I' %}
+                                    {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                        <li>
+                                            <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                               onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                                <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">group</i>Change
+                                                to
+                                                In Review</a>
+                                        </li>
+                                    {% endif %}
+                                {% endwith %}
+                                {% with allowed=part_revision.get_allowed_transitions config='R' %}
+                                    {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                        <li>
+                                            <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                               onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                                <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">check</i>Release</a>
                                     </li>
-                                {% endif %}
-                                {% if 'I' in part_revision.get_allowed_transitions or profile.role == 'A' %}
-                                    <li>
-                                        <a class="green-text text-lighten-1" onclick="changePartRevision('I')">
-                                            <i class="material-icons green-text text-lighten-1">group</i>Change to
-                                            In Review</a>
-                                    </li>
-                                {% endif %}
-                                {% if 'R' in part_revision.get_allowed_transitions or profile.role == 'A' %}
-                                    <li>
-                                        <a class="green-text text-lighten-1" onclick="changePartRevision('R')">
-                                            <i class="material-icons green-text text-lighten-1">check</i>Release</a>
-                                    </li>
-                                {% endif %}
+                                    {% endif %}
+                                {% endwith %}
                                 <li class="divider" tabindex="-1"></li>
-                                {% if 'O' in part_revision.get_allowed_transitions or profile.role == 'A' %}
-                                    <li>
-                                        <a class="orange-text text-lighten-1" onclick="changePartRevision('O')">
-                                            <i class="material-icons orange-text text-lighten-1">block</i>Mark Obsolete</a>
+                                {% with allowed=part_revision.get_allowed_transitions config='O' %}
+                                    {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                        <li>
+                                            <a class="{% if config in allowed %}orange-text{% else %}grey-text{% endif %}"
+                                               onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                                <i class="material-icons {% if config in allowed %}orange-text{% else %}grey-text{% endif %}">block</i>Mark
+                                                Obsolete</a>
                                     </li>
-                                {% endif %}
+                                    {% endif %}
+                                {% endwith %}
                                 <li>
                                     <a class="red-text text-lighten-1" onclick="deletePartRevision()">
                                         <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
@@ -432,7 +455,7 @@
             {% endif %}
         }
 
-        function changePartRevision(c) {
+        function changePartRevision(c, allowed) {
             {% if part_revision is not None %}
                 var url = "{% url 'bom:part-revision-draft' part_id=part.id part_revision_id=part_revision.id %}";
                 var confirmText = "Are you sure you want to revert this revision to Draft?\n\n";
@@ -446,6 +469,9 @@
                 } else if (c == 'O') {
                     url = "{% url 'bom:part-revision-obsolete' part_id=part.id part_revision_id=part_revision.id %}";
                     confirmText = "Are you sure you want to change this revision to Obsolete?\n\n";
+                }
+                if (!allowed) {
+                    confirmText += "WARNING! Transition is not valid, but you have permissions to make the change anyways. Proceed with caution.\n\n";
                 }
                 if (confirm(confirmText)) {
                     window.location.href = url;
