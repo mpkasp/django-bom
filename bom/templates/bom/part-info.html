@@ -43,7 +43,8 @@
                                 </div>
                                 <div class="col s2">
                                     <button type="submit"
-                                            class="waves-effect waves-green btn-flat input-field btn-icon-round"><i
+                                            class="waves-effect waves-green btn-flat input-field btn-icon-round"
+                                            style="margin-top: 8px;"><i
                                             class="material-icons green-text">refresh</i></button>
                                 </div>
                             </div>
@@ -53,36 +54,51 @@
                 <div class="col m3 s12 push-m6 right-align">
                     {% if profile.role == 'A' and part_revision %}
                         <div style="margin-top: .75rem;">
-                            <!-- Dropdown Trigger -->
                             <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
                                     href='#' data-target='dropdown-revision'><i class="material-icons right">arrow_drop_down</i>Manage
                             </button>
                             <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
                                     class="material-icons green-text text-lighten-1">more_vert</i></a>
-                            <!-- Dropdown Structure -->
                             <ul id='dropdown-revision' class='dropdown-content'>
-                                {% if part_revision.configuration == 'D' %}
+                                {% if not part_revision.is_immutable %}
                                     <li>
                                         <a class="green-text text-lighten-1"
                                            href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">
                                             <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
                                     </li>
+                                {% endif %}
+                                <li>
+                                    <a class="green-text text-lighten-1"
+                                       href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                                        <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
+                                </li>
+                                {% if 'D' in part_revision.get_allowed_transitions or profile.role == 'A' %}
                                     <li>
-                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">
+                                        <a class="green-text text-lighten-1" onclick="changePartRevision('D')">
+                                            <i class="material-icons green-text text-lighten-1">undo</i>Revert to
+                                            Draft</a>
+                                    </li>
+                                {% endif %}
+                                {% if 'I' in part_revision.get_allowed_transitions or profile.role == 'A' %}
+                                    <li>
+                                        <a class="green-text text-lighten-1" onclick="changePartRevision('I')">
+                                            <i class="material-icons green-text text-lighten-1">group</i>Change to
+                                            In Review</a>
+                                    </li>
+                                {% endif %}
+                                {% if 'R' in part_revision.get_allowed_transitions or profile.role == 'A' %}
+                                    <li>
+                                        <a class="green-text text-lighten-1" onclick="changePartRevision('R')">
                                             <i class="material-icons green-text text-lighten-1">check</i>Release</a>
                                     </li>
                                 {% endif %}
-                                <li>
-                                    <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                                        <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
-                                </li>
-                                {% if part_revision.configuration == 'R' %}
+                                <li class="divider" tabindex="-1"></li>
+                                {% if 'O' in part_revision.get_allowed_transitions or profile.role == 'A' %}
                                     <li>
-                                        <a class="green-text text-lighten-1 disabled" onclick="revertPartRevision()">
-                                            <i class="material-icons green-text text-lighten-1">undo</i>Revert to working</a>
+                                        <a class="orange-text text-lighten-1" onclick="changePartRevision('O')">
+                                            <i class="material-icons orange-text text-lighten-1">block</i>Mark Obsolete</a>
                                     </li>
                                 {% endif %}
-                                <li class="divider" tabindex="-1"></li>
                                 <li>
                                     <a class="red-text text-lighten-1" onclick="deletePartRevision()">
                                         <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
@@ -416,14 +432,26 @@
             {% endif %}
         }
 
-        function revertPartRevision() {
+        function changePartRevision(c) {
             {% if part_revision is not None %}
-                let url = "{% url 'bom:part-revision-revert' part_id=part.id part_revision_id=part_revision.id %}";
-                if (confirm("Are you sure you want to revert this revision?\n\n")) {
+                var url = "{% url 'bom:part-revision-draft' part_id=part.id part_revision_id=part_revision.id %}";
+                var confirmText = "Are you sure you want to revert this revision to Draft?\n\n";
+                if (c == 'I') {
+                    url = "{% url 'bom:part-revision-review' part_id=part.id part_revision_id=part_revision.id %}";
+                    confirmText = "Are you sure you want to change this revision to In Review?\n\n";
+                } else if (c == 'R') {
+                    url = "{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}";
+                    window.location.href = url;
+                    return;
+                } else if (c == 'O') {
+                    url = "{% url 'bom:part-revision-obsolete' part_id=part.id part_revision_id=part_revision.id %}";
+                    confirmText = "Are you sure you want to change this revision to Obsolete?\n\n";
+                }
+                if (confirm(confirmText)) {
                     window.location.href = url;
                 }
             {% else %}
-                confirm("No part revisions to revert!");
+                confirm("No part revisions to change!");
             {% endif %}
         }
     </script>

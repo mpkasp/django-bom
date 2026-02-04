@@ -1635,6 +1635,7 @@ def sellerpart_delete(request, sellerpart_id):
 @login_required(login_url=BOM_LOGIN_URL)
 def part_revision_release(request, part_id, part_revision_id):
     user = request.user
+    profile = user.bom_profile()
     part = get_object_or_404(Part, pk=part_id)
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     action = reverse('bom:part-revision-release', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id})
@@ -1655,7 +1656,7 @@ def part_revision_release(request, part_id, part_revision_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-def part_revision_revert(request, part_id, part_revision_id):
+def part_revision_draft(request, part_id, part_revision_id):
     user = request.user
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     part_revision.configuration = constants.CONFIGURATION_TYPE_DRAFT
@@ -1665,6 +1666,32 @@ def part_revision_revert(request, part_id, part_revision_id):
     except ValidationError as e:
         messages.error(request, e.message)
     return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def part_revision_in_review(request, part_id, part_revision_id):
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id)
+    part_revision.configuration = constants.CONFIGURATION_TYPE_IN_REVIEW
+    try:
+        part_revision.save(user=request.user)
+        messages.success(request, f"{part_revision} is now In Review.")
+    except ValidationError as e:
+        messages.error(request, e.message)
+    return HttpResponseRedirect(
+        reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def part_revision_obsolete(request, part_id, part_revision_id):
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id)
+    part_revision.configuration = constants.CONFIGURATION_TYPE_OBSOLETE
+    try:
+        part_revision.save(user=request.user)
+        messages.warning(request, f"{part_revision} is now Obsolete.")
+    except ValidationError as e:
+        messages.error(request, e.message)
+    return HttpResponseRedirect(
+        reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
 @login_required(login_url=BOM_LOGIN_URL)

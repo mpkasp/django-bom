@@ -589,6 +589,9 @@ class PartRevision(models.Model):
     def is_obsolete(self):
         return self.configuration == CONFIGURATION_TYPE_OBSOLETE
 
+    def get_allowed_transitions(self):
+        return self.VALID_STATE_TRANSITIONS.get(self.configuration, [])
+
     def save(self, *args, **kwargs):
         user = kwargs.pop('user', None)
 
