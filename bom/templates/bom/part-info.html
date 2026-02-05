@@ -128,7 +128,7 @@
                             </li>
                             {% endif %}
                         </ul>
-                    {% elif profile.role == 'A' and not part_revision %}
+                    {% elif perms.bom.create_part and not part_revision %}
                         <a class='waves-effect waves-light btn-flat'
                            href='{% url 'bom:part-revision-new' part_id=part.id %}'><i class="material-icons left">add</i>Create Revision</a>
                     {% endif %}
@@ -160,7 +160,7 @@
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Number:</div>
                                 <div class="col s8 l10">{{ part.full_part_number }}
-                                    {% if profile.role == 'A' %}
+                                    {% if perms.bom.edit_part %}
                                         <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[edit]</a>
                                     {% endif %}
                                 </div>
@@ -206,7 +206,7 @@
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Primary Manufacturer Part:</div>
                                 <div class="col s8 l10">{% if part.primary_manufacturer_part.link %}<a href="{{ part.primary_manufacturer_part.link }}" target="_blank">{% endif %}{{ part.primary_manufacturer_part.manufacturer.name }} - {{ part.primary_manufacturer_part.manufacturer_part_number }}{% if part.primary_manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}
-                                    {% if profile.role == 'A' %}
+                                    {% if perms.bom.edit_part %}
                                         <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[change]</a>
                                     {% endif %}
                                 </div>
@@ -324,7 +324,7 @@
                                             <tr>
                                                 <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently
                                                     used in any of your other parts.
-                                                    {% if profile.role == 'A' %}
+                                                    {% if perms.bom.part_edit %}
                                                         To add a part to a subassembly or assembly, go to the
                                                         parent part's Bill of Materials, and click "Manage", then "Edit".
                                                     {% endif %}
@@ -342,7 +342,7 @@
                 <div id="sourcing" class="col s12">
                     <h4 class="printer-show">Sourcing</h4>
                     {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=part.manufacturer_parts part_revision=part_revision profile=profile %}
-                    {% if profile.role == 'A' %}
+                    {% if perms.bom.manage_sourcing %}
                         <div class="row" style="padding-top: 16px;">
                             <div class="col s12 center-align">
                                 <a class="waves-effect waves-green btn-flat"
