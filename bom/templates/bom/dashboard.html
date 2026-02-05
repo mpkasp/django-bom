@@ -132,7 +132,7 @@
                                     <a class="dropdown-trigger" href='#' data-target='part-menu-{{ part_rev.id }}'><i class="material-icons green-text">more_horiz</i></a>
                                     <!-- Dropdown Structure -->
                                     <ul id='part-menu-{{ part_rev.id }}' class='dropdown-content'>
-                                        {% if part_rev.configuration == 'W' %}
+                                        {% if not part_rev.is_immutable %}
                                             <li>
                                                 <a class="green-text text-lighten-1"
                                                    href="{% url 'bom:part-revision-edit' part_id=part_rev.part.id part_revision_id=part_rev.id %}">

@@ -15,7 +15,7 @@
                 class="material-icons">refresh</i></a>
     </div>
     <div class="col s6 right-align">
-        {% if manage and profile.role == 'A' %}
+        {% if manage and perms.bom.edit_part %}
             <a class="btn waves-effect waves-green btn-flat red-text"
                href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
                onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts</a>
@@ -27,8 +27,8 @@
             </button>
             <!-- Dropdown Structure -->
             <ul id='manage-bom-{{ part.id }}-indented' class='dropdown-content'>
-                {% if profile.role == 'A' %}
-                    <li>{% if part_revision.configuration == 'W' %}
+                {% if perms.bom.edit_part %}
+                    <li>{% if not part_revision.is_immutable %}
                         <a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">
                             <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
                     {% else %}
@@ -72,7 +72,7 @@
             <th class="text-normal">Price</th>
             <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
             <th class="text-normal">NRE</th>
-            {% if profile.role == 'A' and manage %}
+            {% if perms.bom.edit_part and manage %}
                 <th class="sorter-false" data-sorter="false">Manage</th>
             {% endif %}
         </tr>
