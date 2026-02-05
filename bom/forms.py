@@ -11,12 +11,14 @@ from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
 from djmoney.money import Money
 
+from bom.permissions import BomPerms
 from .constants import (
     NUMBER_SCHEME_INTELLIGENT,
     NUMBER_SCHEME_SEMI_INTELLIGENT,
     PART_REVISION_PROPERTY_TYPE_BOOLEAN,
     PART_REVISION_PROPERTY_TYPE_DECIMAL,
     ROLE_TYPE_VIEWER,
+    CONFIGURATION_TYPE_OBSOLETE,
 )
 from .csv_headers import (
     CSVHeaderError,
@@ -59,6 +61,7 @@ class OrganizationFormMixin:
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
 
@@ -215,9 +218,7 @@ class UserAddForm(OrganizationFormMixin, forms.ModelForm):
         try:
             user = User.objects.get(username=username)
             user_meta = user.bom_profile()
-            if user_meta.organization == self.organization:
-                self.add_error('username', f"User '{username}' already belongs to {self.organization}.")
-            elif user_meta.organization:
+            if user_meta.organization and user_meta.organization != self.organization:
                 self.add_error('username', f"User '{username}' belongs to another organization.")
         except User.DoesNotExist:
             self.add_error('username', f"User '{username}' does not exist.")
@@ -283,7 +284,9 @@ class OrganizationForm(OrganizationBaseForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        if user and self.instance.owner == user:
+        can_manage = user.has_perm(BomPerms.MANAGE_MEMBERS, self.instance) if user else False
+
+        if can_manage:
             # Only show owner selection if current user is owner
             admin_ids = UserMeta.objects.filter(
                 organization=self.instance, role='A'
@@ -784,8 +787,11 @@ class SubpartForm(OrganizationFormMixin, forms.ModelForm):
         if not self.part_id:
             self.Meta.exclude = ['part_revision']
         else:
-            self.fields['part_revision'].queryset = PartRevision.objects.filter(part__id=self.part_id).order_by(
-                '-timestamp')
+            self.fields['part_revision'].queryset = PartRevision.objects.filter(
+                part__id=self.part_id
+            ).exclude(
+                configuration=CONFIGURATION_TYPE_OBSOLETE
+            ).order_by('-timestamp')
 
         if self.ignore_part_revision:
             self.fields['part_revision'].required = False
@@ -1211,6 +1217,10 @@ class BOMCSVForm(BaseCSVForm):
         if existing_part:
             existing_part_revision = PartRevision.objects.filter(part=existing_part,
                                                                  revision=part_dict['revision']).first()
+
+        if existing_part_revision and existing_part_revision.is_immutable():
+            self.warnings.append(f"Row {row_count}: Skipped {part_number} because the existing revision is immutable.")
+            return
 
         if existing_part_revision and parent_part_revision:  # Check for infinite recursion
             contains_parent = False

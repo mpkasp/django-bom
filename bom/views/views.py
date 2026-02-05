@@ -31,7 +31,7 @@ from bom.csv_headers import (
     PartClassesCSVHeaders,
     SellerPartCSVHeaders,
 )
-from bom.decorators import organization_admin
+from bom.decorators import bom_permission_required
 from bom.forms import (
     AddSubpartForm,
     BOMCSVForm,
@@ -79,6 +79,7 @@ from bom.models import (
     User,
     get_user_meta_model
 )
+from bom.permissions import BomPerms
 from bom.utils import check_references_for_duplicates, listify_string, prep_for_sorting_nicely
 
 logger = logging.getLogger(__name__)
@@ -612,6 +613,7 @@ def manufacturer_info(request, manufacturer_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
 def manufacturer_edit(request, manufacturer_id):
     user = request.user
     profile = user.bom_profile()
@@ -633,7 +635,7 @@ def manufacturer_edit(request, manufacturer_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@organization_admin
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
 def manufacturer_delete(request, manufacturer_id):
     manufacturer = get_object_or_404(Manufacturer, pk=manufacturer_id)
     manufacturer.delete()
@@ -693,6 +695,7 @@ def seller_info(request, seller_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
 def seller_edit(request, seller_id):
     user = request.user
     profile = user.bom_profile()
@@ -714,7 +717,7 @@ def seller_edit(request, seller_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@organization_admin
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
 def seller_delete(request, seller_id):
     seller = get_object_or_404(Seller, pk=seller_id)
     seller.delete()
@@ -732,6 +735,8 @@ def user_meta_edit(request, user_meta_id):
         if form.is_valid():
             form.save()
             return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
+        else:
+            messages.error(request, form.errors)
         return TemplateResponse(request, 'bom/edit-user-meta.html', locals())
     else:
         form = UserAddForm(instance=user_meta, organization=organization, exclude_username=True)
@@ -888,53 +893,9 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
 
     return response
 
-# @login_required
-# def part_export_bom_flat(request, part_revision_id):
-#     user = request.user
-#     profile = user.bom_profile()
-#     organization = profile.organization
-#
-#     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-#
-#     if part_revision.part.organization != organization:
-#         messages.error(request, "Cant export a part that is not yours!")
-#         return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
-#
-#     response = HttpResponse(content_type='text/csv')
-#     response['Content-Disposition'] = 'attachment; filename="{}_indabom_parts_flat.csv"'.format(
-#         part_revision.part.full_part_number())
-#
-#     # As compared to indented bom, show all references for a subpart as a single item and
-#     # don't show do_not_load status at all because it won't be clear as to which subpart reference
-#     # the do_not_load refers to.
-#     qty_cache_key = str(part_revision.part.id) + '_qty'
-#     qty = cache.get(qty_cache_key, 1000)
-#
-#     try:
-#         bom = part_revision.flat(top_level_quantity=qty)
-#     except (RuntimeError, RecursionError):
-#         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
-#         bom = []
-#     except AttributeError as err:
-#         messages.error(request, err)
-#         bom = []
-#
-#     csv_headers = BOMFlatCSVHeaders()
-#     writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
-#     writer.writeheader()
-#
-#     for _, item in bom.parts.items():
-#         mapped_row = {}
-#         raw_row = {k: smart_str(v) for k, v in item.as_dict_for_export().items()}
-#         for kx, vx in raw_row.items():
-#             if csv_headers.get_default(kx) is None: print ("NONE", kx)
-#             mapped_row.update({csv_headers.get_default(kx): vx})
-#         writer.writerow({k: smart_str(v) for k, v in mapped_row.items()})
-#
-#     return response
-
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.CREATE_PART)
 def upload_bom(request):
     user = request.user
     profile = user.bom_profile()
@@ -962,6 +923,7 @@ def upload_bom(request):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.CREATE_PART)
 def part_upload_bom(request, part_id):
     user = request.user
     profile = user.bom_profile()
@@ -995,6 +957,7 @@ def upload_parts_help(request):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.CREATE_PART)
 def upload_parts(request):
     user = request.user
     profile = user.bom_profile()
@@ -1061,6 +1024,7 @@ def export_part_list(request):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.CREATE_PART)
 def create_part(request):
     user = request.user
     profile = user.bom_profile()
@@ -1146,6 +1110,7 @@ def create_part(request):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
 def part_edit(request, part_id):
     user = request.user
     profile = user.bom_profile()
@@ -1170,6 +1135,7 @@ def part_edit(request, part_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
 def manage_bom(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
@@ -1178,6 +1144,10 @@ def manage_bom(request, part_id, part_revision_id):
     part = get_object_or_404(Part, pk=part_id)
 
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+
+    if not request.user.has_perm('bom.edit_part', part_revision):
+        messages.error(request, "This revision is immutable and cannot be modified.")
+        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
 
     title = 'Manage BOM for ' + part.full_part_number()
 
@@ -1214,7 +1184,7 @@ def manage_bom(request, part_id, part_revision_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@organization_admin
+@bom_permission_required(BomPerms.DELETE_PART)
 def part_delete(request, part_id):
     part = get_object_or_404(Part, pk=part_id)
     part.delete()
@@ -1222,6 +1192,7 @@ def part_delete(request, part_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
 def add_subpart(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
@@ -1271,7 +1242,7 @@ def add_subpart(request, part_id, part_revision_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@organization_admin
+@bom_permission_required(BomPerms.EDIT_PART)
 def remove_subpart(request, part_id, part_revision_id, subpart_id):
     subpart = get_object_or_404(Subpart, pk=subpart_id)
     subpart.delete()
@@ -1280,6 +1251,7 @@ def remove_subpart(request, part_id, part_revision_id, subpart_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SCHEMA)
 def property_definition_edit(request, property_definition_id=None):
     user = request.user
     profile = user.bom_profile()
@@ -1309,7 +1281,7 @@ def property_definition_edit(request, property_definition_id=None):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@organization_admin
+@bom_permission_required(BomPerms.MANAGE_SCHEMA)
 def property_definition_delete(request, property_definition_id):
     user = request.user
     profile = user.bom_profile()
@@ -1323,6 +1295,7 @@ def property_definition_delete(request, property_definition_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SCHEMA)
 def quantity_of_measure_edit(request, quantity_of_measure_id=None):
     user = request.user
     profile = user.bom_profile()
@@ -1379,7 +1352,7 @@ def quantity_of_measure_edit(request, quantity_of_measure_id=None):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@organization_admin
+@bom_permission_required(BomPerms.MANAGE_SCHEMA)
 def quantity_of_measure_delete(request, quantity_of_measure_id):
     user = request.user
     profile = user.bom_profile()
@@ -1393,6 +1366,7 @@ def quantity_of_measure_delete(request, quantity_of_measure_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SCHEMA)
 def part_class_edit(request, part_class_id):
     user = request.user
     profile = user.bom_profile()
@@ -1442,6 +1416,7 @@ def part_class_edit(request, part_class_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
 def edit_subpart(request, part_id, part_revision_id, subpart_id):
     user = request.user
     profile = user.bom_profile()
@@ -1470,7 +1445,7 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@organization_admin
+@bom_permission_required(BomPerms.EDIT_PART)
 def remove_all_subparts(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     part_revision.assembly.subparts.all().delete()
@@ -1478,6 +1453,7 @@ def remove_all_subparts(request, part_id, part_revision_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
 def add_sellerpart(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
@@ -1500,6 +1476,7 @@ def add_sellerpart(request, manufacturer_part_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
 def add_manufacturer_part(request, part_id):
     user = request.user
     profile = user.bom_profile()
@@ -1543,6 +1520,7 @@ def add_manufacturer_part(request, part_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
 def manufacturer_part_edit(request, manufacturer_part_id):
     user = request.user
     profile = user.bom_profile()
@@ -1594,7 +1572,7 @@ def manufacturer_part_edit(request, manufacturer_part_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@organization_admin
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
 def manufacturer_part_delete(request, manufacturer_part_id):
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     part = manufacturer_part.part
@@ -1603,6 +1581,7 @@ def manufacturer_part_delete(request, manufacturer_part_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
 def sellerpart_edit(request, sellerpart_id):
     user = request.user
     profile = user.bom_profile()
@@ -1624,7 +1603,7 @@ def sellerpart_edit(request, sellerpart_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@organization_admin
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
 def sellerpart_delete(request, sellerpart_id):
     sellerpart = get_object_or_404(SellerPart, pk=sellerpart_id)
     part = sellerpart.manufacturer_part.part
@@ -1633,11 +1612,18 @@ def sellerpart_delete(request, sellerpart_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.RELEASE_REVISION)
 def part_revision_release(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
     part = get_object_or_404(Part, pk=part_id)
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+
+    if not request.user.has_perm(BomPerms.RELEASE_REVISION, part_revision):
+        messages.error(request, 'Part is immutable. You do not have permission to perform this action.')
+        return HttpResponseRedirect(
+            reverse('bom:part-info-history', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id}))
+
     action = reverse('bom:part-revision-release', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id})
     title = f'Promote {part.full_part_number()} Rev {part_revision.revision} {part_revision.synopsis()} to <b>Released</b>?'
     subparts = part_revision.assembly.subparts.filter(part_revision__configuration=constants.CONFIGURATION_TYPE_DRAFT)
@@ -1656,6 +1642,7 @@ def part_revision_release(request, part_id, part_revision_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
 def part_revision_draft(request, part_id, part_revision_id):
     user = request.user
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
@@ -1669,6 +1656,7 @@ def part_revision_draft(request, part_id, part_revision_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
 def part_revision_in_review(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id)
     part_revision.configuration = constants.CONFIGURATION_TYPE_IN_REVIEW
@@ -1682,8 +1670,15 @@ def part_revision_in_review(request, part_id, part_revision_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.OBSOLETE_REVISION)
 def part_revision_obsolete(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id)
+
+    if not request.user.has_perm(BomPerms.OBSOLETE_REVISION, part_revision):
+        messages.error(request, 'Part is immutable. You do not have permission to perform this action.')
+        return HttpResponseRedirect(
+            reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision.id}))
+
     part_revision.configuration = constants.CONFIGURATION_TYPE_OBSOLETE
     try:
         part_revision.save(user=request.user)
@@ -1695,6 +1690,7 @@ def part_revision_obsolete(request, part_id, part_revision_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
 def part_revision_new(request, part_id):
     user = request.user
     profile = user.bom_profile()
@@ -1756,6 +1752,7 @@ def part_revision_new(request, part_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
 def part_revision_edit(request, part_id, part_revision_id):
     user = request.user
     profile = user.bom_profile()
@@ -1763,6 +1760,11 @@ def part_revision_edit(request, part_id, part_revision_id):
 
     part = get_object_or_404(Part, pk=part_id)
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+
+    if not request.user.has_perm('bom.edit_part', part_revision):
+        messages.error(request, "This revision is immutable and cannot be modified.")
+        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
+
     title = 'Edit {} Rev {}'.format(part.full_part_number(), part_revision.revision)
 
     action = reverse('bom:part-revision-edit', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id})
@@ -1779,7 +1781,7 @@ def part_revision_edit(request, part_id, part_revision_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@organization_admin
+@bom_permission_required(BomPerms.DELETE_PART)
 def part_revision_delete(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     part = part_revision.part

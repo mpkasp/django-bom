@@ -1,7 +1,8 @@
 from typing import Optional
 
 from . import constants
-from .models import get_organization_model
+from .models import get_organization_model, Organization, PartRevision
+from .permissions import BomPerms
 
 Organization = get_organization_model()
 
@@ -9,14 +10,9 @@ Organization = get_organization_model()
 class OrganizationPermissionBackend:
     """
     Object-level permission backend for django-bom.
-
-    - Uses Django's has_perm(user, perm, obj) to evaluate permissions tied to an Organization.
-    - Superusers are granted all permissions.
-    - Owners and Admins are granted all permissions within their organization.
-    - Viewers are granted view-only permissions within their organization.
     """
 
-    def authenticate(self, request, **credentials):  # pragma: no cover - not used for auth
+    def authenticate(self, request, **credentials):
         return None
 
     def has_perm(self, user_obj, perm: str, obj: Optional[object] = None):
@@ -37,21 +33,23 @@ class OrganizationPermissionBackend:
         # If an object is provided, ensure it belongs to the user's organization.
         if obj is not None:
             obj_org = None
-            if isinstance(obj, Organization):
+            if isinstance(obj, Organization):  # Fixed: Use the class, not the function
                 obj_org = obj
             elif hasattr(obj, 'organization'):
                 obj_org = obj.organization
+            elif isinstance(obj, PartRevision):
+                obj_org = obj.part.organization
 
             if obj_org and obj_org.id != profile.organization_id:
                 return False
 
-        # Owners and Admins can do everything within their organization
-        if profile.can_manage_organization():
-            return True
+        allowed_perms = BomPerms.ROLE_PERMISSIONS.get(profile.role, [])
 
-        # Viewers can only view within their organization
-        if profile.role == constants.ROLE_TYPE_VIEWER:
-            if perm.startswith('bom.view_'):
-                return True
+        if perm not in allowed_perms:
+            return False
 
-        return False
+        if isinstance(obj, PartRevision) and perm == BomPerms.EDIT_PART:
+            if obj.is_immutable() and profile.role != constants.ROLE_TYPE_ADMIN:
+                return False
+
+        return True

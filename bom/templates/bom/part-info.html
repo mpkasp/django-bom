@@ -57,7 +57,7 @@
                     </div>
                 {% endif %}
                 <div class="col s6 right-align manage-btn-col">
-                    {% if profile.role == 'A' and part_revision %}
+                    {% if perms.bom.edit_part and part_revision %}
                         <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
                                 href='#' data-target='dropdown-revision'><i
                                 class="material-icons right">arrow_drop_down</i>Manage
@@ -65,6 +65,11 @@
                         <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
                                 class="material-icons green-text text-lighten-1">more_vert</i></a>
                         <ul id='dropdown-revision' class='dropdown-content'>
+                            <li>
+                                <a class="green-text text-lighten-1"
+                                   href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                                    <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
+                            </li>
                             {% if not part_revision.is_immutable %}
                                 <li>
                                     <a class="green-text text-lighten-1"
@@ -72,11 +77,6 @@
                                         <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
                                 </li>
                             {% endif %}
-                            <li>
-                                <a class="green-text text-lighten-1"
-                                   href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                                    <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
-                            </li>
                             {% with allowed=part_revision.get_allowed_transitions config='D' %}
                                 {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
@@ -108,9 +108,11 @@
                                     </li>
                                 {% endif %}
                             {% endwith %}
+                            {% if perms.bom.delete_revision or config in allowed and perms.bom.obsolete_revision or profile.role == 'A' and config != part_revision.configuration %}
                             <li class="divider" tabindex="-1"></li>
+                            {% endif %}
                             {% with allowed=part_revision.get_allowed_transitions config='O' %}
-                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                {% if config in allowed and perms.bom.obsolete_revision or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
                                         <a class="{% if config in allowed %}orange-text{% else %}grey-text{% endif %}"
                                            onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
@@ -119,12 +121,14 @@
                                     </li>
                                 {% endif %}
                             {% endwith %}
+                            {% if perms.bom.delete_revision %}
                             <li>
                                 <a class="red-text text-lighten-1" onclick="deletePartRevision()">
                                     <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
                             </li>
+                            {% endif %}
                         </ul>
-                    {% elif profile.role == 'A' and not part_revision %}
+                    {% elif perms.bom.create_part and not part_revision %}
                         <a class='waves-effect waves-light btn-flat'
                            href='{% url 'bom:part-revision-new' part_id=part.id %}'><i class="material-icons left">add</i>Create Revision</a>
                     {% endif %}
@@ -156,7 +160,7 @@
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Number:</div>
                                 <div class="col s8 l10">{{ part.full_part_number }}
-                                    {% if profile.role == 'A' %}
+                                    {% if perms.bom.edit_part %}
                                         <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[edit]</a>
                                     {% endif %}
                                 </div>
@@ -202,7 +206,7 @@
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Primary Manufacturer Part:</div>
                                 <div class="col s8 l10">{% if part.primary_manufacturer_part.link %}<a href="{{ part.primary_manufacturer_part.link }}" target="_blank">{% endif %}{{ part.primary_manufacturer_part.manufacturer.name }} - {{ part.primary_manufacturer_part.manufacturer_part_number }}{% if part.primary_manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}
-                                    {% if profile.role == 'A' %}
+                                    {% if perms.bom.edit_part %}
                                         <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[change]</a>
                                     {% endif %}
                                 </div>
@@ -320,7 +324,7 @@
                                             <tr>
                                                 <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently
                                                     used in any of your other parts.
-                                                    {% if profile.role == 'A' %}
+                                                    {% if perms.bom.part_edit %}
                                                         To add a part to a subassembly or assembly, go to the
                                                         parent part's Bill of Materials, and click "Manage", then "Edit".
                                                     {% endif %}
@@ -338,7 +342,7 @@
                 <div id="sourcing" class="col s12">
                     <h4 class="printer-show">Sourcing</h4>
                     {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=part.manufacturer_parts part_revision=part_revision profile=profile %}
-                    {% if profile.role == 'A' %}
+                    {% if perms.bom.manage_sourcing %}
                         <div class="row" style="padding-top: 16px;">
                             <div class="col s12 center-align">
                                 <a class="waves-effect waves-green btn-flat"

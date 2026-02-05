@@ -58,6 +58,11 @@ class OrganizationManager(models.Manager):
             models.Q(organization__isnull=True)
         )
 
+    def for_user(self, user):
+        profile = user.bom_profile()
+        organization = profile.organization
+        return self.available_to(organization)
+
 
 class OrganizationScopedModel(models.Model):
     organization = models.ForeignKey(settings.BOM_ORGANIZATION_MODEL, on_delete=models.CASCADE, db_index=True)

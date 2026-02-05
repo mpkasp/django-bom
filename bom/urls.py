@@ -100,3 +100,8 @@ if standalone_mode:
         path('logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
         path('account/delete/', TemplateView.as_view(template_name='bom/account-delete.html'), name='account-delete'),
     ]
+
+if 'hijack' in settings.INSTALLED_APPS:
+    urlpatterns += [
+        path('hijack/', include('hijack.urls')),
+    ]
