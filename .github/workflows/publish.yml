@@ -21,8 +21,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip pipenv build twine
           pipenv install --dev
-          pipenv run python -m build
-          pipenv run python -m twine check dist/*
+          # Run build using the runner's python, not pipenv's
+          python -m build
+          python -m twine check dist/*
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
