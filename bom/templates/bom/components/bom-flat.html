@@ -20,7 +20,7 @@
             <!-- Dropdown Structure -->
             <ul id='manage-bom-{{ part.id }}-flat' class='dropdown-content'>
                 {% if perms.bom.edit_part %}
-                    <li>{% if not part_revision.is_immutable %}
+                    <li>{% if part_revision and not part_revision.is_immutable %}
                         <a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">
                             <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
                     {% else %}
