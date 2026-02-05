@@ -47,8 +47,11 @@ jobs:
       - name: Detect Version Bump
         id: check
         run: |
+          git fetch --tags
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          
           NEW_VER=$(grep -m 1 'version =' pyproject.toml | tr -d '"' | tr -d "'" | cut -d'=' -f2 | xargs)
-          OLD_VER=$(git show HEAD~1:pyproject.toml | grep -m 1 'version =' | tr -d '"' | tr -d "'" | cut -d'=' -f2 | xargs)
+          OLD_VER=${LATEST_TAG#v}
           
           if [ "$NEW_VER" != "$OLD_VER" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
