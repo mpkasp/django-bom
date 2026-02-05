@@ -48,7 +48,7 @@ class OrganizationPermissionBackend:
         if perm not in allowed_perms:
             return False
 
-        if isinstance(obj, PartRevision) and perm == BomPerms.BomPerms.EDIT_PART:
+        if isinstance(obj, PartRevision) and perm == BomPerms.EDIT_PART:
             if obj.is_immutable() and profile.role != constants.ROLE_TYPE_ADMIN:
                 return False
 

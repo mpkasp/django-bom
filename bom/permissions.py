@@ -34,5 +34,6 @@ class BomPerms:
             OBSOLETE_REVISION,
             MANAGE_SOURCING,
             MANAGE_MEMBERS,
+            MANAGE_SCHEMA,
         ],
     }
