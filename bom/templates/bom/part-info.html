@@ -57,7 +57,7 @@
                     </div>
                 {% endif %}
                 <div class="col s6 right-align manage-btn-col">
-                    {% if profile.role == 'A' and part_revision %}
+                    {% if perms.bom.edit_part and part_revision %}
                         <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
                                 href='#' data-target='dropdown-revision'><i
                                 class="material-icons right">arrow_drop_down</i>Manage
@@ -65,6 +65,11 @@
                         <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
                                 class="material-icons green-text text-lighten-1">more_vert</i></a>
                         <ul id='dropdown-revision' class='dropdown-content'>
+                            <li>
+                                <a class="green-text text-lighten-1"
+                                   href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                                    <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
+                            </li>
                             {% if not part_revision.is_immutable %}
                                 <li>
                                     <a class="green-text text-lighten-1"
@@ -72,11 +77,6 @@
                                         <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
                                 </li>
                             {% endif %}
-                            <li>
-                                <a class="green-text text-lighten-1"
-                                   href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                                    <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
-                            </li>
                             {% with allowed=part_revision.get_allowed_transitions config='D' %}
                                 {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
@@ -108,9 +108,11 @@
                                     </li>
                                 {% endif %}
                             {% endwith %}
+                            {% if perms.bom.delete_revision or config in allowed and perms.bom.obsolete_revision or profile.role == 'A' and config != part_revision.configuration %}
                             <li class="divider" tabindex="-1"></li>
+                            {% endif %}
                             {% with allowed=part_revision.get_allowed_transitions config='O' %}
-                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
+                                {% if config in allowed and perms.bom.obsolete_revision or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
                                         <a class="{% if config in allowed %}orange-text{% else %}grey-text{% endif %}"
                                            onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
@@ -119,10 +121,12 @@
                                     </li>
                                 {% endif %}
                             {% endwith %}
+                            {% if perms.bom.delete_revision %}
                             <li>
                                 <a class="red-text text-lighten-1" onclick="deletePartRevision()">
                                     <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
                             </li>
+                            {% endif %}
                         </ul>
                     {% elif profile.role == 'A' and not part_revision %}
                         <a class='waves-effect waves-light btn-flat'

@@ -735,6 +735,8 @@ def user_meta_edit(request, user_meta_id):
         if form.is_valid():
             form.save()
             return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
+        else:
+            messages.error(request, form.errors)
         return TemplateResponse(request, 'bom/edit-user-meta.html', locals())
     else:
         form = UserAddForm(instance=user_meta, organization=organization, exclude_username=True)

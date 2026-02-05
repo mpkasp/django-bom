@@ -35,6 +35,7 @@ django = "*"
 cachetools = "*"
 
 [dev-packages]
+django-hijack = "*"
 
 [requires]
 python_version = "3.12"

@@ -7,7 +7,7 @@
 
 {% block content %}
     <div class="container-app">
-    {% if profile.role == 'A' %}
+        {% if perms.bom.release_revision %}
         <form name="seller" action="{{ action }}" method="post" class="col s12">
             {% csrf_token %}
             <div class="row">

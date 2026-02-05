@@ -55,6 +55,14 @@ INSTALLED_APPS = [
     'djmoney.contrib.exchange',
 ]
 
+try:
+    import hijack
+
+    INSTALLED_APPS.append('hijack')
+    INSTALLED_APPS.append('hijack.contrib.admin')
+except ImportError:
+    pass
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -65,6 +73,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'social_django.middleware.SocialAuthExceptionMiddleware',
 ]
+
+if 'hijack' in INSTALLED_APPS:
+    MIDDLEWARE.append('hijack.middleware.HijackUserMiddleware')
 
 ROOT_URLCONF = 'bom.urls'
 WSGI_APPLICATION = 'bom.wsgi.application'

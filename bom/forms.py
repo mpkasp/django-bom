@@ -218,9 +218,7 @@ class UserAddForm(OrganizationFormMixin, forms.ModelForm):
         try:
             user = User.objects.get(username=username)
             user_meta = user.bom_profile()
-            if user_meta.organization == self.organization:
-                self.add_error('username', f"User '{username}' already belongs to {self.organization}.")
-            elif user_meta.organization:
+            if user_meta.organization and user_meta.organization != self.organization:
                 self.add_error('username', f"User '{username}' belongs to another organization.")
         except User.DoesNotExist:
             self.add_error('username', f"User '{username}' does not exist.")

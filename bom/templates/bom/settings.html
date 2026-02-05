@@ -29,9 +29,11 @@
                 <a href="#units" class="collection-item" id="units-nav">
                     <i class="material-icons">straighten</i>Units & Quantities
                 </a>
+                {% if perms.bom.manage_schema %}
                 <a href="#part-number" class="collection-item" id="part-number-nav">
                     <i class="material-icons">format_list_numbered</i>Part Numbers
                 </a>
+                {% endif %}
                 <a href="#integrations" class="collection-item" id="integrations-nav">
                     <i class="material-icons">integration_instructions</i>Integrations
                 </a>
@@ -184,8 +186,9 @@
                                         <td class="text-normal"><a
                                                 href="mailto:{{ user.email }}">{{ org_user.email }}</a>
                                         </td>
-                                        <td class="table-action right-align">
-                                            <a href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
+                                        <td>
+                                            <a class="table-action right-align"
+                                               href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
                                                     class="material-icons left">edit</i>Edit</a>
                                         </td>
                                     </tr>
@@ -248,7 +251,7 @@
                                         </div>
                                     </div>
                                 {% endif %}
-                                <div class="col s2 l6 right-align">
+                                <div class="col {% if perms.bom.manage_schema or perms.bom.manage_sourcing %}s2 l6{% else %}s12{% endif %} right-align">
                                     <div class="input-field">
                                         <button class="waves-effect btn-flat btn-icon-round tooltipped"
                                                 type="submit" name="submit-part-class-export"
