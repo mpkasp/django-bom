@@ -495,3 +495,28 @@ a.anchor {
         padding: 0 20px !important;
     }
 }
+
+.header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    padding: 16px 0;
+}
+
+.header-title-row .input-field {
+    margin: 0;
+    width: auto;
+    min-width: 150px;
+}
+
+.header-title-row .chip {
+    margin: 0;
+}
+
+.header-title-row :is(h1, h2, h3, h4, h5, h6) {
+    margin: 0;
+    line-height: 1; /* Or a specific unitless value to match your inputs */
+}

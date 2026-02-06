@@ -225,6 +225,12 @@ class PartClass(OrganizationScopedModel):
 
 class Manufacturer(OrganizationScopedModel, AsDictModel):
     name = models.CharField(max_length=128, default=None)
+    approval_status = models.CharField(
+        max_length=1,
+        choices=APPROVAL_STATUS_TYPES,
+        default=APPROVAL_STATUS_PROBATION
+    )
+    last_audit_date = models.DateField(null=True, blank=True)
 
     class Meta(OrganizationScopedModel.Meta):
         ordering = ['name']
@@ -928,15 +934,31 @@ class ManufacturerPart(models.Model, AsDictModel):
             'manufacturer_part_number': self.manufacturer_part_number
         }
 
+    def clean(self):
+        super().clean()
+
+        if self.part.revisions.filter(configuration=CONFIGURATION_TYPE_RELEASED).exists():
+            raise ValidationError("Part has a released revision. Create a new revision to add manufacturers.")
+
+        if self.manufacturer and self.manufacturer.approval_status == APPROVAL_STATUS_RESTRICTED:
+            raise ValidationError(
+                f"Manufacturer '{self.manufacturer.name}' is Restricted. You cannot create new parts for them.")
+
     def __str__(self):
-        return u'%s' % (self.manufacturer_part_number)
+        return u'%s' % self.manufacturer_part_number
 
 
 class Seller(OrganizationScopedModel, AsDictModel):
     name = models.CharField(max_length=128, default=None)
+    approval_status = models.CharField(
+        max_length=1,
+        choices=APPROVAL_STATUS_TYPES,
+        default=APPROVAL_STATUS_PROBATION
+    )
+    last_audit_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return u'%s' % (self.name)
+        return u'%s' % self.name
 
 
 class SellerPart(models.Model, AsDictModel):
@@ -990,6 +1012,12 @@ class SellerPart(models.Model, AsDictModel):
         if self.minimum_order_quantity and extended_quantity > self.minimum_order_quantity:
             order_qty = ceil(extended_quantity / float(self.minimum_order_quantity)) * self.minimum_order_quantity
         return order_qty
+
+    def clean(self):
+        super().clean()
+
+        if self.seller and self.seller.approval_status == APPROVAL_STATUS_RESTRICTED:
+            raise ValidationError(f"Vendor '{self.seller.name}' is Restricted. You cannot add sourcing from them.")
 
     def __str__(self):
         return u'%s' % (self.manufacturer_part.part.full_part_number() + ' ' + self.seller.name)

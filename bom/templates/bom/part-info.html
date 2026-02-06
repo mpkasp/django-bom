@@ -13,7 +13,7 @@
     {% include 'bom/bom-action-btn.html' with profile=profile %}
     <div class="container-app">
         <div class="part-info">
-            <div class="part-header-title-row">
+            <div class="header-title-row">
                 <h1 style="margin: 0;">{{ part.full_part_number }}</h1>
 
                 {% if part_revision %}
@@ -341,7 +341,7 @@
 
                 <div id="sourcing" class="col s12">
                     <h4 class="printer-show">Sourcing</h4>
-                    {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=part.manufacturer_parts part_revision=part_revision profile=profile %}
+                    {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=part.manufacturer_parts part_revision=part_revision profile=profile show_manufacturer=True %}
                     {% if perms.bom.manage_sourcing %}
                         <div class="row" style="padding-top: 16px;">
                             <div class="col s12 center-align">

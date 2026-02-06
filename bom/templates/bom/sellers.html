@@ -17,7 +17,7 @@
                 <div class="input-field col s12 m10">
                     <i class="material-icons prefix">search</i>
                     <input type="search" id="autocomplete-input" autocomplete="off" class="text autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
-                    <label for="autocomplete-input">Search for sellers:</label>
+                    <label for="autocomplete-input">Search for Vendors:</label>
                 </div>
                 <div class="col s12 m2 text-center">
                     <button type="submit" class="waves-effect waves-green btn btn-primary input-field" name="action">
@@ -34,27 +34,49 @@
                     <table class="highlight part-list tight single-line" style="margin-bottom: 14px;">
                         <thead>
                         <tr>
-                            {% if profile.role == 'A' %}
+                            {% if perms.bom.manage_sourcing %}
                                 <th class="text-normal td-small action-checkbox-column" style="display: none;"><label><input type="checkbox" id="action-select-all"><span></span></label></th>
                             {% endif %}
-                            <th class="text-normal td-med">Seller</th>
-                            <th class="text-normal td-med">Seller Parts</th>
+                            <th class="text-normal td-med">Vendor</th>
+                            <th class="text-normal td-med">Vendor Parts</th>
+                            <th>Approval Status</th>
+                            <th>Last Audit</th>
+                            <th>Options</th>
                         </tr>
                         </thead>
                         <tbody>
                         {% for seller in sellers %}
                             <tr>
-                                {% if profile.role == 'A' %}
+                                {% if perms.bom.manage_sourcing %}
                                     <td class="action-checkbox-column" style="display: none;"><label>{% if part_rev.part.id %}
                                         <input type="checkbox" class="checkbox-array" name="actions" value="{{ part_rev.part.id }}">{% endif %}<span></span></label></td>
                                 {% endif %}
                                 <td class="text-normal td-med"><a href="{% url 'bom:seller-info' seller_id=seller.id %}">{{ seller.name|default:"<i>No name</i>" }}</a></td>
                                 <td class="text-normal td-med">{{ seller.sellerpart_count }}</td>
+                                <td>
+                                    {% if seller.approval_status == 'A' %}
+                                        <span class="new badge teal darken-2 white-text"
+                                              data-badge-caption="{{ seller.get_approval_status_display }}"></span>
+                                    {% elif seller.approval_status == 'R' %}
+                                        <span class="new badge red darken-1 white-text"
+                                              data-badge-caption="{{ seller.get_approval_status_display }}"></span>
+                                    {% else %}
+                                        <span class="new badge grey lighten-2 grey-text text-darken-2"
+                                              data-badge-caption="{{ seller.get_approval_status_display|default:'Probation / Unassessed' }}"></span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ seller.last_audit_date|default:"-" }}</td>
+                                <td>{% if perms.bom.manage_sourcing %}
+                                    <a href="{% url 'bom:seller-edit' seller.id %}">Edit</a>{% else %}<span
+                                            class="text-grey">Edit</span>{% endif %}
+                                </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="99" style="text-align: center; padding: 5%;"><i>No sellers found. To add your first seller, first create a part on the <a
-                                        href="{% url 'bom:home' %}">home</a> page, then go to the sourcing tab to create a seller and seller part.</i></td>
+                                <td colspan="99" style="text-align: center; padding: 5%;"><i>No vendors found. To add
+                                    your first vendor, first create a part on the <a
+                                            href="{% url 'bom:home' %}">home</a> page, then go to the sourcing tab to
+                                    create a vendor and vendor part.</i></td>
                             </tr>
                         {% endfor %}
                         </tbody>

@@ -39,6 +39,9 @@
                             {% endif %}
                             <th class="text-normal td-med">Manufacturer</th>
                             <th class="text-normal td-med">Manufacturer Parts</th>
+                            <th>Approval Status</th>
+                            <th>Last Audit</th>
+                            <th>Options</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -50,6 +53,23 @@
                                 {% endif %}
                                 <td class="text-normal td-med"><a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer.id %}">{{ manufacturer.name|default:"<i>No name</i>" }}</a></td>
                                 <td class="text-normal td-med">{{ manufacturer.manufacturerpart_count }}</td>
+                                <td>
+                                    {% if manufacturer.approval_status == 'A' %}
+                                        <span class="new badge teal darken-2 white-text"
+                                              data-badge-caption="{{ manufacturer.get_approval_status_display }}"></span>
+                                    {% elif manufacturer.approval_status == 'R' %}
+                                        <span class="new badge red darken-1 white-text"
+                                              data-badge-caption="{{ manufacturer.get_approval_status_display }}"></span>
+                                    {% else %}
+                                        <span class="new badge grey lighten-2 grey-text text-darken-2"
+                                              data-badge-caption="{{ manufacturer.get_approval_status_display|default:'Probation / Unassessed' }}"></span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ manufacturer.last_audit_date|default:"-" }}</td>
+                                <td>{% if perms.bom.manage_sourcing %}
+                                    <a href="{% url 'bom:manufacturer-edit' manufacturer.id %}">Edit</a>{% else %}<span
+                                            class="text-grey">Edit</span>{% endif %}
+                                </td>
                             </tr>
                         {% empty %}
                             <tr>

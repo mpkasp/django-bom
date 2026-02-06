@@ -14,8 +14,17 @@
     <div class="container-app">
         <div class="row" style="margin-bottom: 5px;">
             <div class="col m8 hide-on-small-and-down">
-                <h3 class="light">Seller / {{ seller.name }}</h3>
-                <a href="{% url 'bom:sellers' %}">Back to sellers</a>
+                <div class="header-title-row">
+                    <h3 class="light">Vendor / {{ seller.name }}</h3>
+                    <span class="chip
+                        {% if seller.approval_status == 'A' %}teal darken-2 white-text
+                        {% elif seller.approval_status == 'R' %}red darken-1 white-text
+                        {% else %}grey lighten-2 grey-text text-darken-2
+                        {% endif %}">
+                        {{ seller.get_approval_status_display|default:'Probation / Unassessed' }}
+                    </span>
+                </div>
+                <a href="{% url 'bom:sellers' %}">Back to Vendors</a>
             </div>
         </div>
         <div class="col {% if seller %}m3 s1{% else %}m3 s12{% endif %}">
@@ -53,11 +62,11 @@
     function deleteSeller() {
         {% if seller is not None %}
             let url = "{% url 'bom:seller-delete' seller_id=seller.id %}";
-            if (confirm("Warning! Are you sure you want to delete this seller?\n\n{{ seller_parts.count }} of its seller parts will also be permanently deleted.")) {
+            if (confirm("Warning! Are you sure you want to delete this Vendor?\n\n{{ seller_parts.count }} of its Vendor parts will also be permanently deleted.")) {
                 window.location.href = url;
             }
         {% else %}
-            confirm("No seller to delete!");
+            confirm("No Vendor to delete!");
         {% endif %}
     }
 </script>

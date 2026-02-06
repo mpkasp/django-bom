@@ -648,7 +648,7 @@ def sellers(request):
     organization = profile.organization
     name = 'sellers'
     query = request.GET.get('q', '')
-    title = f'{organization.name}\'s Sellers'
+    title = f'{organization.name}\'s Vendors'
 
     if query:
         title += ' - Search Results'
