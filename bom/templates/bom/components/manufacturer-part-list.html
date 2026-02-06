@@ -48,12 +48,10 @@
                 {% if show_part %}<td><a href="{% url 'bom:part-info' part_id=manufacturer_part.part_id %}">{{ manufacturer_part.part }}</a></td>{% endif %}
 
                 <td id="sourcing-mp-{{ manufacturer_part.id }}-name">
-                    {% if manufacturer_part.optimal_seller.link %}
-                        <a href="{{ manufacturer_part.optimal_seller.link }}" target="_blank">{% endif %}
-                    {{ manufacturer_part.optimal_seller.seller.name }}
-                    {% if manufacturer_part.optimal_seller.link %}&nbsp;
-                        <i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}
                     {% with seller=manufacturer_part.optimal_seller.seller %}
+                        {% if seller %}
+                            <a href="{% url 'bom:seller-info' seller_id=seller.id %}">{{ seller.name }}</a>
+                        {% endif %}
                         {% if seller.approval_status == 'A' %}
                             <i class="material-icons green-text tiny tooltipped" data-position="right"
                                data-tooltip="{{ seller.get_approval_status_display }}">check_circle</i>
@@ -76,7 +74,7 @@
                 <td id="sourcing-mp-{{ manufacturer_part.id }}-nre">{{ manufacturer_part.optimal_seller.nre_cost }}</td>
                 <td id="sourcing-mp-{{ manufacturer_part.id }}-ncnr">{{ manufacturer_part.optimal_seller.ncnr }}</td>
                 <td>
-                    {% if profile.role == 'A' %}
+                    {% if perms.bom_manage_sourcing %}
                         <a class='dropdown-trigger' href='#' data-target='dropdown{{ manufacturer_part.id }}'><i
                                 class="material-icons right green-text lighten-1">more_horiz</i></a>
                         <ul id='dropdown{{ manufacturer_part.id }}' class='dropdown-content'>
@@ -122,9 +120,9 @@
                     <td>{{ seller_part.lead_time_days }}</td>
                     <td>{{ seller_part.nre_cost }}</td>
                     <td>{{ seller_part.ncnr }}</td>
-                    <td>{% if profile.role == 'A' %}
-                        <a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a> |
-                        <a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
+                    <td>{% if perms.bom.manage_sourcing %}
+                        <a href="{% url 'bom:seller-part-edit' seller_part_id=seller_part.id %}">edit</a> |
+                        <a href="{% url 'bom:seller-part-delete' seller_part_id=seller_part.id %}">delete</a>
                     {% endif %}</td>
                 </tr>
             {% empty %}

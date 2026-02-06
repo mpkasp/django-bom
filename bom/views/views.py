@@ -11,7 +11,6 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db import IntegrityError
 from django.db.models import Count, ProtectedError, Q, Subquery, prefetch_related_objects
 from django.db.models.aggregates import Max
 from django.http import HttpResponse, HttpResponseRedirect
@@ -614,22 +613,36 @@ def manufacturer_info(request, manufacturer_id):
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.MANAGE_SOURCING)
-def manufacturer_edit(request, manufacturer_id):
+def manufacturer_manage(request, manufacturer_id=None):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
 
-    manufacturer = get_object_or_404(Manufacturer, pk=manufacturer_id)
-    title = 'Edit Manufacturer'
-    action = reverse('bom:manufacturer-edit', kwargs={'manufacturer_id': manufacturer_id})
+    if manufacturer_id:
+        manufacturer = get_object_or_404(
+            Manufacturer.objects.filter(organization=organization),
+            pk=manufacturer_id
+        )
+        title = f'Edit Manufacturer: {manufacturer.name}'
+        default_next = reverse('bom:manufacturer-info', kwargs={'manufacturer_id': manufacturer.id})
+    else:
+        manufacturer = None
+        title = "Create New Manufacturer"
+        default_next = reverse('bom:manufacturers')
+
+    next_url = request.GET.get('next', default_next)
 
     if request.method == 'POST':
-        form = ManufacturerForm(request.POST, instance=manufacturer)
+        form = ManufacturerForm(request.POST, instance=manufacturer, organization=organization)
         if form.is_valid():
-            form.save()
-            return HttpResponseRedirect(reverse('bom:manufacturer-info', kwargs={'manufacturer_id': manufacturer_id}))
+            obj = form.save()
+            verb = "Updated" if manufacturer_id else "Created"
+            messages.success(request, f"{verb} manufacturer {obj.name}.")
+            return HttpResponseRedirect(next_url)
+        else:
+            messages.error(request, f"Please correct the errors below.")
     else:
-        form = ManufacturerForm(instance=manufacturer)
+        form = ManufacturerForm(instance=manufacturer, organization=organization)
 
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
@@ -696,22 +709,36 @@ def seller_info(request, seller_id):
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.MANAGE_SOURCING)
-def seller_edit(request, seller_id):
+def seller_manage(request, seller_id=None):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
 
-    seller = get_object_or_404(Seller, pk=seller_id)
-    title = 'Edit Seller'
-    action = reverse('bom:seller-edit', kwargs={'seller_id': seller_id})
+    if seller_id:
+        seller = get_object_or_404(
+            Seller.objects.filter(organization=organization),
+            pk=seller_id
+        )
+        title = f"Edit Vendor: {seller.name}"
+        default_next = reverse('bom:seller-info', kwargs={'seller_id': seller.id})
+    else:
+        seller = None
+        title = "Create New Vendor"
+        default_next = reverse('bom:sellers')
+
+    next_url = request.GET.get('next', default_next)
 
     if request.method == 'POST':
-        form = SellerForm(request.POST, instance=seller)
+        form = SellerForm(request.POST, instance=seller, organization=organization)
         if form.is_valid():
-            form.save()
-            return HttpResponseRedirect(reverse('bom:seller-info', kwargs={'seller_id': seller_id}))
+            obj = form.save()
+            verb = "Updated" if seller_id else "Created"
+            messages.success(request, f"{verb} vendor {obj.name}.")
+            return HttpResponseRedirect(next_url)
+        else:
+            messages.error(request, "Please correct the errors below.")
     else:
-        form = SellerForm(instance=seller)
+        form = SellerForm(instance=seller, organization=organization)
 
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
@@ -1029,82 +1056,47 @@ def create_part(request):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
-
-    title = 'Create New Part'
-
     PartForm = part_form_from_organization(organization)
-
-    if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT and PartClass.objects.count() == 0:
-        messages.info(request, f'Welcome to IndaBOM! Before you create your first part, you must create your first part class. '
-                               f'<a href="{reverse("bom:help")}#part-numbering" target="_blank">What is a part class?</a>')
-        return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
 
     if request.method == 'POST':
         part_form = PartForm(request.POST, organization=organization)
-        manufacturer_form = ManufacturerForm(request.POST)
-        manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
         part_revision_form = PartRevisionForm(request.POST, organization=organization)
-        # Checking if part form is valid checks for number uniqueness
-        if part_form.is_valid() and manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
-            mpn = manufacturer_part_form.cleaned_data['manufacturer_part_number']
-            old_manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
-            new_manufacturer_name = manufacturer_form.cleaned_data['name']
+        manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
 
-            manufacturer = None
-            if mpn:
-                if old_manufacturer and new_manufacturer_name == '':
-                    manufacturer = old_manufacturer
-                elif new_manufacturer_name and new_manufacturer_name != '' and not old_manufacturer:
-                    manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization, defaults={'name': new_manufacturer_name})
-                else:
-                    messages.error(request, "Either create a new manufacturer, or select an existing manufacturer.")
-                    return TemplateResponse(request, 'bom/create-part.html', locals())
-            elif old_manufacturer or new_manufacturer_name != '':
-                messages.warning(request, "No manufacturer was selected or created, no manufacturer part number was assigned.")
-            new_part = part_form.save(commit=False)
-            new_part.organization = organization
+        sourcing_attempted = any([
+            request.POST.get('manufacturer_part_number'),
+            request.POST.get('manufacturer'),
+            request.POST.get('link')
+        ])
 
-            if organization.number_scheme == constants.NUMBER_SCHEME_INTELLIGENT:
-                new_part.number_class = None
-                new_part.number_variation = None
+        is_valid = part_form.is_valid() and part_revision_form.is_valid()
+        if sourcing_attempted:
+            is_valid = is_valid and manufacturer_part_form.is_valid()
 
-            part_revision_form = PartRevisionForm(request.POST, part_class=new_part.number_class,
-                                                  organization=organization)
-            if part_revision_form.is_valid():
-                # Save the Part before the PartRevision, as this will again check for part
-                # number uniqueness. This way if someone else(s) working concurrently is also 
-                # using the same part number, then only one person will succeed.
-                try:
-                    new_part.save()  # Database checks that the part number is still unique
-                    pr = part_revision_form.save(commit=False)
-                    pr.part = new_part  # Associate PartRevision with Part
-                    pr.save()
-                except IntegrityError as err:
-                    messages.error(request, "Error! Already created a part with part number {0}-{1}-{2}}".format(
-                        new_part.number_class.code, new_part.number_item, new_part.number_variation))
-                    return TemplateResponse(request, 'bom/create-part.html', locals())
-            else:
-                messages.error(request, part_revision_form.errors)
-                return TemplateResponse(request, 'bom/create-part.html', locals())
+        if is_valid:
+            new_part = part_form.save()
+            new_rev = part_revision_form.save(commit=False)
+            new_rev.part = new_part
+            new_rev.save()
 
-            manufacturer_part = None
-            if manufacturer is not None:
-                manufacturer_part, created = ManufacturerPart.objects.get_or_create(
-                    part=new_part,
-                    manufacturer_part_number='' if mpn == '' else mpn,
-                    manufacturer=manufacturer)
+            if sourcing_attempted:
+                mp = manufacturer_part_form.save(commit=False)
+                mp.part = new_part
+                mp.save()
 
-                new_part.primary_manufacturer_part = manufacturer_part
+                new_part.primary_manufacturer_part = mp
                 new_part.save()
 
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': str(new_part.id)}))
+            messages.success(request, f"Created {new_part.full_part_number()}")
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': new_part.id}))
+        else:
+            messages.error(request, "Please correct the errors below.")
+
     else:
-        # Initialize organization in the form's model and in the form itself:
-        part_form = PartForm(initial={'organization': organization}, organization=organization)
-        part_revision_form = PartRevisionForm(initial={'revision': 1, 'organization': organization},
-                                              organization=organization)
-        manufacturer_form = ManufacturerForm(initial={'organization': organization})
-        manufacturer_part_form = ManufacturerPartForm(organization=organization)
+        part_form = PartForm(organization=organization, initial={'organization': organization})
+        part_revision_form = PartRevisionForm(organization=organization,
+                                              initial={'revision': '1', 'organization': organization})
+        manufacturer_part_form = ManufacturerPartForm(organization=organization, initial={'organization': organization})
 
     return TemplateResponse(request, 'bom/create-part.html', locals())
 
@@ -1454,121 +1446,62 @@ def remove_all_subparts(request, part_id, part_revision_id):
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.MANAGE_SOURCING)
-def add_sellerpart(request, manufacturer_part_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-    title = 'Add Seller Part'
+def seller_part_add(request, manufacturer_part_id):
+    mp = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
+    organization = request.user.bom_profile().organization
 
-    manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
-    title = "Add Seller Part to {}".format(manufacturer_part)
+    instance = SellerPart(manufacturer_part=mp)
 
     if request.method == 'POST':
-        form = SellerPartForm(request.POST, manufacturer_part=manufacturer_part, organization=organization)
+        form = SellerPartForm(request.POST, instance=instance, organization=organization)
         if form.is_valid():
             form.save()
             return HttpResponseRedirect(
-                reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '?tab_anchor=sourcing')
+                reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing')
     else:
-        form = SellerPartForm(organization=organization)
+        form = SellerPartForm(instance=instance, organization=organization)
 
+    title = f"Add Vendor Part for {mp.manufacturer_part_number}"
+    create_new_url = reverse('bom:seller-create') + f"?next={request.path}"
+    create_new_label = "Vendor"
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.MANAGE_SOURCING)
-def add_manufacturer_part(request, part_id):
+def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
 
-    part = get_object_or_404(Part, pk=part_id)
-    title = 'Add Manufacturer Part to {}'.format(part.full_part_number())
+    if manufacturer_part_id:
+        instance = get_object_or_404(ManufacturerPart.objects.filter(part__organization=organization),
+                                     pk=manufacturer_part_id)
+        part = instance.part
+        title = f"Edit Manufacturer Part for {part.full_part_number()}"
+    else:
+        part = get_object_or_404(Part.objects.filter(organization=organization), pk=part_id)
+        instance = ManufacturerPart(part=part)
+        title = f"Add Manufacturer Part to {part.full_part_number()}"
 
     if request.method == 'POST':
-        manufacturer_form = ManufacturerForm(request.POST)
-        manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
-        if manufacturer_form.is_valid() and manufacturer_part_form.is_valid():
-            manufacturer_part_number = manufacturer_part_form.cleaned_data['manufacturer_part_number']
-            manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
-            new_manufacturer_name = manufacturer_form.cleaned_data['name']
-            if manufacturer is None and new_manufacturer_name == '':
-                messages.error(request, "Must either select an existing manufacturer, or enter a new manufacturer name.")
-                return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
-
-            if new_manufacturer_name != '' and new_manufacturer_name is not None:
-                manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization, defaults={'name': new_manufacturer_name})
-                manufacturer_part_form.cleaned_data['manufacturer'] = manufacturer
-
-            manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
-
-            if part.primary_manufacturer_part is None and manufacturer_part is not None:
-                part.primary_manufacturer_part = manufacturer_part
+        form = ManufacturerPartForm(request.POST, instance=instance, organization=organization)
+        if form.is_valid():
+            obj = form.save()
+            if part.primary_manufacturer_part is None:
+                part.primary_manufacturer_part = obj
                 part.save()
-
-            return HttpResponseRedirect(
-                reverse('bom:part-info', kwargs={'part_id': str(part.id)}) + '?tab_anchor=sourcing')
+            messages.success(request, "Manufacturer part saved.")
+            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
         else:
-            messages.error(request, "{}".format(manufacturer_form.is_valid()))
-            messages.error(request, "{}".format(manufacturer_part_form.is_valid()))
+            messages.error(request, "Error saving manufacturer part.")
     else:
-        default_mfg = Manufacturer.objects.filter(organization=organization, name__iexact=organization.name).first()
-        manufacturer_form = ManufacturerForm(initial={'organization': organization})
-        manufacturer_part_form = ManufacturerPartForm(organization=organization, initial={'manufacturer_part_number': part.full_part_number(), 'manufacturer': default_mfg})
+        form = ManufacturerPartForm(instance=instance, organization=organization)
 
-    return TemplateResponse(request, 'bom/add-manufacturer-part.html', locals())
+    create_new_url = reverse('bom:manufacturer-create') + f"?next={request.path}"
+    create_new_label = "Manufacturer"
 
-
-@login_required(login_url=BOM_LOGIN_URL)
-@bom_permission_required(BomPerms.MANAGE_SOURCING)
-def manufacturer_part_edit(request, manufacturer_part_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
-    title = 'Edit Manufacturer Part'
-
-    manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
-    part = manufacturer_part.part
-
-    if request.method == 'POST':
-        manufacturer_part_form = ManufacturerPartForm(request.POST, instance=manufacturer_part, organization=organization)
-        manufacturer_form = ManufacturerForm(request.POST, instance=manufacturer_part.manufacturer)
-        if manufacturer_part_form.is_valid() and manufacturer_form.is_valid():
-            manufacturer_part_number = manufacturer_part_form.cleaned_data.get('manufacturer_part_number')
-            manufacturer = manufacturer_part_form.cleaned_data.get('manufacturer', None)
-            new_manufacturer_name = manufacturer_form.cleaned_data.get('name', '')
-
-            if manufacturer is None and new_manufacturer_name == '':
-                messages.error(request, "Must either select an existing manufacturer, or enter a new manufacturer name.")
-                return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
-
-            new_manufacturer = None
-            if new_manufacturer_name != '' and new_manufacturer_name is not None:
-                new_manufacturer, created = Manufacturer.objects.get_or_create(name__iexact=new_manufacturer_name, organization=organization, defaults={'name': new_manufacturer_name})
-                manufacturer_part = manufacturer_part_form.save(commit=False)
-                manufacturer_part.manufacturer = new_manufacturer
-                manufacturer_part.save()
-            else:
-                manufacturer_part = manufacturer_part_form.save()
-
-            if part.primary_manufacturer_part is None and manufacturer_part is not None:
-                part.primary_manufacturer_part = manufacturer_part
-                part.save()
-            return HttpResponseRedirect(
-                reverse('bom:part-info', kwargs={'part_id': manufacturer_part.part.id}) + '?tab_anchor=sourcing')
-        else:
-            messages.error(request, manufacturer_part_form.errors)
-            messages.error(request, manufacturer_form.errors)
-    else:
-        if manufacturer_part.manufacturer is None:
-            manufacturer_form = ManufacturerForm(instance=manufacturer_part.manufacturer, initial={'organization': organization})
-        else:
-            manufacturer_form = ManufacturerForm(initial={'organization': organization})
-
-        manufacturer_part_form = ManufacturerPartForm(instance=manufacturer_part, organization=organization, )
-
-    return TemplateResponse(request, 'bom/edit-manufacturer-part.html', locals())
+    return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1582,32 +1515,44 @@ def manufacturer_part_delete(request, manufacturer_part_id):
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.MANAGE_SOURCING)
-def sellerpart_edit(request, sellerpart_id):
+def seller_part_manage(request, manufacturer_part_id=None, seller_part_id=None):
     user = request.user
     profile = user.bom_profile()
     organization = profile.organization
 
-    title = "Edit Seller Part"
-    action = reverse('bom:sellerpart-edit', kwargs={'sellerpart_id': sellerpart_id})
-    sellerpart = get_object_or_404(SellerPart, pk=sellerpart_id)
+    if seller_part_id:
+        instance = get_object_or_404(SellerPart.objects.filter(seller__organization=organization), pk=seller_part_id)
+        mp = instance.manufacturer_part
+        title = f"Edit Vendor Sourcing"
+    else:
+        mp = get_object_or_404(ManufacturerPart.objects.filter(part__organization=organization),
+                               pk=manufacturer_part_id)
+        instance = SellerPart(manufacturer_part=mp)
+        title = f"Add Vendor for {mp.manufacturer_part_number}"
 
     if request.method == 'POST':
-        form = SellerPartForm(request.POST, instance=sellerpart, organization=organization)
+        form = SellerPartForm(request.POST, instance=instance, organization=organization)
         if form.is_valid():
             form.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': sellerpart.manufacturer_part.part.id}) + '?tab_anchor=sourcing')
+            messages.success(request, "Vendor sourcing updated.")
+            return HttpResponseRedirect(
+                reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing')
     else:
-        form = SellerPartForm(instance=sellerpart, organization=organization)
+        form = SellerPartForm(instance=instance, organization=organization)
+
+    # Escape hatch for missing Vendor
+    create_new_url = reverse('bom:seller-create') + f"?next={request.path}"
+    create_new_label = "Vendor"
 
     return TemplateResponse(request, 'bom/bom-form.html', locals())
 
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.MANAGE_SOURCING)
-def sellerpart_delete(request, sellerpart_id):
-    sellerpart = get_object_or_404(SellerPart, pk=sellerpart_id)
-    part = sellerpart.manufacturer_part.part
-    sellerpart.delete()
+def seller_part_delete(request, sellerpart_id):
+    sp = get_object_or_404(SellerPart, pk=sellerpart_id)
+    part = sp.manufacturer_part.part
+    sp.delete()
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
 
 

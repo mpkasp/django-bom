@@ -9,7 +9,6 @@ from bom.views import json_views, views
 
 BOM_CONFIG = getattr(settings, 'BOM_CONFIG', {})
 standalone_mode = BOM_CONFIG.get('standalone_mode', True)
-
 bom_patterns = [
     # BOM urls
     path('', views.home, name='home'),
@@ -20,14 +19,27 @@ bom_patterns = [
     path('bom-signup/', views.bom_signup, name='bom-signup'),
     path('settings/', views.bom_settings, name='settings'),
     path('settings/<str:tab_anchor>/', views.bom_settings, name='settings'),
+
     path('manufacturers/', views.manufacturers, name='manufacturers'),
+    path('manufacturer/create/', views.manufacturer_manage, name='manufacturer-create'),
     path('manufacturer/<int:manufacturer_id>/', views.manufacturer_info, name='manufacturer-info'),
-    path('manufacturer/<int:manufacturer_id>/edit/', views.manufacturer_edit, name='manufacturer-edit'),
+    path('manufacturer/<int:manufacturer_id>/edit/', views.manufacturer_manage, name='manufacturer-edit'),
     path('manufacturer/<int:manufacturer_id>/delete/', views.manufacturer_delete, name='manufacturer-delete'),
-    path('sellers/', views.sellers, name='sellers'),
-    path('seller/<int:seller_id>/', views.seller_info, name='seller-info'),
-    path('seller/<int:seller_id>/edit/', views.seller_edit, name='seller-edit'),
-    path('seller/<int:seller_id>/delete/', views.seller_delete, name='seller-delete'),
+
+    path('vendors/', views.sellers, name='sellers'),
+    path('vendor/create/', views.seller_manage, name='seller-create'),
+    path('vendor/<int:seller_id>/', views.seller_info, name='seller-info'),
+    path('vendor/<int:seller_id>/edit/', views.seller_manage, name='seller-edit'),
+    path('vendor/<int:seller_id>/delete/', views.seller_delete, name='seller-delete'),
+
+    path('part/<int:part_id>/manufacturer-part/add/', views.manufacturer_part_manage, name='part-add-manufacturer-part'),
+    path('manufacturer-part/<int:manufacturer_part_id>/edit/', views.manufacturer_part_manage, name='manufacturer-part-edit'),
+    path('manufacturer-part/<int:manufacturer_part_id>/delete/', views.manufacturer_part_delete, name='manufacturer-part-delete'),
+
+    path('manufacturer-part/<int:manufacturer_part_id>/vendor-part/add/', views.seller_part_manage, name='manufacturer-part-add-sellerpart'),
+    path('vendor-part/<int:seller_part_id>/edit/', views.seller_part_manage, name='seller-part-edit'),
+    path('vendor-part/<int:seller_part_id>/delete/', views.seller_part_delete, name='seller-part-delete'),
+
     path('export/', views.export_part_list, name='export-part-list'),
     path('user-meta/<int:user_meta_id>/edit/', views.user_meta_edit, name='user-meta-edit'),
     path('part-class/<int:part_class_id>/edit/', views.part_class_edit, name='part-class-edit'),
@@ -48,7 +60,6 @@ bom_patterns = [
     path('part/<int:part_id>/upload/', views.part_upload_bom, name='part-upload-bom'),
     path('part/<int:part_id>/edit/', views.part_edit, name='part-edit'),
     path('part/<int:part_id>/delete/', views.part_delete, name='part-delete'),
-    path('part/<int:part_id>/add-manufacturer-part/', views.add_manufacturer_part, name='part-add-manufacturer-part'),
     path('part/<int:part_id>/rev/new/', views.part_revision_new, name='part-revision-new'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/', views.part_info, name='part-info-history'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/edit/', views.part_revision_edit, name='part-revision-edit'),
@@ -69,13 +80,8 @@ bom_patterns = [
     path('part-rev/<int:part_revision_id>/export-flat/', views.part_export_bom, name='part-revision-export-bom-flat', kwargs={'flat': True}),
     path('part-rev/<int:part_revision_id>/export-flat-sourcing/', views.part_export_bom, name='part-revision-export-bom-flat-sourcing', kwargs={'flat': True, 'sourcing': True}),
     path('part-rev/<int:part_revision_id>/export-flat-sourcing-detailed/', views.part_export_bom, name='part-revision-export-bom-flat-sourcing-detailed', kwargs={'flat': True, 'sourcing_detailed': True}),
-
-    path('sellerpart/<int:sellerpart_id>/edit/', views.sellerpart_edit, name='sellerpart-edit'),
-    path('sellerpart/<int:sellerpart_id>/delete/', views.sellerpart_delete, name='sellerpart-delete'),
-    path('manufacturer-part/<int:manufacturer_part_id>/add-sellerpart/', views.add_sellerpart, name='manufacturer-part-add-sellerpart'),
-    path('manufacturer-part/<int:manufacturer_part_id>/edit', views.manufacturer_part_edit, name='manufacturer-part-edit'),
-    path('manufacturer-part/<int:manufacturer_part_id>/delete', views.manufacturer_part_delete, name='manufacturer-part-delete'),
 ]
+
 
 google_drive_patterns = [
     path('folder/<int:part_id>/', google_drive.get_or_create_and_open_folder, name='add-folder'),

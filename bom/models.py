@@ -7,7 +7,7 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -937,8 +937,11 @@ class ManufacturerPart(models.Model, AsDictModel):
     def clean(self):
         super().clean()
 
-        if self.part.revisions.filter(configuration=CONFIGURATION_TYPE_RELEASED).exists():
-            raise ValidationError("Part has a released revision. Create a new revision to add manufacturers.")
+        try:
+            if self.part.revisions().filter(configuration=CONFIGURATION_TYPE_RELEASED).exists():
+                raise ValidationError("Part has a released revision. Create a new revision to add manufacturers.")
+        except ObjectDoesNotExist:
+            pass
 
         if self.manufacturer and self.manufacturer.approval_status == APPROVAL_STATUS_RESTRICTED:
             raise ValidationError(
@@ -1016,8 +1019,11 @@ class SellerPart(models.Model, AsDictModel):
     def clean(self):
         super().clean()
 
-        if self.seller and self.seller.approval_status == APPROVAL_STATUS_RESTRICTED:
-            raise ValidationError(f"Vendor '{self.seller.name}' is Restricted. You cannot add sourcing from them.")
+        try:
+            if self.seller and self.seller.approval_status == APPROVAL_STATUS_RESTRICTED:
+                raise ValidationError(f"Vendor '{self.seller.name}' is Restricted. You cannot add sourcing from them.")
+        except ObjectDoesNotExist:
+            pass
 
     def __str__(self):
         return u'%s' % (self.manufacturer_part.part.full_part_number() + ' ' + self.seller.name)
