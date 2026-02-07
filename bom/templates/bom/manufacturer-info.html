@@ -14,7 +14,16 @@
     <div class="container-app">
         <div class="row" style="margin-bottom: 5px;">
             <div class="col m8 hide-on-small-and-down">
-                <h3 class="light">Manufacturer / {{ manufacturer.name }}</h3>
+                <div class="header-title-row">
+                    <h3 class="light">Manufacturer / {{ manufacturer.name }}</h3>
+                    <span class="chip
+                        {% if manufacturer.approval_status == 'A' %}teal darken-2 white-text
+                        {% elif manufacturer.approval_status == 'R' %}red darken-1 white-text
+                        {% else %}grey lighten-2 grey-text text-darken-2
+                        {% endif %}">
+                        {{ manufacturer.get_approval_status_display|default:'Probation / Unassessed' }}
+                    </span>
+                </div>
                 <a href="{% url 'bom:manufacturers' %}">Back to manufacturers</a>
             </div>
         </div>

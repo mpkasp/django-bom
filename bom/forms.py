@@ -9,7 +9,6 @@ from django.core.validators import MaxLengthValidator, MinLengthValidator
 from django.db import IntegrityError
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
-from djmoney.money import Money
 
 from bom.permissions import BomPerms
 from .constants import (
@@ -74,6 +73,15 @@ class PlaceholderMixin:
             if field.help_text:
                 field.widget.attrs['placeholder'] = field.help_text
                 field.help_text = ''
+
+
+class OrganizationModelForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm):
+    def save(self, commit=True):
+        self.instance.organization = self.organization
+        return super().save(commit=commit)
+
+    class Meta:
+        abstract = True
 
 
 class BaseCSVForm(OrganizationFormMixin, forms.Form):
@@ -237,13 +245,12 @@ class UserAddForm(OrganizationFormMixin, forms.ModelForm):
         return user_meta
 
 
-class UserMetaForm(OrganizationFormMixin, forms.ModelForm):
+class UserMetaForm(OrganizationModelForm):
     class Meta:
         model = UserMeta
         exclude = ['user']
 
     def save(self, commit=True):
-        self.instance.organization = self.organization
         if commit:
             self.instance.save()
         return self.instance
@@ -320,103 +327,128 @@ class PartInfoForm(forms.Form):
     quantity = forms.IntegerField(label='Quote Quantity', min_value=1)
 
 
-class ManufacturerForm(forms.ModelForm):
+class ManufacturerForm(OrganizationModelForm):
     class Meta:
         model = Manufacturer
         exclude = ['organization']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['name'].required = False
+        self.fields['name'].label = "Manufacturer Name"
 
 
-class ManufacturerPartForm(OrganizationFormMixin, forms.ModelForm):
+class ManufacturerPartForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm):
     class Meta:
         model = ManufacturerPart
-        exclude = ['part']
-
-    field_order = ['manufacturer_part_number', 'manufacturer']
+        exclude = ['part', 'manufacturer', ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['manufacturer'].required = False
-        self.fields['manufacturer_part_number'].required = False
-        self.fields['manufacturer'].queryset = Manufacturer.objects.filter(
-            organization=self.organization
-        ).order_by('name')
         self.fields['mouser_disable'].initial = True
+        self.fields['manufacturer'] = forms.CharField(
+            required=False,  # clean method handles logic
+            widget=AutocompleteTextInput(
+                attrs={'placeholder': 'Search existing or type new'},
+                queryset=Manufacturer.objects.available_to(
+                    organization=self.organization
+                ).order_by('name')
+            )
+        )
+        self.order_fields(['manufacturer', 'manufacturer_part_number', 'link', ])
+        if self.instance.pk and self.instance.manufacturer:
+            self.fields['manufacturer'].initial = self.instance.manufacturer.name
+
+    def clean_manufacturer(self):
+        raw = self.cleaned_data['manufacturer']
+        if not raw:
+            return None
+
+        mfg = Manufacturer.objects.filter(organization=self.organization, name__iexact=raw.strip()).first()
+        return mfg if mfg else raw.strip()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        mpn = cleaned_data.get('manufacturer_part_number')
+        mfg = cleaned_data.get('manufacturer')
+        if mpn and not mfg:
+            self.add_error('manufacturer', 'Manufacturer is required if a Part Number is entered.')
+        return cleaned_data
+
+    def save(self, commit=True):
+        mfg_data = self.cleaned_data.get('manufacturer')
+
+        if isinstance(mfg_data, str):
+            mfg_obj, _ = Manufacturer.objects.get_or_create(
+                name__iexact=mfg_data,
+                organization=self.organization,
+                defaults={'name': mfg_data}
+            )
+        else:
+            mfg_obj = mfg_data
+
+        self.instance.manufacturer = mfg_obj
+        return super().save(commit=commit)
 
 
-class SellerForm(forms.ModelForm):
+class SellerForm(OrganizationModelForm):
     class Meta:
         model = Seller
         exclude = ['organization']
 
 
-class SellerPartForm(OrganizationFormMixin, forms.ModelForm):
-    new_seller = forms.CharField(max_length=128, label='-or- Create new seller', required=False)
-
+class SellerPartForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm):
     class Meta:
         model = SellerPart
-        exclude = ['manufacturer_part', 'data_source']
-
-    field_order = ['seller', 'new_seller', 'unit_cost', 'nre_cost', 'lead_time_days', 'minimum_order_quantity',
-                   'minimum_pack_quantity']
+        exclude = ['manufacturer_part', 'data_source', 'seller', ]
 
     def __init__(self, *args, **kwargs):
-        self.manufacturer_part = kwargs.pop('manufacturer_part', None)
         super().__init__(*args, **kwargs)
 
-        # Currency formatting
+        widget = AutocompleteTextInput(attrs={'placeholder': 'Search existing or type new'},
+                                       queryset=Seller.objects.available_to(organization=self.organization).order_by(
+                                           'name'))
+        self.fields['seller'] = forms.CharField(required=True, label='Vendor', widget=widget)
         self.fields['unit_cost'] = forms.DecimalField(required=True, decimal_places=4, max_digits=17)
         self.fields['nre_cost'] = forms.DecimalField(required=True, decimal_places=4, max_digits=17, label='NRE cost')
-
+        self.fields['seller_part_number'].label = "Vendor Part Number"
         if self.instance.pk:
             self.initial['unit_cost'] = self.instance.unit_cost.amount
             self.initial['nre_cost'] = self.instance.nre_cost.amount
+            self.initial['seller'] = self.instance.seller.name
 
-        if self.manufacturer_part:
-            self.instance.manufacturer_part = self.manufacturer_part
+        self.order_fields(
+            ['seller', 'seller_part_number', 'unit_cost', 'nre_cost', 'lead_time_days', 'minimum_order_quantity',
+             'minimum_pack_quantity'])
 
-        self.fields['seller'].queryset = Seller.objects.filter(organization=self.organization).order_by('name')
-        self.fields['seller'].required = False
+    def clean_seller(self):
+        raw = self.cleaned_data['seller']
+        if not raw:
+            return None
 
-    def clean(self):
-        cleaned_data = super().clean()
-        seller = cleaned_data.get('seller')
-        new_seller = cleaned_data.get('new_seller')
+        seller = Seller.objects.filter(organization=self.organization, name__iexact=raw.strip()).first()
+        return seller if seller else raw.strip()
 
-        # Handle Money fields
-        for field in ['unit_cost', 'nre_cost']:
-            val = cleaned_data.get(field)
-            if val is None:
-                self.add_error(field, "Invalid cost.")
-            else:
-                setattr(self.instance, field, Money(val, self.organization.currency))
+    def save(self, commit=True):
+        seller_data = self.cleaned_data.get('seller')
 
-        if seller and new_seller:
-            raise forms.ValidationError("Cannot have a seller and a new seller.")
-        elif new_seller:
-            obj, _ = Seller.objects.get_or_create(
-                name__iexact=new_seller, organization=self.organization,
-                defaults={'name': new_seller}
+        if isinstance(seller_data, str):
+            seller, _ = Seller.objects.get_or_create(
+                name__iexact=seller_data,
+                organization=self.organization,
+                defaults={'name': seller_data}
             )
-            cleaned_data['seller'] = obj
-        elif not seller:
-            raise forms.ValidationError("Must specify a seller.")
+        else:
+            seller = seller_data
 
-        return cleaned_data
+        self.instance.seller = seller
+
+        return super().save(commit=commit)
 
 
-class QuantityOfMeasureForm(OrganizationFormMixin, forms.ModelForm):
+class QuantityOfMeasureForm(OrganizationModelForm):
     class Meta:
         model = QuantityOfMeasure
         fields = ['name']
-
-    def clean(self):
-        cleaned_data = super().clean()
-        self.instance.organization = self.organization
-        return cleaned_data
 
     def clean_name(self):
         name = self.cleaned_data.get('name')
@@ -426,15 +458,10 @@ class QuantityOfMeasureForm(OrganizationFormMixin, forms.ModelForm):
         return name
 
 
-class UnitDefinitionForm(OrganizationFormMixin, forms.ModelForm):
+class UnitDefinitionForm(OrganizationModelForm):
     class Meta:
         model = UnitDefinition
         fields = ['name', 'symbol', 'base_multiplier', ]
-
-    def clean(self):
-        cleaned_data = super().clean()
-        self.instance.organization = self.organization
-        return cleaned_data
 
 
 UnitDefinitionFormSet = forms.modelformset_factory(
@@ -472,7 +499,7 @@ PartRevisionPropertyDefinitionFormSet = forms.formset_factory(
 )
 
 
-class PartClassForm(OrganizationFormMixin, forms.ModelForm):
+class PartClassForm(OrganizationModelForm):
     class Meta:
         model = PartClass
         fields = ['code', 'name', 'comment']
@@ -502,11 +529,6 @@ class PartClassForm(OrganizationFormMixin, forms.ModelForm):
                     pk=self.instance.pk).exists():
                 self.add_error('code', f"Part class with code {code} is already defined.")
         return code
-
-    def clean(self):
-        cleaned_data = super().clean()
-        self.instance.organization = self.organization
-        return cleaned_data
 
 
 PartClassFormSet = forms.formset_factory(PartClassForm, extra=2, can_delete=True)
@@ -543,8 +565,14 @@ class PartClassSelectionForm(OrganizationFormMixin, forms.Form):
 # PART FORMS
 # ==========================================
 
-class BasePartForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm):
+class BasePartForm(OrganizationModelForm):
     """Base class for part forms to handle common init and placeholder logic."""
+    add_sourcing = forms.BooleanField(
+        label="Add manufacturer sourcing information immediately?",
+        initial=True,
+        required=False,
+        help_text="Check this to skip straight to adding an MPN after saving."
+    )
 
     def __init__(self, *args, **kwargs):
         self.ignore_part_class = kwargs.pop('ignore_part_class', False)
@@ -1125,6 +1153,7 @@ class BOMCSVForm(BaseCSVForm):
         part_number = csv_headers.get_val_from_row(part_dict, 'part_number')
         manufacturer_part_number = csv_headers.get_val_from_row(part_dict, 'mpn')
         manufacturer_name = csv_headers.get_val_from_row(part_dict, 'manufacturer_name')
+        manufacturer_approval_status = csv_headers.get_val_from_row(part_dict, 'manufacturer_approval_status') or 'P'
 
         try:
             level = int(float(csv_headers.get_val_from_row(part_dict, 'level')))
@@ -1306,31 +1335,35 @@ class BOMCSVForm(BaseCSVForm):
         self.successes.append(info_msg + ".")
 
         # Now validate & save optional fields - Manufacturer, ManufacturerPart, SellerParts
-        existing_manufacturer = Manufacturer.objects.filter(name=manufacturer_name,
-                                                            organization=self.organization).first()
-        manufacturer_form = ManufacturerForm({'name': manufacturer_name}, instance=existing_manufacturer)
-        if not manufacturer_form.is_valid():
-            add_nonfield_error_from_existing(manufacturer_form, self, f'Row {row_count} - ')
+        if manufacturer_name:
+            existing_manufacturer = Manufacturer.objects.filter(name=manufacturer_name,
+                                                                organization=self.organization).first()
+            manufacturer_form = ManufacturerForm(
+                {'name': manufacturer_name, 'approval_status': manufacturer_approval_status},
+                instance=existing_manufacturer, organization=self.organization)
+            if not manufacturer_form.is_valid():
+                add_nonfield_error_from_existing(manufacturer_form, self, f'Row {row_count} - ')
 
-        manufacturer_part_data = {'manufacturer_part_number': manufacturer_part_number}
-        manufacturer_part_form = ManufacturerPartForm(manufacturer_part_data)
-        if not manufacturer_part_form.is_valid():
-            add_nonfield_error_from_existing(manufacturer_part_form, self, f'Row {row_count} - ')
+            manufacturer = manufacturer_form.save(commit=False)
 
-        manufacturer = manufacturer_form.save(commit=False)
-        manufacturer.organization = self.organization
-        manufacturer.save()
+            manufacturer_part_data = {'manufacturer_part_number': manufacturer_part_number,
+                                      'manufacturer': manufacturer}
+            manufacturer_part_form = ManufacturerPartForm(manufacturer_part_data, organization=self.organization)
+            if not manufacturer_part_form.is_valid():
+                add_nonfield_error_from_existing(manufacturer_part_form, self, f'Row {row_count} - ')
 
-        manufacturer_part = manufacturer_part_form.save(commit=False)
-        existing_manufacturer_part = ManufacturerPart.objects.filter(part=part, manufacturer=manufacturer,
-                                                                     manufacturer_part_number=manufacturer_part.manufacturer_part_number).first()
-        manufacturer_part.id = existing_manufacturer_part.id if existing_manufacturer_part else None
-        manufacturer_part.manufacturer = manufacturer
-        manufacturer_part.part = part
-        manufacturer_part.save()
+            manufacturer.save()
 
-        part.primary_manufacturer_part = manufacturer_part
-        part.save()
+            manufacturer_part = manufacturer_part_form.save(commit=False)
+            existing_manufacturer_part = ManufacturerPart.objects.filter(part=part, manufacturer=manufacturer,
+                                                                         manufacturer_part_number=manufacturer_part.manufacturer_part_number).first()
+            manufacturer_part.id = existing_manufacturer_part.id if existing_manufacturer_part else None
+            manufacturer_part.manufacturer = manufacturer
+            manufacturer_part.part = part
+            manufacturer_part.save()
+
+            part.primary_manufacturer_part = manufacturer_part
+            part.save()
 
         self.last_part_revision = part_revision
         self.last_level = level

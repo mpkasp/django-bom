@@ -14,30 +14,6 @@
     }
 }
 
-.part-header-title-row {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-top: 16px;
-    margin-bottom: 8px;
-}
-
-.part-header-title-row .input-field {
-    margin: 0;
-    width: auto;
-    min-width: 150px;
-}
-
-.part-header-title-row .chip {
-    margin: 0;
-}
-
-/* Tighten the gap between title and action row */
-.part-header-title-row {
-    margin-bottom: 8px;
-}
-
 /* Vertically center the form and the manage button */
 .valign-wrapper-row {
     display: flex;

@@ -172,6 +172,7 @@ class ManufacturerPartCSVHeaders(CSVHeaders):
     all_headers_defns = [
         CSVHeader('manufacturer_name', name_options=['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]),
         CSVHeader('manufacturer_part_number', name_options=['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']),
+        CSVHeader('manufacturer_approval_status', name_options=['manufacturer_approval_status', ])
     ]
 
 

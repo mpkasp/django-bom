@@ -1,6 +1,6 @@
-part_number,quantity,manufacturer_part_number,dnp,reference,description,junk
-500-5555-00,1,abc123,,U3,abc123,
-500-5555-00,2,abc123,,IC2; IC3,abc123,
-500-5555-00,2,abc123,dnp,"R1, R2",abc123,
-200-3333-00,1,testing,,,test,
-200-3333-00,99,hi,,,hihihi,
+part_number,quantity,manufacturer_part_number,dnp,reference,description,junk,manufacturer
+500-5555-00,1,abc123,,U3,abc123,,def456
+500-5555-00,2,abc123,,IC2; IC3,abc123,,ghi678
+500-5555-00,2,abc123,dnp,"R1, R2",abc123,,def456
+200-3333-00,1,testing,,,test,,kasper
+200-3333-00,99,hi,,,hihihi,,kasper

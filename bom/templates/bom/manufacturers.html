@@ -38,7 +38,10 @@
                                 <th class="text-normal td-small action-checkbox-column" style="display: none;"><label><input type="checkbox" id="action-select-all"><span></span></label></th>
                             {% endif %}
                             <th class="text-normal td-med">Manufacturer</th>
-                            <th class="text-normal td-med">Manufacturer Parts</th>
+                            <th class="text-normal td-med">Part Count</th>
+                            <th>Approval Status</th>
+                            <th>Last Audit</th>
+                            <th>Options</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -50,11 +53,34 @@
                                 {% endif %}
                                 <td class="text-normal td-med"><a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer.id %}">{{ manufacturer.name|default:"<i>No name</i>" }}</a></td>
                                 <td class="text-normal td-med">{{ manufacturer.manufacturerpart_count }}</td>
+                                <td>
+                                    {% if manufacturer.approval_status == 'A' %}
+                                        <span class="new badge teal darken-2 white-text"
+                                              data-badge-caption="{{ manufacturer.get_approval_status_display }}"></span>
+                                    {% elif manufacturer.approval_status == 'R' %}
+                                        <span class="new badge red darken-1 white-text"
+                                              data-badge-caption="{{ manufacturer.get_approval_status_display }}"></span>
+                                    {% else %}
+                                        <span class="new badge grey lighten-2 grey-text text-darken-2"
+                                              data-badge-caption="{{ manufacturer.get_approval_status_display|default:'Probation / Unassessed' }}"></span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ manufacturer.last_audit_date|default:"-" }}</td>
+                                <td>{% if perms.bom.manage_sourcing %}
+                                    <a href="{% url 'bom:manufacturer-edit' manufacturer.id %}">Edit</a>{% else %}<span
+                                            class="text-grey">Edit</span>{% endif %}
+                                </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="99" style="text-align: center; padding: 5%;"><i>No manufacturers found. To add your first manufacturer, first create a part on the <a
-                                        href="{% url 'bom:home' %}">home</a> page, then go to the sourcing tab to create a manufacturer and manufacturer part.</i></td>
+                                <td colspan="99" style="text-align: center; padding: 5%;">
+                                    <i>No manufacturers found.
+                                        {% if perms.bom.manage_sourcing %}
+                                            <a href="{% url 'bom:manufacturer-create' %}">Create your first manufacturer
+                                                here</a>.
+                                        {% endif %}
+                                    </i>
+                                </td>
                             </tr>
                         {% endfor %}
                         </tbody>
@@ -84,6 +110,15 @@
             </div>
         </form>
     </div>
+    {% if perms.bom.manage_sourcing %}
+        <div class="fixed-action-btn">
+            <a class="btn-floating btn-large red tooltipped" data-position="left" data-delay="50"
+               data-tooltip="Create new manufacturer"
+               href="{% url 'bom:manufacturer-create' %}">
+                <i class="large material-icons">add</i>
+            </a>`
+        </div>
+    {% endif %}
 {% endblock %}
 
 {% block bom-script %}
@@ -92,6 +127,7 @@
     <script>
         $(function () {
             $('.responsive-table-wrapper').floatingScrollbar();
+            $('.tooltipped').tooltip();
         });
     </script>
 {% endblock bom-script %}

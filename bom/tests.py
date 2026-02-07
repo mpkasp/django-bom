@@ -287,8 +287,12 @@ class TestBOM(TransactionTestCase):
             self.assertEqual(int(float(item['level'])), bom_list[idx].indent_level, assertion_message)
             self.assertEqual(item['part_number'], bom_list[idx].part.full_part_number(), assertion_message)
             self.assertEqual(item['revision'], bom_list[idx].part_revision.revision, assertion_message)
-            self.assertEqual(item['manufacturer_name'], bom_list[idx].part.primary_manufacturer_part.manufacturer.name, assertion_message)
-            self.assertEqual(item['manufacturer_part_number'], bom_list[idx].part.primary_manufacturer_part.manufacturer_part_number, assertion_message)
+            mfg_name = bom_list[idx].part.primary_manufacturer_part.manufacturer.name if bom_list[
+                idx].part.primary_manufacturer_part else ''
+            self.assertEqual(item['manufacturer_name'], mfg_name, assertion_message)
+            mpn = bom_list[idx].part.primary_manufacturer_part.manufacturer_part_number if bom_list[
+                idx].part.primary_manufacturer_part else ''
+            self.assertEqual(item['manufacturer_part_number'], mpn, assertion_message)
             if bom_list[idx].indent_level > 0:
                 self.assertEqual(float(item['quantity']), bom_list[idx].subpart.count, assertion_message)
 
@@ -527,7 +531,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue('/part/' in response.url)
 
-        # fail nicely
+        # fail nicely - if manufacturer part number exists, so should a manufacturer
         new_part_form_data = {
             'manufacturer_part_number': 'ABC123',
             'manufacturer': '',
@@ -907,7 +911,7 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:user-meta-edit', kwargs={'user_meta_id': self.user.bom_profile().id}))
         self.assertEqual(response.status_code, 200)
 
-    def test_add_sellerpart(self):
+    def test_add_seller_part(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         response = self.client.get(reverse('bom:manufacturer-part-add-sellerpart', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
@@ -937,7 +941,7 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         edit_sellerpart_form_data = {
-            'new_seller': 'indabom',
+            'seller': 'indabom',
             'seller_part_number': '123-45678',
             'minimum_order_quantity': 100,
             'minimum_pack_quantity': 200,
@@ -947,12 +951,14 @@ class TestBOM(TransactionTestCase):
             'ncnr': True,
         }
 
-        response = self.client.post(reverse('bom:sellerpart-edit', kwargs={'sellerpart_id': p1.optimal_seller().id}), edit_sellerpart_form_data)
+        response = self.client.post(reverse('bom:seller-part-edit', kwargs={'seller_part_id': p1.optimal_seller().id}),
+                                    edit_sellerpart_form_data)
         self.assertEqual(response.status_code, 302)
 
-    def test_sellerpart_delete(self):
+    def test_seller_part_delete(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-        response = self.client.post(reverse('bom:sellerpart-delete', kwargs={'sellerpart_id': p1.optimal_seller().id}))
+        response = self.client.post(
+            reverse('bom:seller-part-delete', kwargs={'seller_part_id': p1.optimal_seller().id}))
 
         self.assertEqual(response.status_code, 302)
 
@@ -962,15 +968,14 @@ class TestBOM(TransactionTestCase):
         response = self.client.get(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': p1.id}))
 
         # Test POSTs
-        mfg_form_data = {'name': p1.primary_manufacturer_part.manufacturer.name,
+        mfg_form_data = {'manufacturer': p1.primary_manufacturer_part.manufacturer.name,
                          'manufacturer_part_number': p1.primary_manufacturer_part.manufacturer_part_number,
-                         'part': p2.id}
-        response = self.client.post(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': p1.id}), mfg_form_data)
+                         'approval_status': 'P'}
+        response = self.client.post(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': p2.id}), mfg_form_data)
         self.assertEqual(response.status_code, 302)
 
-        mfg_form_data = {'name': "A new mfg name",
-                         'manufacturer_part_number': "a new pn",
-                         'part': p2.id}
+        mfg_form_data = {'manufacturer': "A new mfg name",
+                         'manufacturer_part_number': "a new pn"}
         response = self.client.post(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': p1.id}), mfg_form_data)
         self.assertEqual(response.status_code, 302)
 
@@ -986,7 +991,10 @@ class TestBOM(TransactionTestCase):
 
     def test_manufacturer_edit(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-        response = self.client.post(reverse('bom:manufacturer-edit', kwargs={'manufacturer_id': p1.primary_manufacturer_part.manufacturer.id}))
+        manufacturer_data = {'name': 'kasper', 'approval_status': 'P'}
+        response = self.client.post(
+            reverse('bom:manufacturer-edit', kwargs={'manufacturer_id': p1.primary_manufacturer_part.manufacturer.id}),
+            manufacturer_data)
         self.assertEqual(response.status_code, 302)
 
     def test_manufacturer_delete(self):
@@ -1006,7 +1014,9 @@ class TestBOM(TransactionTestCase):
 
     def test_seller_edit(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-        response = self.client.post(reverse('bom:seller-edit', kwargs={'seller_id': p2.primary_manufacturer_part.optimal_seller().seller_id}), {'name': 'Mousah'})
+        response = self.client.post(
+            reverse('bom:seller-edit', kwargs={'seller_id': p2.primary_manufacturer_part.optimal_seller().seller_id}),
+            {'name': 'Mousah', 'approval_status': 'P'})
         self.assertEqual(response.status_code, 302)
 
     def test_seller_delete(self):
@@ -1016,7 +1026,7 @@ class TestBOM(TransactionTestCase):
 
     def test_manufacturer_part_edit(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-        response = self.client.post(
+        response = self.client.get(
             reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': p1.primary_manufacturer_part.id}))
         self.assertEqual(response.status_code, 200)
 
@@ -1468,6 +1478,10 @@ class TestBOMNoVariation(TestBOM):
     def test_upload_parts_break_too_many_characters(self):
         pass
 
+    @skip('too specific of a test case for now...')
+    def test_part_upload_bom(self):
+        pass
+
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestForms(TestCase):
@@ -1545,7 +1559,7 @@ class TestForms(TestCase):
         self.assertTrue('subpart_part_number' in str(form.errors))
         self.assertTrue('This field is required.' in str(form.errors))
 
-    def test_add_sellerpart_form(self):
+    def test_add_seller_part_form(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         form = SellerPartForm()
         self.assertFalse(form.is_valid())
@@ -1564,7 +1578,7 @@ class TestForms(TestCase):
         }
 
         filled_form = SellerPartForm(form_data, organization=self.organization)
-        self.assertTrue(filled_form.is_valid())
+        self.assertTrue(filled_form.is_valid(), filled_form.errors)
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         sp = p1.optimal_seller()

@@ -13,7 +13,7 @@
             <th>Part</th>
             <th>Manufacturer</th>
             <th>MPN</th>
-            <th>Seller</th>
+            <th>Vendor</th>
             <th>PN</th>
             <th>MOQ</th>
             <th>MPQ</th>
@@ -39,13 +39,13 @@
                     <td>{{ seller_part.nre_cost }}</td>
                     <td>{{ seller_part.ncnr }}</td>
                     <td>{% if profile.role == 'A' %}
-                        <a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}">edit</a> |
-                        <a href="{% url 'bom:sellerpart-delete' sellerpart_id=seller_part.id %}">delete</a>
+                        <a href="{% url 'bom:seller-part-edit' seller_part_id=seller_part.id %}">edit</a> |
+                        <a href="{% url 'bom:seller-part-delete' seller_part_id=seller_part.id %}">delete</a>
                     {% endif %}</td>
                 </tr>
             {% empty %}
                 <tr data-tt-id="0" data-tt-parent-id="{{ seller_part.id }}">
-                    <td colspan="99" style="text-align: center;"><i>No seller parts found.</i></td>
+                    <td colspan="99" style="text-align: center;"><i>No vendor parts found.</i></td>
                 </tr>
             {% endfor %}
         </tbody>
