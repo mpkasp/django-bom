@@ -1549,8 +1549,8 @@ def seller_part_manage(request, manufacturer_part_id=None, seller_part_id=None):
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.MANAGE_SOURCING)
-def seller_part_delete(request, sellerpart_id):
-    sp = get_object_or_404(SellerPart, pk=sellerpart_id)
+def seller_part_delete(request, seller_part_id):
+    sp = get_object_or_404(SellerPart, pk=seller_part_id)
     part = sp.manufacturer_part.part
     sp.delete()
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
