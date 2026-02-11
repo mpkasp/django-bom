@@ -258,13 +258,14 @@
                     <h4 class="printer-show">Where Used</h4>
                     <div id="where-used-revision">
                         <div class="text-center" style="padding-top: 8px;">
-                            <span>This Revision</span> | <a onclick="showWholePartWhereUsed()" href="#">Whole Part</a>
+                            <span>This Revision</span> | <a onclick="showWholePartWhereUsed()" href="#">All
+                            Revisions</a>
                         </div>
                         {% include 'bom/components/where-used-tree.html' with where_used_items=where_used.items table_id='where-used-revision-table' %}
                     </div>
                     <div id="where-used-whole-part" style="display: none;">
                         <div class="text-center" style="padding-top: 8px;">
-                            <a onclick="showRevisionWhereUsed()" href="#">This Revision</a> | <span>Whole Part</span>
+                            <a onclick="showRevisionWhereUsed()" href="#">This Revision</a> | <span>All Revisions</span>
                         </div>
                         {% include 'bom/components/where-used-tree.html' with where_used_items=where_used_part.items table_id='where-used-whole-part-table' %}
                     </div>

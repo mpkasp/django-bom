@@ -20,7 +20,7 @@ from .base_classes import AsDictModel
 from .constants import *
 from .csv_headers import PartsListCSVHeaders, PartsListCSVHeadersSemiIntelligent, BOMIndentedCSVHeaders, \
     BOMFlatCSVHeaders
-from .part_bom import PartBom, PartBomItem, PartIndentedBomItem
+from .part_bom import PartBom, PartBomItem, PartIndentedBomItem, WhereUsed, WhereUsedItem
 from .utils import increment_str, listify_string, prep_for_sorting_nicely, stringify_list, strip_trailing_zeros
 from .validators import alphanumeric
 
@@ -397,20 +397,7 @@ class Part(OrganizationScopedModel):
         used_in_prs = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)
         return used_in_prs
 
-    def where_used_full(self):
-        def where_used_given_part(used_in_parts, part):
-            where_used = part.where_used()
-            used_in_parts.update(where_used)
-            for p in where_used:
-                where_used_given_part(used_in_parts, p)
-            return used_in_parts
-
-        used_in_parts = set()
-        where_used_given_part(used_in_parts, self)
-        return list(used_in_parts)
-
     def where_used_recursive(self):
-        from .part_bom import WhereUsed
         wu = WhereUsed(part=self)
         revisions = self.revisions().all()
         for rev in revisions:
@@ -767,20 +754,7 @@ class PartRevision(models.Model):
         used_in_pr = PartRevision.objects.filter(assembly__in=used_in_assembly_ids).order_by('-revision')
         return used_in_pr
 
-    def where_used_full(self):
-        def where_used_given_part(used_in_parts, part):
-            where_used = part.where_used()
-            used_in_parts.update(where_used)
-            for p in where_used:
-                where_used_given_part(used_in_parts, p)
-            return used_in_parts
-
-        used_in_parts = set()
-        where_used_given_part(used_in_parts, self)
-        return list(used_in_parts)
-
     def where_used_recursive(self):
-        from .part_bom import WhereUsed, WhereUsedItem
         wu = WhereUsed(part_revision=self)
 
         def get_all_paths(rev, seen):
@@ -791,15 +765,18 @@ class PartRevision(models.Model):
             parents = PartRevision.objects.filter(assembly__subparts__in=used_in_subparts).distinct()
 
             if not parents:
-                return [[(rev, None)]]
+                return []
 
             paths = []
             for p in parents:
                 sps = Subpart.objects.filter(part_revision=rev, assemblysubparts__assembly=p.assembly)
                 for sp in sps:
                     sub_paths = get_all_paths(p, seen | {rev.id})
-                    for path in sub_paths:
-                        paths.append(path + [(rev, sp)])
+                    if not sub_paths:
+                        paths.append([(p, None), (rev, sp)])
+                    else:
+                        for path in sub_paths:
+                            paths.append(path + [(rev, sp)])
             return paths
 
         try:
