@@ -20,7 +20,7 @@ from .base_classes import AsDictModel
 from .constants import *
 from .csv_headers import PartsListCSVHeaders, PartsListCSVHeadersSemiIntelligent, BOMIndentedCSVHeaders, \
     BOMFlatCSVHeaders
-from .part_bom import PartBom, PartBomItem, PartIndentedBomItem
+from .part_bom import PartBom, PartBomItem, PartIndentedBomItem, WhereUsed, WhereUsedItem
 from .utils import increment_str, listify_string, prep_for_sorting_nicely, stringify_list, strip_trailing_zeros
 from .validators import alphanumeric
 
@@ -397,17 +397,13 @@ class Part(OrganizationScopedModel):
         used_in_prs = PartRevision.objects.filter(assembly__in=used_in_assembly_ids)
         return used_in_prs
 
-    def where_used_full(self):
-        def where_used_given_part(used_in_parts, part):
-            where_used = part.where_used()
-            used_in_parts.update(where_used)
-            for p in where_used:
-                where_used_given_part(used_in_parts, p)
-            return used_in_parts
-
-        used_in_parts = set()
-        where_used_given_part(used_in_parts, self)
-        return list(used_in_parts)
+    def where_used_recursive(self):
+        wu = WhereUsed(part=self)
+        revisions = self.revisions().all()
+        for rev in revisions:
+            rev_wu = rev.where_used_recursive()
+            wu.items.update(rev_wu.items)
+        return wu
 
     def indented(self, part_revision=None):
         if part_revision is None:
@@ -769,6 +765,61 @@ class PartRevision(models.Model):
         used_in_parts = set()
         where_used_given_part(used_in_parts, self)
         return list(used_in_parts)
+
+    def where_used_recursive(self):
+        wu = WhereUsed(part_revision=self)
+
+        def get_all_paths(rev, seen):
+            if rev.id in seen:
+                return []
+
+            used_in_subparts = Subpart.objects.filter(part_revision=rev)
+            parents = PartRevision.objects.filter(assembly__subparts__in=used_in_subparts).distinct()
+
+            if not parents:
+                return []
+
+            paths = []
+            for p in parents:
+                sps = Subpart.objects.filter(part_revision=rev, assemblysubparts__assembly=p.assembly)
+                for sp in sps:
+                    sub_paths = get_all_paths(p, seen | {rev.id})
+                    if not sub_paths:
+                        paths.append([(p, None), (rev, sp)])
+                    else:
+                        for path in sub_paths:
+                            paths.append(path + [(rev, sp)])
+            return paths
+
+        try:
+            all_paths = get_all_paths(self, set())
+        except (RuntimeError, RecursionError):
+            return wu
+
+        for path in all_paths:
+            parent_id = None
+            for i, (rev, sp) in enumerate(path):
+                id_parts = []
+                for j in range(i + 1):
+                    r, s = path[j]
+                    if s:
+                        id_parts.append(str(s.id))
+                    else:
+                        id_parts.append(f"r{r.id}")
+                node_id = "-".join(id_parts)
+
+                if node_id not in wu.items:
+                    wu.items[node_id] = WhereUsedItem(
+                        bom_id=node_id,
+                        part=rev.part,
+                        part_revision=rev,
+                        indent_level=i,
+                        parent_id=parent_id,
+                        quantity=sp.count if sp else 1,
+                        references=sp.reference if sp else ''
+                    )
+                parent_id = node_id
+        return wu
 
     def next_revision(self):
         try:

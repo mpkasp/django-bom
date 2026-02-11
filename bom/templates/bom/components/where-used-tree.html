@@ -1,0 +1,47 @@
+<div class="responsive-table-wrapper">
+    <table id="{{ table_id }}" class="highlight part-list tight single-line">
+        <thead>
+        <tr>
+            <th class="text-normal">Level</th>
+            <th class="text-normal">Part No.</th>
+            <th class="text-normal">Qty</th>
+            <th class="text-normal">Reference</th>
+            <th class="text-normal">Synopsis</th>
+            <th class="text-normal">Rev</th>
+            <th class="text-normal">Manufacturer</th>
+            <th class="text-normal">MPN</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for node_id, item in where_used_items.items %}
+            <tr data-tt-id="{{ node_id }}"
+                {% if item.parent_id %}data-tt-parent-id="{{ item.parent_id }}"{% endif %}>
+                <td class="text-normal">{{ item.indent_level }}</td>
+                <td class="text-normal"><a href="{% url 'bom:part-info' part_id=item.part.id %}">{{ item.part.full_part_number }}</a></td>
+                <td class="text-normal">{{ item.quantity | floatformat }}</td>
+                <td class="text-normal">{{ item.references | default:"-" }}</td>
+                <td class="text-normal">{{ item.part_revision.synopsis | truncatechars:75 }}</td>
+                <td class="text-normal">{{ item.part_revision.revision }}</td>
+                <td class="text-normal">{{ item.part.primary_manufacturer_part.manufacturer.name }}</td>
+                <td class="text-normal">{{ item.part.primary_manufacturer_part.manufacturer_part_number }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="99" style="text-align: center; padding: 40px; color: #757575;">
+                    <i>This part is not currently used in any of your other parts.</i>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $("#{{ table_id }}").treetable({
+            expandable: true,
+            indent: 2,
+            initialState: 'expanded',
+        });
+    });
+</script>

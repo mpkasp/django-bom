@@ -7,6 +7,8 @@
 
 {% block head %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/part-info.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/treetable-theme.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}"/>
 {% endblock %}
 
 {% block content %}
@@ -254,88 +256,18 @@
 
                 <div id="used" class="col s12">
                     <h4 class="printer-show">Where Used</h4>
-                    <br>
-                    <div class="responsive-table-wrapper">
-                        <ul class="collapsible" data-collapsible="expandable" style="overflow: scroll;">
-                            <li class="active">
-                                <div class="collapsible-header"><i class="material-icons">my_location</i>Where this revision is used</div>
-                                <div class="collapsible-body">
-                                    <table class="highlight tight">
-                                        <thead>
-                                        <tr>
-                                            <th>Part Number</th>
-                                            <th>Synopsis</th>
-                                            <th>Rev</th>
-                                            <th>Manufacturer</th>
-                                            <th>MPN</th>
-                                        </tr>
-                                        </thead>
-
-                                        <tbody>
-                                        {% for used_part in where_used %}
-                                            <tr>
-                                                <td>
-                                                    <a href="{% url 'bom:part-info-history' part_id=used_part.part.id part_revision_id=used_part.id %}">{{ used_part.part.full_part_number }}</a>
-                                                </td>
-                                                <td>{{ used_part.synopsis }}</td>
-                                                <td>{{ used_part.revision }}</td>
-                                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer.name }}</td>
-                                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                                            </tr>
-                                        {% empty %}
-                                            <tr>
-                                                <td colspan="99"
-                                                    style="padding: 40px; text-align: center; color: #757575;"><i>This
-                                                    part is not currently
-                                                    used in any of your other parts. To add a part to a subassembly or assembly, go to the
-                                                    parent part's Bill of Materials, and click "Manage", then "Edit".</i></td>
-                                            </tr>
-                                        {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </li>
-                            <li>
-                                <div class="collapsible-header"><i class="material-icons">location_searching</i>All part usages</div>
-                                <div class="collapsible-body">
-                                    <table class="highlight tight">
-                                        <thead>
-                                        <tr>
-                                            <th>Part Number</th>
-                                            <th>Synopsis</th>
-                                            <th>Rev</th>
-                                            <th>Manufacturer</th>
-                                            <th>MPN</th>
-                                        </tr>
-                                        </thead>
-
-                                        <tbody>
-                                        {% for used_part in where_used_part %}
-                                            <tr>
-                                                <td>
-                                                    <a href="{% url 'bom:part-info-history' part_id=used_part.part.id part_revision_id=used_part.id %}">{{ used_part.part.full_part_number }}</a>
-                                                </td>
-                                                <td>{{ used_part.synopsis }}</td>
-                                                <td>{{ used_part.revision }}</td>
-                                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer.name }}</td>
-                                                <td>{{ used_part.part.primary_manufacturer_part.manufacturer_part_number }}</td>
-                                            </tr>
-                                        {% empty %}
-                                            <tr>
-                                                <td colspan="99" style="text-align: center; height: 20vh;"><i>This part is not currently
-                                                    used in any of your other parts.
-                                                    {% if perms.bom.part_edit %}
-                                                        To add a part to a subassembly or assembly, go to the
-                                                        parent part's Bill of Materials, and click "Manage", then "Edit".
-                                                    {% endif %}
-                                                </i></td>
-                                            </tr>
-                                        {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </li>
-                        </ul>
+                    <div id="where-used-revision">
+                        <div class="text-center" style="padding-top: 8px;">
+                            <span>This Revision</span> | <a onclick="showWholePartWhereUsed()" href="#">All
+                            Revisions</a>
+                        </div>
+                        {% include 'bom/components/where-used-tree.html' with where_used_items=where_used.items table_id='where-used-revision-table' %}
+                    </div>
+                    <div id="where-used-whole-part" style="display: none;">
+                        <div class="text-center" style="padding-top: 8px;">
+                            <a onclick="showRevisionWhereUsed()" href="#">This Revision</a> | <span>All Revisions</span>
+                        </div>
+                        {% include 'bom/components/where-used-tree.html' with where_used_items=where_used_part.items table_id='where-used-whole-part-table' %}
                     </div>
                 </div>
 
@@ -494,6 +426,16 @@
         function showIndentedBOM() {
             $('#bom-flat').hide();
             $('#bom-indented').show();
+        }
+
+        function showRevisionWhereUsed() {
+            $('#where-used-whole-part').hide();
+            $('#where-used-revision').show();
+        }
+
+        function showWholePartWhereUsed() {
+            $('#where-used-revision').hide();
+            $('#where-used-whole-part').show();
         }
     </script>
 {% endblock bom-script %}
