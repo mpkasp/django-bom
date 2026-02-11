@@ -833,16 +833,16 @@ def part_info(request, part_id, part_revision_id=None):
         flat_bom = []
 
     try:
-        where_used = part_revision.where_used()
+        where_used = part_revision.where_used_recursive()
     except AttributeError:
-        where_used = []
+        where_used = None
 
     try:
         mouser_parts = len(flat_bom.mouser_parts().keys()) > 0
     except AttributeError:
         mouser_parts = False
 
-    where_used_part = part.where_used()
+    where_used_part = part.where_used_recursive()
     seller_parts = part.seller_parts()
     return TemplateResponse(request, 'bom/part-info.html', locals())
 

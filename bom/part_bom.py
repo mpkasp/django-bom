@@ -5,7 +5,6 @@ from djmoney.money import Money
 
 from .base_classes import AsDictModel
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -190,3 +189,24 @@ class PartIndentedBomItem(PartBomItem, AsDictModel):
 
     def __str__(self):
         return f'level: {self.indent_level}, {super().__str__()}'
+
+
+class WhereUsed(AsDictModel):
+    def __init__(self, part_revision=None, part=None):
+        self.part_revision = part_revision
+        self.part = part
+        self.items = OrderedDict()
+
+
+class WhereUsedItem(AsDictModel):
+    def __init__(self, bom_id, part, part_revision, indent_level, parent_id, quantity, references):
+        self.bom_id = bom_id
+        self.part = part
+        self.part_revision = part_revision
+        self.indent_level = indent_level
+        self.parent_id = parent_id
+        self.quantity = quantity
+        self.references = references
+
+    def __str__(self):
+        return f'level: {self.indent_level}, {self.part.full_part_number()}, qty: {self.quantity}'
