@@ -754,6 +754,18 @@ class PartRevision(models.Model):
         used_in_pr = PartRevision.objects.filter(assembly__in=used_in_assembly_ids).order_by('-revision')
         return used_in_pr
 
+    def where_used_full(self):
+        def where_used_given_part(used_in_parts, part):
+            where_used = part.where_used()
+            used_in_parts.update(where_used)
+            for p in where_used:
+                where_used_given_part(used_in_parts, p)
+            return used_in_parts
+
+        used_in_parts = set()
+        where_used_given_part(used_in_parts, self)
+        return list(used_in_parts)
+
     def where_used_recursive(self):
         wu = WhereUsed(part_revision=self)
 
