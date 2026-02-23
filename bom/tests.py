@@ -925,9 +925,11 @@ class TestBOM(TransactionTestCase):
             'seller_part_number': p1.optimal_seller().seller_part_number,
             'minimum_order_quantity': 1000,
             'minimum_pack_quantity': 500,
-            'unit_cost': '1.23',
+            'unit_cost_0': '1.23',
+            'unit_cost_1': 'USD',
             'lead_time_days': 25,
-            'nre_cost': 2000,
+            'nre_cost_0': 2000,
+            'nre_cost_1': 'USD',
             'ncnr': False,
         }
 
@@ -945,9 +947,11 @@ class TestBOM(TransactionTestCase):
             'seller_part_number': '123-45678',
             'minimum_order_quantity': 100,
             'minimum_pack_quantity': 200,
-            'unit_cost': '1.2',
+            'unit_cost_0': '1.2',
+            'unit_cost_1': 'USD',
             'lead_time_days': 5,
-            'nre_cost': 1000,
+            'nre_cost_0': 1000,
+            'nre_cost_1': 'USD',
             'ncnr': True,
         }
 
@@ -1571,9 +1575,11 @@ class TestForms(TestCase):
             'seller_part_number': '123-45678',
             'minimum_order_quantity': 1000,
             'minimum_pack_quantity': 100,
-            'unit_cost': 1.2332,
+            'unit_cost_0': 1.2332,
+            'unit_cost_1': 'USD',
             'lead_time_days': 14,
-            'nre_cost': 1000,
+            'nre_cost_0': 1000,
+            'nre_cost_1': 'USD',
             'ncnr': True,
         }
 
