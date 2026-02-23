@@ -9,6 +9,7 @@ from django.core.validators import MaxLengthValidator, MinLengthValidator
 from django.db import IntegrityError
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
+from djmoney.forms.widgets import MoneyWidget
 
 from bom.permissions import BomPerms
 from .constants import (
@@ -73,6 +74,24 @@ class PlaceholderMixin:
             if field.help_text:
                 field.widget.attrs['placeholder'] = field.help_text
                 field.help_text = ''
+
+
+class MaterializeMoneyMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for field_name, field in self.fields.items():
+            if isinstance(field.widget, MoneyWidget):
+                amount_widget = field.widget.widgets[0]
+                currency_widget = field.widget.widgets[1]
+                amount_widget.attrs.update({
+                    'style': 'width: 70%; display: inline-block;',
+                    'step': 'any'
+                })
+                currency_widget.attrs.update({
+                    'class': 'browser-default',
+                    'style': 'width: 28%; display: inline-block; margin-left: 2%; border: none; border-bottom: 1px solid #9e9e9e; height: 3rem; background-color: transparent; outline: none; color: inherit;'
+                })
 
 
 class OrganizationModelForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm):
@@ -396,7 +415,7 @@ class SellerForm(OrganizationModelForm):
         exclude = ['organization']
 
 
-class SellerPartForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm):
+class SellerPartForm(OrganizationFormMixin, MaterializeMoneyMixin, PlaceholderMixin, forms.ModelForm):
     class Meta:
         model = SellerPart
         exclude = ['manufacturer_part', 'data_source', 'seller', ]
@@ -408,12 +427,8 @@ class SellerPartForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm):
                                        queryset=Seller.objects.available_to(organization=self.organization).order_by(
                                            'name'))
         self.fields['seller'] = forms.CharField(required=True, label='Vendor', widget=widget)
-        self.fields['unit_cost'] = forms.DecimalField(required=True, decimal_places=4, max_digits=17)
-        self.fields['nre_cost'] = forms.DecimalField(required=True, decimal_places=4, max_digits=17, label='NRE cost')
         self.fields['seller_part_number'].label = "Vendor Part Number"
         if self.instance.pk:
-            self.initial['unit_cost'] = self.instance.unit_cost.amount
-            self.initial['nre_cost'] = self.instance.nre_cost.amount
             self.initial['seller'] = self.instance.seller.name
 
         self.order_fields(

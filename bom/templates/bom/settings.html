@@ -5,6 +5,10 @@
 
 {% block head-title %}{{ title }}{% endblock %}
 
+{% block main %}
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/tablesorter-theme.materialize.css' %}"/>
+{% endblock %}
+
 {% block content %}
     <div class="container-app settings-grid row">
         <div class="col s12 m3 l2 settings-nav">
@@ -158,50 +162,54 @@
                         <form name="seller" action="{% url 'bom:settings' tab_anchor='organization' %}" method="post"
                               enctype="multipart/form-data">
                             {% csrf_token %}
-                            <table>
-                                <thead>
-                                <tr>
-                                    <th class="text-normal"><label><input type="checkbox"
-                                                                          id="user-select-all"><span></span></label>
-                                    </th>
-                                    <th class="text-normal">Role</th>
-                                    <th class="text-normal">User Name</th>
-                                    <th class="text-normal">Full Name</th>
-                                    <th class="text-normal">Email</th>
-                                    <th class="text-normal"></th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {% for org_user in users_in_organization %}
+                            <div class="responsive-table-wrapper">
+                                <table id="users-table" class="highlight part-list tight single-line">
+                                    <thead>
                                     <tr>
-                                        <td>
-                                            {% if org_user != organization.owner %}
-                                                <label><input type="checkbox" class="filled-in"
-                                                              name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>{% endif %}
-                                        </td>
-                                        <td class="text-normal">{% if org_user == organization.owner %}Owner{% else %}
-                                            {{ org_user.bom_profile.get_role_display }}{% endif %}</td>
-                                        <td class="text-normal">{{ org_user.username }}</td>
-                                        <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
-                                        <td class="text-normal"><a
-                                                href="mailto:{{ user.email }}">{{ org_user.email }}</a>
-                                        </td>
-                                        <td>
-                                            <a class="table-action right-align"
-                                               href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
-                                                    class="material-icons left">edit</i>Edit</a>
-                                        </td>
+                                        <th class="text-normal sorter-false"><label><input type="checkbox"
+                                                                                           id="user-select-all"><span></span></label>
+                                        </th>
+                                        <th class="text-normal">Role</th>
+                                        <th class="text-normal">User Name</th>
+                                        <th class="text-normal">Full Name</th>
+                                        <th class="text-normal">Email</th>
+                                        <th class="text-normal sorter-false"></th>
                                     </tr>
-                                {% empty %}
-                                    <tr>
-                                        <td colspan="5" style="font-style: italic;">There are no additional users in
-                                            this
-                                            organization.
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                    {% for org_user in users_in_organization %}
+                                        <tr>
+                                            <td class="text-normal">
+                                                {% if org_user != organization.owner %}
+                                                    <label><input type="checkbox" class="filled-in"
+                                                                  name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>{% endif %}
+                                            </td>
+                                            <td class="text-normal">{% if org_user == organization.owner %}
+                                                Owner{% else %}
+                                                {{ org_user.bom_profile.get_role_display }}{% endif %}</td>
+                                            <td class="text-normal">{{ org_user.username }}</td>
+                                            <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
+                                            <td class="text-normal"><a
+                                                    href="mailto:{{ user.email }}">{{ org_user.email }}</a>
+                                            </td>
+                                            <td class="text-normal">
+                                                <a class="table-action right-align"
+                                                   href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
+                                                        class="material-icons left">edit</i>Edit</a>
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td class="text-normal" colspan="5" style="font-style: italic;">There are no
+                                                additional users in
+                                                this
+                                                organization.
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                             <div class="row" style="padding-top: 16px;">
                                 <div class="col s6">
                                     <button class="waves-effect waves-light btn red lighten-1" type="submit"
@@ -260,55 +268,58 @@
                                     </div>
                                 </div>
                             </div>
-                            <table class="striped tight">
-                                <thead>
-                                <tr>
-                                    {% if perms.bom.manage_schema or perms.bom.manage_sourcing %}
-                                        <th class="text-normal"><label><input type="checkbox"
-                                                                              id="part-class-select-all"><span></span></label>
-                                        </th>
-                                    {% endif %}
-                                    <th class="text-normal">Code</th>
-                                    <th class="text-normal">Name</th>
-                                    <th class="text-normal">Description</th>
-                                    <th class="text-normal"><img height="18" style="padding: 4px 4px 0 4px;"
-                                                                 alt="Mouser" title="Via Mouser.com"
-                                                                 src="{% static 'bom/img/mouser.png' %}">Mouser
-                                        Sourcing
-                                    </th>
-                                    {% if perms.bom.manage_schema %}
-                                        <th class="text-normal">Options</th>
-                                    {% endif %}
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {% for part_class in part_classes %}
+                            <div class="responsive-table-wrapper">
+                                <table id="part-classes-table" class="highlight part-list tight single-line">
+                                    <thead>
                                     <tr>
                                         {% if perms.bom.manage_schema or perms.bom.manage_sourcing %}
-                                            <td>
-                                                <label><input type="checkbox" class="filled-in checkbox-array"
-                                                              name="actions"
-                                                              value="{{ part_class.id }}"><span></span></label>
-                                            </td>
+                                            <th class="text-normal sorter-false"><label><input type="checkbox"
+                                                                                               id="part-class-select-all"><span></span></label>
+                                            </th>
                                         {% endif %}
-                                        <td class="text-normal">{{ part_class.code }}</td>
-                                        <td class="text-normal">{{ part_class.name }}</td>
-                                        <td class="text-normal">{{ part_class.comment }}</td>
-                                        <td class="text-normal">{% if part_class.mouser_enabled %}
-                                            <img height="24" style="padding: 4px 4px 0 4px;" alt="Mouser"
-                                                 title="Via Mouser.com"
-                                                 src="{% static 'bom/img/mouser.png' %}">{% endif %}</td>
+                                        <th class="text-normal">Code</th>
+                                        <th class="text-normal">Name</th>
+                                        <th class="text-normal">Description</th>
+                                        <th class="text-normal sorter-false"><img height="18"
+                                                                                  style="padding: 4px 4px 0 4px;"
+                                                                                  alt="Mouser" title="Via Mouser.com"
+                                                                                  src="{% static 'bom/img/mouser.png' %}">Mouser
+                                            Sourcing
+                                        </th>
                                         {% if perms.bom.manage_schema %}
-                                            <td>
-                                                <a class="table-action"
-                                                   href="{% url 'bom:part-class-edit' part_class_id=part_class.id %}"><i
-                                                        class="material-icons left">edit</i>Edit</a>
-                                            </td>
+                                            <th class="text-normal sorter-false">Options</th>
                                         {% endif %}
                                     </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                    {% for part_class in part_classes %}
+                                        <tr>
+                                            {% if perms.bom.manage_schema or perms.bom.manage_sourcing %}
+                                                <td class="text-normal">
+                                                    <label><input type="checkbox" class="filled-in checkbox-array"
+                                                                  name="actions"
+                                                                  value="{{ part_class.id }}"><span></span></label>
+                                                </td>
+                                            {% endif %}
+                                            <td class="text-normal">{{ part_class.code }}</td>
+                                            <td class="text-normal">{{ part_class.name }}</td>
+                                            <td class="text-normal">{{ part_class.comment }}</td>
+                                            <td class="text-normal">{% if part_class.mouser_enabled %}
+                                                <img height="24" style="padding: 4px 4px 0 4px;" alt="Mouser"
+                                                     title="Via Mouser.com"
+                                                     src="{% static 'bom/img/mouser.png' %}">{% endif %}</td>
+                                            {% if perms.bom.manage_schema %}
+                                                <td class="text-normal">
+                                                    <a class="table-action"
+                                                       href="{% url 'bom:part-class-edit' part_class_id=part_class.id %}"><i
+                                                            class="material-icons left">edit</i>Edit</a>
+                                                </td>
+                                            {% endif %}
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         {% else %}
                             <p>No part classes have been defined yet. <a href="{% url 'bom:help' %}#part-numbering"
                                                                          target="_blank">What is a part class?</a>
@@ -334,52 +345,54 @@
                     <p>Define part properties (e.g. Capacitance, Length, Sheen), their data type, and their
                         associated quantity of measure.</p>
                     {% if property_definitions.count > 0 %}
-                        <table class="striped tight">
-                            <thead>
-                            <tr>
-                                <th class="text-normal">Name</th>
-                                <th class="text-normal">Type</th>
-                                <th class="text-normal">Required</th>
-                                <th class="text-normal">Quantity of Measure</th>
-                                <th class="text-normal">Options</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {% for prop in property_definitions %}
+                        <div class="responsive-table-wrapper">
+                            <table id="property-definitions-table" class="highlight part-list tight single-line">
+                                <thead>
                                 <tr>
-                                    <td class="text-normal">{{ prop.name }}</td>
-                                    <td class="text-normal">{{ prop.get_type_display }}</td>
-                                    <td class="text-normal">{% if prop.required %}Yes{% else %}No{% endif %}</td>
-                                    <td class="text-normal">{{ prop.quantity_of_measure.name|default:"-" }}</td>
-                                    <td>
-                                        {% if prop.organization == organization %}
-                                            {% if perms.bom.manage_schema %}
-                                                <a class="table-action"
-                                                   href="{% url 'bom:property-definition-edit' property_definition_id=prop.id %}"><i
-                                                        class="material-icons left">edit</i>Edit</a>
-                                                <a class="table-action red-text"
-                                                   href="{% url 'bom:property-definition-delete' property_definition_id=prop.id %}"
-                                                   onclick="return confirm('Are you sure you want to delete this property definition?')"><i
-                                                        class="material-icons left">delete</i></a>
+                                    <th class="text-normal">Name</th>
+                                    <th class="text-normal">Type</th>
+                                    <th class="text-normal">Required</th>
+                                    <th class="text-normal">Quantity of Measure</th>
+                                    <th class="text-normal sorter-false">Options</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for prop in property_definitions %}
+                                    <tr>
+                                        <td class="text-normal">{{ prop.name }}</td>
+                                        <td class="text-normal">{{ prop.get_type_display }}</td>
+                                        <td class="text-normal">{% if prop.required %}Yes{% else %}No{% endif %}</td>
+                                        <td class="text-normal">{{ prop.quantity_of_measure.name|default:"-" }}</td>
+                                        <td class="text-normal">
+                                            {% if prop.organization == organization %}
+                                                {% if perms.bom.manage_schema %}
+                                                    <a class="table-action"
+                                                       href="{% url 'bom:property-definition-edit' property_definition_id=prop.id %}"><i
+                                                            class="material-icons left">edit</i>Edit</a>
+                                                    <a class="table-action red-text"
+                                                       href="{% url 'bom:property-definition-delete' property_definition_id=prop.id %}"
+                                                       onclick="return confirm('Are you sure you want to delete this property definition?')"><i
+                                                            class="material-icons left">delete</i></a>
+                                                {% else %}
+                                                    <span class="table-action tooltipped grey-text d-flex-inline align-center"
+                                                          data-position="top"
+                                                          data-tooltip="Only users with schema management permissions can modify.">
+                                                    <i class="material-icons left" style="font-size: 1.2rem;">lock</i> Edit
+                                                </span>
+                                                {% endif %}
                                             {% else %}
                                                 <span class="table-action tooltipped grey-text d-flex-inline align-center"
                                                       data-position="top"
-                                                      data-tooltip="Only users with schema management permissions can modify.">
-                                                <i class="material-icons left" style="font-size: 1.2rem;">lock</i> Edit
-                                            </span>
+                                                      data-tooltip="System Default: Cannot be modified">
+                                                    <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
+                                                </span>
                                             {% endif %}
-                                        {% else %}
-                                            <span class="table-action tooltipped grey-text d-flex-inline align-center"
-                                                  data-position="top"
-                                                  data-tooltip="System Default: Cannot be modified">
-                                                <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
-                                            </span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     {% else %}
                         <p>No global property definitions defined.</p>
                     {% endif %}
@@ -401,58 +414,60 @@
                     <p>Define quantities of measure (e.g. Length, Resistance) and their associated units (e.g. m,
                         mm, Ohm, kOhm).</p>
                     {% if quantities_of_measure.count > 0 %}
-                        <table class="striped tight">
-                            <thead>
-                            <tr>
-                                <th class="text-normal">Quantity</th>
-                                <th class="text-normal">Units</th>
-                                <th class="text-normal">Options</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {% for qom in quantities_of_measure %}
+                        <div class="responsive-table-wrapper">
+                            <table id="units-table" class="highlight part-list tight single-line">
+                                <thead>
                                 <tr>
-                                    <td class="text-normal">{{ qom.name }}</td>
-                                    <td class="text-normal">
-                                        {% for unit in qom.units.all|slice:":3" %}
-                                            {{ unit.symbol }}{% if not forloop.last %}, {% endif %}
-                                        {% endfor %}
+                                    <th class="text-normal">Quantity</th>
+                                    <th class="text-normal sorter-false">Units</th>
+                                    <th class="text-normal sorter-false">Options</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for qom in quantities_of_measure %}
+                                    <tr>
+                                        <td class="text-normal">{{ qom.name }}</td>
+                                        <td class="text-normal">
+                                            {% for unit in qom.units.all|slice:":3" %}
+                                                {{ unit.symbol }}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
 
-                                        {% if qom.units.count > 3 %}
-                                            <!--@formatter:off-->
-                                            <span class="grey-text text-darken-1 tooltipped" data-tooltip="{% for unit in qom.units.all %}{{ unit.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">(+{{ qom.units.count|add:"-3" }} more)
-                                            <!--@formatter:on-->
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if qom.organization == organization %}
-                                            {% if perms.bom.manage_schema %}
-                                                <a class="table-action"
-                                                   href="{% url 'bom:quantity-of-measure-edit' quantity_of_measure_id=qom.id %}"><i
-                                                        class="material-icons left">edit</i>Edit</a>
-                                                <a class="table-action red-text"
-                                                   href="{% url 'bom:quantity-of-measure-delete' quantity_of_measure_id=qom.id %}"
-                                                   onclick="return confirm('Are you sure you want to delete this quantity of measure and all its units?')"><i
-                                                        class="material-icons left">delete</i></a>
+                                            {% if qom.units.count > 3 %}
+                                                <!--@formatter:off-->
+                                                <span class="grey-text text-darken-1 tooltipped" data-tooltip="{% for unit in qom.units.all %}{{ unit.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">(+{{ qom.units.count|add:"-3" }} more)
+                                                <!--@formatter:on-->
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-normal">
+                                            {% if qom.organization == organization %}
+                                                {% if perms.bom.manage_schema %}
+                                                    <a class="table-action"
+                                                       href="{% url 'bom:quantity-of-measure-edit' quantity_of_measure_id=qom.id %}"><i
+                                                            class="material-icons left">edit</i>Edit</a>
+                                                    <a class="table-action red-text"
+                                                       href="{% url 'bom:quantity-of-measure-delete' quantity_of_measure_id=qom.id %}"
+                                                       onclick="return confirm('Are you sure you want to delete this quantity of measure and all its units?')"><i
+                                                            class="material-icons left">delete</i></a>
+                                                {% else %}
+                                                    <span class="table-action tooltipped grey-text d-flex-inline align-center"
+                                                          data-position="top"
+                                                          data-tooltip="Only users with schema management permissions can modify.">
+                                                    <i class="material-icons left" style="font-size: 1.2rem;">lock</i> Edit</span>
+                                                {% endif %}
                                             {% else %}
                                                 <span class="table-action tooltipped grey-text d-flex-inline align-center"
                                                       data-position="top"
-                                                      data-tooltip="Only users with schema management permissions can modify.">
-                                                <i class="material-icons left" style="font-size: 1.2rem;">lock</i> Edit</span>
+                                                      data-tooltip="System Default: Cannot be modified">
+                                                <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
+                                            </span>
                                             {% endif %}
-                                        {% else %}
-                                            <span class="table-action tooltipped grey-text d-flex-inline align-center"
-                                                  data-position="top"
-                                                  data-tooltip="System Default: Cannot be modified">
-                                            <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     {% else %}
                         <p>No quantities of measure defined.</p>
                     {% endif %}
@@ -732,6 +747,27 @@
                 }
                 lastChecked = this;
             });
+        });
+    </script>
+
+    <!-- Table Sorter -->
+    <script type="text/javascript"
+            src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.2/js/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript"
+            src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.2/js/jquery.tablesorter.widgets.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            // Initialize tablesorter for users table
+            $("#users-table").tablesorter({theme: "materialize"});
+
+            // Initialize tablesorter for part classes table
+            $("#part-classes-table").tablesorter({theme: "materialize"});
+
+            // Initialize tablesorter for property definitions table
+            $("#property-definitions-table").tablesorter({theme: "materialize"});
+
+            // Initialize tablesorter for units table
+            $("#units-table").tablesorter({theme: "materialize"});
         });
     </script>
 

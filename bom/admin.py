@@ -67,6 +67,7 @@ class SellerPartAdmin(admin.ModelAdmin):
 class SellerPartAdminInline(admin.TabularInline):
     model = SellerPart
     raw_id_fields = ('seller', 'manufacturer_part',)
+    show_change_link = True
 
 
 class ManufacturerPartAdmin(admin.ModelAdmin):
@@ -83,6 +84,7 @@ class ManufacturerPartAdmin(admin.ModelAdmin):
 class ManufacturerPartAdminInline(admin.TabularInline):
     model = ManufacturerPart
     raw_id_fields = ('part', 'manufacturer',)
+    show_change_link = True
 
 
 class PartClassAdmin(admin.ModelAdmin):

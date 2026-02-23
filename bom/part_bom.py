@@ -1,6 +1,8 @@
 import logging
 from collections import OrderedDict
 
+from djmoney.contrib.exchange.exceptions import MissingRate
+from djmoney.contrib.exchange.models import convert_money
 from djmoney.money import Money
 
 from .base_classes import AsDictModel
@@ -46,18 +48,35 @@ class PartBom(AsDictModel):
     def update_bom_for_part(self, bom_part):
         if bom_part.do_not_load:
             bom_part.order_quantity = 0
-            bom_part.order_cost = 0
+            bom_part.order_cost = Money(0, self._currency)
             return
 
         if bom_part.seller_part:
             try:
                 bom_part.order_quantity = bom_part.seller_part.order_quantity(bom_part.total_extended_quantity)
-                bom_part.order_cost = bom_part.total_extended_quantity * bom_part.seller_part.unit_cost
+                raw_order_cost = bom_part.total_extended_quantity * bom_part.seller_part.unit_cost
+                bom_part.order_cost = convert_money(raw_order_cost, self._currency)
             except AttributeError:
                 pass
-            self.unit_cost = (self.unit_cost + bom_part.seller_part.unit_cost * bom_part.extended_quantity) if bom_part.seller_part.unit_cost is not None else self.unit_cost
+            except MissingRate as e:
+                logger.error(f"[part_bom.py] Missing exchange rate for order_cost: {e}")
+                bom_part.order_cost = Money(0, self._currency)
+
+            if bom_part.seller_part.unit_cost is not None:
+                try:
+                    converted_unit_cost = convert_money(bom_part.seller_part.unit_cost, self._currency)
+                    self.unit_cost = self.unit_cost + (converted_unit_cost * bom_part.extended_quantity)
+                except MissingRate as e:
+                    logger.error(f"[part_bom.py] Missing exchange rate for unit_cost: {e}")
+
             self.out_of_pocket_cost = self.out_of_pocket_cost + bom_part.out_of_pocket_cost()
-            self.nre_cost = (self.nre_cost + bom_part.seller_part.nre_cost) if bom_part.seller_part.nre_cost is not None else self.nre_cost
+
+            if bom_part.seller_part.nre_cost is not None:
+                try:
+                    converted_nre_cost = convert_money(bom_part.seller_part.nre_cost, self._currency)
+                    self.nre_cost = self.nre_cost + converted_nre_cost
+                except MissingRate as e:
+                    logger.error(f"[part_bom.py] Missing exchange rate for nre_cost: {e}")
         else:
             self.missing_item_costs += 1
 
@@ -121,16 +140,24 @@ class PartBomItem(AsDictModel):
 
     def extended_cost(self):
         try:
-            return self.extended_quantity * self.seller_part.unit_cost
+            raw_cost = self.extended_quantity * self.seller_part.unit_cost
+            return convert_money(raw_cost, self._currency)
         except (AttributeError, TypeError) as err:
             logger.log(logging.INFO, '[part_bom.py] ' + str(err))
+            return Money(0, self._currency)
+        except MissingRate as e:
+            logger.error(f"[part_bom.py] Missing exchange rate in extended_cost: {e}")
             return Money(0, self._currency)
 
     def out_of_pocket_cost(self):
         try:
-            return self.order_quantity * self.seller_part.unit_cost
+            raw_cost = self.order_quantity * self.seller_part.unit_cost
+            return convert_money(raw_cost, self._currency)
         except (AttributeError, TypeError) as err:
             logger.log(logging.INFO, '[part_bom.py] ' + str(err))
+            return Money(0, self._currency)
+        except MissingRate as e:
+            logger.error(f"[part_bom.py] Missing exchange rate in out_of_pocket_cost: {e}")
             return Money(0, self._currency)
 
     def as_dict(self, include_id=False):

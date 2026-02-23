@@ -7,30 +7,34 @@
 {% endblock %}
 
 <div class="responsive-table-wrapper">
-    <table id="manufacturer-parts" class="highlight tight treetable">
+    <table id="manufacturer-parts" class="highlight part-list tight single-line treetable">
         <thead>
         <tr>
-            <th>MPN</th>
+            <th class="text-normal">MPN</th>
             {% if show_manufacturer %}
-                <th>Manufacturer</th>{% endif %}
-            {% if show_part %}<th>Part</th>{% endif %}
-            <th>Vendor</th>
-            <th>PN</th>
-            <th>MOQ</th>
-            <th>MPQ</th>
-            <th>Price</th>
-            <th>Lead Time (days)</th>
-            <th>NRE</th>
-            <th>NCNR</th>
-            <th colspan="2">Manage</th>
+                <th class="text-normal">Manufacturer</th>{% endif %}
+            {% if show_part %}
+                <th class="text-normal">Part</th>{% endif %}
+            <th class="text-normal">Vendor</th>
+            <th class="text-normal">PN</th>
+            <th class="text-normal">MOQ</th>
+            <th class="text-normal">MPQ</th>
+            <th class="text-normal">Price</th>
+            <th class="text-normal">Lead Time (days)</th>
+            <th class="text-normal">NRE</th>
+            <th class="text-normal">NCNR</th>
+            <th class="text-normal" colspan="2">Manage</th>
         </tr>
         </thead>
         <tbody>
         {% for manufacturer_part in manufacturer_parts %}
             <tr id="sourcing-mp-{{ manufacturer_part.id }}" data-tt-id="{{ manufacturer_part.id }}">
-                <td>{% if manufacturer_part.link %}<a href="{{ manufacturer_part.link }}" target="_blank">{% endif %}{{ manufacturer_part.manufacturer_part_number }}{% if manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}</td>
+                <td class="text-normal">{% if manufacturer_part.link %}<a href="{{ manufacturer_part.link }}"
+                                                                          target="_blank">{% endif %}{{ manufacturer_part.manufacturer_part_number }}
+                    {% if manufacturer_part.link %}&nbsp;
+                        <i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}</td>
                 {% if show_manufacturer %}
-                    <td>{% if manufacturer_part.manufacturer %}
+                    <td class="text-normal">{% if manufacturer_part.manufacturer %}
                         <a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer_part.manufacturer_id %}">{{ manufacturer_part.manufacturer }}</a>
                         {% if manufacturer_part.manufacturer.approval_status == 'A' %}
                             <i class="material-icons green-text tiny tooltipped"
@@ -45,9 +49,12 @@
                     {% endif %}
                     </td>
                 {% endif %}
-                {% if show_part %}<td><a href="{% url 'bom:part-info' part_id=manufacturer_part.part_id %}">{{ manufacturer_part.part }}</a></td>{% endif %}
+                {% if show_part %}
+                    <td class="text-normal"><a
+                            href="{% url 'bom:part-info' part_id=manufacturer_part.part_id %}">{{ manufacturer_part.part }}</a>
+                    </td>{% endif %}
 
-                <td id="sourcing-mp-{{ manufacturer_part.id }}-name">
+                <td class="text-normal" id="sourcing-mp-{{ manufacturer_part.id }}-name">
                     {% with seller=manufacturer_part.optimal_seller.seller %}
                         {% if seller %}
                             <a href="{% url 'bom:seller-info' seller_id=seller.id %}">{{ seller.name }}</a>
@@ -66,14 +73,21 @@
                     {% endwith %}
                 </td>
 
-                <td id="sourcing-mp-{{ manufacturer_part.id }}-pn">{{ manufacturer_part.optimal_seller.seller_part_number }}</td>
-                <td id="sourcing-mp-{{ manufacturer_part.id }}-moq">{{ manufacturer_part.optimal_seller.minimum_order_quantity }}</td>
-                <td id="sourcing-mp-{{ manufacturer_part.id }}-mpq">{{ manufacturer_part.optimal_seller.minimum_pack_quantity }}</td>
-                <td id="sourcing-mp-{{ manufacturer_part.id }}-cost">{{ manufacturer_part.optimal_seller.unit_cost }}</td>
-                <td id="sourcing-mp-{{ manufacturer_part.id }}-lt">{{ manufacturer_part.optimal_seller.lead_time_days }}</td>
-                <td id="sourcing-mp-{{ manufacturer_part.id }}-nre">{{ manufacturer_part.optimal_seller.nre_cost }}</td>
-                <td id="sourcing-mp-{{ manufacturer_part.id }}-ncnr">{{ manufacturer_part.optimal_seller.ncnr }}</td>
-                <td>
+                <td class="text-normal"
+                    id="sourcing-mp-{{ manufacturer_part.id }}-pn">{{ manufacturer_part.optimal_seller.seller_part_number }}</td>
+                <td class="text-normal"
+                    id="sourcing-mp-{{ manufacturer_part.id }}-moq">{{ manufacturer_part.optimal_seller.minimum_order_quantity }}</td>
+                <td class="text-normal"
+                    id="sourcing-mp-{{ manufacturer_part.id }}-mpq">{{ manufacturer_part.optimal_seller.minimum_pack_quantity }}</td>
+                <td class="text-normal"
+                    id="sourcing-mp-{{ manufacturer_part.id }}-cost">{{ manufacturer_part.optimal_seller.unit_cost }}</td>
+                <td class="text-normal"
+                    id="sourcing-mp-{{ manufacturer_part.id }}-lt">{{ manufacturer_part.optimal_seller.lead_time_days }}</td>
+                <td class="text-normal"
+                    id="sourcing-mp-{{ manufacturer_part.id }}-nre">{{ manufacturer_part.optimal_seller.nre_cost }}</td>
+                <td class="text-normal"
+                    id="sourcing-mp-{{ manufacturer_part.id }}-ncnr">{{ manufacturer_part.optimal_seller.ncnr }}</td>
+                <td class="text-normal">
                     {% if perms.bom_manage_sourcing %}
                         <a class='dropdown-trigger' href='#' data-target='dropdown{{ manufacturer_part.id }}'><i
                                 class="material-icons right green-text lighten-1">more_horiz</i></a>
@@ -97,9 +111,9 @@
 
             {% for seller_part in manufacturer_part.seller_parts %}
                 <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}" {% if forloop.last %}id="sourcing-{{ manufacturer_part.id }}-last"{% endif %}>
-                    <td></td>
-                    <td></td>
-                    <td>
+                    <td class="text-normal"></td>
+                    <td class="text-normal"></td>
+                    <td class="text-normal">
                         {% if seller_part.link %}<a href="{{ seller_part.link }}" target="_blank">{% endif %}
                         {{ seller_part.seller.name }}
                         {% if seller_part.link %}&nbsp;
@@ -113,27 +127,40 @@
                                data-tooltip="Restricted Vendor">block</i>
                         {% endif %}
                     </td>
-                    <td>{{ seller_part.seller_part_number }}</td>
-                    <td>{{ seller_part.minimum_order_quantity }}</td>
-                    <td>{{ seller_part.minimum_pack_quantity }}</td>
-                    <td>{{ seller_part.unit_cost }}</td>
-                    <td>{{ seller_part.lead_time_days }}</td>
-                    <td>{{ seller_part.nre_cost }}</td>
-                    <td>{{ seller_part.ncnr }}</td>
-                    <td>{% if perms.bom.manage_sourcing %}
+                    <td class="text-normal">{{ seller_part.seller_part_number }}</td>
+                    <td class="text-normal">{{ seller_part.minimum_order_quantity }}</td>
+                    <td class="text-normal">{{ seller_part.minimum_pack_quantity }}</td>
+                    <td class="text-normal">
+                        {{ seller_part.unit_cost }}
+                        {% if seller_part.unit_cost_normalized %}
+                            <br>
+                            <span style="font-size: 0.85em; color: #9e9e9e;">({{ seller_part.unit_cost_normalized }})</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-normal">{{ seller_part.lead_time_days }}</td>
+                    <td class="text-normal">
+                        {{ seller_part.nre_cost }}
+                        {% if seller_part.nre_cost_normalized %}
+                            <br>
+                            <span style="font-size: 0.85em; color: #9e9e9e;">({{ seller_part.nre_cost_normalized }})</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-normal">{{ seller_part.ncnr }}</td>
+                    <td class="text-normal">{% if perms.bom.manage_sourcing %}
                         <a href="{% url 'bom:seller-part-edit' seller_part_id=seller_part.id %}">edit</a> |
                         <a href="{% url 'bom:seller-part-delete' seller_part_id=seller_part.id %}">delete</a>
                     {% endif %}</td>
                 </tr>
             {% empty %}
                 <tr data-tt-id="0" data-tt-parent-id="{{ manufacturer_part.id }}">
-                    <td colspan="99" style="text-align: center;"><i>This manufacturer part has no vendors entered
+                    <td class="text-normal" colspan="99" style="text-align: center;"><i>This manufacturer part has no
+                        vendors entered
                         yet.</i></td>
                 </tr>
             {% endfor %}
         {% empty %}
             <tr>
-                <td colspan="99" style="text-align: center; height: 20vh;"><i>None found.</i></td>
+                <td class="text-normal" colspan="99" style="text-align: center; height: 20vh;"><i>None found.</i></td>
             </tr>
         {% endfor %}
         </tbody>

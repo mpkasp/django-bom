@@ -12,6 +12,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
+from djmoney.contrib.exchange.exceptions import MissingRate
+from djmoney.contrib.exchange.models import convert_money
 from djmoney.models.fields import CURRENCY_CHOICES, CurrencyField, MoneyField
 from math import ceil
 from social_django.models import UserSocialAuth
@@ -144,11 +146,6 @@ class AbstractOrganization(models.Model):
     def email(self):
         return self.owner.email
 
-    def save(self, *args, **kwargs):
-        super(AbstractOrganization, self).save()
-        SellerPart.objects.filter(seller__organization=self).update(unit_cost_currency=self.currency,
-                                                                    nre_cost_currency=self.currency)
-
     class Meta:
         abstract = True
 
@@ -257,7 +254,7 @@ class Part(OrganizationScopedModel):
         ]
 
     def full_part_number(self):
-        if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+        if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT and self.number_class is not None:
             if self.organization.number_variation_len > 0:
                 return f"{self.number_class.code}-{self.number_item}-{self.number_variation}"
             else:
@@ -1057,8 +1054,21 @@ class SellerPart(models.Model, AsDictModel):
                 new_total_cost = new_quantity * sellerpart.unit_cost
                 old_quantity = quantity if seller.minimum_order_quantity < quantity else seller.minimum_order_quantity
                 old_total_cost = old_quantity * seller.unit_cost
-                if new_total_cost < old_total_cost:
-                    seller = sellerpart
+
+                # Fetch target currency from the related Organization
+                target_currency = sellerpart.manufacturer_part.part.organization.currency
+
+                try:
+                    # Convert costs to the Organization's base currency for a true apples-to-apples comparison
+                    new_cost_converted = convert_money(new_total_cost, target_currency)
+                    old_cost_converted = convert_money(old_total_cost, target_currency)
+
+                    if new_cost_converted < old_cost_converted:
+                        seller = sellerpart
+                except MissingRate as e:
+                    logger.error(f"[models.py] Missing exchange rate in SellerPart.optimal: {e}")
+                    pass
+
         return seller
 
     def order_quantity(self, extended_quantity):
@@ -1066,6 +1076,28 @@ class SellerPart(models.Model, AsDictModel):
         if self.minimum_order_quantity and extended_quantity > self.minimum_order_quantity:
             order_qty = ceil(extended_quantity / float(self.minimum_order_quantity)) * self.minimum_order_quantity
         return order_qty
+
+    @property
+    def unit_cost_normalized(self):
+        target_currency = self.manufacturer_part.part.organization.currency
+        if str(self.unit_cost.currency) == str(target_currency):
+            return None  # No need to display a conversion if they match
+
+        try:
+            return convert_money(self.unit_cost, target_currency)
+        except MissingRate:
+            return None
+
+    @property
+    def nre_cost_normalized(self):
+        target_currency = self.manufacturer_part.part.organization.currency
+        if str(self.nre_cost.currency) == str(target_currency):
+            return None
+
+        try:
+            return convert_money(self.nre_cost, target_currency)
+        except MissingRate:
+            return None
 
     def clean(self):
         super().clean()
