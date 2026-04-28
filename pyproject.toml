@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-bom"
-version = "1.278"
+version = "1.279"
 description = "A simple Django app to manage a bill of materials."
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
@@ -61,14 +61,9 @@ dependencies = [
     "cachetools",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "django-hijack",
-]
-
 [dependency-groups]
 dev = [
-    { include-group = "dev" },
+    "django-hijack",
 ]
 
 [tool.setuptools]

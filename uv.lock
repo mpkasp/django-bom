@@ -353,7 +353,7 @@ wheels = [
 
 [[package]]
 name = "django-bom"
-version = "1.277"
+version = "1.279"
 source = { editable = "." }
 dependencies = [
     { name = "asgiref" },
@@ -400,7 +400,6 @@ requires-dist = [
     { name = "bleach", specifier = ">=6.0" },
     { name = "cachetools" },
     { name = "cryptography", specifier = ">=42" },
-    { name = "django" },
     { name = "django", specifier = ">=5.2" },
     { name = "django-materializecss-form" },
     { name = "django-money", specifier = ">=3,<5" },
