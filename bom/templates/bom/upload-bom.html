@@ -5,107 +5,118 @@
 
 {% block head-title %}{{ title }}{% endblock %}
 
-{% block main %}
-    {{ add_subpart_form.media }}
-{% endblock %}
-
-{% block bom-menu %}
-{% endblock %}
+{% block bom-menu %}{% endblock %}
 
 {% block content %}
     <div class="container-app">
         {% if profile.role == 'A' %}
-            <div class="upload-bom">
-                <p>Click here to download <a href="{% static 'bom/doc/test_bom_5_intelligent.csv' %}">a sample CSV file for uploading intelligent
-                parts</a> and here is <a href="{% static 'bom/doc/test_bom.csv' %}">a sample CSV file for uploading semi-intelligent parts</a>. Uploading uses
-                an append or create strategy, for example, if a part, part revision, or part class already exists, it will be overwritten; and
-                    if a part, part revision, or part class <b>does not</b> exist, it will be created.</p>
-                <p>For details on CSV file requirements, see the help docs <a href="{% url 'bom:help' %}#uploading-parts" target="_blank">here   <i class="material-icons" style="font-size: 1em;">open_in_new</i></a>.</p>
 
-                <form action="{% url 'bom:upload-bom' %}" method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <div class="row">
-                        <div class="col s9 file-field input-field">
+            <p>Upload a CSV to populate or update a Bill of Materials. Parts and revisions are created if they don't
+                exist, or updated if they do. Immutable revisions (Released / Obsolete) are skipped. Rows with errors
+                are skipped and the rest continue to import.</p>
+            <p>In addition to <a href="{% url 'bom:upload-parts' %}">uploading parts</a>, uploading a <b>bill of
+                materials</b>: associates parts to create assemblies, and adds quantities to specify how many parts are
+                in an assembly.</p>
+
+            <p style="margin-top: 8px; font-size: 0.85rem;">
+                {% if organization.number_scheme == 'S' %}
+                    <a href="{% static 'bom/doc/test_full_bom.csv' %}">Download a Sample CSV</a>
+                {% else %}
+                    <a href="{% static 'bom/doc/test_bom_5_intelligent.csv' %}">Download a Sample CSV</a>
+                {% endif %}
+            </p>
+            <div class="row" style="margin-bottom: 0;">
+                <div class="col s12 m6">
+                    <table class="striped" style="font-size: 0.9rem;">
+                        <thead>
+                        <tr>
+                            <th colspan="2">Required columns</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>part_number</code> <em>or</em><br><code>manufacturer_part_number</code></td>
+                            <td>Identifies the subpart. The part must already exist when using <code>manufacturer_part_number</code>.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>quantity</code></td>
+                            <td>Also accepted: <code>count</code>, <code>qty</code>. Defaults to 1 if empty.</td>
+                        </tr>
+                        <tr>
+                            <td><code>level</code></td>
+                            <td>Nesting depth (1 = direct child). Required unless a <strong>Parent part number</strong>
+                                is given below, in which case all rows are treated as level 1.
+                            </td>
+                        </tr>
+                        </tbody>
+                        <thead>
+                        <tr>
+                            <th colspan="2">Optional columns</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>reference</code></td>
+                            <td>Also accepted: <code>designator</code>. Comma-separated list (e.g. <code>R1, R2</code>).
+                                Count must match quantity.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>do_not_load</code></td>
+                            <td>Also accepted: <code>dnl</code>, <code>dnp</code>. Mark as Do Not Load. Values:
+                                <code>y</code>, <code>x</code>, <code>yes</code>, <code>true</code>.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>revision</code></td>
+                            <td>Also accepted: <code>rev</code>. Target revision. Defaults to <code>1</code> if omitted.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>description</code></td>
+                            <td>Part description. Up to 255 characters.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="col s12 m6">
+                    <div class="card-panel grey lighten-4">
+                        <form action="{% url 'bom:upload-bom' %}" method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="file-field input-field">
                             <div class="green lighten-1 btn">
-                                <span>File</span>
+                                <span>Choose file</span>
                                 {{ bom_csv_form.file }}
                             </div>
                             <div class="file-path-wrapper">
-                                <input class="file-path validate" type="text" placeholder="Upload a file.">
+                                <input class="file-path validate" type="text" placeholder="Select a CSV file…">
                                 {{ bom_csv_form.file.errors }}
                             </div>
                         </div>
-                        <div class="col s1 input-field">
-                            <input class="green lighten-1 btn" type="submit" value="Upload"/>
+                            <div class="row" style="margin-bottom: 0; margin-top: 8px;">
+                                {{ upload_bom_form.parent_part_number|materializecss:'s12' }}
                         </div>
-                    </div>
-{#                    <div class="row">#}
-{#                        {{ upload_bom_form.create_part_classes|materializecss:'m3 s12' }}#}
-{#                        <div class="col m6 s12">#}
-{#                            If a part is uploaded with a part class that doesn't exist, the upload will fail. Check this box to instead, try to create the part class.#}
-{#                        </div>#}
-{#                    </div>#}
-                    <div class="row">
-                        {{ upload_bom_form.parent_part_number|materializecss:'m3 s12' }}
-                        <div class="col m6 s12 input-field">
-                            <b>{{upload_bom_form.parent_part_number.label}}</b> <i>Optional.</i> Upload this BOM to a parent assembly by specifying the parent part number. Level 1 will upload as the first child of this part.
+                            <p style="font-size: 0.85rem; margin-top: -8px; color: #666;">
+                                Optional. Attach all rows as direct children of this assembly. Omit when the CSV
+                                includes a <code>level</code> column.
                             {% if parent_part %}
-                                <br><h6><a href="{% url 'bom:part-info' part_id=parent_part.id %}">Go to {{ parent_part_number }}</a></h6>
+                                <br><a href="{% url 'bom:part-info' part_id=parent_part.id %}">Go
+                                to {{ parent_part_number }}</a>
                             {% endif %}
-                        </div>
-                    </div>
-                </form>
-                <div class="row">
-                    <div class="col s6">
-                        <a href="{% url 'bom:upload-bom' %}" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
+                            </p>
+                            <div style="margin-top: 8px;">
+                                <input class="green lighten-1 btn" type="submit" value="Upload"/>
+                                <a href="{% url 'bom:home' %}" class="btn-flat grey-text" style="margin-left: 8px;">Cancel</a>
+                            </div>
+                        </form>
                     </div>
                 </div>
-                <br>
             </div>
+
         {% else %}
             {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
         {% endif %}
     </div>
-{% endblock %}
-
-{% block bom-script %}
-    <!-- Tree Table -->
-    <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
-    <script>
-        $("#indented-bom").treetable({
-            expandable: true,
-            indent: 2,
-            initialState: 'collapsed',
-            onInitialized: function () {
-                $("#indented-bom").treetable("reveal", {{ part_revision.id }});
-            }
-        });
-    </script>
-
-    <!-- Floating Horizontal Scrollbar -->
-    <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
-    <script>
-        $(function () {
-            $('.responsive-table-wrapper').floatingScrollbar();
-        });
-    </script>
-
-    <!-- Handle if there's an anchor, select tab -->
-    <script type='text/javascript'>
-        // For dropdown menu
-        $(document).ready(function () {
-            $('.dropdown-trigger').dropdown({
-                    inDuration: 300,
-                    outDuration: 225,
-                    constrainWidth: false, // Does not change width of dropdown to that of the activator
-                    hover: false, // Activate on hover
-                    gutter: 0, // Spacing from edge
-                    belowOrigin: false, // Displays dropdown below the button
-                    alignment: 'left', // Displays dropdown with edge aligned to the left of button
-                    stopPropagation: false // Stops event propagation
-                }
-            );
-
-        });
-    </script>
 {% endblock %}

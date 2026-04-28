@@ -8,43 +8,109 @@
     <li><a href="{% url 'bom:home' %}">Cancel</a></li>
 {% endblock %}
 
-
 {% block content %}
     <div class="container-app">
         {% if profile.role == 'A' %}
-            <h5>Upload Parts</h5>
-            <p>To batch create parts, upload a csv that contains columns with the headers
-                {% if organization.number_scheme == 'S' %}<b>'part_class'</b> or {% endif %}<b>'part_number'</b>, <b>'description'</b> or <b>'value'</b>
-                along with <b>'value_units'</b>, and <b>'revision'</b>. {% if organization.number_scheme == 'S' %}If you specify a part number
-                then it must be one that is not already being used. If you don't specify a part number
-                then IndaBOM will create one for you.{% endif %}
+            <p>Upload a CSV to create multiple parts at once. Each row becomes one part; rows with errors are skipped
+                and the rest continue to import.</p>
+            <p>If you also want to associate parts to create assemblies and add quantities to specify how many parts
+                are in an assembly, instead <a href="{% url 'bom:upload-bom' %}">upload a bill of materials</a>.</p>
+
+            <p style="margin-top: 8px; font-size: 0.85rem;">
+                {% if organization.number_scheme == 'S' %}
+                    <a href="{% static 'bom/doc/test_new_parts.csv' %}">Download a Sample CSV</a>
+                {% else %}
+                    <a href="{% static 'bom/doc/test_new_parts_5_intelligent.csv' %}">Download a Sample CSV</a>
+                {% endif %}
             </p>
-            </p>
-            You may optionally specify a manufacturer and manufacturer's part number using
-            columns with the headers <b>'manufacturer'</b> and a <b>'manufacturer_part_number'</b>.
-            For the names of other optional columns click <a href="{% url 'bom:upload-parts-help' %}">here</a>.
-            </p>
-            <form action="{% url 'bom:upload-parts' %}" method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="row">
-                    <div class="col m10 s12 file-field input-field">
-                        <div class="green lighten-1 btn">
-                            <span>File</span>
-                            {{ form.file }}
-                        </div>
-                        <div class="file-path-wrapper">
-                            <input class="file-path validate" type="text" placeholder="Upload a file.">
-                            {{ form.file.errors }}
-                        </div>
-                    </div>
-                    <div class="col m2 s12 text-center input-field">
-                        <input class="green lighten-1 btn" type="submit" value="Upload"/>
-                    </div>
+
+            <div class="row" style="margin-bottom: 0;">
+                <div class="col s12 m6">
+                    <table class="striped" style="font-size: 0.9rem;">
+                        <thead>
+                        <tr>
+                            <th colspan="2">Required columns</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% if organization.number_scheme == 'S' %}
+                            <tr>
+                                <td><code>part_class</code> <em>or</em> <code>part_number</code></td>
+                                <td>Class code, or full <code>CCC-NNNN-VV</code> number</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td><code>part_number</code></td>
+                                <td>Must be unique</td>
+                            </tr>
+                        {% endif %}
+                        <tr>
+                            <td><code>revision</code></td>
+                            <td>Up to 4 characters</td>
+                        </tr>
+                        <tr>
+                            <td><code>description</code></td>
+                            <td>Up to 255 characters</td>
+                        </tr>
+                        </tbody>
+                        <thead>
+                        <tr>
+                            <th colspan="2">Optional columns</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>manufacturer_name</code><br><code>manufacturer_part_number</code></td>
+                            <td>Include both to attach a manufacturer part</td>
+                        </tr>
+                        <tr>
+                            <td><code>seller</code>, <code>unit_cost</code>,<br><code>nre_cost</code></td>
+                            <td>Include all three (plus manufacturer) for sourcing</td>
+                        </tr>
+                        <tr>
+                            <td><code>property_&lt;code&gt;</code></td>
+                            <td>Custom properties defined in Settings</td>
+                        </tr>
+                        </tbody>
+                    </table>
                 </div>
-            </form>
+
+                <div class="col s12 m6">
+                    {% if organization.number_scheme == 'S' and organization.partclass_set.count == 0 %}
+                        <div class="card-panel orange lighten-4">
+                            <i class="material-icons left" style="font-size: 1.2rem;">warning</i>
+                            No part classes defined. <a href="{% url 'bom:settings' 'indabom' %}">Create part classes in
+                            Settings</a> before uploading.
+                        </div>
+                    {% endif %}
+
+                    <div class="card-panel grey lighten-4">
+                        <form action="{% url 'bom:upload-parts' %}" method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="file-field input-field">
+                                <div class="green lighten-1 btn">
+                                    <span>Choose file</span>
+                                    {{ form.file }}
+                                </div>
+                                <div class="file-path-wrapper">
+                                    <input class="file-path validate" type="text" placeholder="Select a CSV file…">
+                                    {{ form.file.errors }}
+                                </div>
+                            </div>
+                            <div style="margin-top: 8px;">
+                                <input class="green lighten-1 btn" type="submit" value="Upload"/>
+                            </div>
+                        </form>
+                </div>
+                </div>
+            </div>
+            <p style="margin-top: 8px; font-size: 0.85rem;">
+                <a href="{% url 'bom:upload-parts-help' %}" target="_blank">Full column reference <i
+                        class="material-icons"
+                        style="font-size: 1em; vertical-align: middle;">open_in_new</i></a></p>
+
         {% else %}
             {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
         {% endif %}
     </div>
 {% endblock %}
-

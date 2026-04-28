@@ -1,103 +1,201 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
 
-{% block head-title %}{{ title }}{% endblock %}
+{% block head-title %}Upload Parts — CSV Reference{% endblock %}
 
 {% block bom-menu %}
     <li><a href="{% url 'bom:home' %}">Home</a></li>
 {% endblock %}
 
 {% block content %}
-    <div class="container">
+    <div class="container" style="max-width: 900px;">
 
-        <h5>Help For Uploading Parts</h5>
-        <p>To batch create parts, upload a csv that contains columns with the headers
-            {% if organization.number_scheme == 'S' %}<b>'part_class'</b> or {% endif %}<b>'part_number'</b>, <b>'description'</b> or <b>'value'</b>
-            along with <b>'value_units'</b>, and <b>'revision'</b>.{% if organization.number_scheme == 'S' %} If you specify a part number
-            then it must be one that is not already being used. If you don't specify a part number
-            then IndaBOM will create one for you.{% endif %}</p>
+        <h1>Uploading Parts via CSV</h1>
+        <p>Upload a CSV file to create multiple parts at once. Each row becomes one part. The first row must contain
+            column headers — unrecognized headers are rejected. Rows with errors are skipped; valid rows in the same
+            file are still imported.</p>
 
-        <p>If you specify <b>'value_units'</b> then valid choices are:
-            Ohms, mOhms, kOhms, F, pF, nF, uF, V, uV, mV, A, uA, mA, C, F, Other
+        {% if organization.number_scheme == 'S' %}
+            <div class="card-panel blue-grey lighten-5">
+                <strong>Before uploading:</strong> make sure you have defined your part classes in
+                <a href="{% url 'bom:settings' 'indabom' %}">Settings → IndaBOM</a>. Every part must belong to a valid
+                part class.
+            </div>
+
+            <a href="{% static 'bom/doc/test_new_parts.csv' %}">Download a sample CSV</a>
+        {% else %}
+            <a href="{% static 'bom/doc/test_new_parts_5_intelligent.csv' %}">Download a sample CSV</a>
+        {% endif %}
+
+        {# ------------------------------------------------------------------ #}
+        <h2 class="section">Required Columns</h2>
+
+        <div class="responsive-table-wrapper">
+            <table class="striped">
+                <thead>
+                <tr>
+                    <th style="width:22%">Column</th>
+                    <th style="width:18%">Accepted names</th>
+                    <th>Notes</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% if organization.number_scheme == 'S' %}
+                    <tr>
+                        <td><code>part_class</code> <em>or</em> <code>part_number</code></td>
+                        <td><code>class</code>, <code>part_category</code></td>
+                        <td>
+                            Provide <strong>one or both</strong>.<br>
+                            <code>part_class</code> — the class code (e.g. <code>500</code>); the system auto-assigns an
+                            item number.<br>
+                            <code>part_number</code> — a full part number in <code>CCC-NNNN-VV</code> format; must not
+                            already exist.
+                            If both are given, <code>part_number</code> takes precedence.
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td><code>part_number</code></td>
+                        <td><code>part number</code>, <code>part no</code></td>
+                        <td>Required. Must be unique — parts with a duplicate number are skipped.</td>
+                    </tr>
+                {% endif %}
+                <tr>
+                    <td><code>revision</code></td>
+                    <td><code>rev</code>, <code>part_revision</code></td>
+                    <td>Up to 4 characters. Cannot be a negative integer.</td>
+                </tr>
+                <tr>
+                    <td><code>description</code></td>
+                    <td><code>desc</code></td>
+                    <td>Free-form text up to 255 characters describing the part.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        {# ------------------------------------------------------------------ #}
+        <h2 class="section">Optional: Manufacturer</h2>
+        <p>Include <strong>both</strong> columns to attach a manufacturer part number. Either alone is ignored.</p>
+
+        <div class="responsive-table-wrapper">
+            <table class="striped">
+                <thead>
+                <tr>
+                    <th style="width:22%">Column</th>
+                    <th style="width:18%">Accepted names</th>
+                    <th>Notes</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><code>manufacturer_name</code></td>
+                    <td><code>manufacturer</code>, <code>mfg</code>, <code>mfg_name</code></td>
+                    <td>Created automatically if it does not already exist.</td>
+                </tr>
+                <tr>
+                    <td><code>manufacturer_part_number</code></td>
+                    <td><code>mpn</code>, <code>mfg_part_number</code></td>
+                    <td>Skipped if a matching manufacturer + MPN pair already exists.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        {# ------------------------------------------------------------------ #}
+        <h2 class="section">Optional: Seller / Sourcing</h2>
+        <p>Seller data requires the manufacturer columns above. <code>seller</code>, <code>unit_cost</code>, and <code>nre_cost</code>
+            must all be present to create a seller record.</p>
+
+        <div class="responsive-table-wrapper">
+            <table class="striped">
+                <thead>
+                <tr>
+                    <th style="width:22%">Column</th>
+                    <th style="width:18%">Accepted names</th>
+                    <th>Notes</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><code>seller</code></td>
+                    <td><code>part_seller</code></td>
+                    <td>Seller / distributor name. Created automatically if it does not already exist.</td>
+                </tr>
+                <tr>
+                    <td><code>unit_cost</code></td>
+                    <td><code>part_cost</code></td>
+                    <td>Cost per unit. Use a plain decimal number (e.g. <code>0.42</code>).</td>
+                </tr>
+                <tr>
+                    <td><code>nre_cost</code></td>
+                    <td><code>part_nre_cost</code>, <code>part_nre</code>, <code>nre</code></td>
+                    <td>Non-recurring engineering cost. Use <code>0</code> if none.</td>
+                </tr>
+                <tr>
+                    <td><code>seller_part_number</code></td>
+                    <td><code>seller_pn</code>, <code>spn</code></td>
+                    <td>Optional. The seller's own catalog number.</td>
+                </tr>
+                <tr>
+                    <td><code>minimum_order_quantity</code></td>
+                    <td><code>moq</code></td>
+                    <td>Optional. Minimum quantity that must be ordered.</td>
+                </tr>
+                <tr>
+                    <td><code>minimum_pack_quantity</code></td>
+                    <td><code>mpq</code></td>
+                    <td>Optional. Pack / reel size.</td>
+                </tr>
+                <tr>
+                    <td><code>lead_time_days</code></td>
+                    <td><code>lead_time</code>, <code>lt</code></td>
+                    <td>Optional. Lead time in days.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        {# ------------------------------------------------------------------ #}
+        <h2 class="section">Optional: Custom Properties</h2>
         <p>
-            You may optionally specify a manufacturer and manufacturer's part number using
-            columns with the headers <b>'manufacturer'</b> and a <b>'manufacturer_part_number'</b>.
-        <p>
-            If you specify a part number that is already in use then the part will not be uploaded.
-            Similarly, other errors may prevent a part from being uploaded{% if organization.number_scheme == 'S' %}, for example, an improperly
-            formatted IndaBOM part number or the use of an unknown IndaBOM part class{% endif %}. The
-            uploading will continue with the next valid part in the file.
-        </p>
-        <p>
-            Any optional information that you can enter manually about a part via the
-            Create Part page may also be submitted via the part list CSV file.
-            Below is the complete list of the additional items you can upload for each part in
-            the file.
+            Your organization can define custom part properties in
+            <a href="{% url 'bom:settings' 'indabom' %}">Settings → IndaBOM</a>.
+            Each property can be included as a column using its <strong>property code</strong>
+            (shown in settings) or the property's display name.
         </p>
 
-        <h5>Optional Part Properties</h5>
-        <p/>
-        <p>
-            Optional part properties are listed below. Some properties requires that you also
-            specify units of measure.
-        </p>
-        <p>
-            Valid choices for part properties and units appear below.
-        </p>
-        <p><b>'tolerance'</b></p>
-        <p><b>'package'</b> (See choices below)</p>
-        <p><b>'pin_count'</b></p>
-        <p><b>'supply_voltage'</b> and <b>'supply_voltage_units'</b> (See choices below)</p>
-        <p><b>'power_rating'</b> and <b>'power_rating_units'</b> (See choices below)</p>
-        <p><b>'voltage_rating'</b> and <b>'voltage_rating_units'</b> (See choices below)</p>
-        <p><b>'current_rating'</b> and <b>'current_rating_units'</b> (See choices below)</p>
-        <p><b>'temperature_rating'</b> and <b>'temperature_rating_units'</b> (See choices below)</p>
-        <p><b>'memory'</b> and <b>'memory_units'</b> (See choices below)</p>
-        <p><b>'interface'</b> (See choices below)</p>
-        <p><b>'frequency'</b> and <b>'frequency_units'</b> (See choices below)</p>
-        <p><b>'wavelength'</b> and <b>'wavelength_units'</b> (See choices below)</p>
-        <p><b>'color'</b></p>
-        <p><b>'material'</b></p>
-        <p><b>'finish'</b></p>
-        <p><b>'length'</b> and <b>'length_units'</b> (See choices below)</p>
-        <p><b>'width'</b> and <b>'width_units'</b> (See choices below)</p>
-        <p><b>'height'</b> and <b>'height_units'</b> (See choices below)</p>
-        <p><b>'weight'</b> and <b>'weight_units'</b> (See choices below)</p>
-        <p><b>'attribute'</b></p>
-        <p/>
+        <div class="responsive-table-wrapper">
+            <table class="striped">
+                <thead>
+                <tr>
+                    <th style="width:22%">Column pattern</th>
+                    <th>Notes</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><code>property_&lt;code&gt;</code></td>
+                    <td>Value for the property whose code is <code>&lt;code&gt;</code>. The property display name is
+                        also accepted.
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>property_&lt;code&gt;_units</code></td>
+                    <td>Unit for a numeric property. Only required when the property has a quantity of measure defined.
+                        Use the unit symbol (e.g. <code>mV</code>, <code>pF</code>).
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
 
-        <h5>Valid Choices for Part Properties or Units</h5>
-        <p/>
-        <p><b>'package'</b> = 0201 smd, 0402 smd, 0603 smd, 0805 smd, 1206 smd, 1210 smd, 1812 smd,
-            2010 smd, 2512 smd, 1/8 radial, 1/4 radial, 1/2 radial, Size A, Size B, Size C, Size D, Size E, SOT-23,
-            SOT-223, DIL, SOP, SOIC, QFN, QFP, QFT, PLCCP, VGA, BGA, CSP</p>
-        <p><b>'power_rating'</b> = W, uW, mW, kW, MW</p>
-        <p><b>'supply_voltage'</b>, <b>'voltage_rating'</b> = V, uV, mV, kV, MV</p>
-        <p><b>'current_rating'</b> = A, uA, mA, kA, MA</p>
-        <p><b>'temperature_rating'</b> = C, F</p>
-        <p><b>'memory'</b> = KB, MB, GB, TB</p>
-        <p><b>'interface'</b> = I2C, SPI, CAN, One-Wire, RS485, RS232, WiFi, 4G, BT, Z_Wave, Zigbee, LAN, USB, HDMI, Other</p>
-        <p><b>'frequency'</b> = Hz, kHz MHz, GHz</p>
-        <p><b>'wavelength'</b> = km, m, cm, um, nm, A (where A means Angstrom)</p>
-        <p><b>'length'</b>, <b>'width'</b>, <b>'height'</b> = mil, in, ft, yd, km, m, cm, um, nm</p>
-        <p><b>'weight'</b> = mg, g, kb, oz, lb</p>
-        </p>
+        <div class="card-panel grey lighten-4" style="margin-top: 24px;">
+            <strong>Tip:</strong> Export your existing parts list from the Home page and open it in a spreadsheet. The
+            exported file uses exactly the right column names and is a ready-made template for adding new parts.
+        </div>
 
-        <h5>Manufacturers and sellers</h5>
-        <p/>
-        <p>
-            Manufacturers and sellers informations can be directly imported. Sellers data can be imported only when manufacturer data are present. Seller information must contains at least the seller name, unit cost and nre cost.
-        </p>
-        <p><b>'manufacturer_name'</b> Manufacturer name. Will be created if not exists</p>
-        <p><b>'manufacturer_part_number'</b></p>
-        <p><b>'seller'</b> Seller name. Will be created if not exists</p>
-        <p><b>'seller_part_number'</b> Optional seller part number</p>
-        <p><b>'unit_cost'</b></p>
-        <p><b>'part_nre_cost'</b></p>
-        <p><b>'moq'</b></p>
-        <p><b>'mpq</b></p>
-        </p>
+        <br>
     </div>
 {% endblock %}
