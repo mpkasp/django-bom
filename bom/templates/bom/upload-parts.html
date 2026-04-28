@@ -84,7 +84,7 @@
                         </div>
                     {% endif %}
 
-                    <div class="card-panel grey lighten-4">
+                    <div class="card-panel">
                         <form action="{% url 'bom:upload-parts' %}" method="post" enctype="multipart/form-data">
                             {% csrf_token %}
                             <div class="file-field input-field">

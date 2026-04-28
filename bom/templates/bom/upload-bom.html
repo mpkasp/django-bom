@@ -82,7 +82,7 @@
                 </div>
 
                 <div class="col s12 m6">
-                    <div class="card-panel grey lighten-4">
+                    <div class="card-panel">
                         <form action="{% url 'bom:upload-bom' %}" method="post" enctype="multipart/form-data">
                             {% csrf_token %}
                             <div class="file-field input-field">
