@@ -21,15 +21,15 @@ If you already have a django project, you can skip to [Add Django Bom To Your Ap
    * [Installation pitfalls](#installation-pitfalls)
    
 ## Start From Scratch: Add to a new Django project
-1. To start from scratch, install your pipenv using Python 3.12
+1. Create and activate a virtual environment (Python 3.10+):
 ```
-pipenv --python 3.12
-pipenv shell
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 ```
 
-2. From here install django, and set up your project.
+2. Install Django and set up your project:
 ```
-pipenv install django
+pip install django
 django-admin startproject mysite
 cd mysite
 python manage.py migrate
@@ -101,19 +101,19 @@ BOM_CONFIG = {'standalone_mode': False}
 
    
 ## Start From Scratch: Use as a standalone Django project
-1. To start from scratch we recommend setting up a virtual environment
-```
-virtualenv -p python3 mysite
-cd mysite
-source bin/activate
-```
-
-2. From here install django, and set up your project.
+1. Clone the repo and create a virtual environment:
 ```
 git clone https://github.com/mpkasp/django-bom.git
-pipenv install
-python manage.py migrate
+cd django-bom
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+```
+
+2. Install dependencies and start the server:
+```
+pip install -e .
 cp bom/local_settings.py.example bom/local_settings.py
+python manage.py migrate
 python manage.py runserver
 ```
 

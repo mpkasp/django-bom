@@ -1,8 +1,5 @@
 [build-system]
-requires = [
-  "setuptools>=69",
-  "wheel"
-]
+requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -36,9 +33,42 @@ dependencies = [
     "Django>=5.2",
     "social-auth-app-django>=5,<6",
     "social-auth-core>=4,<6",
-    "google-api-python-client>=2",
+    "google-api-python-client>=2.0",
+    "google-auth>=2.0",
+    "google-auth-httplib2>=0.2",
     "django-materializecss-form",
     "django-money>=3,<5",
+    "py-moneyed>=3,<4",
+    "asgiref>=3.8.1,<4",
+    "sqlparse>=0.4.4,<0.6",
+    "mysqlclient>=2.2,<3",
+    "pymemcache>=4.0",
+    "python3-openid>=3.2",
+    "sendgrid>=6.10",
+    "django-sendgrid-v5",
+    "httplib2>=0.22",
+    "requests>=2.31",
+    "urllib3>=2,<3",
+    "cryptography>=42",
+    "oauthlib>=3.2",
+    "requests-oauthlib>=1.3",
+    "sentry-sdk>=2.0",
+    "bleach>=6.0",
+    "babel>=2.12",
+    "packaging>=23.0",
+    "pyjwt>=2.7",
+    "pytz>=2024.1",
+    "cachetools",
+]
+
+[project.optional-dependencies]
+dev = [
+    "django-hijack",
+]
+
+[dependency-groups]
+dev = [
+    { include-group = "dev" },
 ]
 
 [tool.setuptools]
@@ -52,7 +82,7 @@ include = ["bom*"]
 line_length = 120
 combine_as_imports = true
 known_django = ["django"]
-known_first_party = ["bom", ]
+known_first_party = ["bom"]
 known_third_party = ["pytest", "setuptools"]
 sections = ["FUTURE", "STDLIB", "DJANGO", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 include_trailing_comma = true
