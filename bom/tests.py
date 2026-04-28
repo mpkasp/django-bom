@@ -1,4 +1,5 @@
 import csv
+import io
 from re import finditer
 from unittest import skip
 
@@ -20,7 +21,7 @@ from .helpers import (
     create_some_fake_parts,
     create_user_and_organization,
 )
-from .models import Part, PartClass, Seller, Subpart
+from .models import Manufacturer, Part, PartClass, Seller, Subpart
 
 TEST_FILES_DIR = "bom/test_files"
 
@@ -797,6 +798,81 @@ class TestBOM(TransactionTestCase):
 
         parts_count = Part.objects.all().count()
         self.assertEqual(parts_count - initial_parts_count, 4)
+
+    def test_upload_parts_no_manufacturer_column_does_not_create_blank_manufacturer(self):
+        # Bug: uploading a parts CSV that has manufacturer_part_number but no manufacturer
+        # column (or an empty manufacturer value) should NOT create a Manufacturer with a
+        # blank/empty name, and the part should have no primary_manufacturer_part.
+        create_some_fake_part_classes(self.organization)
+
+        csv_no_manufacturer_col = (
+            "part_class,description,revision,manufacturer_part_number\n"
+            "500,Test Widget,1,MPN-001\n"
+        )
+        csv_empty_manufacturer_val = (
+            "part_class,description,revision,manufacturer,manufacturer_part_number\n"
+            "500,Test Widget 2,1,,MPN-002\n"
+        )
+
+        for label, csv_content in [
+            ("no manufacturer column", csv_no_manufacturer_col),
+            ("empty manufacturer value", csv_empty_manufacturer_val),
+        ]:
+            with self.subTest(label=label):
+                f = io.BytesIO(csv_content.encode())
+                f.name = 'test.csv'
+                response = self.client.post(reverse('bom:upload-parts'), {'file': f})
+                self.assertEqual(response.status_code, 302, label)
+
+                blank_manufacturers = Manufacturer.objects.filter(name='')
+                self.assertEqual(blank_manufacturers.count(), 0, f"{label}: blank-named Manufacturer was created")
+
+                null_manufacturers = Manufacturer.objects.filter(name__isnull=True)
+                self.assertEqual(null_manufacturers.count(), 0, f"{label}: null-named Manufacturer was created")
+
+                created_part = Part.objects.filter(organization=self.organization).last()
+                self.assertIsNone(
+                    created_part.primary_manufacturer_part,
+                    f"{label}: part should have no primary_manufacturer_part",
+                )
+
+    def test_upload_bom_no_manufacturer_column_does_not_create_blank_manufacturer(self):
+        # Bug: uploading a BOM CSV without a manufacturer column (or with an empty value)
+        # should NOT create a Manufacturer with a blank/empty name.
+        create_some_fake_part_revision_property_definitions(self.organization, some_required=False)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        # p4 has no assembly/children so it is safe to use as a standalone level-0 row.
+        parent_pn = p4.full_part_number()
+
+        csv_no_manufacturer_col = (
+            f"part_number,level,quantity,revision,manufacturer_part_number\n"
+            f"{parent_pn},0,1,1,MPN-BOM-001\n"
+        )
+        csv_empty_manufacturer_val = (
+            f"part_number,level,quantity,revision,manufacturer_name,manufacturer_part_number\n"
+            f"{parent_pn},0,1,1,,MPN-BOM-002\n"
+        )
+
+        for label, csv_content in [
+            ("no manufacturer column", csv_no_manufacturer_col),
+            ("empty manufacturer value", csv_empty_manufacturer_val),
+        ]:
+            with self.subTest(label=label):
+                f = io.BytesIO(csv_content.encode())
+                f.name = 'test.csv'
+                response = self.client.post(reverse('bom:upload-bom'), {'file': f})
+                self.assertEqual(response.status_code, 200, label)
+
+                messages_list = list(response.context['messages']) if response.context and 'messages' in response.context else []
+                error_messages = [m for m in messages_list if m.tags == 'error']
+                self.assertEqual(len(error_messages), 0, f"{label}: upload had errors: {[str(m) for m in error_messages]}")
+
+                blank_manufacturers = Manufacturer.objects.filter(name='')
+                self.assertEqual(blank_manufacturers.count(), 0, f"{label}: blank-named Manufacturer was created")
+
+                null_manufacturers = Manufacturer.objects.filter(name__isnull=True)
+                self.assertEqual(null_manufacturers.count(), 0, f"{label}: null-named Manufacturer was created")
 
     def test_upload_part_classes(self):
         # Should pass
