@@ -1288,7 +1288,10 @@ class BOMCSVForm(BaseCSVForm):
             existing_subpart_references = existing_subpart.reference if existing_subpart else None
 
         # Now validate & save PartClass, Part, PartRevision, Subpart
-        part_class_dict = {'code': part_dict['number_class'], 'name': part_dict.get('part_class', None)}
+        # Preserve the existing name when the CSV row has no part_class column or an empty value;
+        # otherwise BOMCSVForm would overwrite the stored name with an empty string.
+        part_class_name = part_dict.get('part_class') or (existing_part_class.name if existing_part_class else None)
+        part_class_dict = {'code': part_dict['number_class'], 'name': part_class_name}
         part_class_form = PartClassForm(part_class_dict, instance=existing_part_class, ignore_unique_constraint=True,
                                         organization=self.organization)
         if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT and not part_class_form.is_valid():

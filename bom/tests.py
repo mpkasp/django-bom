@@ -805,14 +805,24 @@ class TestBOM(TransactionTestCase):
         # blank/empty name, and the part should have no primary_manufacturer_part.
         create_some_fake_part_classes(self.organization)
 
-        csv_no_manufacturer_col = (
-            "part_class,description,revision,manufacturer_part_number\n"
-            "500,Test Widget,1,MPN-001\n"
-        )
-        csv_empty_manufacturer_val = (
-            "part_class,description,revision,manufacturer,manufacturer_part_number\n"
-            "500,Test Widget 2,1,,MPN-002\n"
-        )
+        if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            csv_no_manufacturer_col = (
+                "part_class,description,revision,manufacturer_part_number\n"
+                "500,Test Widget,1,MPN-001\n"
+            )
+            csv_empty_manufacturer_val = (
+                "part_class,description,revision,manufacturer,manufacturer_part_number\n"
+                "500,Test Widget 2,1,,MPN-002\n"
+            )
+        else:
+            csv_no_manufacturer_col = (
+                "part_number,description,revision,manufacturer_part_number\n"
+                "W001,Test Widget,1,MPN-001\n"
+            )
+            csv_empty_manufacturer_val = (
+                "part_number,description,revision,manufacturer,manufacturer_part_number\n"
+                "W002,Test Widget 2,1,,MPN-002\n"
+            )
 
         for label, csv_content in [
             ("no manufacturer column", csv_no_manufacturer_col),
@@ -831,6 +841,7 @@ class TestBOM(TransactionTestCase):
                 self.assertEqual(null_manufacturers.count(), 0, f"{label}: null-named Manufacturer was created")
 
                 created_part = Part.objects.filter(organization=self.organization).last()
+                self.assertIsNotNone(created_part, f"{label}: no part was created by the upload")
                 self.assertIsNone(
                     created_part.primary_manufacturer_part,
                     f"{label}: part should have no primary_manufacturer_part",
@@ -873,6 +884,52 @@ class TestBOM(TransactionTestCase):
 
                 null_manufacturers = Manufacturer.objects.filter(name__isnull=True)
                 self.assertEqual(null_manufacturers.count(), 0, f"{label}: null-named Manufacturer was created")
+
+    def test_upload_bom_no_part_class_column_does_not_overwrite_class_name(self):
+        # Bug: uploading a BOM CSV that has no `part_class` / `class` column (or has an
+        # empty value) should NOT overwrite the existing PartClass name with a blank string.
+        # PartClassForm is called with name=None which Django converts to '' and saves.
+        if self.organization.number_scheme != constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            self.skipTest('PartClass names only exist in semi-intelligent scheme')
+
+        create_some_fake_part_revision_property_definitions(self.organization, some_required=False)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        # p2 is 500-0001-00; its part class (code=500) has name='Wendy'.
+        pc = PartClass.objects.get(code='500', organization=self.organization)
+        original_name = pc.name
+        self.assertEqual(original_name, 'Wendy')
+
+        part_pn = p2.full_part_number()
+
+        csv_no_class_col = (
+            f"part_number,level,quantity,revision\n"
+            f"{part_pn},0,1,1\n"
+        )
+        csv_empty_class_val = (
+            f"part_number,level,quantity,revision,part_class\n"
+            f"{part_pn},0,1,1,\n"
+        )
+
+        for label, csv_content in [
+            ("no part_class column", csv_no_class_col),
+            ("empty part_class value", csv_empty_class_val),
+        ]:
+            with self.subTest(label=label):
+                # Restore the name before each subtest in case a previous run overwrote it
+                pc.name = original_name
+                pc.save()
+
+                f = io.BytesIO(csv_content.encode())
+                f.name = 'test.csv'
+                response = self.client.post(reverse('bom:upload-bom'), {'file': f})
+                self.assertEqual(response.status_code, 200, label)
+
+                pc.refresh_from_db()
+                self.assertEqual(
+                    pc.name, original_name,
+                    f"{label}: PartClass name was overwritten; got '{pc.name}'"
+                )
 
     def test_upload_part_classes(self):
         # Should pass
