@@ -406,7 +406,25 @@ class ManufacturerPartForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelF
             mfg_obj = mfg_data
 
         self.instance.manufacturer = mfg_obj
-        return super().save(commit=commit)
+
+        if not self.instance.pk:
+            mpn = self.cleaned_data.get('manufacturer_part_number', '')
+            obj, created = ManufacturerPart.objects.get_or_create(
+                part=self.instance.part,
+                manufacturer_part_number=mpn,
+                manufacturer=mfg_obj,
+                defaults={
+                    'mouser_disable': self.cleaned_data.get('mouser_disable', False),
+                    'link': self.cleaned_data.get('link'),
+                }
+            )
+            if not created and commit:
+                obj.mouser_disable = self.cleaned_data.get('mouser_disable', obj.mouser_disable)
+                obj.link = self.cleaned_data.get('link', obj.link)
+                obj.save()
+            return obj
+        else:
+            return super().save(commit=commit)
 
 
 class SellerForm(OrganizationModelForm):
