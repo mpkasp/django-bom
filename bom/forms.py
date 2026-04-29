@@ -407,7 +407,7 @@ class ManufacturerPartForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelF
 
         self.instance.manufacturer = mfg_obj
 
-        if not self.instance.pk:
+        if not self.instance.pk and self.instance.part_id:
             mpn = self.cleaned_data.get('manufacturer_part_number', '')
             obj, created = ManufacturerPart.objects.get_or_create(
                 part=self.instance.part,
