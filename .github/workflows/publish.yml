@@ -28,3 +28,44 @@ jobs:
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  update-indabom:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Extract version
+        id: version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION=${VERSION#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Checkout indabom
+        uses: actions/checkout@v4
+        with:
+          repository: mpkasp/indabom
+          token: ${{ secrets.INDABOM_PAT }}
+          path: indabom
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Update django-bom in uv.lock
+        working-directory: indabom
+        run: uv lock --upgrade-package django-bom
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.INDABOM_PAT }}
+          path: indabom
+          commit-message: "chore: update django-bom to ${{ steps.version.outputs.version }}"
+          title: "chore: update django-bom to ${{ steps.version.outputs.version }}"
+          body: |
+            Updates django-bom dependency to version ${{ steps.version.outputs.version }} from PyPI.
+
+            Triggered by [django-bom release](https://github.com/mpkasp/django-bom/releases/tag/${{ github.ref_name }}).
+          branch: update-django-bom
+          delete-branch: true
