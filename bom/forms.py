@@ -1129,8 +1129,8 @@ class PartCSVForm(BaseCSVForm):
                                                                             seller=seller,
                                                                             seller_part_number=seller_part_number,
                                                                             unit_cost=unit_cost, nre_cost=nre_cost,
-                                                                            minimum_order_quantity=moq,
-                                                                            minimum_pack_quantity=mpq)
+                                                                            minimum_order_quantity=moq or 1,
+                                                                            minimum_pack_quantity=mpq or 1)
 
             self.successes.append("Part {0} on row {1} created.".format(part.full_part_number(), row_count))
         else:
