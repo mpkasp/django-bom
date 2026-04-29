@@ -52,6 +52,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      - name: Wait for package on PyPI
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          for i in {1..12}; do
+            if uv pip index-lookup django-bom 2>/dev/null | grep -q "$VERSION"; then
+              echo "✓ Found django-bom $VERSION on PyPI"
+              exit 0
+            fi
+            echo "⏳ Attempt $i/12: django-bom $VERSION not yet on PyPI, waiting..."
+            sleep 5
+          done
+          echo "✗ Timeout: django-bom $VERSION not found on PyPI after 60s"
+          exit 1
+
       - name: Update django-bom in uv.lock
         working-directory: indabom
         run: uv lock --upgrade-package django-bom
