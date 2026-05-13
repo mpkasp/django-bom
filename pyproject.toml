@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-bom"
-version = "1.286"
+version = "1.287"
 description = "A simple Django app to manage a bill of materials."
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"

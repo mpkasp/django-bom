@@ -372,9 +372,16 @@ def bom_settings(request, tab_anchor=None):
         id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).order_by(
         'first_name', 'last_name', 'email')
     users_in_organization_count = users_in_organization.count()
-    has_member_capacity = users_in_organization_count < organization.subscription_quantity
+    free_viewer_seats = getattr(organization, 'free_viewer_seats', 0)
+    if free_viewer_seats > 0:
+        viewer_count = UserMeta.objects.filter(organization=organization, role=constants.ROLE_TYPE_VIEWER).count()
+        non_viewer_count = users_in_organization_count - viewer_count
+        paid_user_count = non_viewer_count + max(viewer_count - free_viewer_seats, 0)
+    else:
+        paid_user_count = users_in_organization_count
+    has_member_capacity = paid_user_count < organization.subscription_quantity
     # Seats available for adding new members (never negative)
-    seats_available = max(organization.subscription_quantity - users_in_organization_count, 0)
+    seats_available = max(organization.subscription_quantity - paid_user_count, 0)
     is_pro = organization.subscription == constants.SUBSCRIPTION_TYPE_PRO
     user_can_manage_members = request.user.has_perm('bom.manage_members', organization)
     google_authentication = UserSocialAuth.objects.filter(user=user).first()
@@ -420,8 +427,10 @@ def bom_settings(request, tab_anchor=None):
                             messages.error(request, f"{field.capitalize()}: {error}")
             users_in_organization.all()
             users_in_organization_count = users_in_organization.count()
-            has_member_capacity = users_in_organization_count < organization.subscription_quantity
-            seats_available = max(organization.subscription_quantity - users_in_organization_count, 0)
+            viewer_count = UserMeta.objects.filter(organization=organization, role=constants.ROLE_TYPE_VIEWER).count()
+            paid_user_count = (users_in_organization_count - viewer_count + max(viewer_count - free_viewer_seats, 0)) if free_viewer_seats > 0 else users_in_organization_count
+            has_member_capacity = paid_user_count < organization.subscription_quantity
+            seats_available = max(organization.subscription_quantity - paid_user_count, 0)
         elif 'clear-add-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             user_add_form = UserAddForm()
@@ -443,8 +452,10 @@ def bom_settings(request, tab_anchor=None):
                         messages.error(request, "No user found with given id {}.".format(user_meta_id))
             users_in_organization.all()
             users_in_organization_count = users_in_organization.count()
-            has_member_capacity = users_in_organization_count < organization.subscription_quantity
-            seats_available = max(organization.subscription_quantity - users_in_organization_count, 0)
+            viewer_count = UserMeta.objects.filter(organization=organization, role=constants.ROLE_TYPE_VIEWER).count()
+            paid_user_count = (users_in_organization_count - viewer_count + max(viewer_count - free_viewer_seats, 0)) if free_viewer_seats > 0 else users_in_organization_count
+            has_member_capacity = paid_user_count < organization.subscription_quantity
+            seats_available = max(organization.subscription_quantity - paid_user_count, 0)
         elif 'submit-edit-organization' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             organization_form = OrganizationFormEditSettings(request.POST, instance=organization, user=user)
