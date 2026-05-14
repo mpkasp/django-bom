@@ -55,15 +55,15 @@ jobs:
       - name: Wait for package on PyPI
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          for i in {1..12}; do
-            if uv pip index-lookup django-bom 2>/dev/null | grep -q "$VERSION"; then
+          for i in {1..24}; do
+            if curl -sf "https://pypi.org/pypi/django-bom/${VERSION}/json" > /dev/null; then
               echo "✓ Found django-bom $VERSION on PyPI"
               exit 0
             fi
-            echo "⏳ Attempt $i/12: django-bom $VERSION not yet on PyPI, waiting..."
-            sleep 5
+            echo "⏳ Attempt $i/24: django-bom $VERSION not yet on PyPI, waiting..."
+            sleep 10
           done
-          echo "✗ Timeout: django-bom $VERSION not found on PyPI after 60s"
+          echo "✗ Timeout: django-bom $VERSION not found on PyPI after 240s"
           exit 1
 
       - name: Update django-bom in uv.lock

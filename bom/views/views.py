@@ -378,8 +378,11 @@ def bom_settings(request, tab_anchor=None):
         non_viewer_count = users_in_organization_count - viewer_count
         paid_user_count = non_viewer_count + max(viewer_count - free_viewer_seats, 0)
     else:
+        viewer_count = 0
         paid_user_count = users_in_organization_count
-    has_member_capacity = paid_user_count < organization.subscription_quantity
+    has_paid_capacity = paid_user_count < organization.subscription_quantity
+    has_free_viewer_capacity = viewer_count < free_viewer_seats
+    has_member_capacity = has_paid_capacity or has_free_viewer_capacity
     # Seats available for adding new members (never negative)
     seats_available = max(organization.subscription_quantity - paid_user_count, 0)
     is_pro = organization.subscription == constants.SUBSCRIPTION_TYPE_PRO
@@ -409,6 +412,7 @@ def bom_settings(request, tab_anchor=None):
 
         elif 'submit-add-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
+            requested_role = request.POST.get('role') or constants.ROLE_TYPE_VIEWER
             if not is_pro:
                 messages.error(request, "You need a Pro subscription to add users.")
             elif not user_can_manage_members:
@@ -416,6 +420,8 @@ def bom_settings(request, tab_anchor=None):
             elif not has_member_capacity:
                 messages.error(request,
                                "You have reached your organization's member capacity. Manage subscription to add more members.")
+            elif not has_paid_capacity and requested_role != constants.ROLE_TYPE_VIEWER:
+                messages.error(request, "No paid seats available. Only viewer seats can be added.")
             else:
                 user_add_form = UserAddForm(request.POST, organization=organization)
                 if user_add_form.is_valid():
@@ -427,9 +433,11 @@ def bom_settings(request, tab_anchor=None):
                             messages.error(request, f"{field.capitalize()}: {error}")
             users_in_organization.all()
             users_in_organization_count = users_in_organization.count()
-            viewer_count = UserMeta.objects.filter(organization=organization, role=constants.ROLE_TYPE_VIEWER).count()
+            viewer_count = UserMeta.objects.filter(organization=organization, role=constants.ROLE_TYPE_VIEWER).count() if free_viewer_seats > 0 else 0
             paid_user_count = (users_in_organization_count - viewer_count + max(viewer_count - free_viewer_seats, 0)) if free_viewer_seats > 0 else users_in_organization_count
-            has_member_capacity = paid_user_count < organization.subscription_quantity
+            has_paid_capacity = paid_user_count < organization.subscription_quantity
+            has_free_viewer_capacity = viewer_count < free_viewer_seats
+            has_member_capacity = has_paid_capacity or has_free_viewer_capacity
             seats_available = max(organization.subscription_quantity - paid_user_count, 0)
         elif 'clear-add-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
@@ -452,9 +460,11 @@ def bom_settings(request, tab_anchor=None):
                         messages.error(request, "No user found with given id {}.".format(user_meta_id))
             users_in_organization.all()
             users_in_organization_count = users_in_organization.count()
-            viewer_count = UserMeta.objects.filter(organization=organization, role=constants.ROLE_TYPE_VIEWER).count()
+            viewer_count = UserMeta.objects.filter(organization=organization, role=constants.ROLE_TYPE_VIEWER).count() if free_viewer_seats > 0 else 0
             paid_user_count = (users_in_organization_count - viewer_count + max(viewer_count - free_viewer_seats, 0)) if free_viewer_seats > 0 else users_in_organization_count
-            has_member_capacity = paid_user_count < organization.subscription_quantity
+            has_paid_capacity = paid_user_count < organization.subscription_quantity
+            has_free_viewer_capacity = viewer_count < free_viewer_seats
+            has_member_capacity = has_paid_capacity or has_free_viewer_capacity
             seats_available = max(organization.subscription_quantity - paid_user_count, 0)
         elif 'submit-edit-organization' in request.POST:
             tab_anchor = ORGANIZATION_TAB
