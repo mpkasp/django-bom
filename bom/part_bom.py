@@ -88,15 +88,15 @@ class PartBom(AsDictModel):
         for _, bom_part in self.parts.items():
             self.update_bom_for_part(bom_part)
 
-    def mouser_parts(self):
-        mouser_items = {}
+    def sourcing_parts(self):
+        sourcing_items = {}
         for bom_id, item in self.parts.items():
-            if item.part.id not in mouser_items and item.part.number_class.mouser_enabled:
+            if item.part.id not in sourcing_items and item.part.number_class.sourcing_enabled:
                 for manufacturer_part in item.part.manufacturer_parts():
-                    mouser_items.update({bom_id: manufacturer_part})
-                    if not manufacturer_part.mouser_disable:
-                        mouser_items.update({bom_id: manufacturer_part})
-        return mouser_items
+                    sourcing_items.update({bom_id: manufacturer_part})
+                    if not manufacturer_part.sourcing_disable:
+                        sourcing_items.update({bom_id: manufacturer_part})
+        return sourcing_items
 
     def manufacturer_parts(self, source_mouser=False):
         # TODO: optimize this query to not hit the DB in a for loop

@@ -532,10 +532,10 @@ def bom_settings(request, tab_anchor=None):
                 messages.warning(request, "No action was taken because no part classes were selected. Select part classes by checking the checkboxes below.")
             elif part_class_action == 'submit-part-class-enable-mouser':
                 tab_anchor = INDABOM_TAB
-                PartClass.objects.filter(id__in=part_class_action_ids).update(mouser_enabled=True)
+                PartClass.objects.filter(id__in=part_class_action_ids).update(sourcing_enabled=True)
             elif part_class_action == 'submit-part-class-disable-mouser':
                 tab_anchor = INDABOM_TAB
-                PartClass.objects.filter(id__in=part_class_action_ids).update(mouser_enabled=False)
+                PartClass.objects.filter(id__in=part_class_action_ids).update(sourcing_enabled=False)
             elif part_class_action == 'submit-part-class-delete':
                 tab_anchor = INDABOM_TAB
                 try:
@@ -859,9 +859,9 @@ def part_info(request, part_id, part_revision_id=None):
         where_used = None
 
     try:
-        mouser_parts = len(flat_bom.mouser_parts().keys()) > 0
+        sourcing_parts = len(flat_bom.sourcing_parts().keys()) > 0
     except AttributeError:
-        mouser_parts = False
+        sourcing_parts = False
 
     where_used_part = part.where_used_recursive()
     seller_parts = part.seller_parts()

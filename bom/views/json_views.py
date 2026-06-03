@@ -5,49 +5,64 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from bom.models import PartRevision
+from bom.models import PartRevision, SellerPart
 from bom.third_party_apis.base_api import BaseApiError
-from bom.third_party_apis.mouser import Mouser
+from bom.third_party_apis.sourcing import get_provider, offers_to_seller_parts
 
 
 class BomJsonResponse(View):
     response = {'errors': [], 'content': {}}
 
 
+def _offer_api_info(offer):
+    """Lightweight, provider-agnostic line summary attached to each sourced BOM part."""
+    return {
+        'seller': offer.seller_name,
+        'seller_part_number': offer.seller_part_number,
+        'manufacturer': offer.manufacturer_name,
+        'stock': offer.stock,
+        'lead_time_days': offer.lead_time_days,
+        'data_sheet': offer.data_sheet,
+        'product_detail_url': offer.product_url,
+    }
+
+
 @method_decorator(login_required, name='dispatch')
 class MouserPartMatchBOM(BomJsonResponse):
     def get(self, request, part_revision_id):
-        part_revision = get_object_or_404(PartRevision, pk=part_revision_id)  # get all of the pricing for manufacturer parts, marked with mouser in this part
+        part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
         user = request.user
         profile = user.bom_profile()
         organization = profile.organization
 
-        # Goal is to search mouser for anything that we want from mouser, then update the part revision in the bom with that
-        # To do that we can just get the manufacturer parts in this BOM
         part = part_revision.part
         qty_cache_key = str(part.id) + '_qty'
         assy_quantity = cache.get(qty_cache_key, 100)
 
         flat_bom = part_revision.flat(assy_quantity)
 
-        mouser = Mouser()
-        manufacturer_parts = flat_bom.mouser_parts()
-        # Quantity is the same on flat and indented bom WRT sourcing, so we should only need to look up by part revision, or even part
+        # PR1: a single global provider (Mouser) reading its key from BOM_CONFIG.
+        # Per-organization provider selection and BYOK credentials arrive in later PRs.
+        provider = get_provider('mouser')
+        manufacturer_parts = flat_bom.sourcing_parts()  # {bom_id: manufacturer_part}
+
+        try:
+            offers_by_mp = provider.match(list(manufacturer_parts.values()), currency=organization.currency)
+        except BaseApiError as err:
+            self.response['errors'].append(str(err))
+            offers_by_mp = {}
+
         for bom_id, mp in manufacturer_parts.items():
+            offers = offers_by_mp.get(mp.id)
+            if not offers:
+                continue
             bom_part = flat_bom.parts[bom_id]
-            bom_part_quantity = bom_part.total_extended_quantity
 
-            try:
-                part_seller_info = mouser.search_and_match(mp, quantity=bom_part_quantity, currency=organization.currency)
-            except BaseApiError as err:
-                self.response['errors'].append(str(err))
-                continue
+            seller_parts = offers_to_seller_parts(mp, offers, organization.currency)
+            seller_parts.extend(list(mp.seller_parts()))
 
-            try:
-                bom_part.seller_part = part_seller_info['optimal_seller_part']
-                bom_part.api_info = part_seller_info['mouser_parts'][0]
-            except (KeyError, IndexError):
-                continue
+            bom_part.seller_part = SellerPart.optimal(seller_parts, bom_part.total_extended_quantity)
+            bom_part.api_info = _offer_api_info(offers[0])
 
         flat_bom.update()
         flat_bom_dict = flat_bom.as_dict()

@@ -193,7 +193,7 @@ class PartClassesCSVHeaders(CSVHeaders):
         CSVHeader('code'),
         CSVHeader('name'),
         CSVHeader('comment', name_options=['description', 'desc', 'desc.']),
-        CSVHeader('mouser_enabled'),
+        CSVHeader('sourcing_enabled'),
     ]
 
 

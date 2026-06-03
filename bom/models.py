@@ -205,7 +205,7 @@ class PartClass(OrganizationScopedModel):
     code = models.CharField(max_length=NUMBER_CLASS_CODE_LEN_MAX, validators=[alphanumeric])
     name = models.CharField(max_length=255, default=None)
     comment = models.CharField(max_length=255, default='', blank=True)
-    mouser_enabled = models.BooleanField(default=False)
+    sourcing_enabled = models.BooleanField(default=False)
     property_definitions = models.ManyToManyField('PartRevisionPropertyDefinition', blank=True,
                                                   related_name='part_classes')
 
@@ -957,7 +957,7 @@ class ManufacturerPart(models.Model, AsDictModel):
     part = models.ForeignKey(Part, on_delete=models.CASCADE, db_index=True)
     manufacturer_part_number = models.CharField(max_length=128, default='', blank=True)
     manufacturer = models.ForeignKey(Manufacturer, default=None, blank=True, null=True, on_delete=models.CASCADE)
-    mouser_disable = models.BooleanField(default=False)
+    sourcing_disable = models.BooleanField(default=False)
     link = models.URLField(null=True, blank=True)
 
     class Meta:

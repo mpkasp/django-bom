@@ -363,7 +363,7 @@ class ManufacturerPartForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelF
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['mouser_disable'].initial = True
+        self.fields['sourcing_disable'].initial = True
         self.fields['manufacturer'] = forms.CharField(
             required=False,  # clean method handles logic
             widget=AutocompleteTextInput(
@@ -414,12 +414,12 @@ class ManufacturerPartForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelF
                 manufacturer_part_number=mpn,
                 manufacturer=mfg_obj,
                 defaults={
-                    'mouser_disable': self.cleaned_data.get('mouser_disable', False),
+                    'sourcing_disable': self.cleaned_data.get('sourcing_disable', False),
                     'link': self.cleaned_data.get('link'),
                 }
             )
             if not created and commit:
-                obj.mouser_disable = self.cleaned_data.get('mouser_disable', obj.mouser_disable)
+                obj.sourcing_disable = self.cleaned_data.get('sourcing_disable', obj.sourcing_disable)
                 obj.link = self.cleaned_data.get('link', obj.link)
                 obj.save()
             return obj
