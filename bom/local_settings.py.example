@@ -11,7 +11,6 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 BOM_CONFIG = {
-    'mouser_api_key': 'secretkey',
     'admin_dashboard': {
         'enable_autocomplete': False,
         'page_size': 50,

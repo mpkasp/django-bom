@@ -2,9 +2,11 @@
 
 from .base import Offer, PriceBreak, SourcingProvider, offers_to_seller_parts
 from .mouser import MouserProvider
+from .nexar import NexarProvider
 
 _PROVIDERS = {
     MouserProvider.name: MouserProvider,
+    NexarProvider.name: NexarProvider,
 }
 
 
@@ -22,5 +24,6 @@ __all__ = [
     'SourcingProvider',
     'offers_to_seller_parts',
     'MouserProvider',
+    'NexarProvider',
     'get_provider',
 ]

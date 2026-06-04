@@ -41,9 +41,8 @@ class MouserPartMatchBOM(BomJsonResponse):
 
         flat_bom = part_revision.flat(assy_quantity)
 
-        # PR1: a single global provider (Mouser) reading its key from BOM_CONFIG.
-        # Per-organization provider selection and BYOK credentials arrive in later PRs.
-        provider = get_provider('mouser')
+        provider_name = getattr(organization, 'sourcing_provider', None) or 'nexar'
+        provider = get_provider(provider_name)
         manufacturer_parts = flat_bom.sourcing_parts()  # {bom_id: manufacturer_part}
 
         try:

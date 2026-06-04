@@ -20,14 +20,11 @@ def _cache_seconds():
 
 
 class BaseApi:
-    def __init__(self, api_settings_key, root_url, api_key_query=None):
-        self.api_key = None
+    def __init__(self, api_key, root_url, api_key_query=None):
+        # Credentials are injected by the caller (BYOK), not read from global config.
+        self.api_key = api_key
         self.root_url = root_url
         self.api_key_query = api_key_query
-        try:
-            self.api_key = settings.BOM_CONFIG[api_settings_key]
-        except KeyError:
-            raise ValueError('No API key for {} found on server. Contact administrator for help.'.format(api_settings_key))
 
     def request(self, suburl, data=None):
         cache_key = suburl

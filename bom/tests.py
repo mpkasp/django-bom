@@ -1745,6 +1745,19 @@ class TestJsonViews(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+    def test_sourcing_match_bom_honors_org_provider(self):
+        from unittest.mock import patch
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        self.organization.sourcing_provider = 'nexar'
+        self.organization.save()
+
+        with patch('bom.third_party_apis.sourcing.NexarProvider.match', return_value={}) as mock_match:
+            response = self.client.get(reverse('json:mouser-part-match-bom', kwargs={'part_revision_id': p3.latest().id}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(mock_match.called)
+
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestImmutableRevisioning(TransactionTestCase):

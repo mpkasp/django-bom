@@ -16,7 +16,6 @@ except ImportError:
 BOM_CONFIG = {}
 BOM_CONFIG_DEFAULT = {
     'base_template': 'base.html',
-    'mouser_api_key': None,
     'standalone_mode': True,
     'admin_dashboard': {
         'enable_autocomplete': True,

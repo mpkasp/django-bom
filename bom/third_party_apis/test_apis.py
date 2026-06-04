@@ -1,5 +1,5 @@
 from unittest import skip
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.test import TestCase, override_settings
 from moneyed import Money
@@ -8,9 +8,9 @@ from bom import settings
 from bom.helpers import create_some_fake_parts, create_user_and_organization
 from bom.models import SellerPart
 
-from .base_api import _sourcing_cache
+from .base_api import BaseApiError, _sourcing_cache
 from .mouser import MouserApi
-from .sourcing import MouserProvider, get_provider, offers_to_seller_parts
+from .sourcing import MouserProvider, NexarProvider, get_provider, offers_to_seller_parts
 from .sourcing.base import Offer, PriceBreak
 
 
@@ -64,6 +64,7 @@ class TestSourcingProvider(TestCase):
 
     def test_get_provider(self):
         self.assertIsInstance(get_provider('mouser'), MouserProvider)
+        self.assertIsInstance(get_provider('nexar'), NexarProvider)
         with self.assertRaises(ValueError):
             get_provider('nope')
 
@@ -128,20 +129,98 @@ class TestBaseApiCache(TestCase):
             reason = 'OK'
         return R()
 
-    @override_settings(BOM_CONFIG={**settings.BOM_CONFIG_DEFAULT, 'mouser_api_key': 'x', 'sourcing_cache_seconds': 300})
+    @override_settings(BOM_CONFIG={**settings.BOM_CONFIG_DEFAULT, 'sourcing_cache_seconds': 300})
     @patch('bom.third_party_apis.base_api.requests.get')
     def test_cache_dedups_within_ttl(self, mock_get):
         mock_get.return_value = self._fake_response()
-        api = MouserApi()
+        api = MouserApi(api_key='x')
         api.request('/search/manufacturerlist')
         api.request('/search/manufacturerlist')
         self.assertEqual(mock_get.call_count, 1)
 
-    @override_settings(BOM_CONFIG={**settings.BOM_CONFIG_DEFAULT, 'mouser_api_key': 'x', 'sourcing_cache_seconds': 0})
+    @override_settings(BOM_CONFIG={**settings.BOM_CONFIG_DEFAULT, 'sourcing_cache_seconds': 0})
     @patch('bom.third_party_apis.base_api.requests.get')
     def test_cache_disabled_when_zero(self, mock_get):
         mock_get.return_value = self._fake_response()
-        api = MouserApi()
+        api = MouserApi(api_key='x')
         api.request('/search/manufacturerlist')
         api.request('/search/manufacturerlist')
         self.assertEqual(mock_get.call_count, 2)
+
+
+class TestNexarProvider(TestCase):
+    CREDENTIALS = {'client_id': 'id', 'client_secret': 'secret'}
+
+    def setUp(self):
+        self.user, self.organization = create_user_and_organization()
+        self.p1, self.p2, self.p3, self.p4 = create_some_fake_parts(organization=self.organization)
+        self.mp1 = self.p1.primary_manufacturer_part
+        self.mp2 = self.p2.primary_manufacturer_part
+
+    def _fake_graphql(self):
+        data = {'data': {'supMultiMatch': [
+            {'reference': str(self.mp1.id), 'parts': [{
+                'mpn': self.mp1.manufacturer_part_number,
+                'manufacturer': {'name': 'STMicroelectronics'},
+                'bestDatasheet': {'url': 'https://example.com/ds.pdf'},
+                'sellers': [{'company': {'name': 'Digi-Key'}, 'offers': [{
+                    'sku': 'DK-1', 'inventoryLevel': 500, 'moq': 1,
+                    'clickUrl': 'https://digikey.com/p/1', 'factoryLeadDays': 20,
+                    'prices': [
+                        {'quantity': 1, 'price': 2.5, 'currency': 'USD'},
+                        {'quantity': 100, 'price': 1.8, 'currency': 'USD'},
+                    ],
+                }]}],
+            }]},
+            {'reference': str(self.mp2.id), 'parts': [{
+                'mpn': self.mp2.manufacturer_part_number,
+                'manufacturer': {'name': 'Murata'},
+                'bestDatasheet': None,
+                'sellers': [{'company': {'name': 'Mouser'}, 'offers': [{
+                    'sku': 'M-2', 'inventoryLevel': 1000, 'moq': 1,
+                    'clickUrl': 'https://mouser.com/p/2', 'factoryLeadDays': None,
+                    'prices': [{'quantity': 1, 'price': 0.5, 'currency': 'USD'}],
+                }]}],
+            }]},
+        ]}}
+        return Mock(status_code=200, json=Mock(return_value=data))
+
+    @patch('bom.third_party_apis.sourcing.nexar._get_token', return_value='tok')
+    @patch('bom.third_party_apis.sourcing.nexar.requests.post')
+    def test_match_batches_single_request(self, mock_post, mock_token):
+        mock_post.return_value = self._fake_graphql()
+
+        offers_by_mp = NexarProvider(self.CREDENTIALS).match([self.mp1, self.mp2], currency=None)
+
+        # Whole BOM priced with a single GraphQL request.
+        self.assertEqual(mock_post.call_count, 1)
+        # All MPNs batched into one supMultiMatch queries list.
+        sent_variables = mock_post.call_args.kwargs['json']['variables']
+        self.assertEqual(len(sent_variables['queries']), 2)
+
+        self.assertEqual(set(offers_by_mp), {self.mp1.id, self.mp2.id})
+
+        offer = offers_by_mp[self.mp1.id][0]
+        self.assertEqual(offer.seller_name, 'Digi-Key')
+        self.assertEqual(offer.seller_part_number, 'DK-1')
+        self.assertEqual(offer.manufacturer_name, 'STMicroelectronics')
+        self.assertEqual(offer.stock, 500)
+        self.assertEqual(offer.lead_time_days, 20)
+        self.assertEqual(offer.data_sheet, 'https://example.com/ds.pdf')
+        self.assertEqual(len(offer.price_breaks), 2)
+        self.assertEqual(offer.price_breaks[0].moq, 1)
+        self.assertEqual(offer.price_breaks[0].unit_cost, Money('2.5', 'USD'))
+        self.assertEqual(offer.price_breaks[1].unit_cost, Money('1.8', 'USD'))
+
+        self.assertEqual(offers_by_mp[self.mp2.id][0].seller_name, 'Mouser')
+
+    @patch('bom.third_party_apis.sourcing.nexar._get_token')
+    @patch('bom.third_party_apis.sourcing.nexar.requests.post')
+    def test_match_no_parts_makes_no_calls(self, mock_post, mock_token):
+        self.assertEqual(NexarProvider(self.CREDENTIALS).match([]), {})
+        mock_token.assert_not_called()
+        mock_post.assert_not_called()
+
+    def test_missing_credentials_raises(self):
+        with self.assertRaises(BaseApiError):
+            NexarProvider().match([self.mp1])

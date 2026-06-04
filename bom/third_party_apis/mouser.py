@@ -4,11 +4,8 @@ from .base_api import BaseApi, BaseApiError
 
 
 class MouserApi(BaseApi):
-    def __init__(self, *args, **kwargs):
-        api_settings_key = 'mouser_api_key'
-        root_url='https://api.mouser.com/api/v1'
-        api_key_query = 'apiKey'
-        super().__init__(api_settings_key, root_url, api_key_query=api_key_query)
+    def __init__(self, api_key=None):
+        super().__init__(api_key, root_url='https://api.mouser.com/api/v1', api_key_query='apiKey')
 
     @staticmethod
     def parse_and_check_for_errors(content):

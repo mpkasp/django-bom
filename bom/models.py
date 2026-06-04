@@ -100,6 +100,7 @@ class AbstractOrganization(models.Model):
                                                                    MaxValueValidator(NUMBER_VARIATION_LEN_MAX)])
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
     currency = CurrencyField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
+    sourcing_provider = models.CharField(max_length=32, choices=SOURCING_PROVIDERS, default='nexar', blank=True)
 
     subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
     subscription_quantity = models.IntegerField(default=0)

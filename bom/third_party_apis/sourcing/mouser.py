@@ -4,8 +4,8 @@ Wraps the existing ``MouserApi`` (HTTP) and adapts its responses to the normaliz
 ``Offer`` / ``PriceBreak`` DTOs. Mouser has no batch API, so matches are fetched
 concurrently with a bounded thread pool (respecting Mouser rate limits).
 
-In PR1 the provider reads its key from ``BOM_CONFIG['mouser_api_key']`` (global key,
-unchanged behavior). BYOK credentials are wired in a later PR.
+The API key is BYOK -- supplied per-organization via ``credentials['api_key']`` -- not
+read from global config.
 """
 
 import logging
@@ -38,7 +38,7 @@ class MouserProvider(SourcingProvider):
         if not manufacturer_parts:
             return {}
 
-        api = MouserApi()
+        api = MouserApi(self.credentials.get('api_key'))
         max_workers = settings.BOM_CONFIG.get('sourcing_max_workers', 4)
         results: dict = {}
 
