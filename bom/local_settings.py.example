@@ -17,6 +17,12 @@ BOM_CONFIG = {
     }
 }
 
+# Encryption key(s) for sourcing credentials stored on Organization (Fernet).
+# Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Keep this SEPARATE from SECRET_KEY. A list enables key rotation (new key first).
+# Only required if an organization actually stores sourcing credentials.
+BOM_SOURCING_ENCRYPTION_KEYS = ['REPLACE_WITH_A_FERNET_KEY']
+
 # google GoogleOAuth
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = 'secretkey'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = 'secretkey'

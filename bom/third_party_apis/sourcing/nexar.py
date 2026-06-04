@@ -88,6 +88,15 @@ def _get_token(client_id, client_secret) -> str:
 class NexarProvider(SourcingProvider):
     name = 'nexar'
 
+    @classmethod
+    def credentials_from_organization(cls, organization) -> dict:
+        # Nexar OAuth2 client-credentials: client_id in sourcing_api_key, client_secret
+        # in sourcing_api_secret.
+        return {
+            'client_id': organization.sourcing_api_key,
+            'client_secret': organization.sourcing_api_secret,
+        }
+
     def match(self, manufacturer_parts: list, currency=None) -> dict:
         if not manufacturer_parts:
             return {}

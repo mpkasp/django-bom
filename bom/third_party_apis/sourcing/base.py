@@ -45,6 +45,14 @@ class SourcingProvider:
         """Return ``{manufacturer_part.id: [Offer, ...]}``, batched where the API allows."""
         raise NotImplementedError
 
+    @classmethod
+    def credentials_from_organization(cls, organization) -> dict:
+        """Map an organization's stored BYOK secret(s) onto this provider's credentials.
+
+        Default: a single API key. Providers needing more (e.g. Nexar) override this.
+        """
+        return {'api_key': organization.sourcing_api_key}
+
 
 def offers_to_seller_parts(manufacturer_part, offers, currency=None) -> list:
     """Build transient (unsaved) ``SellerPart``s from normalized offers.

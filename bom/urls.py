@@ -88,7 +88,7 @@ google_drive_patterns = [
 ]
 
 json_patterns = [
-    path('mouser-part-match-bom/<int:part_revision_id>/', json_views.MouserPartMatchBOM.as_view(), name='mouser-part-match-bom')
+    path('sourcing-match-bom/<int:part_revision_id>/', json_views.SourcingMatchBOM.as_view(), name='sourcing-match-bom'),
 ]
 
 urlpatterns = [

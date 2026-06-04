@@ -10,7 +10,7 @@ from bom.models import SellerPart
 
 from .base_api import BaseApiError, _sourcing_cache
 from .mouser import MouserApi
-from .sourcing import MouserProvider, NexarProvider, get_provider, offers_to_seller_parts
+from .sourcing import MouserProvider, NexarProvider, build_provider, get_provider, offers_to_seller_parts
 from .sourcing.base import Offer, PriceBreak
 
 
@@ -67,6 +67,20 @@ class TestSourcingProvider(TestCase):
         self.assertIsInstance(get_provider('nexar'), NexarProvider)
         with self.assertRaises(ValueError):
             get_provider('nope')
+
+    def test_build_provider_maps_byok_credentials(self):
+        # credentials_from_organization reads the org's stored secrets (in-memory here).
+        self.organization.sourcing_api_key = 'mouser-key'
+        self.organization.sourcing_api_secret = 'unused'
+        mouser = build_provider('mouser', self.organization)
+        self.assertIsInstance(mouser, MouserProvider)
+        self.assertEqual(mouser.credentials, {'api_key': 'mouser-key'})
+
+        self.organization.sourcing_api_key = 'nexar-id'
+        self.organization.sourcing_api_secret = 'nexar-secret'
+        nexar = build_provider('nexar', self.organization)
+        self.assertIsInstance(nexar, NexarProvider)
+        self.assertEqual(nexar.credentials, {'client_id': 'nexar-id', 'client_secret': 'nexar-secret'})
 
     @patch.object(MouserApi, 'get_manufacturer_list', return_value={})
     @patch.object(MouserApi, 'search_part', return_value=FAKE_MOUSER_PARTS)

@@ -22,6 +22,7 @@ from .base_classes import AsDictModel
 from .constants import *
 from .csv_headers import PartsListCSVHeaders, PartsListCSVHeadersSemiIntelligent, BOMIndentedCSVHeaders, \
     BOMFlatCSVHeaders
+from .fields import EncryptedTextField
 from .part_bom import PartBom, PartBomItem, PartIndentedBomItem, WhereUsed, WhereUsedItem
 from .utils import increment_str, listify_string, prep_for_sorting_nicely, stringify_list, strip_trailing_zeros
 from .validators import alphanumeric
@@ -101,6 +102,8 @@ class AbstractOrganization(models.Model):
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
     currency = CurrencyField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
     sourcing_provider = models.CharField(max_length=32, choices=SOURCING_PROVIDERS, default='nexar', blank=True)
+    sourcing_api_key = EncryptedTextField(null=True, blank=True)
+    sourcing_api_secret = EncryptedTextField(null=True, blank=True)
 
     subscription = models.CharField(max_length=1, choices=SUBSCRIPTION_TYPES)
     subscription_quantity = models.IntegerField(default=0)

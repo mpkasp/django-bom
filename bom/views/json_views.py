@@ -7,11 +7,15 @@ from django.views import View
 
 from bom.models import PartRevision, SellerPart
 from bom.third_party_apis.base_api import BaseApiError
-from bom.third_party_apis.sourcing import get_provider, offers_to_seller_parts
+from bom.third_party_apis.sourcing import build_provider, offers_to_seller_parts
 
 
 class BomJsonResponse(View):
-    response = {'errors': [], 'content': {}}
+    @staticmethod
+    def empty_response():
+        # Build a fresh envelope per request. This must NOT be a class attribute -- a shared
+        # mutable dict leaks errors/content across requests.
+        return {'errors': [], 'content': {}}
 
 
 def _offer_api_info(offer):
@@ -28,8 +32,9 @@ def _offer_api_info(offer):
 
 
 @method_decorator(login_required, name='dispatch')
-class MouserPartMatchBOM(BomJsonResponse):
+class SourcingMatchBOM(BomJsonResponse):
     def get(self, request, part_revision_id):
+        response = self.empty_response()
         part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
         user = request.user
         profile = user.bom_profile()
@@ -41,14 +46,15 @@ class MouserPartMatchBOM(BomJsonResponse):
 
         flat_bom = part_revision.flat(assy_quantity)
 
+        # Provider is selected per-organization; credentials are BYOK (encrypted on the org).
         provider_name = getattr(organization, 'sourcing_provider', None) or 'nexar'
-        provider = get_provider(provider_name)
+        provider = build_provider(provider_name, organization)
         manufacturer_parts = flat_bom.sourcing_parts()  # {bom_id: manufacturer_part}
 
         try:
             offers_by_mp = provider.match(list(manufacturer_parts.values()), currency=organization.currency)
         except BaseApiError as err:
-            self.response['errors'].append(str(err))
+            response['errors'].append(str(err))
             offers_by_mp = {}
 
         for bom_id, mp in manufacturer_parts.items():
@@ -64,6 +70,5 @@ class MouserPartMatchBOM(BomJsonResponse):
             bom_part.api_info = _offer_api_info(offers[0])
 
         flat_bom.update()
-        flat_bom_dict = flat_bom.as_dict()
-        self.response['content'].update({'flat_bom': flat_bom_dict})
-        return JsonResponse(self.response)
+        response['content'].update({'flat_bom': flat_bom.as_dict()})
+        return JsonResponse(response)

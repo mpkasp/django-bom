@@ -2,9 +2,13 @@ import csv
 import io
 from re import finditer
 from unittest import skip
+from unittest.mock import patch
 
+from cryptography.fernet import Fernet, MultiFernet
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.exceptions import ImproperlyConfigured
+from django.db import connection
 from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 
@@ -1738,25 +1742,77 @@ class TestJsonViews(TestCase):
         self.profile = self.user.bom_profile(organization=self.organization)
         self.client.login(username='kasper', password='ghostpassword')
 
-    def test_mouser_part_match_bom(self):
+    def test_sourcing_match_bom(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         self.assertGreaterEqual(len(p3.latest().assembly.subparts.all()), 1)
-        response = self.client.get(reverse('json:mouser-part-match-bom', kwargs={'part_revision_id': p3.latest().id}))
+        response = self.client.get(reverse('json:sourcing-match-bom', kwargs={'part_revision_id': p3.latest().id}))
 
         self.assertEqual(response.status_code, 200)
 
     def test_sourcing_match_bom_honors_org_provider(self):
-        from unittest.mock import patch
-
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         self.organization.sourcing_provider = 'nexar'
         self.organization.save()
 
         with patch('bom.third_party_apis.sourcing.NexarProvider.match', return_value={}) as mock_match:
-            response = self.client.get(reverse('json:mouser-part-match-bom', kwargs={'part_revision_id': p3.latest().id}))
+            response = self.client.get(reverse('json:sourcing-match-bom', kwargs={'part_revision_id': p3.latest().id}))
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(mock_match.called)
+
+
+FERNET_KEY = Fernet.generate_key().decode()
+
+
+@override_settings(BOM_SOURCING_ENCRYPTION_KEYS=[FERNET_KEY])
+class TestEncryptedTextField(TestCase):
+    def setUp(self):
+        self.user, self.organization = create_user_and_organization()
+
+    def _reload(self):
+        return self.organization.__class__.objects.get(pk=self.organization.pk)
+
+    def test_round_trips_plaintext(self):
+        self.organization.sourcing_api_key = 'super-secret-token'
+        self.organization.save()
+        self.assertEqual(self._reload().sourcing_api_key, 'super-secret-token')
+
+    def test_db_column_holds_ciphertext(self):
+        self.organization.sourcing_api_key = 'plaintext-secret'
+        self.organization.save()
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f'SELECT sourcing_api_key FROM {self.organization._meta.db_table} WHERE id = %s',
+                [self.organization.pk],
+            )
+            stored = cursor.fetchone()[0]
+
+        self.assertNotIn('plaintext-secret', stored)
+        decrypted = MultiFernet([Fernet(FERNET_KEY)]).decrypt(stored.encode()).decode()
+        self.assertEqual(decrypted, 'plaintext-secret')
+
+    def test_key_rotation_decrypts_old_values(self):
+        old_key = Fernet.generate_key().decode()
+        new_key = Fernet.generate_key().decode()
+        with override_settings(BOM_SOURCING_ENCRYPTION_KEYS=[old_key]):
+            self.organization.sourcing_api_key = 'rotate-me'
+            self.organization.save()
+        # New key first (encrypts new writes), old key retained so old rows still decrypt.
+        with override_settings(BOM_SOURCING_ENCRYPTION_KEYS=[new_key, old_key]):
+            self.assertEqual(self._reload().sourcing_api_key, 'rotate-me')
+
+    def test_null_value_needs_no_key(self):
+        with override_settings(BOM_SOURCING_ENCRYPTION_KEYS=None):
+            self.organization.sourcing_api_key = None
+            self.organization.save()  # must not touch Fernet
+            self.assertIsNone(self._reload().sourcing_api_key)
+
+    def test_missing_key_raises(self):
+        with override_settings(BOM_SOURCING_ENCRYPTION_KEYS=None):
+            self.organization.sourcing_api_key = 'needs-a-key'
+            with self.assertRaises(ImproperlyConfigured):
+                self.organization.save()
 
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
