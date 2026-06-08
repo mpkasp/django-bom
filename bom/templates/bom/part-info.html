@@ -227,16 +227,15 @@
                                     {% endif %}
                                 </div>
                             </div>
+                            <!-- One section = the quote. Each figure is marked ⚡ when it's live from a
+                                 distributor (hover for source); your stored data shows unmarked. Live-only
+                                 extras (lead time, stock, vendor count) fill in via JS when available. -->
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Unit Cost:</div>
                                 <div id="specs-unit-cost" class="col s8 l10"><span id="sourcing-est-cost">{{ indented_bom.unit_cost|default_if_none:'-' }}</span><i
                                         id="sourcing-est-cost-live" class="material-icons teal-text text-darken-1 tooltipped sourcing-live-marker"
                                         style="display: none; font-size: 14px; vertical-align: text-bottom; cursor: help;"
-                                        data-position="right" data-tooltip="">bolt</i></div>
-                            </div>
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Subparts without costs:</div>
-                                <div class="col s8 l10"><span id="sourcing-missing-item-costs">{{ indented_bom.missing_item_costs }}</span></div>
+                                        data-position="right" data-tooltip="">bolt</i><span id="sourcing-quote-vendor" class="grey-text"></span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Total NRE:</div>
@@ -249,48 +248,31 @@
                                         style="display: none; font-size: 14px; vertical-align: text-bottom; cursor: help;"
                                         data-position="right" data-tooltip="">bolt</i></div>
                             </div>
-
-                            <!-- Live market data (from the distributor, as-of timestamp) is fenced off from
-                                 your own quote/sourcing above so a provider-specific status (e.g. obsolete)
-                                 never reads as a verdict on the part. Populated by JS; hidden until then. -->
-                            <div id="sourcing-live-block" style="display: none; margin-top: 14px; padding: 8px 0 2px 12px; border-left: 3px solid #e0e0e0;">
-                                <div class="grey-text text-darken-1" style="font-size: 0.9em; margin-bottom: 6px;">
-                                    <i class="material-icons" style="font-size: 14px; vertical-align: text-bottom;">bolt</i>
-                                    Live market data &middot; via <span id="sourcing-live-provider"></span>
-                                    &middot; as of <span id="sourcing-live-timestamp"></span>
+                            <div class="row">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Subparts without costs:</div>
+                                <div class="col s8 l10"><span id="sourcing-missing-item-costs">{{ indented_bom.missing_item_costs }}</span></div>
+                            </div>
+                            <div class="row" id="sourcing-lead-time-wrapper" style="display: none;">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Lead time (days):</div>
+                                <div class="col s8 l10"><span id="sourcing-lead-time"></span></div>
+                            </div>
+                            <div class="row" id="sourcing-stock-wrapper" style="display: none;">
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">In stock:</div>
+                                <div class="col s8 l10"><span id="sourcing-stock"></span></div>
+                            </div>
+                            <div class="row" id="sourcing-near-match-wrapper" style="display: none;">
+                                <div class="col s4 l2 text-right amber-text text-darken-2" style="padding-left: 0px;">Match:</div>
+                                <div class="col s8 l10 amber-text text-darken-2">Near match — pricing is for
+                                    <span id="sourcing-near-match"></span>, not the exact part number.</div>
+                            </div>
+                            <div class="row" id="sourcing-unavailable-wrapper" style="display: none;">
+                                <div class="col s4 l2 text-right amber-text text-darken-2" style="padding-left: 0px;">
+                                    <i class="material-icons" style="font-size: 16px; vertical-align: text-bottom;">info_outline</i>&nbsp;Status:
                                 </div>
-                                <div class="row" id="sourcing-live-status-wrapper" style="display: none; margin-bottom: 4px;">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">
-                                        <i class="material-icons amber-text text-darken-2" style="font-size: 16px; vertical-align: text-bottom;">info_outline</i>&nbsp;Status:
-                                    </div>
-                                    <div class="col s8 l10 amber-text text-darken-2"><span id="sourcing-live-status"></span></div>
-                                </div>
-                                <div class="row" id="sourcing-live-price-wrapper" style="display: none; margin-bottom: 4px;">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Price:</div>
-                                    <div class="col s8 l10"><span id="sourcing-live-price"></span></div>
-                                </div>
-                                <div class="row" id="sourcing-near-match-wrapper" style="display: none; margin-bottom: 4px;">
-                                    <div class="col s4 l2 text-right amber-text text-darken-2" style="padding-left: 0px;">Match:</div>
-                                    <div class="col s8 l10 amber-text text-darken-2">Near match — for
-                                        <span id="sourcing-near-match"></span>, not the exact part number.</div>
-                                </div>
-                                <div class="row" id="sourcing-stock-wrapper" style="display: none; margin-bottom: 4px;">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">In stock:</div>
-                                    <div class="col s8 l10"><span id="sourcing-stock"></span></div>
-                                </div>
-                                <div class="row" id="sourcing-lead-time-wrapper" style="display: none; margin-bottom: 4px;">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Lead time (days):</div>
-                                    <div class="col s8 l10"><span id="sourcing-lead-time"></span></div>
-                                </div>
-                                <div class="row" id="sourcing-seller-pn-wrapper" style="display: none; margin-bottom: 4px;">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Vendor P/N:</div>
-                                    <div class="col s8 l10"><span id="sourcing-seller-pn"></span></div>
-                                </div>
-                                <div class="row" id="sourcing-live-datasheet-wrapper" style="display: none; margin-bottom: 4px;">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Datasheet:</div>
-                                    <div class="col s8 l10"><a id="sourcing-live-datasheet" target="_blank">View&nbsp;<i
-                                            class="material-icons" style="font-size: 14px;">open_in_new</i></a></div>
-                                </div>
+                                <div class="col s8 l10 amber-text text-darken-2"><span id="sourcing-unavailable"></span></div>
+                            </div>
+                            <div class="row" id="sourcing-vendors-wrapper" style="display: none;">
+                                <div class="col s12 grey-text" style="font-size: 0.9em;"><span id="sourcing-vendors"></span></div>
                             </div>
                         </li>
                     </ul>
@@ -550,12 +532,12 @@
             setText('#sourcing-missing-item-costs', flatBom['missing_item_costs']);
 
             // Mark the quote figures that include live data so it's clear which came from the distributor.
-            const liveTip = 'Includes live pricing from ' + capitalize(content['provider'] || '')
+            const liveTip = 'Includes live pricing from ' + (content['provider_label'] || '')
                 + (content['fetched_at'] ? ' · as of ' + new Date(content['fetched_at']).toLocaleString() : '');
             updateLiveMarker('sourcing-est-cost-live', anyLive, liveTip);
             updateLiveMarker('sourcing-est-cost-per-order-live', anyLive, liveTip);
 
-            updateLiveBlock(content, bomParts);  // live (distributor) data, fenced off from the quote
+            updateQuoteDetails(content, bomParts);  // selected vendor + live extras, inline with the quote
             updateSourcingTab(bomParts);
             $('#indented-bom').trigger('update');
             $('#flat-bom').trigger('update');
@@ -574,10 +556,11 @@
             return sellerPart['id'] === null || sellerPart['id'] === undefined;
         }
 
-        // The shared "this is live from the distributor" marker (native hover note).
-        function liveBoltHtml(provider) {
+        // The shared "this is live from the distributor" marker (native hover note). Takes the
+        // user-facing provider label (e.g. "Octopart"), not the internal key.
+        function liveBoltHtml(providerLabel) {
             return ' <i class="material-icons teal-text text-darken-1" style="font-size: 13px; vertical-align: text-bottom;"'
-                + ' title="Live from ' + capitalize(provider || '') + '">bolt</i>';
+                + ' title="Live from ' + (providerLabel || '') + '">bolt</i>';
         }
 
         // Show/hide a ⚡ "this value is live" marker with a Materialize hover note.
@@ -595,43 +578,62 @@
             }
         }
 
-        // Everything the distributor reported about the viewed part, in its own attributed block.
-        function updateLiveBlock(content, bomParts) {
+        // Inline the live extras with the quote: the selected vendor, that vendor's lead time / stock,
+        // a datasheet fallback, the match/availability status, and a vendor-count + attribution line.
+        // No separate "from $X" price (that floor price ignores MOQ and confused the quote).
+        function updateQuoteDetails(content, bomParts) {
             const topLine = bomParts[topLevelPartRevisionId];
             if (!topLine || !topLine['api_info']) return;
             const apiInfo = topLine['api_info'];
+            const sellerPart = topLine['seller_part'];
+            const provider = apiInfo['provider_label'] || content['provider_label'];
 
-            $('#sourcing-live-provider').text(capitalize(apiInfo['provider'] || content['provider'] || ''));
-            if (content['fetched_at']) {
-                $('#sourcing-live-timestamp').text(new Date(content['fetched_at']).toLocaleString());
+            // Which vendor the quote actually came from (+ its lead time / stock), linked to its page.
+            if (sellerPart && sellerPart['data_source']) {
+                const selected = (apiInfo['offers'] || []).find(function (o) { return o['seller'] === sellerPart['data_source']; });
+                const url = selected && selected['product_detail_url'];
+                const name = url ? '<a href="' + url + '" target="_blank">' + sellerPart['data_source'] + '</a>' : sellerPart['data_source'];
+                $('#sourcing-quote-vendor').html(' &middot; ' + name);
+                if (sellerPart['lead_time_days'] !== null && sellerPart['lead_time_days'] !== undefined) {
+                    $('#sourcing-lead-time').html(sellerPart['lead_time_days'] + (isLiveSellerPart(sellerPart) ? liveBoltHtml(provider) : ''));
+                    $('#sourcing-lead-time-wrapper').show();
+                }
+                if (selected && selected['stock'] !== null && selected['stock'] !== undefined) {
+                    $('#sourcing-stock').html(selected['stock'] + liveBoltHtml(provider));
+                    $('#sourcing-stock-wrapper').show();
+                }
             }
 
-            const breaks = apiInfo['price_breaks'] || [];
-            if (breaks.length > 0) {
-                const cheapest = Math.min.apply(null, breaks.map(function (pb) { return parseFloat(pb['unit_cost']); }));
-                showSpecRow('#sourcing-live-price-wrapper', '#sourcing-live-price', 'from ' + currencyUnit + cheapest.toFixed(4));
-            } else if (apiInfo['unavailable_reason']) {
+            // Matched but no purchasable price (obsolete / region-restricted).
+            if ((!apiInfo['price_breaks'] || apiInfo['price_breaks'].length === 0) && apiInfo['unavailable_reason']) {
                 let html = apiInfo['unavailable_reason'];
                 if (apiInfo['product_detail_url']) {
                     html += ' <a href="' + apiInfo['product_detail_url'] + '" target="_blank">View ↗</a>';
                 }
-                $('#sourcing-live-status').html(html);
-                $('#sourcing-live-status-wrapper').show();
+                $('#sourcing-unavailable').html(html);
+                $('#sourcing-unavailable-wrapper').show();
+            }
+            if (apiInfo['is_exact'] === false) {
+                $('#sourcing-near-match').text(apiInfo['matched_mpn'] || 'a similar part');
+                $('#sourcing-near-match-wrapper').show();
             }
 
-            if (apiInfo['is_exact'] === false) {
-                showSpecRow('#sourcing-near-match-wrapper', '#sourcing-near-match', apiInfo['matched_mpn'] || 'a similar part');
+            // Datasheet fallback: use the live one only if you haven't stored your own (in Item Details).
+            const datasheet = $('#sourcing-data-sheet');
+            if (apiInfo['data_sheet'] && !datasheet.attr('href')) {
+                datasheet.attr('href', apiInfo['data_sheet']);
+                datasheet.after(liveBoltHtml(provider));
+                $('#sourcing-data-sheet-wrapper').show();
             }
-            if (apiInfo['stock'] !== null && apiInfo['stock'] !== undefined) {
-                showSpecRow('#sourcing-stock-wrapper', '#sourcing-stock', apiInfo['stock']);
+
+            // Attribution + how many other vendors are available (pointer to the Sourcing tab).
+            const vendorCount = (apiInfo['offers'] || []).filter(function (o) { return (o['price_breaks'] || []).length; }).length;
+            if (vendorCount > 0) {
+                const when = content['fetched_at'] ? ' · as of ' + new Date(content['fetched_at']).toLocaleString() : '';
+                $('#sourcing-vendors').text(vendorCount + ' authorized vendor' + (vendorCount > 1 ? 's' : '')
+                    + ' via ' + (provider || '') + when + ' — see the Sourcing tab');
+                $('#sourcing-vendors-wrapper').show();
             }
-            showSpecRow('#sourcing-lead-time-wrapper', '#sourcing-lead-time', apiInfo['lead_time_days']);
-            showSpecRow('#sourcing-seller-pn-wrapper', '#sourcing-seller-pn', apiInfo['seller_part_number']);
-            if (apiInfo['data_sheet']) {
-                $('#sourcing-live-datasheet').attr('href', apiInfo['data_sheet']);
-                $('#sourcing-live-datasheet-wrapper').show();
-            }
-            $('#sourcing-live-block').show();
         }
 
         function updateBomCell(basePrefix, prid, part) {
@@ -644,7 +646,7 @@
                 const price = parseFloat(sellerPart['unit_cost']).toFixed(4);
                 let priceHtml = fromLive && apiInfo['product_detail_url']
                     ? '<a href="' + apiInfo['product_detail_url'] + '" target="_blank">' + price + '</a>' : price;
-                if (fromLive) priceHtml += liveBoltHtml(apiInfo['provider']);
+                if (fromLive) priceHtml += liveBoltHtml(apiInfo['provider_label']);
                 unitCostElement.html(priceHtml);
             }
             // Only relabel the vendor when the quote actually came from live data. A manual optimal
@@ -653,7 +655,9 @@
             if (fromLive) {
                 const sellerNameElement = $(basePrefix + '-seller-name-' + prid);
                 if (sellerNameElement.length) {
-                    let html = (apiInfo['seller'] || sellerPart['data_source'] || '') + liveBoltHtml(apiInfo['provider']);
+                    // The optimal seller part carries the actual winning vendor in data_source; prefer
+                    // it over the primary offer so the vendor matches the displayed price.
+                    let html = (sellerPart['data_source'] || apiInfo['seller'] || '') + liveBoltHtml(apiInfo['provider_label']);
                     if (apiInfo['is_exact'] === false) {
                         html += ' <span class="amber-text text-darken-2" style="font-size: 0.8em;" title="Near match: ' + (apiInfo['matched_mpn'] || '') + '">(near match)</span>';
                     }
@@ -672,12 +676,6 @@
             element.text(value === null || value === undefined ? '-' : value);
         }
 
-        function showSpecRow(wrapperId, valueId, value) {
-            if (value === null || value === undefined || value === '') return;
-            $(valueId).text(value);
-            $(wrapperId).show();
-        }
-
         // Light-touch update of the matched manufacturer part's optimal-seller row in the Sourcing tab.
         function updateSourcingTab(bomParts) {
             const topLine = bomParts[topLevelPartRevisionId];
@@ -692,7 +690,12 @@
             const nearMatch = apiInfo['is_exact'] === false
                 ? ' <span class="amber-text text-darken-2" style="font-size: 0.8em;" title="Near match: ' + (apiInfo['matched_mpn'] || '') + '">(near match)</span>'
                 : '';
-            $(base + '-name').html((apiInfo['seller'] || (sellerPart && sellerPart['data_source']) || '') + liveBoltHtml(apiInfo['provider']) + nearMatch);
+            // Link the optimal vendor to its product page (match the chosen seller to its offer).
+            const optimalName = (sellerPart && sellerPart['data_source']) || apiInfo['seller'] || '';
+            const optimalOffer = (apiInfo['offers'] || []).find(function (o) { return o['seller'] === optimalName; });
+            const optimalUrl = optimalOffer && optimalOffer['product_detail_url'];
+            const optimalHtml = optimalUrl ? '<a href="' + optimalUrl + '" target="_blank">' + optimalName + '</a>' : optimalName;
+            $(base + '-name').html(optimalHtml + liveBoltHtml(apiInfo['provider_label']) + nearMatch);
             $(base + '-pn').text(apiInfo['seller_part_number'] || '');
             if (apiInfo['lead_time_days'] !== null && apiInfo['lead_time_days'] !== undefined) {
                 $(base + '-lt').text(apiInfo['lead_time_days']);
@@ -701,43 +704,52 @@
             if (sellerPart) {
                 $(base + '-moq').text(sellerPart['minimum_order_quantity']);
                 $(base + '-cost').text(parseFloat(sellerPart['unit_cost']).toFixed(4));
-                addPriceBreakRows(manufacturerPartId, apiInfo, sellerPart);
             } else if (apiInfo['unavailable_reason']) {
                 // Matched but no purchasable price -- show the reason where the price would be.
                 $(base + '-cost').html('<span class="amber-text text-darken-2" title="' + apiInfo['unavailable_reason'] + '">No price</span>');
             }
+            addLiveVendorRows(manufacturerPartId, apiInfo);
         }
 
-        // Insert the quantity price-break ladder as collapsible child rows under the MPN node,
-        // matching the seller-part rows (expand via the MPN's tree arrow).
-        function addPriceBreakRows(manufacturerPartId, apiInfo, sellerPart) {
-            const breaks = apiInfo['price_breaks'] || [];
-            if (breaks.length < 2 || renderedBreaks[manufacturerPartId]) return;
+        // Add every live distributor offer (Nexar aggregates many) as collapsible child rows under the
+        // MPN node, one row per price break -- expand via the MPN's tree arrow. Mirrors the seller-part
+        // rows so your sourcing and live vendors read the same way.
+        function addLiveVendorRows(manufacturerPartId, apiInfo) {
+            const offers = apiInfo['offers'] || [];
+            if (offers.length === 0 || renderedBreaks[manufacturerPartId]) return;
             const node = $('#manufacturer-parts').treetable('node', manufacturerPartId);
             if (!node) return;
             renderedBreaks[manufacturerPartId] = true;
 
-            const seller = (apiInfo['seller'] || sellerPart['data_source'] || '') + liveBoltHtml(apiInfo['provider']);
-            const leadTime = (apiInfo['lead_time_days'] === null || apiInfo['lead_time_days'] === undefined) ? '' : apiInfo['lead_time_days'];
-            const sku = apiInfo['seller_part_number'] || '';
-
+            const boltMarker = liveBoltHtml(apiInfo['provider_label']);
             let rows = $();
-            breaks.forEach(function (pb, i) {
-                const price = currencyUnit + parseFloat(pb['unit_cost']).toFixed(4);
-                rows = rows.add($(
-                    '<tr data-tt-id="break-' + manufacturerPartId + '-' + i + '" data-tt-parent-id="' + manufacturerPartId + '">'
-                    + '<td class="text-normal"></td><td class="text-normal"></td>'
-                    + '<td class="text-normal">' + seller + '</td>'
-                    + '<td class="text-normal">' + sku + '</td>'
-                    + '<td class="text-normal">' + pb['moq'] + '</td>'
-                    + '<td class="text-normal"></td>'
-                    + '<td class="text-normal">' + price + '</td>'
-                    + '<td class="text-normal">' + leadTime + '</td>'
-                    + '<td class="text-normal"></td><td class="text-normal"></td><td class="text-normal"></td>'
-                    + '</tr>'
-                ));
+            let rowIndex = 0;
+            offers.forEach(function (offer) {
+                const breaks = offer['price_breaks'] || [];
+                if (breaks.length === 0) return;  // skip vendors with no purchasable price
+                const name = offer['seller'] || '';
+                const url = offer['product_detail_url'];
+                const sellerName = (url ? '<a href="' + url + '" target="_blank">' + name + '</a>' : name) + boltMarker;
+                const sku = offer['seller_part_number'] || '';
+                const leadTime = (offer['lead_time_days'] === null || offer['lead_time_days'] === undefined) ? '' : offer['lead_time_days'];
+                breaks.forEach(function (pb) {
+                    const price = currencyUnit + parseFloat(pb['unit_cost']).toFixed(4);
+                    rows = rows.add($(
+                        '<tr data-tt-id="live-' + manufacturerPartId + '-' + rowIndex + '" data-tt-parent-id="' + manufacturerPartId + '">'
+                        + '<td class="text-normal"></td><td class="text-normal"></td>'
+                        + '<td class="text-normal">' + sellerName + '</td>'
+                        + '<td class="text-normal">' + sku + '</td>'
+                        + '<td class="text-normal">' + pb['moq'] + '</td>'
+                        + '<td class="text-normal"></td>'
+                        + '<td class="text-normal">' + price + '</td>'
+                        + '<td class="text-normal">' + leadTime + '</td>'
+                        + '<td class="text-normal"></td><td class="text-normal"></td><td class="text-normal"></td>'
+                        + '</tr>'
+                    ));
+                    rowIndex++;
+                });
             });
-            $('#manufacturer-parts').treetable('loadBranch', node, rows);
+            if (rows.length) $('#manufacturer-parts').treetable('loadBranch', node, rows);
         }
 
         $(document).ready(function () {

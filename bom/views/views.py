@@ -514,7 +514,7 @@ def bom_settings(request, tab_anchor=None):
             if not request.user.has_perm('bom.manage_members', organization):
                 messages.error(request, "You are not allowed to manage sourcing credentials, contact your organization admin.")
             else:
-                provider_name = organization.sourcing_provider or constants.SOURCING_PROVIDER_MOUSER
+                provider_name = organization.sourcing_provider or constants.SOURCING_PROVIDER_NEXAR
                 provider_label = dict(constants.SOURCING_PROVIDERS).get(provider_name, provider_name)
                 # A common jellybean MPN guaranteed to match, so the provider resolves seller/offer
                 # data -- this is what surfaces role/authorization problems (not just bad credentials).
@@ -624,7 +624,7 @@ def bom_settings(request, tab_anchor=None):
     organization_form = OrganizationFormEditSettings(instance=organization, user=user)
     sourcing_settings_form = SourcingSettingsForm(instance=organization)
     sourcing_provider_schema = provider_credential_schema()
-    active_sourcing_provider = organization.sourcing_provider or constants.SOURCING_PROVIDER_MOUSER
+    active_sourcing_provider = organization.sourcing_provider or constants.SOURCING_PROVIDER_NEXAR
     sourcing_configured = provider_is_configured(active_sourcing_provider, organization)
     sourcing_provider_label = dict(constants.SOURCING_PROVIDERS).get(active_sourcing_provider, active_sourcing_provider)
     google_drive_connected = has_drive_scope(user)

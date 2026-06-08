@@ -179,6 +179,19 @@ class TestSourcingProvider(TestCase):
         self.assertEqual(SellerPart.optimal(seller_parts, 100).unit_cost, Money('3.50', 'USD'))
         self.assertEqual(SellerPart.optimal(seller_parts, 1).unit_cost, Money('5.00', 'USD'))
 
+    def test_to_org_currency_skips_unconvertible(self):
+        from djmoney.contrib.exchange.exceptions import MissingRate
+
+        from bom.third_party_apis.sourcing.base import to_org_currency
+
+        # Passthrough when there's no target currency, or it already matches (no rate needed).
+        self.assertEqual(to_org_currency(Money('5', 'USD'), None), Money('5', 'USD'))
+        self.assertEqual(to_org_currency(Money('5', 'USD'), 'USD'), Money('5', 'USD'))
+        # Without a cross-currency rate, drop the price rather than compare mixed currencies
+        # (the bug where a EUR/GBP price looked "way lower" than USD offers and wrongly won).
+        with patch('bom.third_party_apis.sourcing.base.convert_money', side_effect=MissingRate('no rate')):
+            self.assertIsNone(to_org_currency(Money('4', 'EUR'), 'USD'))
+
 
 class TestBaseApiCache(TestCase):
     def setUp(self):

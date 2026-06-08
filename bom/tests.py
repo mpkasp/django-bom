@@ -1812,15 +1812,50 @@ class TestJsonViews(TestCase):
         line = sourced[0]
         api_info = line['api_info']
         self.assertEqual(api_info['provider'], content['provider'])
+        # Internal key is 'nexar' but the user-facing label is 'Octopart'.
+        self.assertEqual(content['provider_label'], 'Octopart')
+        self.assertEqual(api_info['provider_label'], 'Octopart')
         self.assertEqual(api_info['product_detail_url'], 'https://example.com/p')
         # price_breaks is shipped for reference display only (server still does the roll-up).
         self.assertEqual([(pb['moq'], pb['unit_cost']) for pb in api_info['price_breaks']], [(1, 5.0), (100, 3.0)])
+        # Every distributor offer is surfaced (for the Sourcing tab's all-vendors list).
+        self.assertEqual(len(api_info['offers']), 1)
+        self.assertEqual(api_info['offers'][0]['seller'], 'Mouser')
+        self.assertEqual([(pb['moq'], pb['unit_cost']) for pb in api_info['offers'][0]['price_breaks']], [(1, 5.0), (100, 3.0)])
         # Exact/near-match flag is surfaced for the UI indicator.
         self.assertIn('is_exact', api_info)
         # Quantity/cost columns are exposed as clean numerics for the BOM table.
         self.assertIn('total_extended_quantity', line)
         self.assertIn('order_quantity', line)
         self.assertIn('order_cost', line)
+
+    def test_sourcing_match_bom_surfaces_all_vendors(self):
+        # Nexar aggregates multiple distributors; every offer must reach the client so the Sourcing
+        # tab can list all vendors (not just the primary one).
+        from djmoney.money import Money
+
+        from bom.third_party_apis.sourcing import Offer, PriceBreak
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        PartClass.objects.filter(organization=self.organization).update(sourcing_enabled=True)
+
+        def multi_vendor_match(manufacturer_parts, currency=None):
+            return {mp.id: [
+                Offer(seller_name='Digi-Key', seller_part_number='DK', manufacturer_name='',
+                      price_breaks=[PriceBreak(moq=1, unit_cost=Money('5.00', 'USD'))]),
+                Offer(seller_name='Mouser', seller_part_number='MO', manufacturer_name='',
+                      price_breaks=[PriceBreak(moq=1, unit_cost=Money('4.00', 'USD'))]),
+            ] for mp in manufacturer_parts}
+
+        with patch('bom.views.json_views.build_provider') as mock_build:
+            mock_build.return_value.match.side_effect = multi_vendor_match
+            response = self.client.get(reverse('json:sourcing-match-bom', kwargs={'part_revision_id': p3.latest().id}))
+
+        content = response.json()['content']
+        sourced = [part for part in content['flat_bom']['parts'].values() if part.get('api_info')]
+        self.assertGreaterEqual(len(sourced), 1)
+        sellers = [offer['seller'] for offer in sourced[0]['api_info']['offers']]
+        self.assertEqual(sellers, ['Digi-Key', 'Mouser'])
 
     def test_sourcing_match_bom_surfaces_unpriced_match(self):
         # A matched-but-unpriced part (obsolete / region-restricted) keeps its api_info -- with the
@@ -1891,38 +1926,6 @@ class TestProviderCredentialSchema(TestCase):
         self.assertEqual(schema['mouser'][0]['label'], 'API Key')
         self.assertEqual(schema['nexar'][0]['label'], 'Client ID')
         self.assertTrue(schema['mouser'][0]['help_url'])
-
-    @override_settings(BOM_CONFIG={'sourcing_providers_enabled': ['mouser']})
-    def test_feature_flag_hides_disabled_provider(self):
-        from bom.third_party_apis.sourcing import enabled_provider_names, provider_credential_schema
-
-        self.assertEqual(enabled_provider_names(), ['mouser'])
-        schema = provider_credential_schema()
-        self.assertIn('mouser', schema)
-        self.assertNotIn('nexar', schema)
-
-
-@override_settings(BOM_CONFIG={'sourcing_providers_enabled': ['mouser']})
-class TestSourcingProviderFeatureFlag(TestCase):
-    def setUp(self):
-        self.client = Client()
-        self.user, self.organization = create_user_and_organization()
-        self.client.login(username='kasper', password='ghostpassword')
-
-    def test_disabled_provider_select_omits_nexar(self):
-        response = self.client.get(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
-        # The flag drives the schema (JS) and the provider <select>; Nexar must not be offerable.
-        self.assertNotContains(response, '<option value="nexar"')
-
-    def test_disabled_provider_skips_live_fetch(self):
-        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
-        PartClass.objects.filter(organization=self.organization).update(sourcing_enabled=True)
-        self.organization.sourcing_provider = 'nexar'  # disabled by the flag
-        self.organization.save()
-        with patch('bom.views.json_views.build_provider') as mock_build:
-            response = self.client.get(reverse('json:sourcing-match-bom', kwargs={'part_revision_id': p3.latest().id}))
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(mock_build.called)  # provider feature-flagged off -> no live fetch attempted
 
 
 FERNET_KEY = Fernet.generate_key().decode()

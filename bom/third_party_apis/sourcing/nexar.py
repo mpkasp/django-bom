@@ -16,12 +16,10 @@ import threading
 import time
 
 import requests
-from djmoney.contrib.exchange.exceptions import MissingRate
-from djmoney.contrib.exchange.models import convert_money
 from moneyed import Money
 
 from ..base_api import BaseApiError
-from .base import CredentialField, Offer, PriceBreak, SourcingProvider, mpn_matches
+from .base import CredentialField, Offer, PriceBreak, SourcingProvider, mpn_matches, to_org_currency
 
 NEXAR_TOKEN_URL = 'https://identity.nexar.com/connect/token'
 NEXAR_GRAPHQL_URL = 'https://api.nexar.com/graphql'
@@ -35,7 +33,7 @@ query SupMultiMatch($queries: [SupPartMatchQuery!]!) {
       mpn
       manufacturer { name }
       bestDatasheet { url }
-      sellers {
+      sellers(authorizedOnly: true) {
         company { name }
         offers {
           sku
@@ -92,7 +90,7 @@ class NexarProvider(SourcingProvider):
         CredentialField(
             attr='sourcing_api_key',
             label='Client ID',
-            help_text='Create an application in the Nexar portal',
+            help_text='Octopart data via the Nexar API — create an application in the Nexar portal',
             help_url='https://portal.nexar.com/',
         ),
         CredentialField(
@@ -193,11 +191,9 @@ class NexarProvider(SourcingProvider):
                         unit_cost = Money(str(price['price']), price['currency'])
                     except (KeyError, TypeError):
                         continue
-                    if currency:
-                        try:
-                            unit_cost = convert_money(unit_cost, currency)
-                        except MissingRate:
-                            pass  # no exchange rate available; keep the offer in its native currency
+                    unit_cost = to_org_currency(unit_cost, currency)
+                    if unit_cost is None:
+                        continue  # can't express in the org currency -> drop rather than mis-compare
                     price_breaks.append(PriceBreak(moq=int(price.get('quantity', 1)), unit_cost=unit_cost))
                 if not price_breaks:
                     continue

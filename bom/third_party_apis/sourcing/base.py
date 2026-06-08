@@ -10,7 +10,25 @@ unchanged.
 
 from dataclasses import dataclass
 
+from djmoney.contrib.exchange.exceptions import MissingRate
+from djmoney.contrib.exchange.models import convert_money
 from moneyed import Money
+
+
+def to_org_currency(unit_cost, currency):
+    """Convert an offer price to the organization's currency for fair comparison.
+
+    Distributors quote in their own currency; comparing those raw numbers makes a price in a
+    stronger currency look artificially cheap. Same-currency needs no rate; otherwise we convert,
+    and if no exchange rate is available we return ``None`` so the caller drops that price rather
+    than mixing currencies. ``currency`` of ``None`` means "leave as-is" (used in unit tests).
+    """
+    if not currency or str(unit_cost.currency) == str(currency):
+        return unit_cost
+    try:
+        return convert_money(unit_cost, currency)
+    except MissingRate:
+        return None
 
 
 def mpn_matches(candidate, requested) -> bool:

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('bom', '0059_manufacturerpart_datasheet_url'),
+        ('bom', '0060_alter_organization_sourcing_provider'),
     ]
 
     operations = [
         migrations.AlterField(
             model_name='organization',
             name='sourcing_provider',
-            field=models.CharField(blank=True, choices=[('mouser', 'Mouser'), ('nexar', 'Nexar')], default='mouser', max_length=32),
+            field=models.CharField(blank=True, choices=[('mouser', 'Mouser'), ('nexar', 'Nexar')], default='nexar', max_length=32),
         ),
     ]

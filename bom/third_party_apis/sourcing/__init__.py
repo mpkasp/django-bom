@@ -2,8 +2,6 @@
 
 from dataclasses import asdict
 
-from django.conf import settings
-
 from .base import CredentialField, Offer, PriceBreak, SourcingProvider, offers_to_seller_parts
 from .mouser import MouserProvider
 from .nexar import NexarProvider
@@ -14,23 +12,10 @@ _PROVIDERS = {
 }
 
 
-def enabled_provider_names() -> list:
-    """Providers exposed/usable in this deployment. Feature flag: set
-    ``BOM_CONFIG['sourcing_providers_enabled']`` to an allowlist (e.g. ``['mouser']``) to hide a
-    provider until it's ready. Absent/None means all registered providers are enabled."""
-    allowed = settings.BOM_CONFIG.get('sourcing_providers_enabled')
-    if allowed is None:
-        return list(_PROVIDERS)
-    return [name for name in _PROVIDERS if name in allowed]
-
-
 def provider_credential_schema() -> dict:
     """``{provider_name: [credential field dicts]}`` -- the single source of truth the settings
-    UI uses to render per-provider credential fields and key-help links (enabled providers only)."""
-    return {
-        name: [asdict(field) for field in _PROVIDERS[name].credential_fields]
-        for name in enabled_provider_names()
-    }
+    UI uses to render per-provider credential fields and key-help links."""
+    return {name: [asdict(field) for field in cls.credential_fields] for name, cls in _PROVIDERS.items()}
 
 
 def provider_is_configured(name, organization) -> bool:
@@ -72,5 +57,4 @@ __all__ = [
     'build_provider',
     'provider_credential_schema',
     'provider_is_configured',
-    'enabled_provider_names',
 ]

@@ -1,0 +1,38 @@
+name: Sourcing API Integration
+
+# Live smoke tests against the Mouser / Nexar APIs. Runs on a schedule and on demand (not on every
+# push) to keep API cost and runtime low. Requires repo secrets:
+#   BOM_TEST_MOUSER_API_KEY, BOM_TEST_NEXAR_CLIENT_ID, BOM_TEST_NEXAR_CLIENT_SECRET
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # weekly, Monday 06:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Copy Local Settings
+        run: cp bom/local_settings.py.example bom/local_settings.py
+
+      - name: Install Dependencies
+        run: uv sync --frozen
+
+      - name: Run sourcing API integration tests
+        env:
+          BOM_TEST_MOUSER_API_KEY: ${{ secrets.BOM_TEST_MOUSER_API_KEY }}
+          BOM_TEST_NEXAR_CLIENT_ID: ${{ secrets.BOM_TEST_NEXAR_CLIENT_ID }}
+          BOM_TEST_NEXAR_CLIENT_SECRET: ${{ secrets.BOM_TEST_NEXAR_CLIENT_SECRET }}
+        run: uv run python manage.py test bom.third_party_apis.test_integration -v 2

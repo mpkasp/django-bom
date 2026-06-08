@@ -366,12 +366,6 @@ class SourcingSettingsForm(forms.ModelForm):
         # The materializecss filter renders <select> without an id; set one so the JS provider
         # toggle (and Materialize change events) can target it.
         self.fields['sourcing_provider'].widget.attrs.setdefault('id', 'id_sourcing_provider')
-        # Only offer providers enabled in this deployment (feature flag).
-        from bom.third_party_apis.sourcing import enabled_provider_names
-        enabled = enabled_provider_names()
-        self.fields['sourcing_provider'].choices = [
-            (value, label) for value, label in self.fields['sourcing_provider'].choices if value in enabled
-        ]
         # Never echo stored secrets back to the page.
         self.key_is_set = bool(getattr(self.instance, 'sourcing_api_key', None))
         self.secret_is_set = bool(getattr(self.instance, 'sourcing_api_secret', None))

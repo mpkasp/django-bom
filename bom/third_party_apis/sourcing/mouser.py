@@ -12,15 +12,13 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from django.conf import settings
-from djmoney.contrib.exchange.exceptions import MissingRate
-from djmoney.contrib.exchange.models import convert_money
 from moneyed import Money
 
 from bom.utils import parse_number
 
 from ..base_api import BaseApiError
 from ..mouser import MouserApi
-from .base import CredentialField, Offer, PriceBreak, SourcingProvider, mpn_matches
+from .base import CredentialField, Offer, PriceBreak, SourcingProvider, mpn_matches, to_org_currency
 
 logger = logging.getLogger(__name__)
 
@@ -98,12 +96,9 @@ class MouserProvider(SourcingProvider):
             try:
                 price_breaks = []
                 for pb in part.get('PriceBreaks') or []:
-                    unit_cost = Money(parse_number(pb['Price']), pb['Currency'])
-                    if currency:
-                        try:
-                            unit_cost = convert_money(unit_cost, currency)
-                        except MissingRate:
-                            pass  # no exchange rate available; keep the offer in its native currency
+                    unit_cost = to_org_currency(Money(parse_number(pb['Price']), pb['Currency']), currency)
+                    if unit_cost is None:
+                        continue  # can't express in the org currency -> drop rather than mis-compare
                     price_breaks.append(PriceBreak(moq=int(pb['Quantity']), unit_cost=unit_cost))
                 # Keep matched-but-unpriced parts (obsolete / region-restricted) so the UI can show
                 # why there's no price, with a link out -- rather than dropping them silently.

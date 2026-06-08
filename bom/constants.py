@@ -14,11 +14,13 @@ SUBSCRIPTION_TYPE_FREE = 'F'
 SUBSCRIPTION_TYPE_PRO = 'P'
 SUBSCRIPTION_TYPES = ((SUBSCRIPTION_TYPE_FREE, 'Free'), (SUBSCRIPTION_TYPE_PRO, 'Pro'),)
 
+# 'nexar' is the internal key (Nexar is the API), but Octopart is the user-facing brand we display
+# (recognizable, and our deep links go to octopart.com). Nexar is mentioned only in the credential help.
 SOURCING_PROVIDER_MOUSER = 'mouser'
 SOURCING_PROVIDER_NEXAR = 'nexar'
 SOURCING_PROVIDERS = (
     (SOURCING_PROVIDER_MOUSER, 'Mouser'),
-    (SOURCING_PROVIDER_NEXAR, 'Nexar'),
+    (SOURCING_PROVIDER_NEXAR, 'Octopart'),
 )
 
 ROLE_TYPE_ADMIN = 'A'
