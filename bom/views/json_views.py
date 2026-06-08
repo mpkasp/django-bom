@@ -65,7 +65,7 @@ class SourcingMatchBOM(BomJsonResponse):
         flat_bom = part_revision.flat(assy_quantity)
 
         # Provider is selected per-organization; credentials are BYOK (encrypted on the org).
-        provider_name = getattr(organization, 'sourcing_provider', None) or 'nexar'
+        provider_name = getattr(organization, 'sourcing_provider', None) or 'mouser'
         manufacturer_parts = flat_bom.sourcing_parts()  # {bom_id: manufacturer_part}
 
         offers_by_mp = {}
