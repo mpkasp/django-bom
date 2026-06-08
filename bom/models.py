@@ -963,6 +963,7 @@ class ManufacturerPart(models.Model, AsDictModel):
     manufacturer = models.ForeignKey(Manufacturer, default=None, blank=True, null=True, on_delete=models.CASCADE)
     sourcing_disable = models.BooleanField(default=False)
     link = models.URLField(null=True, blank=True)
+    datasheet_url = models.URLField(null=True, blank=True)  # fallback when live sourcing has none
 
     class Meta:
         unique_together = [

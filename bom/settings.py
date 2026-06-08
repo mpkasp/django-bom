@@ -143,6 +143,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
+    'bom.third_party_apis.google_drive.store_drive_scope',
     'bom.third_party_apis.google_drive.initialize_parent',
 )
 
@@ -198,8 +199,8 @@ LOGOUT_URL = '/logout/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/settings?tab_anchor=file'
-SOCIAL_AUTH_DISCONNECT_REDIRECT_URL = '/settings?tab_anchor=file'
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/settings?tab_anchor=organization'
+SOCIAL_AUTH_DISCONNECT_REDIRECT_URL = '/settings?tab_anchor=organization'
 SOCIAL_AUTH_LOGIN_ERROR_URL = '/'
 
 # Custom login url for BOM_LOGIN (kept for compatibility)

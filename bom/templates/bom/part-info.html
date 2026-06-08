@@ -193,13 +193,27 @@
                                 <div class="col s8 l10"><a href="{% url 'google-drive:add-folder' part_id=part.id %}" target="_blank">Open Folder</a></div>
                             </div>
                             <div class="row">
-                                <div id="mouser-data-sheet-wrapper" style="display: none; min-height: 22px;">
+                                <div id="sourcing-data-sheet-wrapper" style="{% if not part.primary_manufacturer_part.datasheet_url %}display: none; {% endif %}min-height: 22px;">
                                     <div class="col s4 l2 text-right" style="padding-left: 0;">
-                                        <img title="Via Mouser.com" style="width: 16px;" src="{% static 'bom/img/mouser.png' %}">&nbsp;Datasheets
+                                        <i class="material-icons" style="font-size: 16px; vertical-align: text-bottom;">description</i>&nbsp;Datasheets
                                     </div>
-                                    <div class="col s8 l10"><a id="mouser-data-sheet" target="_blank">View datasheet</a></div>
+                                    <div class="col s8 l10"><a id="sourcing-data-sheet" target="_blank"
+                                        {% if part.primary_manufacturer_part.datasheet_url %}href="{{ part.primary_manufacturer_part.datasheet_url }}"{% endif %}>View
+                                        datasheet</a></div>
                                 </div>
                             </div>
+                            {% if part.primary_manufacturer_part.manufacturer_part_number %}
+                                <div class="row">
+                                    <div class="col s4 l2 text-right" style="padding-left: 0;">
+                                        <i class="material-icons" style="font-size: 16px; vertical-align: text-bottom;">search</i>&nbsp;Octopart:
+                                    </div>
+                                    <div class="col s8 l10">
+                                        <a href="https://octopart.com/search?q={{ part.primary_manufacturer_part.manufacturer_part_number|urlencode }}"
+                                           target="_blank" rel="noopener">Find datasheet &amp; sourcing&nbsp;<i
+                                                class="material-icons" style="font-size: 14px;">open_in_new</i></a>
+                                    </div>
+                                </div>
+                            {% endif %}
                         </li>
                         <li class="collection-header">
                             <h5><h5 class="title">Manufacturer & Sourcing</h5></h5>
@@ -215,24 +229,68 @@
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Unit Cost:</div>
-                                <div id="specs-unit-cost" class="col s8 l10"><span id="mouser-est-cost"></span><span>{{ indented_bom.unit_cost|default_if_none:'-' }}</span></div>
+                                <div id="specs-unit-cost" class="col s8 l10"><span id="sourcing-est-cost">{{ indented_bom.unit_cost|default_if_none:'-' }}</span><i
+                                        id="sourcing-est-cost-live" class="material-icons teal-text text-darken-1 tooltipped sourcing-live-marker"
+                                        style="display: none; font-size: 14px; vertical-align: text-bottom; cursor: help;"
+                                        data-position="right" data-tooltip="">bolt</i></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Subparts without costs:</div>
-                                <div class="col s8 l10"><span id="mouser-missing-item-costs"></span><span>{{ indented_bom.missing_item_costs }}</span></div>
+                                <div class="col s8 l10"><span id="sourcing-missing-item-costs">{{ indented_bom.missing_item_costs }}</span></div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Total NRE:</div>
-                                <div class="col s8 l10"><span id="mouser-est-nre"></span><span>{{ indented_bom.nre|default_if_none:'-' }}</span></div>
+                                <div class="col s8 l10"><span id="sourcing-est-nre">{{ indented_bom.nre|default_if_none:'-' }}</span></div>
                             </div>
                             <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Order Total (w/ MOQs):
-                                </div>
-                                <div class="col s8 l10"><span id="mouser-est-cost-per-order"></span><span>{{ indented_bom.out_of_pocket_cost|default_if_none:'-' }}</span></div>
+                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Order Total (w/ MOQs):</div>
+                                <div class="col s8 l10"><span id="sourcing-est-cost-per-order">{{ indented_bom.out_of_pocket_cost|default_if_none:'-' }}</span><i
+                                        id="sourcing-est-cost-per-order-live" class="material-icons teal-text text-darken-1 tooltipped sourcing-live-marker"
+                                        style="display: none; font-size: 14px; vertical-align: text-bottom; cursor: help;"
+                                        data-position="right" data-tooltip="">bolt</i></div>
                             </div>
-                            <div class="row" id="mouser-stock-wrapper" style="display: none;">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Mouser stock:</div>
-                                <div class="col s8 l10"><span id="mouser-stock"></span></div>
+
+                            <!-- Live market data (from the distributor, as-of timestamp) is fenced off from
+                                 your own quote/sourcing above so a provider-specific status (e.g. obsolete)
+                                 never reads as a verdict on the part. Populated by JS; hidden until then. -->
+                            <div id="sourcing-live-block" style="display: none; margin-top: 14px; padding: 8px 0 2px 12px; border-left: 3px solid #e0e0e0;">
+                                <div class="grey-text text-darken-1" style="font-size: 0.9em; margin-bottom: 6px;">
+                                    <i class="material-icons" style="font-size: 14px; vertical-align: text-bottom;">bolt</i>
+                                    Live market data &middot; via <span id="sourcing-live-provider"></span>
+                                    &middot; as of <span id="sourcing-live-timestamp"></span>
+                                </div>
+                                <div class="row" id="sourcing-live-status-wrapper" style="display: none; margin-bottom: 4px;">
+                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">
+                                        <i class="material-icons amber-text text-darken-2" style="font-size: 16px; vertical-align: text-bottom;">info_outline</i>&nbsp;Status:
+                                    </div>
+                                    <div class="col s8 l10 amber-text text-darken-2"><span id="sourcing-live-status"></span></div>
+                                </div>
+                                <div class="row" id="sourcing-live-price-wrapper" style="display: none; margin-bottom: 4px;">
+                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Price:</div>
+                                    <div class="col s8 l10"><span id="sourcing-live-price"></span></div>
+                                </div>
+                                <div class="row" id="sourcing-near-match-wrapper" style="display: none; margin-bottom: 4px;">
+                                    <div class="col s4 l2 text-right amber-text text-darken-2" style="padding-left: 0px;">Match:</div>
+                                    <div class="col s8 l10 amber-text text-darken-2">Near match — for
+                                        <span id="sourcing-near-match"></span>, not the exact part number.</div>
+                                </div>
+                                <div class="row" id="sourcing-stock-wrapper" style="display: none; margin-bottom: 4px;">
+                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">In stock:</div>
+                                    <div class="col s8 l10"><span id="sourcing-stock"></span></div>
+                                </div>
+                                <div class="row" id="sourcing-lead-time-wrapper" style="display: none; margin-bottom: 4px;">
+                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Lead time (days):</div>
+                                    <div class="col s8 l10"><span id="sourcing-lead-time"></span></div>
+                                </div>
+                                <div class="row" id="sourcing-seller-pn-wrapper" style="display: none; margin-bottom: 4px;">
+                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Vendor P/N:</div>
+                                    <div class="col s8 l10"><span id="sourcing-seller-pn"></span></div>
+                                </div>
+                                <div class="row" id="sourcing-live-datasheet-wrapper" style="display: none; margin-bottom: 4px;">
+                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Datasheet:</div>
+                                    <div class="col s8 l10"><a id="sourcing-live-datasheet" target="_blank">View&nbsp;<i
+                                            class="material-icons" style="font-size: 14px;">open_in_new</i></a></div>
+                                </div>
                             </div>
                         </li>
                     </ul>
@@ -437,5 +495,261 @@
             $('#where-used-revision').hide();
             $('#where-used-whole-part').show();
         }
+    </script>
+
+    <!-- Live sourcing: the server is the source of truth for pricing; the browser just renders
+         the response and re-requests with ?quantity= when the quote quantity changes. -->
+    <script>
+        {% if part_revision.id and sourcing_parts %}
+        // Distributor pricing is live-only and never persisted. The server fetches it, normalizes
+        // currency, and rolls up the costs; this script only renders what comes back -- there is no
+        // pricing math on the client (that lives once, in Python).
+        const currencyUnit = "{{ organization.currency }}" === "USD" ? "$" : "";
+        const topLevelPartRevisionId = "{{ part_revision.id }}";
+        const sourcingUrl = "{% url 'json:sourcing-match-bom' part_revision_id=part_revision.id %}";
+        // The price-break ladder doesn't change with quantity, so insert it only once per MPN.
+        const renderedBreaks = {};
+
+        function currentQuantity() {
+            const quantity = parseInt($('#id_quantity').val(), 10);
+            return isNaN(quantity) || quantity < 1 ? 1 : quantity;
+        }
+
+        function fetchSourcing(quantity) {
+            $.get(sourcingUrl + "?quantity=" + quantity, function (response) {
+                const errors = response['errors'];
+                if (errors && errors.length > 0) {
+                    console.error(errors);
+                    return;
+                }
+                const content = response['content'];
+                const flatBom = content['flat_bom'];
+                if (flatBom) {
+                    renderSourcing(content, flatBom);
+                }
+            });
+        }
+
+        function renderSourcing(content, flatBom) {
+            const bomParts = flatBom['parts'];
+            let anyLive = false;  // did any line's quote come from live distributor data?
+            for (const prid in bomParts) {
+                if (!bomParts.hasOwnProperty(prid)) continue;
+                const part = bomParts[prid];
+                if (part['api_info'] && part['seller_part']) {
+                    if (isLiveSellerPart(part['seller_part'])) anyLive = true;
+                    updateBomCell('#bom-indented', prid, part);
+                    updateBomCell('#bom-flat', prid, part);
+                }
+            }
+
+            // The quote is the best available across YOUR sourcing + live, rolled up server-side.
+            setText('#sourcing-est-cost', currencyUnit + parseFloat(flatBom['unit_cost']).toFixed(4));
+            setText('#sourcing-est-cost-per-order', currencyUnit + parseFloat(flatBom['out_of_pocket_cost']).toFixed(2));
+            setText('#sourcing-est-nre', currencyUnit + parseFloat(flatBom['nre']).toFixed(4));
+            setText('#sourcing-missing-item-costs', flatBom['missing_item_costs']);
+
+            // Mark the quote figures that include live data so it's clear which came from the distributor.
+            const liveTip = 'Includes live pricing from ' + capitalize(content['provider'] || '')
+                + (content['fetched_at'] ? ' · as of ' + new Date(content['fetched_at']).toLocaleString() : '');
+            updateLiveMarker('sourcing-est-cost-live', anyLive, liveTip);
+            updateLiveMarker('sourcing-est-cost-per-order-live', anyLive, liveTip);
+
+            updateLiveBlock(content, bomParts);  // live (distributor) data, fenced off from the quote
+            updateSourcingTab(bomParts);
+            $('#indented-bom').trigger('update');
+            $('#flat-bom').trigger('update');
+        }
+
+        function setText(selector, value) {
+            $(selector).text(value === null || value === undefined ? '-' : value);
+        }
+
+        function capitalize(text) {
+            return text ? text.charAt(0).toUpperCase() + text.slice(1) : '';
+        }
+
+        // Transient (live) seller parts have no primary key; saved (your) ones do.
+        function isLiveSellerPart(sellerPart) {
+            return sellerPart['id'] === null || sellerPart['id'] === undefined;
+        }
+
+        // The shared "this is live from the distributor" marker (native hover note).
+        function liveBoltHtml(provider) {
+            return ' <i class="material-icons teal-text text-darken-1" style="font-size: 13px; vertical-align: text-bottom;"'
+                + ' title="Live from ' + capitalize(provider || '') + '">bolt</i>';
+        }
+
+        // Show/hide a ⚡ "this value is live" marker with a Materialize hover note.
+        function updateLiveMarker(elementId, show, tooltip) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            const existing = M.Tooltip.getInstance(element);
+            if (existing) existing.destroy();
+            if (show) {
+                element.setAttribute('data-tooltip', tooltip);
+                element.style.display = '';
+                M.Tooltip.init(element);
+            } else {
+                element.style.display = 'none';
+            }
+        }
+
+        // Everything the distributor reported about the viewed part, in its own attributed block.
+        function updateLiveBlock(content, bomParts) {
+            const topLine = bomParts[topLevelPartRevisionId];
+            if (!topLine || !topLine['api_info']) return;
+            const apiInfo = topLine['api_info'];
+
+            $('#sourcing-live-provider').text(capitalize(apiInfo['provider'] || content['provider'] || ''));
+            if (content['fetched_at']) {
+                $('#sourcing-live-timestamp').text(new Date(content['fetched_at']).toLocaleString());
+            }
+
+            const breaks = apiInfo['price_breaks'] || [];
+            if (breaks.length > 0) {
+                const cheapest = Math.min.apply(null, breaks.map(function (pb) { return parseFloat(pb['unit_cost']); }));
+                showSpecRow('#sourcing-live-price-wrapper', '#sourcing-live-price', 'from ' + currencyUnit + cheapest.toFixed(4));
+            } else if (apiInfo['unavailable_reason']) {
+                let html = apiInfo['unavailable_reason'];
+                if (apiInfo['product_detail_url']) {
+                    html += ' <a href="' + apiInfo['product_detail_url'] + '" target="_blank">View ↗</a>';
+                }
+                $('#sourcing-live-status').html(html);
+                $('#sourcing-live-status-wrapper').show();
+            }
+
+            if (apiInfo['is_exact'] === false) {
+                showSpecRow('#sourcing-near-match-wrapper', '#sourcing-near-match', apiInfo['matched_mpn'] || 'a similar part');
+            }
+            if (apiInfo['stock'] !== null && apiInfo['stock'] !== undefined) {
+                showSpecRow('#sourcing-stock-wrapper', '#sourcing-stock', apiInfo['stock']);
+            }
+            showSpecRow('#sourcing-lead-time-wrapper', '#sourcing-lead-time', apiInfo['lead_time_days']);
+            showSpecRow('#sourcing-seller-pn-wrapper', '#sourcing-seller-pn', apiInfo['seller_part_number']);
+            if (apiInfo['data_sheet']) {
+                $('#sourcing-live-datasheet').attr('href', apiInfo['data_sheet']);
+                $('#sourcing-live-datasheet-wrapper').show();
+            }
+            $('#sourcing-live-block').show();
+        }
+
+        function updateBomCell(basePrefix, prid, part) {
+            const sellerPart = part['seller_part'];
+            const apiInfo = part['api_info'];
+            const fromLive = isLiveSellerPart(sellerPart);
+
+            const unitCostElement = $(basePrefix + '-unit-cost-' + prid);
+            if (unitCostElement.length) {
+                const price = parseFloat(sellerPart['unit_cost']).toFixed(4);
+                let priceHtml = fromLive && apiInfo['product_detail_url']
+                    ? '<a href="' + apiInfo['product_detail_url'] + '" target="_blank">' + price + '</a>' : price;
+                if (fromLive) priceHtml += liveBoltHtml(apiInfo['provider']);
+                unitCostElement.html(priceHtml);
+            }
+            // Only relabel the vendor when the quote actually came from live data. A manual optimal
+            // keeps its server-rendered vendor name -- we don't have its name client-side. Live lines
+            // get a ⚡ marker (native hover note) so they read as live, not manually entered.
+            if (fromLive) {
+                const sellerNameElement = $(basePrefix + '-seller-name-' + prid);
+                if (sellerNameElement.length) {
+                    let html = (apiInfo['seller'] || sellerPart['data_source'] || '') + liveBoltHtml(apiInfo['provider']);
+                    if (apiInfo['is_exact'] === false) {
+                        html += ' <span class="amber-text text-darken-2" style="font-size: 0.8em;" title="Near match: ' + (apiInfo['matched_mpn'] || '') + '">(near match)</span>';
+                    }
+                    sellerNameElement.html(html);
+                }
+            }
+            setCellText($(basePrefix + '-ext-qty-' + prid), part['total_extended_quantity']);
+            setCellText($(basePrefix + '-order-qty-' + prid), part['order_quantity']);
+            const orderCost = part['order_cost'];
+            setCellText($(basePrefix + '-ext-cost-' + prid),
+                orderCost === null || orderCost === undefined ? null : currencyUnit + parseFloat(orderCost).toFixed(2));
+        }
+
+        function setCellText(element, value) {
+            if (element.length === 0) return;
+            element.text(value === null || value === undefined ? '-' : value);
+        }
+
+        function showSpecRow(wrapperId, valueId, value) {
+            if (value === null || value === undefined || value === '') return;
+            $(valueId).text(value);
+            $(wrapperId).show();
+        }
+
+        // Light-touch update of the matched manufacturer part's optimal-seller row in the Sourcing tab.
+        function updateSourcingTab(bomParts) {
+            const topLine = bomParts[topLevelPartRevisionId];
+            if (!topLine || !topLine['api_info']) return;
+            const apiInfo = topLine['api_info'];
+            const sellerPart = topLine['seller_part'];
+            const manufacturerPartId = apiInfo['manufacturer_part_id'];
+            if (!manufacturerPartId) return;
+            const base = '#sourcing-mp-' + manufacturerPartId;
+            if ($(base + '-name').length === 0) return;
+
+            const nearMatch = apiInfo['is_exact'] === false
+                ? ' <span class="amber-text text-darken-2" style="font-size: 0.8em;" title="Near match: ' + (apiInfo['matched_mpn'] || '') + '">(near match)</span>'
+                : '';
+            $(base + '-name').html((apiInfo['seller'] || (sellerPart && sellerPart['data_source']) || '') + liveBoltHtml(apiInfo['provider']) + nearMatch);
+            $(base + '-pn').text(apiInfo['seller_part_number'] || '');
+            if (apiInfo['lead_time_days'] !== null && apiInfo['lead_time_days'] !== undefined) {
+                $(base + '-lt').text(apiInfo['lead_time_days']);
+            }
+
+            if (sellerPart) {
+                $(base + '-moq').text(sellerPart['minimum_order_quantity']);
+                $(base + '-cost').text(parseFloat(sellerPart['unit_cost']).toFixed(4));
+                addPriceBreakRows(manufacturerPartId, apiInfo, sellerPart);
+            } else if (apiInfo['unavailable_reason']) {
+                // Matched but no purchasable price -- show the reason where the price would be.
+                $(base + '-cost').html('<span class="amber-text text-darken-2" title="' + apiInfo['unavailable_reason'] + '">No price</span>');
+            }
+        }
+
+        // Insert the quantity price-break ladder as collapsible child rows under the MPN node,
+        // matching the seller-part rows (expand via the MPN's tree arrow).
+        function addPriceBreakRows(manufacturerPartId, apiInfo, sellerPart) {
+            const breaks = apiInfo['price_breaks'] || [];
+            if (breaks.length < 2 || renderedBreaks[manufacturerPartId]) return;
+            const node = $('#manufacturer-parts').treetable('node', manufacturerPartId);
+            if (!node) return;
+            renderedBreaks[manufacturerPartId] = true;
+
+            const seller = (apiInfo['seller'] || sellerPart['data_source'] || '') + liveBoltHtml(apiInfo['provider']);
+            const leadTime = (apiInfo['lead_time_days'] === null || apiInfo['lead_time_days'] === undefined) ? '' : apiInfo['lead_time_days'];
+            const sku = apiInfo['seller_part_number'] || '';
+
+            let rows = $();
+            breaks.forEach(function (pb, i) {
+                const price = currencyUnit + parseFloat(pb['unit_cost']).toFixed(4);
+                rows = rows.add($(
+                    '<tr data-tt-id="break-' + manufacturerPartId + '-' + i + '" data-tt-parent-id="' + manufacturerPartId + '">'
+                    + '<td class="text-normal"></td><td class="text-normal"></td>'
+                    + '<td class="text-normal">' + seller + '</td>'
+                    + '<td class="text-normal">' + sku + '</td>'
+                    + '<td class="text-normal">' + pb['moq'] + '</td>'
+                    + '<td class="text-normal"></td>'
+                    + '<td class="text-normal">' + price + '</td>'
+                    + '<td class="text-normal">' + leadTime + '</td>'
+                    + '<td class="text-normal"></td><td class="text-normal"></td><td class="text-normal"></td>'
+                    + '</tr>'
+                ));
+            });
+            $('#manufacturer-parts').treetable('loadBranch', node, rows);
+        }
+
+        $(document).ready(function () {
+            fetchSourcing(currentQuantity());
+
+            // Debounce quantity edits so a quick typist triggers one refetch, not one per keystroke.
+            let quantityDebounce = null;
+            $('#id_quantity').on('change keyup', function () {
+                clearTimeout(quantityDebounce);
+                quantityDebounce = setTimeout(function () { fetchSourcing(currentQuantity()); }, 400);
+            });
+        });
+        {% endif %}
     </script>
 {% endblock bom-script %}

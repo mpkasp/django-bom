@@ -38,9 +38,6 @@
                     <i class="material-icons">format_list_numbered</i>Part Numbers
                 </a>
                 {% endif %}
-                <a href="#integrations" class="collection-item" id="integrations-nav">
-                    <i class="material-icons">integration_instructions</i>Integrations
-                </a>
             </div>
         </div>
 
@@ -111,46 +108,135 @@
                         </form>
                     </div>
 
+                    {% comment %} subscription_panel.html ends with its own divider. {% endcomment %}
                     {% include 'bom/subscription_panel.html' %}
-
-                    <div class="section">
-                        <h4 class="section-title"><i class="material-icons red-text text-darken-1">exit_to_app</i>Leave
-                            Your Organization</h4>
-                        <p>Warning, the only way back in to {{ organization.name }} is if you are invited by an
-                            organization administrator.</p>
-                        <form name="leave-organization" action="{% url 'bom:settings' tab_anchor='organization' %}"
-                              method="post" enctype="multipart/form-data">
-                            {% csrf_token %}
-                            <div class="right-align">
-                                <button class="waves-effect waves-light btn red lighten-1" type="submit"
-                                        name="submit-leave-organization">
-                                    <i class="material-icons left">exit_to_app</i>Leave Organization
-                                </button>
-                            </div>
-                        </form>
-                    </div>
                 {% else %}
                     <div class="section">
-                        <h4 class="section-title">Organization</h4>
+                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">business</i>Organization
+                        </h4>
                         <p>You are a member of <b>{{ organization.name }}</b>.</p>
-                        <div class="section">
-                            <h4 class="section-title"><i class="material-icons red-text text-darken-1">exit_to_app</i>Leave
-                                Your Organization</h4>
-                            <p>Warning, the only way back in to {{ organization.name }} is if you are invited by an
-                                organization administrator.</p>
-                            <form name="leave-organization" action="{% url 'bom:settings' tab_anchor='organization' %}"
-                                  method="post" enctype="multipart/form-data">
+                    </div>
+                    <div class="divider"></div>
+                {% endif %}
+
+                <div class="section">
+                    <h4 class="section-title"><img style="height: 1em; margin-right: 4px; vertical-align: text-bottom;"
+                                                   title="Google Drive"
+                                                   src="{% static 'bom/img/google_drive_logo.svg' %}">File Storage
+                        (Google Drive)</h4>
+                    <p>Store part files in Google Drive. Connecting grants IndaBOM access to a folder
+                        for your part files — this is a separate, optional permission layered on top of your sign-in.
+                        {% if not organization.google_drive_parent %}
+                            {% if organization.owner == user %}As the organization owner, connecting will create an
+                                <b>IndaBOM Part Files</b> folder in your Drive.{% else %}Your organization owner must
+                                connect first to set up file storage.{% endif %}
+                        {% endif %}</p>
+                    {% if google_drive_connected %}
+                        <p class="green-text text-darken-1"><i class="material-icons"
+                                                               style="vertical-align: text-bottom;">check_circle</i>
+                            Google Drive connected{% if google_authentication %} as
+                                {{ google_authentication.uid }}{% endif %}.</p>
+                        <div class="right-align">
+                            <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
                                 {% csrf_token %}
-                                <div class="right-align">
-                                    <button class="waves-effect waves-light btn red lighten-1" type="submit"
-                                            name="submit-leave-organization">
-                                        <i class="material-icons left">exit_to_app</i>Leave Organization
-                                    </button>
-                                </div>
+                                <button class="waves-effect btn-flat red-text" type="submit">Disconnect
+                                    Google Drive
+                                </button>
                             </form>
                         </div>
+                    {% else %}
+                        <div class="right-align">
+                            <a class="waves-effect waves-light btn btn-primary"
+                               href="{% url 'social:begin' 'google-oauth2' %}?drive=1">
+                                <img title="Google Drive"
+                                     style="height: 1em; margin-right: 6px; vertical-align: text-bottom;"
+                                     src="{% static 'bom/img/google_drive_logo.svg' %}">Connect Google Drive
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                {% if perms.bom.manage_members %}
+                    <div class="section">
+                        <h4 class="section-title"><i class="material-icons"
+                                                     style="vertical-align: text-bottom; margin-right: 4px;">bolt</i>Live
+                            Sourcing</h4>
+                        <p>Look up live distributor pricing using your organization's own provider API
+                            credentials. Credentials are stored encrypted and never displayed. Enable
+                            sourcing per part class under <b>Part Classes</b>.</p>
+                        {% if sourcing_configured %}
+                            <p class="green-text text-darken-1"><i class="material-icons"
+                                                                   style="vertical-align: text-bottom;">check_circle</i>
+                                Connected to <strong>{{ sourcing_provider_label }}</strong>.</p>
+                            <div class="right-align">
+                                <form action="{% url 'bom:settings' tab_anchor='organization' %}" method="post"
+                                      style="display: inline;">
+                                    {% csrf_token %}
+                                    <button class="waves-effect btn-flat" type="submit"
+                                            name="submit-test-sourcing">Test connection
+                                    </button>
+                                </form>
+                                <form action="{% url 'bom:settings' tab_anchor='organization' %}" method="post"
+                                      style="display: inline;">
+                                    {% csrf_token %}
+                                    <button class="waves-effect btn-flat red-text" type="submit"
+                                            name="submit-clear-sourcing"
+                                            onclick="return confirm('Remove the stored {{ sourcing_provider_label }} credentials?')">
+                                        Disconnect {{ sourcing_provider_label }}
+                                    </button>
+                                </form>
+                            </div>
+                        {% else %}
+                            <p id="sourcing-key-help" class="grey-text" style="font-size: 0.9em;"></p>
+                            {{ sourcing_provider_schema|json_script:"sourcing-provider-schema" }}
+                            <form name="sourcing-settings" action="{% url 'bom:settings' tab_anchor='organization' %}"
+                                  method="post">
+                                {% csrf_token %}
+                                <div class="row">
+                                    {{ sourcing_settings_form.sourcing_provider|materializecss:'s12 l4' }}
+                                </div>
+                                <div class="row">
+                                    <div class="col s12 l6 input-field" id="sourcing-api-key-field">
+                                        {{ sourcing_settings_form.sourcing_api_key }}
+                                        <label for="{{ sourcing_settings_form.sourcing_api_key.id_for_label }}">{{ sourcing_settings_form.sourcing_api_key.label }}</label>
+                                        {{ sourcing_settings_form.sourcing_api_key.errors }}
+                                    </div>
+                                    <div class="col s12 l6 input-field" id="sourcing-api-secret-field">
+                                        {{ sourcing_settings_form.sourcing_api_secret }}
+                                        <label for="{{ sourcing_settings_form.sourcing_api_secret.id_for_label }}">{{ sourcing_settings_form.sourcing_api_secret.label }}</label>
+                                        {{ sourcing_settings_form.sourcing_api_secret.errors }}
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col s12 right-align">
+                                        <button class="waves-effect waves-light btn btn-primary" type="submit"
+                                                name="submit-edit-sourcing">Save
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        {% endif %}
                     </div>
                 {% endif %}
+
+                <div class="divider"></div>
+
+                <div class="section">
+                    <h4 class="section-title"><i class="material-icons red-text text-darken-1">exit_to_app</i>Leave Your
+                        Organization</h4>
+                    <p>Warning, the only way back in to {{ organization.name }} is if you are invited by an
+                        organization administrator.</p>
+                    <form name="leave-organization" action="{% url 'bom:settings' tab_anchor='organization' %}"
+                          method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="right-align">
+                            <button class="waves-effect waves-light btn red lighten-1" type="submit"
+                                    name="submit-leave-organization">
+                                <i class="material-icons left">exit_to_app</i>Leave Organization
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <div id="users" class="settings-section">
@@ -243,8 +329,10 @@
                                         <select name="part-class-action">
                                             <option value="" disabled selected>Choose your action</option>
                                             {% if perms.bom.manage_sourcing %}
-                                                <option value="submit-part-class-enable-mouser">Enable Mouser</option>
-                                                <option value="submit-part-class-disable-mouser">Disable Mouser</option>
+                                                <option value="submit-part-class-enable-sourcing">Enable Sourcing
+                                                </option>
+                                                <option value="submit-part-class-disable-sourcing">Disable Sourcing
+                                                </option>
                                             {% endif %}
                                             {% if perms.bom.manage_schema %}
                                                 <option value="submit-part-class-delete">Delete</option>
@@ -280,11 +368,9 @@
                                         <th class="text-normal">Code</th>
                                         <th class="text-normal">Name</th>
                                         <th class="text-normal">Description</th>
-                                        <th class="text-normal sorter-false"><img height="18"
-                                                                                  style="padding: 4px 4px 0 4px;"
-                                                                                  alt="Mouser" title="Via Mouser.com"
-                                                                                  src="{% static 'bom/img/mouser.png' %}">Mouser
-                                            Sourcing
+                                        <th class="text-normal sorter-false">
+                                            <i class="material-icons"
+                                               style="font-size: 18px; vertical-align: text-bottom;">bolt</i>Sourcing
                                         </th>
                                         {% if perms.bom.manage_schema %}
                                             <th class="text-normal sorter-false">Options</th>
@@ -305,9 +391,8 @@
                                             <td class="text-normal">{{ part_class.name }}</td>
                                             <td class="text-normal">{{ part_class.comment }}</td>
                                             <td class="text-normal">{% if part_class.sourcing_enabled %}
-                                                <img height="24" style="padding: 4px 4px 0 4px;" alt="Mouser"
-                                                     title="Via Mouser.com"
-                                                     src="{% static 'bom/img/mouser.png' %}">{% endif %}</td>
+                                                <i class="material-icons green-text" title="Live sourcing enabled">check_circle</i>{% endif %}
+                                            </td>
                                             {% if perms.bom.manage_schema %}
                                                 <td class="text-normal">
                                                     <a class="table-action"
@@ -567,71 +652,6 @@
                     {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
                 {% endif %}
             </div>
-
-            <div id="integrations" class="settings-section">
-                    <div class="section">
-                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">integration_instructions</i>Integrations
-                        </h4>
-                        <div class="section">
-                            <h5 class="section-title"><img style="height: 1em; margin-right: 4px;"
-                                                           title="Via Google Drive"
-                                                           src="{% static 'bom/img/google_drive_logo.svg' %}">Part File
-                                Storage with Google Drive</h5>
-                            {% if not google_authentication %}
-                                <p>Connect your Google account to access Google Drive features.
-                                    {% if not organization.google_drive_parent %}Organization owners can enable file
-                                        storage
-                                        using Google Drive. {% if organization.owner == user %}Since you are the owner,
-                                        you are
-                                        able to enable file storage!{% else %}Contact your organization owner to enable.
-                                    {% endif %}{% endif %}</p>
-                                <p>When you connect, we will create a folder called <b>IndaBOM Part Files</b> in your
-                                    root of
-                                    Google Drive (and it can be moved anywhere in your drive). To add files to a part,
-                                    navigate
-                                    to the part in IndaBOM, and on the part's <b>Specifications</b> tab, click the <img
-                                            title="Via Google Drive" style="width: 16px; vertical-align: middle;"
-                                            src="{% static 'bom/img/google_drive_logo.svg' %}"> Google Drive link. This
-                                    will
-                                    create a folder for your part in your root IndaBOM directory, or take you there if
-                                    it
-                                    already exists.</p>
-                                <p>You'll be able to access the files directly through Google Drive, and through
-                                    IndaBOM.</p>
-                            {% else %}
-                                <p>You're connected with Google and can access Google Drive features.</p>
-                            {% endif %}
-                            <div>
-                                {% if google_authentication %}
-                                    <p>Logged in to Google as: {{ google_authentication.uid }}</p>
-                                    <div class="right-align">
-                                        <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
-                                            {% csrf_token %}
-                                            <button class="waves-effect waves-light btn btn-primary" type="submit">
-                                                Disconnect
-                                            </button>
-                                        </form>
-                                    </div>
-                                {% else %}
-                                    <p>To get started, sign in with Google:</p>
-                                    <div class="right-align">
-                                        <a href="{% url "social:begin" "google-oauth2" %}">
-                                            <img title="Google sign-in."
-                                                 src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}">
-                                        </a>
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="section">
-                            <h5 class="section-title"><img style="height: 1em; margin-right: 4px;"
-                                                           title="Sourcing via Mouser.com"
-                                                           src="{% static 'bom/img/mouser.png' %}">Automagic Sourcing
-                                via Mouser</h5>
-                            <p>Currently under construction.</p>
-                        </div>
-                    </div>
-            </div>
         </div>
     </div>
 {% endblock %}
@@ -644,6 +664,10 @@
 
         .settings-section.active {
             display: block;
+        }
+
+        .settings-section .divider {
+            margin: 28px 0;
         }
     </style>
 
@@ -768,6 +792,53 @@
 
             // Initialize tablesorter for units table
             $("#units-table").tablesorter({theme: "materialize"});
+        });
+    </script>
+
+    <!-- Live Sourcing: credential fields are driven entirely by the providers' declared schema
+         (bom.third_party_apis.sourcing) so there are no hardcoded provider strings here. -->
+    <script>
+        $(document).ready(function () {
+            const schemaElement = document.getElementById('sourcing-provider-schema');
+            if (!schemaElement || !$('#id_sourcing_provider').length) return;
+            const PROVIDER_SCHEMA = JSON.parse(schemaElement.textContent);
+            // Whether a key is already stored -- the "how to get a key" hint is only useful when not.
+            const keyIsSet = {{ sourcing_settings_form.key_is_set|yesno:"true,false" }};
+
+            // Map the two form fields (api key / secret) to the selected provider's declared fields.
+            const FIELD_BY_ATTR = {
+                'sourcing_api_key': $('#sourcing-api-key-field'),
+                'sourcing_api_secret': $('#sourcing-api-secret-field'),
+            };
+
+            function applyProvider() {
+                const fields = PROVIDER_SCHEMA[$('#id_sourcing_provider').val()] || [];
+                const used = {};
+                const hints = [];
+                fields.forEach(function (field) {
+                    const wrapper = FIELD_BY_ATTR[field.attr];
+                    if (!wrapper) return;
+                    used[field.attr] = true;
+                    wrapper.find('label').text(field.label);
+                    wrapper.show();
+                    if (field.help_url || field.help_text) {
+                        const text = field.help_text || field.help_url;
+                        hints.push(field.help_url ? text + ': <a href="' + field.help_url + '" target="_blank">' + field.help_url + '</a>' : text);
+                    }
+                });
+                // Hide any form field this provider doesn't use (e.g. Mouser has no secret).
+                Object.keys(FIELD_BY_ATTR).forEach(function (attr) {
+                    if (!used[attr]) FIELD_BY_ATTR[attr].hide();
+                });
+                $('#sourcing-key-help').html(keyIsSet ? '' : hints.join(' '));
+                // Re-float labels now that fields (with placeholders) may have appeared.
+                M.updateTextFields();
+            }
+
+            // Materialize 1.0 fires jQuery 'change' on the original <select>; delegation keeps the
+            // handler working regardless of when formSelect virtualizes the element.
+            $(document).on('change', '#id_sourcing_provider', applyProvider);
+            applyProvider();
         });
     </script>
 

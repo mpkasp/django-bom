@@ -108,6 +108,14 @@ class TestBOM(TransactionTestCase):
         response = self.client.get(reverse('bom:home'), {'q': f'"{p1.full_part_number()}"'})
         self.assertEqual(len(response.context['part_revs']), 1)
 
+    def test_part_info_renders_stored_datasheet(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        mp = p1.primary_manufacturer_part
+        mp.datasheet_url = 'https://example.com/ds.pdf'
+        mp.save()
+        response = self.client.get(reverse('bom:part-info', kwargs={'part_id': p1.id}))
+        self.assertContains(response, 'https://example.com/ds.pdf')
+
     def test_part_info(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
@@ -1760,6 +1768,162 @@ class TestJsonViews(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(mock_match.called)
 
+    def _fake_match(self):
+        from djmoney.money import Money
+
+        from bom.third_party_apis.sourcing import Offer, PriceBreak
+
+        def fake_match(manufacturer_parts, currency=None):
+            currency = currency or 'USD'
+            return {
+                mp.id: [Offer(
+                    seller_name='Mouser',
+                    seller_part_number='SPN-1',
+                    manufacturer_name=mp.manufacturer.name if mp.manufacturer else '',
+                    price_breaks=[
+                        PriceBreak(moq=1, unit_cost=Money('5.00', currency)),
+                        PriceBreak(moq=100, unit_cost=Money('3.00', currency)),
+                    ],
+                    product_url='https://example.com/p',
+                    data_sheet='https://example.com/ds.pdf',
+                    stock=42,
+                    lead_time_days=14,
+                )]
+                for mp in manufacturer_parts
+            }
+        return fake_match
+
+    def test_sourcing_match_bom_attribution_and_reference_breaks(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        PartClass.objects.filter(organization=self.organization).update(sourcing_enabled=True)
+
+        with patch('bom.views.json_views.build_provider') as mock_build:
+            mock_build.return_value.match.side_effect = self._fake_match()
+            response = self.client.get(reverse('json:sourcing-match-bom', kwargs={'part_revision_id': p3.latest().id}))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.json()['content']
+        self.assertIn('provider', content)
+        self.assertIn('fetched_at', content)
+        self.assertEqual(content['currency'], str(self.organization.currency))
+
+        sourced = [part for part in content['flat_bom']['parts'].values() if part.get('api_info')]
+        self.assertGreaterEqual(len(sourced), 1)
+        line = sourced[0]
+        api_info = line['api_info']
+        self.assertEqual(api_info['provider'], content['provider'])
+        self.assertEqual(api_info['product_detail_url'], 'https://example.com/p')
+        # price_breaks is shipped for reference display only (server still does the roll-up).
+        self.assertEqual([(pb['moq'], pb['unit_cost']) for pb in api_info['price_breaks']], [(1, 5.0), (100, 3.0)])
+        # Exact/near-match flag is surfaced for the UI indicator.
+        self.assertIn('is_exact', api_info)
+        # Quantity/cost columns are exposed as clean numerics for the BOM table.
+        self.assertIn('total_extended_quantity', line)
+        self.assertIn('order_quantity', line)
+        self.assertIn('order_cost', line)
+
+    def test_sourcing_match_bom_surfaces_unpriced_match(self):
+        # A matched-but-unpriced part (obsolete / region-restricted) keeps its api_info -- with the
+        # reason and no seller_part -- so the UI can explain the lack of price.
+        from bom.third_party_apis.sourcing import Offer
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        PartClass.objects.filter(organization=self.organization).update(sourcing_enabled=True)
+        from bom.models import SellerPart
+        SellerPart.objects.filter(seller__organization=self.organization).delete()  # no stored price either
+
+        def unpriced_match(manufacturer_parts, currency=None):
+            return {mp.id: [Offer(seller_name='Mouser', seller_part_number='M', manufacturer_name='',
+                                  price_breaks=[], product_url='https://mouser.com/p',
+                                  unavailable_reason='Obsolete. Not sold in your region.')]
+                    for mp in manufacturer_parts}
+
+        with patch('bom.views.json_views.build_provider') as mock_build:
+            mock_build.return_value.match.side_effect = unpriced_match
+            response = self.client.get(reverse('json:sourcing-match-bom', kwargs={'part_revision_id': p3.latest().id}))
+
+        content = response.json()['content']
+        sourced = [part for part in content['flat_bom']['parts'].values() if part.get('api_info')]
+        self.assertGreaterEqual(len(sourced), 1)
+        line = sourced[0]
+        self.assertEqual(line['api_info']['price_breaks'], [])
+        self.assertIn('Obsolete', line['api_info']['unavailable_reason'])
+        self.assertIsNone(line['seller_part'])  # nothing purchasable -> no optimal seller part
+
+    def test_sourcing_match_bom_quantity_param_drives_pricing(self):
+        # The browser re-requests with ?quantity=; the server must price for that quantity
+        # (MOQ-aware) instead of the cached page quantity.
+        from bom.models import SellerPart
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        PartClass.objects.filter(organization=self.organization).update(sourcing_enabled=True)
+        # Drop stored seller parts so only the live offer breaks (moq1@5 / moq100@3) are candidates,
+        # making the optimal selection deterministic per quantity.
+        SellerPart.objects.filter(seller__organization=self.organization).delete()
+
+        def sourced_unit_costs(flat_bom):
+            return [float(part['seller_part']['unit_cost'])
+                    for part in flat_bom['parts'].values()
+                    if part.get('api_info') and part.get('seller_part')]
+
+        url = reverse('json:sourcing-match-bom', kwargs={'part_revision_id': p3.latest().id})
+        with patch('bom.views.json_views.build_provider') as mock_build:
+            mock_build.return_value.match.side_effect = self._fake_match()
+            low = self.client.get(url, {'quantity': 1}).json()['content']['flat_bom']
+            high = self.client.get(url, {'quantity': 1000}).json()['content']['flat_bom']
+
+        # qty 1 -> the moq=1 @ $5 break; qty 1000 -> the cheaper moq=100 @ $3 break.
+        self.assertIn(5.0, sourced_unit_costs(low))
+        self.assertIn(3.0, sourced_unit_costs(high))
+
+
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
+class TestProviderCredentialSchema(TestCase):
+    def test_schema_exposes_per_provider_fields(self):
+        from bom.third_party_apis.sourcing import provider_credential_schema
+
+        schema = provider_credential_schema()
+        # Mouser: single key field; Nexar: client id + secret. Single source of truth for the UI.
+        mouser_attrs = [f['attr'] for f in schema['mouser']]
+        nexar_attrs = [f['attr'] for f in schema['nexar']]
+        self.assertEqual(mouser_attrs, ['sourcing_api_key'])
+        self.assertEqual(nexar_attrs, ['sourcing_api_key', 'sourcing_api_secret'])
+        self.assertEqual(schema['mouser'][0]['label'], 'API Key')
+        self.assertEqual(schema['nexar'][0]['label'], 'Client ID')
+        self.assertTrue(schema['mouser'][0]['help_url'])
+
+    @override_settings(BOM_CONFIG={'sourcing_providers_enabled': ['mouser']})
+    def test_feature_flag_hides_disabled_provider(self):
+        from bom.third_party_apis.sourcing import enabled_provider_names, provider_credential_schema
+
+        self.assertEqual(enabled_provider_names(), ['mouser'])
+        schema = provider_credential_schema()
+        self.assertIn('mouser', schema)
+        self.assertNotIn('nexar', schema)
+
+
+@override_settings(BOM_CONFIG={'sourcing_providers_enabled': ['mouser']})
+class TestSourcingProviderFeatureFlag(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user, self.organization = create_user_and_organization()
+        self.client.login(username='kasper', password='ghostpassword')
+
+    def test_disabled_provider_select_omits_nexar(self):
+        response = self.client.get(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
+        # The flag drives the schema (JS) and the provider <select>; Nexar must not be offerable.
+        self.assertNotContains(response, '<option value="nexar"')
+
+    def test_disabled_provider_skips_live_fetch(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        PartClass.objects.filter(organization=self.organization).update(sourcing_enabled=True)
+        self.organization.sourcing_provider = 'nexar'  # disabled by the flag
+        self.organization.save()
+        with patch('bom.views.json_views.build_provider') as mock_build:
+            response = self.client.get(reverse('json:sourcing-match-bom', kwargs={'part_revision_id': p3.latest().id}))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(mock_build.called)  # provider feature-flagged off -> no live fetch attempted
+
 
 FERNET_KEY = Fernet.generate_key().decode()
 
@@ -1813,6 +1977,184 @@ class TestEncryptedTextField(TestCase):
             self.organization.sourcing_api_key = 'needs-a-key'
             with self.assertRaises(ImproperlyConfigured):
                 self.organization.save()
+
+
+class TestGoogleDriveScope(TestCase):
+    """django-bom owns the Drive integration; the Google login itself is the host's concern.
+    The integration must distinguish an identity-only Google connection from one that was
+    actually granted Drive access."""
+
+    DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
+
+    def setUp(self):
+        self.user, self.organization = create_user_and_organization()
+
+    def _connect(self, extra_data):
+        from social_django.models import UserSocialAuth
+        return UserSocialAuth.objects.create(user=self.user, provider='google-oauth2', uid='kasper@x.com', extra_data=extra_data)
+
+    def test_no_connection_has_no_drive_scope(self):
+        from bom.third_party_apis.google_drive import has_drive_scope
+        self.assertFalse(has_drive_scope(self.user))
+
+    def test_identity_only_connection_has_no_drive_scope(self):
+        from bom.third_party_apis.google_drive import has_drive_scope
+        self._connect({'scopes': ['openid', 'email', 'profile']})
+        self.assertFalse(has_drive_scope(self.user))
+
+    def test_drive_grant_has_drive_scope(self):
+        from bom.third_party_apis.google_drive import has_drive_scope
+        self._connect({'scopes': ['email', 'profile', self.DRIVE_SCOPE]})
+        self.assertTrue(has_drive_scope(self.user))
+
+    def test_legacy_connection_without_scopes_assumed_drive(self):
+        from bom.third_party_apis.google_drive import has_drive_scope
+        self._connect({'access_token': 'legacy'})  # predates scope tracking
+        self.assertTrue(has_drive_scope(self.user))
+
+    def test_store_drive_scope_persists_granted_scopes(self):
+        from bom.third_party_apis.google_drive import has_drive_scope, store_drive_scope
+        self._connect({'access_token': 'x'})
+        backend = type('B', (), {'name': 'google-oauth2'})()
+        store_drive_scope(backend, self.user, {'scope': f'email profile {self.DRIVE_SCOPE}'})
+        self.assertTrue(has_drive_scope(self.user))
+
+    def test_initialize_parent_skips_without_drive_scope(self):
+        from bom.third_party_apis import google_drive
+        backend = type('B', (), {'name': 'google-oauth2'})()
+        with patch.object(google_drive, 'create_root') as mock_create:
+            google_drive.initialize_parent(backend, self.user, {'scope': 'email profile'})
+        self.assertFalse(mock_create.called)
+
+    def test_initialize_parent_provisions_with_drive_scope(self):
+        from bom.third_party_apis import google_drive
+        backend = type('B', (), {'name': 'google-oauth2'})()
+        with patch.object(google_drive, 'create_root') as mock_create:
+            google_drive.initialize_parent(backend, self.user, {'scope': f'email {self.DRIVE_SCOPE}'})
+        self.assertTrue(mock_create.called)
+
+
+@override_settings(BOM_SOURCING_ENCRYPTION_KEYS=[FERNET_KEY])
+class TestSourcingSettings(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user, self.organization = create_user_and_organization()  # owner -> admin role
+        self.client.login(username='kasper', password='ghostpassword')
+
+    def _reload(self):
+        return self.organization.__class__.objects.get(pk=self.organization.pk)
+
+    def _post(self, data):
+        return self.client.post(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}), data)
+
+    def test_settings_page_renders(self):
+        response = self.client.get(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Live Sourcing')
+        self.assertNotContains(response, 'id="integrations-nav"')
+        # The provider <select> must carry an id (materializecss omits it) so the JS toggle
+        # that shows/hides the secret field per provider can target it.
+        self.assertContains(response, 'id="id_sourcing_provider"')
+
+    def test_admin_can_set_provider_and_key(self):
+        self._post({'submit-edit-sourcing': '', 'sourcing_provider': 'mouser', 'sourcing_api_key': 'my-key', 'sourcing_api_secret': ''})
+        org = self._reload()
+        self.assertEqual(org.sourcing_provider, 'mouser')
+        self.assertEqual(org.sourcing_api_key, 'my-key')
+
+    def test_blank_key_keeps_existing(self):
+        self.organization.sourcing_api_key = 'keep-me'
+        self.organization.save()
+        self._post({'submit-edit-sourcing': '', 'sourcing_provider': 'nexar', 'sourcing_api_key': '', 'sourcing_api_secret': 'client-secret'})
+        org = self._reload()
+        self.assertEqual(org.sourcing_api_key, 'keep-me')       # unchanged on blank submit
+        self.assertEqual(org.sourcing_api_secret, 'client-secret')
+        self.assertEqual(org.sourcing_provider, 'nexar')
+
+    def test_secret_never_rendered(self):
+        self.organization.sourcing_api_key = 'top-secret-value'
+        self.organization.save()
+        response = self.client.get(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
+        self.assertNotContains(response, 'top-secret-value')
+
+    def test_status_shows_connected_and_hides_form_when_configured(self):
+        self.organization.sourcing_provider = 'mouser'
+        self.organization.sourcing_api_key = 'my-key'
+        self.organization.save()
+        response = self.client.get(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
+        self.assertContains(response, 'Connected to')
+        self.assertContains(response, 'Disconnect Mouser')
+        self.assertContains(response, 'Test connection')
+        # Form is hidden while connected.
+        self.assertNotContains(response, 'name="submit-edit-sourcing"')
+
+    def test_form_shown_when_not_connected(self):
+        self.organization.sourcing_provider = 'mouser'
+        self.organization.save()
+        response = self.client.get(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
+        self.assertContains(response, 'name="submit-edit-sourcing"')
+        self.assertNotContains(response, 'Disconnect')
+
+    def test_nexar_needs_both_key_and_secret_to_be_connected(self):
+        self.organization.sourcing_provider = 'nexar'
+        self.organization.sourcing_api_key = 'client-id-only'
+        self.organization.save()
+        response = self.client.get(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
+        # Only the client id is set, so Nexar is not connected -- the form is still shown.
+        self.assertContains(response, 'name="submit-edit-sourcing"')
+        self.assertNotContains(response, 'Disconnect')
+
+    def test_test_connection_success(self):
+        self.organization.sourcing_provider = 'mouser'
+        self.organization.sourcing_api_key = 'my-key'
+        self.organization.save()
+        with patch('bom.views.views.build_provider') as mock_build:
+            mock_build.return_value.match.return_value = {}
+            response = self._post({'submit-test-sourcing': '1'})
+        self.assertTrue(mock_build.return_value.match.called)
+        self.assertContains(response, 'connection OK')
+
+    def test_test_connection_surfaces_provider_error(self):
+        from bom.third_party_apis.base_api import BaseApiError
+
+        self.organization.sourcing_provider = 'mouser'
+        self.organization.sourcing_api_key = 'my-key'
+        self.organization.save()
+        with patch('bom.views.views.build_provider') as mock_build:
+            mock_build.return_value.match.side_effect = BaseApiError("Nexar denied access ... Supply role/plan")
+            response = self._post({'submit-test-sourcing': '1'})
+        self.assertContains(response, 'connection failed')
+        self.assertContains(response, 'Supply role/plan')
+
+    def test_test_connection_requires_admin(self):
+        self.organization.sourcing_provider = 'mouser'
+        self.organization.sourcing_api_key = 'my-key'
+        self.organization.save()
+        viewer = User.objects.create_user('viewer2', 'v2@x.com', 'pw')
+        viewer.bom_profile(organization=self.organization)
+        self.client.logout()
+        self.client.login(username='viewer2', password='pw')
+        with patch('bom.views.views.build_provider') as mock_build:
+            self._post({'submit-test-sourcing': '1'})
+        self.assertFalse(mock_build.called)
+
+    def test_clear_credentials(self):
+        self.organization.sourcing_api_key = 'my-key'
+        self.organization.sourcing_api_secret = 'my-secret'
+        self.organization.save()
+        self._post({'submit-clear-sourcing': '1'})
+        org = self._reload()
+        self.assertFalse(org.sourcing_api_key)
+        self.assertFalse(org.sourcing_api_secret)
+
+    def test_non_admin_cannot_edit(self):
+        viewer = User.objects.create_user('viewer', 'v@x.com', 'pw')
+        viewer.bom_profile(organization=self.organization)  # default role -> not admin
+        self.client.logout()
+        self.client.login(username='viewer', password='pw')
+        self.client.post(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}),
+                         {'submit-edit-sourcing': '', 'sourcing_provider': 'mouser', 'sourcing_api_key': 'sneaky', 'sourcing_api_secret': ''})
+        self.assertNotEqual(self._reload().sourcing_api_key, 'sneaky')
 
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)

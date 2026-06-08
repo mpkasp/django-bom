@@ -13,6 +13,16 @@ from dataclasses import dataclass
 from moneyed import Money
 
 
+def mpn_matches(candidate, requested) -> bool:
+    """Exact manufacturer-part-number comparison, ignoring case and surrounding whitespace.
+
+    Distributor searches return the requested part *and* near variants (e.g. ``...-R`` vs
+    ``...-R7``); providers use this to keep only the exact match so pricing/attribution all
+    describe the same physical part.
+    """
+    return (candidate or '').strip().casefold() == (requested or '').strip().casefold()
+
+
 @dataclass
 class PriceBreak:
     moq: int
@@ -31,12 +41,33 @@ class Offer:
     product_url: str = ''
     data_sheet: str | None = None
     ncnr: bool = True
+    mpn: str = ''  # the matched part's MPN (may differ from the requested one on a near match)
+    is_exact: bool = True  # False when this is a near-match fallback, not the requested MPN
+    unavailable_reason: str = ''  # set when the part matched but has no purchasable price
+                                  # (e.g. obsolete, or not sold in the account's region)
+
+
+@dataclass
+class CredentialField:
+    """One BYOK credential a provider needs, mapped to a field on the organization.
+
+    Single source of truth for the settings UI: the form, the per-provider field labels,
+    and the "how to get a key" hint are all driven from each provider's declared fields,
+    so adding a provider means editing only that provider class.
+    """
+
+    attr: str  # organization field: 'sourcing_api_key' | 'sourcing_api_secret'
+    label: str  # e.g. 'API Key', 'Client ID', 'Client Secret'
+    help_text: str = ''  # short hint shown when no key is stored yet
+    help_url: str = ''  # where to obtain the credential
 
 
 class SourcingProvider:
     """Abstract base for pluggable sourcing providers."""
 
     name: str = ''
+    # Declared per provider; drives the settings form/JS (see CredentialField).
+    credential_fields: list = []
 
     def __init__(self, credentials: dict | None = None):
         self.credentials = credentials or {}

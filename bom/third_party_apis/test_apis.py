@@ -82,12 +82,14 @@ class TestSourcingProvider(TestCase):
         self.assertIsInstance(nexar, NexarProvider)
         self.assertEqual(nexar.credentials, {'client_id': 'nexar-id', 'client_secret': 'nexar-secret'})
 
-    @patch.object(MouserApi, 'get_manufacturer_list', return_value={})
     @patch.object(MouserApi, 'search_part', return_value=FAKE_MOUSER_PARTS)
-    def test_match_parses_offers(self, mock_search, mock_mfg):
+    def test_match_parses_offers(self, mock_search):
         provider = MouserProvider()
         offers_by_mp = provider.match([self.mp], currency=None)
 
+        # A manufacturer-bearing part is matched via plain part-number search (no manufacturer-list call).
+        self.assertTrue(self.mp.manufacturer)
+        mock_search.assert_called_once()
         self.assertIn(self.mp.id, offers_by_mp)
         offers = offers_by_mp[self.mp.id]
         self.assertEqual(len(offers), 1)
@@ -102,10 +104,56 @@ class TestSourcingProvider(TestCase):
         self.assertEqual(offer.price_breaks[0].unit_cost, Money('5.00', 'USD'))
         self.assertEqual(offer.price_breaks[1].moq, 100)
 
-    @patch.object(MouserApi, 'get_manufacturer_list', return_value={})
     @patch.object(MouserApi, 'search_part', return_value={'Parts': []})
-    def test_match_empty(self, mock_search, mock_mfg):
+    def test_match_empty(self, mock_search):
         self.assertEqual(MouserProvider().match([self.mp]), {self.mp.id: []})
+
+    def test_match_keeps_only_exact_mpn(self):
+        # Mouser returns the exact part plus a near variant; only the exact MPN must be used so the
+        # optimal price and the ladder describe the same part.
+        mpn = self.mp.manufacturer_part_number
+        mixed = {'Parts': [
+            {'ManufacturerPartNumber': mpn + '7', 'MouserPartNumber': 'VARIANT', 'Manufacturer': 'ST',
+             'PriceBreaks': [{'Quantity': '100', 'Price': '6.32', 'Currency': 'USD'}], 'ProductDetailUrl': 'v'},
+            {'ManufacturerPartNumber': mpn.lower(), 'MouserPartNumber': 'EXACT', 'Manufacturer': 'ST',
+             'PriceBreaks': [{'Quantity': '100', 'Price': '6.94', 'Currency': 'USD'}], 'ProductDetailUrl': 'e'},
+        ]}
+        with patch.object(MouserApi, 'search_part', return_value=mixed):
+            offers = MouserProvider().match([self.mp], currency=None)[self.mp.id]
+        self.assertEqual(len(offers), 1)
+        self.assertEqual(offers[0].seller_part_number, 'EXACT')  # case-insensitive exact match
+        self.assertEqual(offers[0].price_breaks[0].unit_cost, Money('6.94', 'USD'))
+        self.assertTrue(offers[0].is_exact)
+
+    def test_match_no_exact_falls_back_to_near_match(self):
+        mpn = self.mp.manufacturer_part_number
+        only_variant = {'Parts': [
+            {'ManufacturerPartNumber': mpn + '7', 'MouserPartNumber': 'VARIANT', 'Manufacturer': 'ST',
+             'PriceBreaks': [{'Quantity': '1', 'Price': '6.32', 'Currency': 'USD'}], 'ProductDetailUrl': 'v'},
+        ]}
+        with patch.object(MouserApi, 'search_part', return_value=only_variant):
+            offers = MouserProvider().match([self.mp], currency=None)[self.mp.id]
+        self.assertEqual(len(offers), 1)
+        self.assertFalse(offers[0].is_exact)
+        self.assertEqual(offers[0].mpn, mpn + '7')
+
+    def test_match_unpriced_part_surfaces_reason(self):
+        # Matched exactly but obsolete + region-restricted with no price breaks: keep the offer so the
+        # UI can explain why there's no price (instead of dropping it).
+        mpn = self.mp.manufacturer_part_number
+        obsolete = {'Parts': [
+            {'ManufacturerPartNumber': mpn, 'MouserPartNumber': 'M', 'Manufacturer': 'KOA', 'PriceBreaks': [],
+             'LifecycleStatus': 'Obsolete',
+             'RestrictionMessage': 'Mouser does not presently sell this product in your region.',
+             'ProductDetailUrl': 'https://mouser.com/p'},
+        ]}
+        with patch.object(MouserApi, 'search_part', return_value=obsolete):
+            offers = MouserProvider().match([self.mp], currency=None)[self.mp.id]
+        self.assertEqual(len(offers), 1)
+        self.assertEqual(offers[0].price_breaks, [])
+        self.assertIn('Obsolete', offers[0].unavailable_reason)
+        self.assertIn('region', offers[0].unavailable_reason)
+        self.assertEqual(offers[0].product_url, 'https://mouser.com/p')
 
     def test_match_no_parts_makes_no_calls(self):
         with patch.object(MouserApi, 'search_part') as mock_search:
@@ -228,6 +276,25 @@ class TestNexarProvider(TestCase):
 
         self.assertEqual(offers_by_mp[self.mp2.id][0].seller_name, 'Mouser')
 
+    @patch('bom.third_party_apis.sourcing.nexar._get_token', return_value='tok')
+    @patch('bom.third_party_apis.sourcing.nexar.requests.post')
+    def test_match_keeps_only_exact_mpn(self, mock_post, mock_token):
+        mpn = self.mp1.manufacturer_part_number
+        data = {'data': {'supMultiMatch': [
+            {'reference': str(self.mp1.id), 'parts': [
+                {'mpn': mpn + 'X', 'manufacturer': {'name': 'ST'}, 'bestDatasheet': None,
+                 'sellers': [{'company': {'name': 'DK'}, 'offers': [
+                     {'sku': 'variant', 'prices': [{'quantity': 1, 'price': 1.0, 'currency': 'USD'}]}]}]},
+                {'mpn': mpn, 'manufacturer': {'name': 'ST'}, 'bestDatasheet': None,
+                 'sellers': [{'company': {'name': 'DK'}, 'offers': [
+                     {'sku': 'exact', 'prices': [{'quantity': 1, 'price': 2.0, 'currency': 'USD'}]}]}]},
+            ]},
+        ]}}
+        mock_post.return_value = Mock(status_code=200, json=Mock(return_value=data))
+
+        offers = NexarProvider(self.CREDENTIALS).match([self.mp1], currency=None)[self.mp1.id]
+        self.assertEqual([offer.seller_part_number for offer in offers], ['exact'])
+
     @patch('bom.third_party_apis.sourcing.nexar._get_token')
     @patch('bom.third_party_apis.sourcing.nexar.requests.post')
     def test_match_no_parts_makes_no_calls(self, mock_post, mock_token):
@@ -238,3 +305,17 @@ class TestNexarProvider(TestCase):
     def test_missing_credentials_raises(self):
         with self.assertRaises(BaseApiError):
             NexarProvider().match([self.mp1])
+
+    @patch('bom.third_party_apis.sourcing.nexar._get_token', return_value='tok')
+    @patch('bom.third_party_apis.sourcing.nexar.requests.post')
+    def test_authorization_error_gives_actionable_message(self, mock_post, mock_token):
+        # A DISTRIBUTOR-role Nexar app can't read 'sellers'; we surface a clear message, not the raw blob.
+        errors = {'errors': [{'message': "Role 'DISTRIBUTOR' is not authorized to access 'sellers'."}]}
+        mock_post.return_value = Mock(status_code=200, json=Mock(return_value=errors))
+
+        with self.assertRaises(BaseApiError) as ctx:
+            NexarProvider(self.CREDENTIALS).match([self.mp1])
+
+        message = str(ctx.exception)
+        self.assertIn('Supply role/plan', message)
+        self.assertNotIn("'extensions'", message)  # raw GraphQL payload is not dumped

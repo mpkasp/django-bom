@@ -48,6 +48,11 @@
                         {{ manufacturer_part_form.link.errors }}
                         {{ manufacturer_part_form.link }}
                     </div>
+                    <div class="fieldWrapper col s6">
+                        <label for="{{ manufacturer_part_form.datasheet_url.id_for_label }}"><b>Datasheet URL</b></label>
+                        {{ manufacturer_part_form.datasheet_url.errors }}
+                        {{ manufacturer_part_form.datasheet_url }}
+                    </div>
                     {% if part.number_class.sourcing_enabled %}
 {#                    <label for="{{ manufacturer_part_form.sourcing_disable.id_for_label }}"><b>Disable sourcing info</b></label>#}
                     {{ manufacturer_part_form.sourcing_disable.errors }}

@@ -3,13 +3,14 @@ import logging
 import operator
 from functools import reduce
 from json import dumps
+from types import SimpleNamespace
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count, ProtectedError, Q, Subquery, prefetch_related_objects
 from django.db.models.aggregates import Max
@@ -53,6 +54,7 @@ from bom.forms import (
     Seller,
     SellerForm,
     SellerPartForm,
+    SourcingSettingsForm,
     SubpartForm,
     UnitDefinitionFormSet,
     UploadBOMForm,
@@ -79,6 +81,9 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
+from bom.third_party_apis.base_api import BaseApiError
+from bom.third_party_apis.google_drive import has_drive_scope
+from bom.third_party_apis.sourcing import build_provider, provider_credential_schema, provider_is_configured
 from bom.utils import check_references_for_duplicates, listify_string, prep_for_sorting_nicely
 
 logger = logging.getLogger(__name__)
@@ -478,6 +483,49 @@ def bom_settings(request, tab_anchor=None):
             tab_anchor = ORGANIZATION_TAB
             organization_form = OrganizationFormEditSettings(instance=organization, user=user)
 
+        elif 'submit-edit-sourcing' in request.POST:
+            tab_anchor = ORGANIZATION_TAB
+            # BYOK credentials carry direct API billing, so restrict to org admins.
+            if not request.user.has_perm('bom.manage_members', organization):
+                messages.error(request, "You are not allowed to manage sourcing credentials, contact your organization admin.")
+            else:
+                sourcing_settings_form = SourcingSettingsForm(request.POST, instance=organization)
+                if sourcing_settings_form.is_valid():
+                    try:
+                        sourcing_settings_form.save()
+                        messages.info(request, "Sourcing settings saved.")
+                    except ImproperlyConfigured:
+                        messages.error(request, "Sourcing credentials can't be stored: encryption key (BOM_SOURCING_ENCRYPTION_KEYS) is not configured.")
+                else:
+                    messages.error(request, sourcing_settings_form.errors)
+
+        elif 'submit-clear-sourcing' in request.POST:
+            tab_anchor = ORGANIZATION_TAB
+            if not request.user.has_perm('bom.manage_members', organization):
+                messages.error(request, "You are not allowed to manage sourcing credentials, contact your organization admin.")
+            else:
+                organization.sourcing_api_key = ''
+                organization.sourcing_api_secret = ''
+                organization.save()
+                messages.info(request, "Sourcing credentials cleared.")
+
+        elif 'submit-test-sourcing' in request.POST:
+            tab_anchor = ORGANIZATION_TAB
+            if not request.user.has_perm('bom.manage_members', organization):
+                messages.error(request, "You are not allowed to manage sourcing credentials, contact your organization admin.")
+            else:
+                provider_name = organization.sourcing_provider or constants.SOURCING_PROVIDER_NEXAR
+                provider_label = dict(constants.SOURCING_PROVIDERS).get(provider_name, provider_name)
+                # A common jellybean MPN guaranteed to match, so the provider resolves seller/offer
+                # data -- this is what surfaces role/authorization problems (not just bad credentials).
+                probe = SimpleNamespace(id=0, manufacturer_part_number='RC0805FR-0710KL', manufacturer=None)
+                try:
+                    provider = build_provider(provider_name, organization)
+                    provider.match([probe], currency=organization.currency)
+                    messages.success(request, f"{provider_label} connection OK — credentials are valid and authorized.")
+                except BaseApiError as err:
+                    messages.error(request, f"{provider_label} connection failed: {err}")
+
         elif 'submit-number-item-len' in request.POST:
             tab_anchor = INDABOM_TAB
             organization_number_len_form = OrganizationNumberLenForm(request.POST, instance=organization)
@@ -530,10 +578,10 @@ def bom_settings(request, tab_anchor=None):
         elif 'part-class-action' in request.POST and part_class_action is not None:
             if len(part_class_action_ids) <= 0:
                 messages.warning(request, "No action was taken because no part classes were selected. Select part classes by checking the checkboxes below.")
-            elif part_class_action == 'submit-part-class-enable-mouser':
+            elif part_class_action == 'submit-part-class-enable-sourcing':
                 tab_anchor = INDABOM_TAB
                 PartClass.objects.filter(id__in=part_class_action_ids).update(sourcing_enabled=True)
-            elif part_class_action == 'submit-part-class-disable-mouser':
+            elif part_class_action == 'submit-part-class-disable-sourcing':
                 tab_anchor = INDABOM_TAB
                 PartClass.objects.filter(id__in=part_class_action_ids).update(sourcing_enabled=False)
             elif part_class_action == 'submit-part-class-delete':
@@ -574,6 +622,12 @@ def bom_settings(request, tab_anchor=None):
     user_meta_form = UserMetaForm()
 
     organization_form = OrganizationFormEditSettings(instance=organization, user=user)
+    sourcing_settings_form = SourcingSettingsForm(instance=organization)
+    sourcing_provider_schema = provider_credential_schema()
+    active_sourcing_provider = organization.sourcing_provider or constants.SOURCING_PROVIDER_NEXAR
+    sourcing_configured = provider_is_configured(active_sourcing_provider, organization)
+    sourcing_provider_label = dict(constants.SOURCING_PROVIDERS).get(active_sourcing_provider, active_sourcing_provider)
+    google_drive_connected = has_drive_scope(user)
     organization_number_len_form = OrganizationNumberLenForm(instance=organization)
     part_class_form = PartClassForm(organization=organization)
     part_class_form_action = reverse('bom:settings', kwargs={'tab_anchor': INDABOM_TAB})

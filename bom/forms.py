@@ -329,6 +329,67 @@ class OrganizationFormEditSettings(OrganizationForm):
         fields = ['name', 'owner', 'currency']
 
 
+# Kept separate from OrganizationFormEditSettings on purpose: different save semantics (no
+# "confirm org change" prompt), write-only secret handling, and provider-conditional fields.
+# The per-provider field labels/help come from each provider's declared credential_fields
+# (bom.third_party_apis.sourcing) so the settings form/JS hold no hardcoded provider strings.
+class SourcingSettingsForm(forms.ModelForm):
+    """Per-organization live-sourcing provider + BYOK credentials.
+
+    Secrets are write-only: the stored values are never rendered back into the form. A blank
+    submission keeps the existing secret; a non-blank one replaces it. ``key_is_set`` /
+    ``secret_is_set`` let the template show a "already set -- replace?" hint.
+    """
+
+    # Labels are set directly on the fields (Meta.labels does not apply to declared fields).
+    # The JS provider toggle relabels these per provider; these are the no-JS fallbacks.
+    sourcing_api_key = forms.CharField(
+        required=False,
+        label='API Key / Client ID',
+        widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'new-password'}),
+    )
+    sourcing_api_secret = forms.CharField(
+        required=False,
+        label='Client Secret',
+        widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'new-password'}),
+    )
+
+    class Meta:
+        model = Organization
+        fields = ['sourcing_provider', 'sourcing_api_key', 'sourcing_api_secret']
+        labels = {
+            'sourcing_provider': 'Sourcing Provider',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The materializecss filter renders <select> without an id; set one so the JS provider
+        # toggle (and Materialize change events) can target it.
+        self.fields['sourcing_provider'].widget.attrs.setdefault('id', 'id_sourcing_provider')
+        # Only offer providers enabled in this deployment (feature flag).
+        from bom.third_party_apis.sourcing import enabled_provider_names
+        enabled = enabled_provider_names()
+        self.fields['sourcing_provider'].choices = [
+            (value, label) for value, label in self.fields['sourcing_provider'].choices if value in enabled
+        ]
+        # Never echo stored secrets back to the page.
+        self.key_is_set = bool(getattr(self.instance, 'sourcing_api_key', None))
+        self.secret_is_set = bool(getattr(self.instance, 'sourcing_api_secret', None))
+        self.initial['sourcing_api_key'] = ''
+        self.initial['sourcing_api_secret'] = ''
+        unset = 'Enter value'
+        already_set = '•••••••• set — leave blank to keep'
+        self.fields['sourcing_api_key'].widget.attrs['placeholder'] = already_set if self.key_is_set else unset
+        self.fields['sourcing_api_secret'].widget.attrs['placeholder'] = already_set if self.secret_is_set else unset
+
+    def clean_sourcing_api_key(self):
+        # Blank submit means "keep the existing secret".
+        return self.cleaned_data.get('sourcing_api_key') or self.instance.sourcing_api_key
+
+    def clean_sourcing_api_secret(self):
+        return self.cleaned_data.get('sourcing_api_secret') or self.instance.sourcing_api_secret
+
+
 class OrganizationNumberLenForm(OrganizationBaseForm):
     class Meta(OrganizationBaseForm.Meta):
         fields = ['number_class_code_len', 'number_item_len', 'number_variation_len']

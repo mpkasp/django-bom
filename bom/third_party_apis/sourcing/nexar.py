@@ -16,11 +16,12 @@ import threading
 import time
 
 import requests
+from djmoney.contrib.exchange.exceptions import MissingRate
 from djmoney.contrib.exchange.models import convert_money
 from moneyed import Money
 
 from ..base_api import BaseApiError
-from .base import Offer, PriceBreak, SourcingProvider
+from .base import CredentialField, Offer, PriceBreak, SourcingProvider, mpn_matches
 
 NEXAR_TOKEN_URL = 'https://identity.nexar.com/connect/token'
 NEXAR_GRAPHQL_URL = 'https://api.nexar.com/graphql'
@@ -87,6 +88,18 @@ def _get_token(client_id, client_secret) -> str:
 
 class NexarProvider(SourcingProvider):
     name = 'nexar'
+    credential_fields = [
+        CredentialField(
+            attr='sourcing_api_key',
+            label='Client ID',
+            help_text='Create an application in the Nexar portal',
+            help_url='https://portal.nexar.com/',
+        ),
+        CredentialField(
+            attr='sourcing_api_secret',
+            label='Client Secret',
+        ),
+    ]
 
     @classmethod
     def credentials_from_organization(cls, organization) -> dict:
@@ -104,8 +117,10 @@ class NexarProvider(SourcingProvider):
         client_id, client_secret = self._credentials()
         token = _get_token(client_id, client_secret)
 
+        # Ask for a few candidates per MPN (still one batched HTTP call) so the exact part is
+        # present even when Nexar's top hit is a near variant.
         queries = [
-            {'mpn': mp.manufacturer_part_number, 'reference': str(mp.id), 'limit': 1}
+            {'mpn': mp.manufacturer_part_number, 'reference': str(mp.id), 'limit': 5}
             for mp in manufacturer_parts
         ]
         data = self._graphql(token, SUP_MULTI_MATCH_QUERY, {'queries': queries})
@@ -119,9 +134,15 @@ class NexarProvider(SourcingProvider):
             mp_id = int(reference)
             if mp_id not in by_id:
                 continue
+            requested_mpn = by_id[mp_id].manufacturer_part_number
+            parts = result.get('parts') or []
+            # Prefer the exact MPN so pricing/attribution describe the same part; otherwise fall back
+            # to the single top candidate, flagged as a near match.
+            exact = [part for part in parts if mpn_matches(part.get('mpn'), requested_mpn)]
+            selected = exact or parts[:1]
             offers = offers_by_mp.setdefault(mp_id, [])
-            for part in result.get('parts') or []:
-                offers.extend(self._part_to_offers(part, currency))
+            for part in selected:
+                offers.extend(self._part_to_offers(part, currency, is_exact=bool(exact)))
 
         return offers_by_mp
 
@@ -143,13 +164,24 @@ class NexarProvider(SourcingProvider):
             raise BaseApiError(f"Nexar HTTP {response.status_code}: {response.reason}")
         payload = response.json()
         if payload.get('errors'):
-            raise BaseApiError(f"Nexar GraphQL error(s): {payload['errors']}")
+            messages = '; '.join(error.get('message', str(error)) for error in payload['errors'])
+            # A DISTRIBUTOR-role Nexar app is not allowed to read other sellers' offers; surface
+            # an actionable message rather than the raw GraphQL error list. This is a Nexar account
+            # role/plan limitation, not something credentials alone can fix.
+            if 'not authorized' in messages.lower():
+                raise BaseApiError(
+                    "Nexar denied access to seller pricing for this account "
+                    f"({messages}). The Nexar application needs a Supply role/plan with access to "
+                    "seller offers (a DISTRIBUTOR-role application cannot read other sellers' pricing)."
+                )
+            raise BaseApiError(f"Nexar GraphQL error(s): {messages}")
         return payload.get('data') or {}
 
     @staticmethod
-    def _part_to_offers(part: dict, currency=None) -> list:
+    def _part_to_offers(part: dict, currency=None, is_exact=True) -> list:
         manufacturer_name = (part.get('manufacturer') or {}).get('name', '')
         data_sheet = (part.get('bestDatasheet') or {}).get('url')
+        mpn = part.get('mpn', '')
 
         offers = []
         for seller in part.get('sellers') or []:
@@ -162,7 +194,10 @@ class NexarProvider(SourcingProvider):
                     except (KeyError, TypeError):
                         continue
                     if currency:
-                        unit_cost = convert_money(unit_cost, currency)
+                        try:
+                            unit_cost = convert_money(unit_cost, currency)
+                        except MissingRate:
+                            pass  # no exchange rate available; keep the offer in its native currency
                     price_breaks.append(PriceBreak(moq=int(price.get('quantity', 1)), unit_cost=unit_cost))
                 if not price_breaks:
                     continue
@@ -178,6 +213,8 @@ class NexarProvider(SourcingProvider):
                         product_url=offer.get('clickUrl', ''),
                         data_sheet=data_sheet,
                         ncnr=True,
+                        mpn=mpn,
+                        is_exact=is_exact,
                     )
                 )
         return offers

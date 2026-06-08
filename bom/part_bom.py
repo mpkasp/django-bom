@@ -163,6 +163,13 @@ class PartBomItem(AsDictModel):
     def as_dict(self, include_id=False):
         dict = super().as_dict()
         del dict['bom_id']
+        # The generic serializer stringifies Money/None (so a missing value becomes "None", which is
+        # truthy in JS). Emit clean nulls/numerics so the client can reliably tell priced lines from
+        # unpriced/non-sourced ones and render the cost columns.
+        dict['order_quantity'] = self.order_quantity
+        dict['order_cost'] = float(self.order_cost.amount) if self.order_cost is not None else None
+        dict['seller_part'] = self.seller_part.as_dict() if self.seller_part is not None else None
+        dict['api_info'] = self.api_info if self.api_info else None
         return dict
 
     def as_dict_for_export(self):

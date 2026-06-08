@@ -3,19 +3,18 @@ from functools import wraps
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from social_django.models import UserSocialAuth
 
 
 def google_authenticated(function):
     @wraps(function)
     def wrap(request, *args, **kwargs):
-        user = request.user
-        try:
-            user.social_auth.get(provider='google-oauth2')
+        # Lazy import avoids a circular import (google_drive imports this decorator).
+        from bom.third_party_apis.google_drive import has_drive_scope
+
+        if has_drive_scope(request.user):
             return function(request, *args, **kwargs)
-        except UserSocialAuth.DoesNotExist:
-            messages.error(request, "You must Sign in with Google to access this feature.")
-            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
+        messages.error(request, "You must connect Google Drive to access this feature.")
+        return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
     return wrap
 
 

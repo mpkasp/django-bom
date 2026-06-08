@@ -3,15 +3,42 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from requests import HTTPError
+from social_django.models import UserSocialAuth
 from social_django.utils import load_strategy
 
 from bom.decorators import google_authenticated
 from bom.models import Part
+
+# The scope the Drive integration needs. The Google grant is owned by the host project; it is
+# requested incrementally via the ?drive=1 connect link rather than at login.
+GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
+
+
+def _granted_scopes(response):
+    """Scopes Google actually granted, from the OAuth token response (space-delimited)."""
+    return (response or {}).get('scope', '').split()
+
+
+def has_drive_scope(user):
+    """True if the user's Google connection was granted the Drive scope.
+
+    A user can be signed in with Google for identity only (host login) without ever
+    granting Drive access, so existence of a ``UserSocialAuth`` is not enough.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    social = UserSocialAuth.objects.filter(user=user, provider='google-oauth2').first()
+    if social is None:
+        return False
+    scopes = social.extra_data.get('scopes')
+    if scopes is None:
+        # Legacy connections predate scope tracking; they always included Drive.
+        return True
+    return GOOGLE_DRIVE_SCOPE in scopes
 
 
 # Helpers
@@ -63,10 +90,21 @@ def get_files_list(user, part):
 
 
 # Social Auth Pipeline
-def initialize_parent(backend, user, response, *args, **kwargs):
+def store_drive_scope(backend, user, response, *args, **kwargs):
+    """Pipeline step: persist the granted scopes so ``has_drive_scope`` can tell an
+    identity-only login apart from a grant that actually includes Drive access."""
     if backend.name == 'google-oauth2':
+        social = user.social_auth.filter(provider='google-oauth2').first()
+        if social is not None:
+            social.set_extra_data({'scopes': _granted_scopes(response)})
+
+
+def initialize_parent(backend, user, response, *args, **kwargs):
+    # Only provision the org's Drive root when Drive access was actually granted -- a plain
+    # Google login (identity only) must not touch Drive.
+    if backend.name == 'google-oauth2' and GOOGLE_DRIVE_SCOPE in _granted_scopes(response):
         # Only the owner can create the root folder
-        if user.bom_profile().organization.owner is user:
+        if user.bom_profile().organization.owner == user:
             create_root(user)
 
 

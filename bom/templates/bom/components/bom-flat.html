@@ -57,11 +57,11 @@
             <th class="text-normal">Rev</th>
             <th class="text-normal">Manufacturer</th>
             <th class="text-normal">MPN</th>
-            <!-- <th class="text-normal"><i>Ext. Qty</i></th> -->
-            <!-- <th class="text-normal"><i>Order Qty</i></th> -->
+            <th class="text-normal"><i>Ext. Qty</i></th>
+            <th class="text-normal"><i>Order Qty</i></th>
             <th class="text-normal">Vendor</th>
             <th class="text-normal">Price</th>
-            <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
+            <th class="text-normal"><i>Ext Cost</i></th>
             <th class="text-normal">NRE</th>
         </tr>
         </thead>
@@ -76,8 +76,11 @@
                 <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}
                     {% if subpart.part.manufacturer_parts.count > 1 %}<i>(+{{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
                 <td class="text-normal">{% if subpart.part.primary_manufacturer_part.link %}<a href="{{ subpart.part.primary_manufacturer_part.link }}" target="_blank">{% endif %}{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}{% if subpart.part.primary_manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}</td>
+                <td class="text-normal" id="bom-flat-ext-qty-{{ subpart.part_revision.id }}">{{ subpart.total_extended_quantity | default:"-" }}</td>
+                <td class="text-normal" id="bom-flat-order-qty-{{ subpart.part_revision.id }}">{{ subpart.order_quantity | default:"-" }}</td>
                 <td class="text-normal" id="bom-flat-seller-name-{{ subpart.part_revision.id }}">{{ subpart.seller_part.seller.name | default:"-" }}</td>
                 <td class="text-normal" id="bom-flat-unit-cost-{{ subpart.part_revision.id }}">{{ subpart.seller_part.unit_cost | default:"-" }}</td>
+                <td class="text-normal" id="bom-flat-ext-cost-{{ subpart.part_revision.id }}">{% if subpart.seller_part %}{{ subpart.order_cost }}{% else %}-{% endif %}</td>
                 <td class="text-normal">{{ subpart.seller_part.nre_cost | default:"-" }}</td>
             </tr>
         {% empty %}

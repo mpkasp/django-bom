@@ -138,7 +138,7 @@
                     <p>Parts can be created individually via the Create Part form (the <strong>+</strong> button on the
                         Home page) or in bulk via CSV upload (see <a href="#uploading-parts">Uploading Parts</a>).</p>
                     <p>Each part has a <strong>primary manufacturer part</strong>, which is used for cost estimation and
-                        Mouser integration. Additional manufacturer parts can be attached under the Sourcing tab.</p>
+                        live sourcing lookups. Additional manufacturer parts can be attached under the Sourcing tab.</p>
                 </div>
 
                 <div class="section">
@@ -304,7 +304,7 @@
                     <h3>Manufacturers &amp; Sellers</h3>
                     <p>Each part can have one or more <strong>manufacturer parts</strong> (a manufacturer name +
                         manufacturer part number). One is designated the <strong>primary</strong> and is used for cost
-                        estimation and Mouser lookups.</p>
+                        estimation and live sourcing lookups.</p>
                     <p>Each manufacturer part can have one or more <strong>seller records</strong> (distributor name,
                         seller part number, unit cost, NRE cost, MOQ, MPQ, lead time). IndaBOM selects the <strong>optimal
                             seller</strong> — the lowest total cost at the required quantity — for cost roll-ups.</p>
@@ -323,26 +323,24 @@
                 </div>
 
                 <div class="section">
-                    <h3>Mouser Integration</h3>
-                    <p>IndaBOM can look up current pricing and availability from Mouser for parts that have a matching
-                        MPN. To enable this:</p>
+                    <h3>Live Sourcing</h3>
+                    <p>Live Sourcing looks up current pricing and availability from a distributor provider (such as
+                        Nexar/Octopart or Mouser) for parts that have a matching MPN. To enable this:</p>
                     <ol>
-                        <li>Add your Mouser API key in <a href="{% url 'bom:settings' 'indabom' %}">Settings →
-                            IndaBOM</a>.
+                        <li>Add your provider API credentials in <a href="{% url 'bom:settings' 'organization' %}">Settings →
+                            Organization → Live Sourcing</a>.
                         </li>
-                        <li>Enable Mouser sourcing for each relevant part class (also in Settings → IndaBOM).</li>
+                        <li>Enable sourcing for each relevant part class in <a href="{% url 'bom:settings' 'indabom' %}">Settings → Part Classes</a>.</li>
                     </ol>
-                    <p>Mouser data appears in several places:</p>
+                    <p>Live pricing is fetched once on page load and shown with provider attribution, a deep link to the
+                        distributor, and an as-of timestamp. It is never stored — it appears in several places:</p>
                     <ul class="browser-default">
-                        <li><strong>Part Info → Sourcing tab</strong>: live pricing fetched on page load, indicated by
-                            the Mouser icon.
-                        </li>
-                        <li><strong>Part Info → Bill of Materials tab</strong>: cost column updated inline with Mouser
-                            data.
+                        <li><strong>Part Info → Sourcing tab</strong>: live pricing fetched on page load.</li>
+                        <li><strong>Part Info → Bill of Materials tab</strong>: cost column updated inline; changing the
+                            quote quantity re-prices the sourced lines.
                         </li>
                     </ul>
-                    <p>Parts are matched to Mouser by MPN and manufacturer name (or by MPN alone if no manufacturer is
-                        set).</p>
+                    <p>Parts are matched by MPN and manufacturer name (or by MPN alone if no manufacturer is set).</p>
                 </div>
 
                 <div class="divider"></div>

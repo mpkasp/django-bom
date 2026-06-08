@@ -14,7 +14,10 @@ BOM_CONFIG = {
     'admin_dashboard': {
         'enable_autocomplete': False,
         'page_size': 50,
-    }
+    },
+    # Live-sourcing providers exposed in this deployment. Omit for "all providers"; set an
+    # allowlist to feature-flag one off until it's ready (e.g. ['mouser'] to hide Nexar).
+    'sourcing_providers_enabled': ['mouser'],
 }
 
 # Encryption key(s) for sourcing credentials stored on Organization (Fernet).

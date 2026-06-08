@@ -12,6 +12,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from django.conf import settings
+from djmoney.contrib.exchange.exceptions import MissingRate
 from djmoney.contrib.exchange.models import convert_money
 from moneyed import Money
 
@@ -19,7 +20,7 @@ from bom.utils import parse_number
 
 from ..base_api import BaseApiError
 from ..mouser import MouserApi
-from .base import Offer, PriceBreak, SourcingProvider
+from .base import CredentialField, Offer, PriceBreak, SourcingProvider, mpn_matches
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +32,28 @@ def _first_int(value):
     return digits[0] if digits else None
 
 
+def _unavailable_reason(part):
+    """Why a matched Mouser part has no price (region restriction, obsolete, ...)."""
+    reason = part.get('RestrictionMessage') or ''
+    if not reason:
+        messages = part.get('InfoMessages') or []
+        reason = messages[0] if messages else ''
+    lifecycle = part.get('LifecycleStatus') or ''
+    if lifecycle.lower() == 'obsolete':
+        reason = ('Obsolete. ' + reason).strip()
+    return reason or 'No price available from Mouser.'
+
+
 class MouserProvider(SourcingProvider):
     name = 'mouser'
+    credential_fields = [
+        CredentialField(
+            attr='sourcing_api_key',
+            label='API Key',
+            help_text='Request a free Mouser Search API key',
+            help_url='https://www.mouser.com/api-search/',
+        ),
+    ]
 
     def match(self, manufacturer_parts: list, currency=None) -> dict:
         if not manufacturer_parts:
@@ -57,46 +78,50 @@ class MouserProvider(SourcingProvider):
         return results
 
     def _match_one(self, api: MouserApi, manufacturer_part, currency=None) -> list:
-        manufacturer = manufacturer_part.manufacturer
-        manufacturer_part_number = manufacturer_part.manufacturer_part_number
-
-        mfg_id = None
-        if manufacturer:
-            manufacturer_list = api.get_manufacturer_list()
-            mfg_id = manufacturer_list.get(manufacturer.name)
-
-        if mfg_id:
-            results = api.search_part_and_manufacturer(part_number=manufacturer_part_number, manufacturer_id=mfg_id)
-        else:
-            results = api.search_part(part_number=manufacturer_part_number)
-
-        return self._parts_to_offers(results.get('Parts', []), currency)
+        # Mouser's part-number search matches manufacturer part numbers directly, so we look up by
+        # MPN alone. (We deliberately avoid the manufacturer-list endpoint: it's a second API call
+        # whose result isn't a usable name->id map, and any error there silently dropped the part.)
+        mpn = manufacturer_part.manufacturer_part_number
+        results = api.search_part(part_number=mpn)
+        # Mouser also returns near variants (e.g. ...-R7 for ...-R). Prefer the exact MPN so the
+        # optimal price and the ladder describe the same part; otherwise fall back to the single top
+        # result, flagged as a near match so the UI can say so.
+        parts = results.get('Parts', [])
+        exact = [part for part in parts if mpn_matches(part.get('ManufacturerPartNumber'), mpn)]
+        selected = exact or parts[:1]
+        return self._parts_to_offers(selected, currency, is_exact=bool(exact))
 
     @staticmethod
-    def _parts_to_offers(parts: list, currency=None) -> list:
+    def _parts_to_offers(parts: list, currency=None, is_exact=True) -> list:
         offers = []
         for part in parts:
             try:
                 price_breaks = []
-                for pb in part['PriceBreaks']:
+                for pb in part.get('PriceBreaks') or []:
                     unit_cost = Money(parse_number(pb['Price']), pb['Currency'])
                     if currency:
-                        unit_cost = convert_money(unit_cost, currency)
+                        try:
+                            unit_cost = convert_money(unit_cost, currency)
+                        except MissingRate:
+                            pass  # no exchange rate available; keep the offer in its native currency
                     price_breaks.append(PriceBreak(moq=int(pb['Quantity']), unit_cost=unit_cost))
-                if not price_breaks:
-                    continue
+                # Keep matched-but-unpriced parts (obsolete / region-restricted) so the UI can show
+                # why there's no price, with a link out -- rather than dropping them silently.
                 offers.append(
                     Offer(
                         seller_name='Mouser',
                         seller_part_number=part['MouserPartNumber'],
                         manufacturer_name=part.get('Manufacturer', ''),
                         price_breaks=price_breaks,
-                        moq=price_breaks[0].moq,
+                        moq=price_breaks[0].moq if price_breaks else 1,
                         lead_time_days=_first_int(part.get('LeadTime')),
                         stock=_first_int(part.get('Availability')),
                         product_url=part.get('ProductDetailUrl', ''),
                         data_sheet=part.get('DataSheetUrl'),
                         ncnr=True,
+                        mpn=part.get('ManufacturerPartNumber', ''),
+                        is_exact=is_exact,
+                        unavailable_reason='' if price_breaks else _unavailable_reason(part),
                     )
                 )
             except (KeyError, AttributeError, IndexError):
