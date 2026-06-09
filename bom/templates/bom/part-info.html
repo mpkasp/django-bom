@@ -271,6 +271,9 @@
                                 </div>
                                 <div class="col s8 l10 amber-text text-darken-2"><span id="sourcing-unavailable"></span></div>
                             </div>
+                            <div class="row" id="sourcing-similar-wrapper" style="display: none;">
+                                <div class="col s12 grey-text" style="font-size: 0.9em;"><span id="sourcing-similar"></span></div>
+                            </div>
                             <div class="row" id="sourcing-vendors-wrapper" style="display: none;">
                                 <div class="col s12 grey-text" style="font-size: 0.9em;"><span id="sourcing-vendors"></span></div>
                             </div>
@@ -633,6 +636,16 @@
                 $('#sourcing-vendors').text(vendorCount + ' authorized vendor' + (vendorCount > 1 ? 's' : '')
                     + ' via ' + (provider || '') + when + ' — see the Sourcing tab');
                 $('#sourcing-vendors-wrapper').show();
+            }
+
+            // The exact part has no authorized vendors, but similar parts do -- point the user at them.
+            const similarCount = apiInfo['similar_vendor_count'] || 0;
+            const similarUrl = apiInfo['similar_search_url'];
+            if (similarCount > 0 && similarUrl) {
+                $('#sourcing-similar').html('No authorized vendors for the exact part, but ' + similarCount
+                    + ' authorized vendor' + (similarCount > 1 ? 's' : '') + ' for similar parts — '
+                    + '<a href="' + similarUrl + '" target="_blank">view on ' + (provider || 'Octopart') + '</a>');
+                $('#sourcing-similar-wrapper').show();
             }
         }
 

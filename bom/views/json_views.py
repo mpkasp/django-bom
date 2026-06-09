@@ -67,6 +67,8 @@ def _offer_api_info(provider_name, offers, manufacturer_part_id):
         'is_exact': primary.is_exact,
         'matched_mpn': primary.mpn,
         'unavailable_reason': primary.unavailable_reason,
+        'similar_vendor_count': primary.similar_vendor_count,
+        'similar_search_url': primary.similar_search_url,
     }
 
 

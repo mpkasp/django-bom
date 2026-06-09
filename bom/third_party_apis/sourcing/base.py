@@ -63,6 +63,9 @@ class Offer:
     is_exact: bool = True  # False when this is a near-match fallback, not the requested MPN
     unavailable_reason: str = ''  # set when the part matched but has no purchasable price
                                   # (e.g. obsolete, or not sold in the account's region)
+    similar_vendor_count: int = 0  # authorized vendors found on near/similar parts when the exact
+                                   # part itself has none (informational only -- never part of the quote)
+    similar_search_url: str = ''   # link to view those similar parts at the provider
 
 
 @dataclass

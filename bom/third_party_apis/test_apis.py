@@ -1,5 +1,6 @@
 from unittest import skip
 from unittest.mock import Mock, patch
+from urllib.parse import quote_plus
 
 from django.test import TestCase, override_settings
 from moneyed import Money
@@ -307,6 +308,52 @@ class TestNexarProvider(TestCase):
 
         offers = NexarProvider(self.CREDENTIALS).match([self.mp1], currency=None)[self.mp1.id]
         self.assertEqual([offer.seller_part_number for offer in offers], ['exact'])
+
+    @staticmethod
+    def _graphql_response(data):
+        return Mock(status_code=200, json=Mock(return_value={'data': data}))
+
+    @patch('bom.third_party_apis.sourcing.nexar._get_token', return_value='tok')
+    @patch('bom.third_party_apis.sourcing.nexar.requests.post')
+    def test_unpriced_mpn_points_at_similar_parts(self, mock_post, mock_token):
+        # supMultiMatch returns nothing for a generic MPN (e.g. "NRF52840"); the supSearchMpn
+        # fallback finds similar parts with authorized vendors, so we surface a price-less note
+        # annotated with the distinct-vendor count and an Octopart search link -- without quoting
+        # any of those similar parts.
+        mpn = self.mp1.manufacturer_part_number
+        multi = {'supMultiMatch': [{'reference': str(self.mp1.id), 'parts': []}]}
+        search = {'supSearchMpn': {'results': [
+            {'part': {'mpn': mpn + '-QIAA-R', 'manufacturer': {'name': 'Nordic'}, 'sellers': [
+                {'company': {'name': 'DigiKey'}, 'offers': [{'moq': 1}]},
+                {'company': {'name': 'Mouser'}, 'offers': [{'moq': 1}]},
+            ]}},
+            {'part': {'mpn': mpn + '-DK', 'manufacturer': {'name': 'Nordic'}, 'sellers': [
+                {'company': {'name': 'Mouser'}, 'offers': [{'moq': 1}]},  # duplicate vendor, counted once
+                {'company': {'name': 'Avnet'}, 'offers': []},  # no offers -> not a real vendor
+            ]}},
+        ]}}
+        mock_post.side_effect = [self._graphql_response(multi), self._graphql_response(search)]
+
+        offers = NexarProvider(self.CREDENTIALS).match([self.mp1], currency=None)[self.mp1.id]
+
+        self.assertEqual(mock_post.call_count, 2)  # one match + one fallback search
+        self.assertEqual(len(offers), 1)
+        offer = offers[0]
+        self.assertEqual(offer.price_breaks, [])  # never contributes to the quote
+        self.assertEqual(offer.similar_vendor_count, 2)  # DigiKey + Mouser (Avnet has no offers)
+        self.assertIn(quote_plus(mpn), offer.similar_search_url)
+        self.assertTrue(offer.unavailable_reason)
+
+    @patch('bom.third_party_apis.sourcing.nexar._get_token', return_value='tok')
+    @patch('bom.third_party_apis.sourcing.nexar.requests.post')
+    def test_unpriced_mpn_with_no_similar_vendors_drops_part(self, mock_post, mock_token):
+        # Nothing priced and the search turns up no authorized vendors -- nothing to point at, so the
+        # part is dropped (no misleading note).
+        multi = {'supMultiMatch': [{'reference': str(self.mp1.id), 'parts': []}]}
+        search = {'supSearchMpn': {'results': []}}
+        mock_post.side_effect = [self._graphql_response(multi), self._graphql_response(search)]
+
+        self.assertNotIn(self.mp1.id, NexarProvider(self.CREDENTIALS).match([self.mp1], currency=None))
 
     @patch('bom.third_party_apis.sourcing.nexar._get_token')
     @patch('bom.third_party_apis.sourcing.nexar.requests.post')

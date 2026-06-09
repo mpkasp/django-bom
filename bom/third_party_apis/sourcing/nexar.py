@@ -14,6 +14,7 @@ Distributor pricing is never persisted -- offers are returned as transient DTOs.
 
 import threading
 import time
+from urllib.parse import quote_plus
 
 import requests
 from moneyed import Money
@@ -24,6 +25,7 @@ from .base import CredentialField, Offer, PriceBreak, SourcingProvider, mpn_matc
 NEXAR_TOKEN_URL = 'https://identity.nexar.com/connect/token'
 NEXAR_GRAPHQL_URL = 'https://api.nexar.com/graphql'
 NEXAR_SCOPE = 'supply.domain'
+OCTOPART_SEARCH_URL = 'https://octopart.com/search?q={}'
 
 SUP_MULTI_MATCH_QUERY = """
 query SupMultiMatch($queries: [SupPartMatchQuery!]!) {
@@ -42,6 +44,26 @@ query SupMultiMatch($queries: [SupPartMatchQuery!]!) {
           clickUrl
           factoryLeadDays
           prices { quantity price currency }
+        }
+      }
+    }
+  }
+}
+"""
+
+# Fuzzy search used only as a fallback when supMultiMatch (a precise matcher) can't price an MPN.
+# Lighter than the match query -- we only need authorized seller names to count "vendors for
+# similar parts", not full price ladders.
+SUP_SEARCH_MPN_QUERY = """
+query SupSearchMpn($q: String!, $limit: Int!) {
+  supSearchMpn(q: $q, limit: $limit) {
+    results {
+      part {
+        mpn
+        manufacturer { name }
+        sellers(authorizedOnly: true) {
+          company { name }
+          offers { moq }
         }
       }
     }
@@ -138,11 +160,62 @@ class NexarProvider(SourcingProvider):
             # to the single top candidate, flagged as a near match.
             exact = [part for part in parts if mpn_matches(part.get('mpn'), requested_mpn)]
             selected = exact or parts[:1]
-            offers = offers_by_mp.setdefault(mp_id, [])
+            offers = []
             for part in selected:
                 offers.extend(self._part_to_offers(part, currency, is_exact=bool(exact)))
+            if offers:
+                offers_by_mp[mp_id] = offers
+
+        # Fallback for MPNs we couldn't price at all -- supMultiMatch is a *precise* matcher and
+        # returns nothing for generic/incomplete MPNs (e.g. "NRF52840"), and an exact part may
+        # simply have no authorized vendors. Search for similar parts and, when they do have
+        # authorized vendors, attach a price-less note pointing the user at them on Octopart. This
+        # never affects the quote (no price breaks => no SellerPart).
+        for mp in manufacturer_parts:
+            if mp.id in offers_by_mp:
+                continue
+            similar = self._similar_parts_offer(token, mp.manufacturer_part_number, currency)
+            if similar:
+                offers_by_mp[mp.id] = [similar]
 
         return offers_by_mp
+
+    def _similar_parts_offer(self, token, requested_mpn, currency):
+        """A price-less ``Offer`` for an MPN we couldn't price, annotated with how many authorized
+        vendors its *similar* parts carry plus an Octopart search link.
+
+        Runs one ``supSearchMpn`` (fuzzy) search and counts the distinct authorized seller companies
+        that actually have offers across the results. Returns ``None`` when nothing similar has an
+        authorized vendor (nothing useful to point at), or on any search error.
+        """
+        try:
+            data = self._graphql(token, SUP_SEARCH_MPN_QUERY, {'q': requested_mpn, 'limit': 10})
+        except BaseApiError:
+            return None
+        results = (data.get('supSearchMpn') or {}).get('results') or []
+        vendors = set()
+        manufacturer_name = ''
+        for result in results:
+            part = result.get('part') or {}
+            if not manufacturer_name:
+                manufacturer_name = (part.get('manufacturer') or {}).get('name', '')
+            for seller in part.get('sellers') or []:
+                name = (seller.get('company') or {}).get('name')
+                if name and (seller.get('offers') or []):
+                    vendors.add(name)
+        if not vendors:
+            return None
+        return Offer(
+            seller_name='',
+            seller_part_number='',
+            manufacturer_name=manufacturer_name,
+            price_breaks=[],
+            mpn=requested_mpn,
+            is_exact=True,  # describes the requested part -- just with no purchasable price
+            unavailable_reason='No authorized vendors on Octopart for this exact part.',
+            similar_vendor_count=len(vendors),
+            similar_search_url=OCTOPART_SEARCH_URL.format(quote_plus(requested_mpn or '')),
+        )
 
     def _credentials(self):
         client_id = self.credentials.get('client_id')
