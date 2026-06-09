@@ -93,13 +93,13 @@ json_patterns = [
 
 urlpatterns = [
     path('', include((bom_patterns, 'bom'))),
-    path('', include('social_django.urls', namespace='social')),
     path('google-drive/', include((google_drive_patterns, 'google-drive'))),
     path('json/', include((json_patterns, 'json'))),
 ]
 
 if standalone_mode:
     urlpatterns += [
+        path('', include('social_django.urls', namespace='social')),
         path('admin/', admin.site.urls),
         path('signup/', views.signup, name='signup'),
         path('login/', auth_views.LoginView.as_view(redirect_authenticated_user=True), name='login'),
