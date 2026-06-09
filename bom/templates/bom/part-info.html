@@ -188,7 +188,8 @@
                             {% endfor %}
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0;">
-                                    <img title="Via Google Drive" style="width: 16px;" src="{% static 'bom/img/google_drive_logo.svg' %}">&nbsp;Files:
+                                    <img title="Via Google Drive" style="width: 16px;"
+                                         src="{% static 'bom/img/google_drive_logo.png' %}">&nbsp;Files:
                                 </div>
                                 <div class="col s8 l10"><a href="{% url 'google-drive:add-folder' part_id=part.id %}" target="_blank">Open Folder</a></div>
                             </div>
