@@ -55,20 +55,36 @@ jobs:
       - name: Wait for package on PyPI
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          for i in {1..24}; do
-            if curl -sf "https://pypi.org/pypi/django-bom/${VERSION}/json" > /dev/null; then
-              echo "✓ Found django-bom $VERSION on PyPI"
+          # Poll the simple index (PEP 691 JSON) — this is what uv resolves against.
+          # The /pypi/.../json metadata endpoint is a separate, differently-cached
+          # service that can report the version as live before the simple index has
+          # propagated it, causing uv lock to silently resolve the old version.
+          for i in {1..30}; do
+            if curl -sf -H "Accept: application/vnd.pypi.simple.v1+json" \
+                 "https://pypi.org/simple/django-bom/" \
+                 | grep -q "django_bom-${VERSION}\b"; then
+              echo "✓ Found django-bom $VERSION on the PyPI simple index"
               exit 0
             fi
-            echo "⏳ Attempt $i/24: django-bom $VERSION not yet on PyPI, waiting..."
+            echo "⏳ Attempt $i/30: django-bom $VERSION not yet on simple index, waiting..."
             sleep 10
           done
-          echo "✗ Timeout: django-bom $VERSION not found on PyPI after 240s"
+          echo "✗ Timeout: django-bom $VERSION not found on PyPI simple index after 300s"
           exit 1
 
       - name: Update django-bom in uv.lock
         working-directory: indabom
-        run: uv lock --upgrade-package django-bom
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # --refresh-package bypasses uv's local index cache so a freshly published
+          # version is picked up even if an earlier resolve cached the index.
+          uv lock --upgrade-package django-bom --refresh-package django-bom
+          LOCKED_VERSION=$(grep -A2 'name = "django-bom"' uv.lock | grep 'version =' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "uv.lock now pins django-bom $LOCKED_VERSION (expected $VERSION)"
+          if [ "$LOCKED_VERSION" != "$VERSION" ]; then
+            echo "✗ uv.lock did not update to $VERSION — aborting so no empty PR is opened."
+            exit 1
+          fi
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
