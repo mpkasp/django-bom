@@ -231,10 +231,9 @@ class TestBOM(TransactionTestCase):
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
-        messages = list(response.context.get('messages'))
-        for idx, msg in enumerate(messages):
-            self.assertTrue("Row 5 - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number." in str(msg.message))
-            self.assertTrue("Row 6 - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number." in str(msg.message))
+        message_texts = [str(msg.message) for msg in response.context.get('messages')]
+        self.assertIn("Row 5 - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number.", message_texts)
+        self.assertIn("Row 6 - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number.", message_texts)
 
         p1.refresh_from_db()
         bom = p1.latest().indented()
@@ -331,18 +330,18 @@ class TestBOM(TransactionTestCase):
             response = self.client.post(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p3.full_part_number()}, follow=True)
         self.assertEqual(response.status_code, 200)
 
-        messages = list(response.context.get('messages'))
+        # Each validation error is surfaced as its own plain-text message (no nested errorlist HTML).
+        message_texts = [str(msg.message) for msg in response.context.get('messages')]
 
-        for idx, msg in enumerate(messages):
-            if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
-                self.assertTrue("Row 38 - part_number: Uploading of this subpart skipped. Couldn&#x27;t parse part number." in str(msg.message))
-                self.assertTrue("Row 34 - code: Ensure this value has at most 3 characters (it has 9)." in str(msg.message))
-                self.assertTrue("Row 33 - part_number: Uploading of this subpart skipped. Couldn&#x27;t parse part number." in str(msg.message))
-                self.assertTrue("Row 35 - part_number: Uploading of this subpart skipped. Couldn&#x27;t parse part number." in str(msg.message))
-                self.assertTrue("Row 36 - part_number: Uploading of this subpart skipped. Couldn&#x27;t parse part number." in str(msg.message))
-                self.assertTrue("Row 37 - part_number: Uploading of this subpart skipped. Couldn&#x27;t parse part number." in str(msg.message))
-            self.assertTrue("Row 39 - count: Ensure this value is greater than or equal to 0." in str(msg.message))
-            self.assertTrue("Row 40 - level: Assembly levels must decrease by no more than 1 from sequential rows." in str(msg.message))
+        if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            self.assertIn("Row 38 - part_number: Uploading of this subpart skipped. Couldn't parse part number.", message_texts)
+            self.assertIn("Row 34 - code: Ensure this value has at most 3 characters (it has 9).", message_texts)
+            self.assertIn("Row 33 - part_number: Uploading of this subpart skipped. Couldn't parse part number.", message_texts)
+            self.assertIn("Row 35 - part_number: Uploading of this subpart skipped. Couldn't parse part number.", message_texts)
+            self.assertIn("Row 36 - part_number: Uploading of this subpart skipped. Couldn't parse part number.", message_texts)
+            self.assertIn("Row 37 - part_number: Uploading of this subpart skipped. Couldn't parse part number.", message_texts)
+        self.assertIn("Row 39 - count: Ensure this value is greater than or equal to 0.", message_texts)
+        self.assertIn("Row 40 - level: Assembly levels must decrease by no more than 1 from sequential rows.", message_texts)
 
         # Check that 2 rows of 103-0002-00 in one assembly gets combined into one part, and added to the 2 that already exist = 2 + 1 + 1
         parent_part_number = '107-0003-22' if self.organization.number_variation_len > 0 else '107-0003'

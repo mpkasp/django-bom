@@ -10,7 +10,7 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
-from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.core.exceptions import NON_FIELD_ERRORS, ImproperlyConfigured, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count, ProtectedError, Q, Subquery, prefetch_related_objects
 from django.db.models.aggregates import Max
@@ -90,11 +90,24 @@ logger = logging.getLogger(__name__)
 UserMeta = get_user_meta_model()
 BOM_LOGIN_URL = getattr(settings, "BOM_LOGIN_URL", None) or settings.LOGIN_URL
 
-def form_error_messages(form_errors) -> [str]:
-    error_messages = []
-    for k, errors in form_errors.as_data().items():
-        for error_message in errors:
-            error_messages.append(str(error_message.message))
+def add_form_error_messages(request, form):
+    """Add each validation error from a form or formset as a separate plain-text error toast.
+
+    Passing a raw ErrorDict to messages.error() renders nested <ul class="errorlist"> HTML
+    inside the toast, so flatten the errors into "Field: message" strings instead. Non-field
+    (and non-form) errors are shown as-is, without a field prefix.
+    """
+    subforms = form.forms if hasattr(form, "forms") else [form]
+    error_dicts = [subform.errors for subform in subforms]
+    if hasattr(form, "non_form_errors"):
+        error_dicts.append({NON_FIELD_ERRORS: form.non_form_errors()})
+    for errors in error_dicts:
+        for field, field_errors in errors.items():
+            for error in field_errors:
+                if field == NON_FIELD_ERRORS:
+                    messages.error(request, error)
+                else:
+                    messages.error(request, f"{field.capitalize()}: {error}")
 
 @login_required(login_url=BOM_LOGIN_URL)
 def home(request):
@@ -409,7 +422,7 @@ def bom_settings(request, tab_anchor=None):
             if user_form.is_valid():
                 user = user_form.save()
             else:
-                messages.error(request, user_form.errors)
+                add_form_error_messages(request, user_form)
 
         elif 'refresh-edit-user' in request.POST:
             tab_anchor = USER_TAB
@@ -433,9 +446,7 @@ def bom_settings(request, tab_anchor=None):
                     added_user_profile = user_add_form.save()
                     messages.info(request, f"Added {added_user_profile.user.first_name} {added_user_profile.user.last_name} to your organization.")
                 else:
-                    for field, errors in user_add_form.errors.items():
-                        for error in errors:
-                            messages.error(request, f"{field.capitalize()}: {error}")
+                    add_form_error_messages(request, user_add_form)
             users_in_organization.all()
             users_in_organization_count = users_in_organization.count()
             viewer_count = UserMeta.objects.filter(organization=organization, role=constants.ROLE_TYPE_VIEWER).count() if free_viewer_seats > 0 else 0
@@ -477,7 +488,7 @@ def bom_settings(request, tab_anchor=None):
             if organization_form.is_valid():
                 organization_form.save()
             else:
-                messages.error(request, organization_form.errors)
+                add_form_error_messages(request, organization_form)
 
         elif 'refresh-edit-organization' in request.POST:
             tab_anchor = ORGANIZATION_TAB
@@ -497,7 +508,7 @@ def bom_settings(request, tab_anchor=None):
                     except ImproperlyConfigured:
                         messages.error(request, "Sourcing credentials can't be stored: encryption key (BOM_SOURCING_ENCRYPTION_KEYS) is not configured.")
                 else:
-                    messages.error(request, sourcing_settings_form.errors)
+                    add_form_error_messages(request, sourcing_settings_form)
 
         elif 'submit-clear-sourcing' in request.POST:
             tab_anchor = ORGANIZATION_TAB
@@ -532,7 +543,7 @@ def bom_settings(request, tab_anchor=None):
             if organization_number_len_form.is_valid():
                 organization_number_len_form.save()
             else:
-                messages.error(request, organization_number_len_form.errors)
+                add_form_error_messages(request, organization_number_len_form)
 
         elif 'refresh-number-item-len' in request.POST:
             tab_anchor = INDABOM_TAB
@@ -544,7 +555,7 @@ def bom_settings(request, tab_anchor=None):
             if part_class_form.is_valid():
                 part_class_form.save()
             else:
-                messages.error(request, part_class_form.errors)
+                add_form_error_messages(request, part_class_form)
 
         elif 'cancel-part-class-create' in request.POST:
             tab_anchor = INDABOM_TAB
@@ -558,7 +569,7 @@ def bom_settings(request, tab_anchor=None):
                 for warning in part_class_csv_form.warnings:
                     messages.warning(request, warning)
             else:
-                messages.error(request, part_class_csv_form.errors)
+                add_form_error_messages(request, part_class_csv_form)
 
         elif 'submit-part-class-export' in request.POST:
             response = HttpResponse(content_type='text/csv')
@@ -838,7 +849,7 @@ def user_meta_edit(request, user_meta_id):
             form.save()
             return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
         else:
-            messages.error(request, form.errors)
+            add_form_error_messages(request, form)
         return TemplateResponse(request, 'bom/edit-user-meta.html', locals())
     else:
         form = UserAddForm(instance=user_meta, organization=organization, exclude_username=True)
@@ -1014,9 +1025,9 @@ def upload_bom(request):
                 for warning in bom_csv_form.warnings:
                     messages.info(request, warning)
             else:
-                messages.error(request, bom_csv_form.errors)
+                add_form_error_messages(request, bom_csv_form)
         else:
-            messages.error(request, upload_bom_form.errors)
+            add_form_error_messages(request, upload_bom_form)
     else:
         upload_bom_form = UploadBOMForm(organization=organization, initial={'organization': organization})
         bom_csv_form = BOMCSVForm()
@@ -1045,7 +1056,7 @@ def part_upload_bom(request, part_id):
             for warning in bom_csv_form.warnings:
                 messages.info(request, warning)
         else:
-            messages.error(request, bom_csv_form.errors)
+            add_form_error_messages(request, bom_csv_form)
     else:
         upload_bom_form = UploadBOMForm(initial={'organization': organization})
         bom_csv_form = BOMCSVForm()
@@ -1074,7 +1085,7 @@ def upload_parts(request):
             for warning in form.warnings:
                 messages.warning(request, warning)
         else:
-            messages.error(request, form.errors)
+            add_form_error_messages(request, form)
     else:
         form = FileForm()
         if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT and organization.partclass_set.count() <= 0:
@@ -1303,7 +1314,7 @@ def add_subpart(request, part_id, part_revision_id):
             messages.info(request, info_msg)
 
         else:
-            messages.error(request, add_subpart_form.errors)
+            add_form_error_messages(request, add_subpart_form)
 
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
@@ -1404,9 +1415,9 @@ def quantity_of_measure_edit(request, quantity_of_measure_id=None):
             return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
         else:
             if not form.is_valid():
-                messages.error(request, form.errors)
+                add_form_error_messages(request, form)
             if not unit_formset.is_valid():
-                messages.error(request, unit_formset.errors)
+                add_form_error_messages(request, unit_formset)
     else:
         form = QuantityOfMeasureForm(instance=quantity_of_measure, organization=organization)
         unit_formset = UnitDefinitionFormSet(
@@ -1465,9 +1476,9 @@ def part_class_edit(request, part_class_id):
 
         else:
             if not part_class_form.is_valid():
-                messages.error(request, part_class_form.errors)
+                add_form_error_messages(request, part_class_form)
             if not property_definitions_formset.is_valid():
-                messages.error(request, property_definitions_formset.errors)
+                add_form_error_messages(request, property_definitions_formset)
             return TemplateResponse(request, 'bom/edit-part-class.html', locals())
 
     else:
