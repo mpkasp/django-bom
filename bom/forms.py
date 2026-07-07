@@ -1419,11 +1419,8 @@ class BOMCSVForm(BaseCSVForm):
 
         reference_list = listify_string(reference) if reference else []
         if len(reference_list) != len(set(reference_list)):
-            self.add_warning(None,
-                             f"Row {row_count} -Duplicate reference designators '{reference}' for subpart on row {row_count}.")
-        if len(reference_list) != subpart.count and len(reference_list) > 0:
-            self.add_warning(None,
-                             f"Row {row_count} -The quantity of reference designators for {part_number} on row {row_count} does not match the subpart quantity ({len(reference_list)} != {subpart.count})")
+            self.warnings.append(
+                f"Row {row_count}: Duplicate reference designators '{reference}' for subpart.")
 
         if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
             part_class.save()

@@ -401,6 +401,35 @@ class TestBOM(TransactionTestCase):
         # certainly not rooted as a top-level part).
         self.assertEqual(Part.objects.filter(organization=self.organization).count(), part_count_before)
 
+    def test_upload_bom_reference_designator_warnings(self):
+        # Regression: duplicate reference designators emit a warning via a code path that
+        # previously called a non-existent self.add_warning(), raising AttributeError that was
+        # swallowed as an "unexpected error" and silently failed the row. Warnings must not
+        # block a valid subpart from uploading.
+        create_some_fake_part_revision_property_definitions(self.organization, some_required=False)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        # Duplicate reference ("R1, R1") with a matching quantity (2) so SubpartForm accepts it
+        # and processing reaches the duplicate-designator warning.
+        csv_content = (
+            "part_number,quantity,reference\n"
+            f'{p1.full_part_number()},2,"R1, R1"\n'
+        )
+        uploaded = SimpleUploadedFile("ref_warnings.csv", csv_content.encode("utf-8"), content_type="text/csv")
+
+        form = BOMCSVForm({}, {"file": uploaded}, parent_part=p2, organization=self.organization)
+        self.assertTrue(form.is_valid(), msg=f"Warnings must not invalidate the form: {dict(form.errors)}")
+
+        error_texts = [str(e) for errs in form.errors.values() for e in errs]
+        self.assertFalse(any("unexpected error" in t.lower() for t in error_texts), msg=error_texts)
+
+        self.assertTrue(any("Duplicate reference designators" in w for w in form.warnings), msg=form.warnings)
+
+        # The subpart was actually uploaded despite the warning.
+        p2.refresh_from_db()
+        subpart_pns = [sp.part_revision.part.full_part_number() for sp in p2.latest().assembly.subparts.all()]
+        self.assertIn(p1.full_part_number(), subpart_pns)
+
     def test_upload_bom_with_properties(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
