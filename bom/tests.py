@@ -13,7 +13,9 @@ from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 
 from . import constants
-from .forms import AddSubpartForm, PartFormSemiIntelligent, PartInfoForm, SellerPartForm
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+from .forms import AddSubpartForm, BOMCSVForm, PartFormSemiIntelligent, PartInfoForm, SellerPartForm
 from .helpers import (
     create_a_fake_assembly,
     create_a_fake_organization,
@@ -361,6 +363,43 @@ class TestBOM(TransactionTestCase):
         for idx, msg in enumerate(messages):
             self.assertTrue("it would cause infinite recursion. Uploading of this subpart skipped." in str(msg.message))
             self.assertTrue("Row 15" in str(msg.message))
+
+    def test_upload_bom_skipped_parent_does_not_crash_children(self):
+        # Regression: a level-1 row that gets skipped (here, an unknown manufacturer part
+        # number) followed by a deeper level-2 row used to push a None parent onto the tree
+        # and crash with "'NoneType' object has no attribute 'assembly'". The child of a
+        # skipped parent must instead be skipped/warned, never mis-nested or crashed. The
+        # skip trigger is scheme-independent so this runs under both number schemes.
+        create_some_fake_part_revision_property_definitions(self.organization, some_required=False)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        csv_content = (
+            "level,part_number,manufacturer_part_number,quantity\n"
+            "1,,NONEXISTENT-MPN-XYZ,1\n"                # unknown mpn -> skipped (no valid parent)
+            f"2,{p1.full_part_number()},,1\n"           # valid part, but its parent above was skipped
+        )
+        uploaded = SimpleUploadedFile("orphan_bom.csv", csv_content.encode("utf-8"), content_type="text/csv")
+
+        part_count_before = Part.objects.filter(organization=self.organization).count()
+
+        form = BOMCSVForm({}, {"file": uploaded}, parent_part=None, organization=self.organization)
+        form.is_valid()  # runs clean(); must not raise or produce an "unexpected error"
+
+        error_texts = [str(e) for errs in form.errors.values() for e in errs]
+        for text in error_texts:
+            self.assertNotIn("NoneType", text)
+            self.assertNotIn("unexpected error", text.lower())
+
+        # The unresolvable parent is reported, and its orphaned child is skipped with a warning.
+        self.assertTrue(any("No part found for manufacturer part number" in t for t in error_texts))
+        self.assertTrue(
+            any("parent row above it was not uploaded" in w for w in form.warnings),
+            msg=f"Expected an orphaned-child skip warning, got warnings: {form.warnings}",
+        )
+
+        # The orphaned child is skipped before saving, so no new part is created (and it is
+        # certainly not rooted as a top-level part).
+        self.assertEqual(Part.objects.filter(organization=self.organization).count(), part_count_before)
 
     def test_upload_bom_with_properties(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)

@@ -1236,29 +1236,64 @@ class BOMCSVForm(BaseCSVForm):
         ]
 
     def process_row(self, part_dict, row_count, csv_headers):
+        level = self._parse_level(part_dict, row_count, csv_headers)
+        if self.last_level is None:
+            self.last_level = level
+
+        parent_part_revision = self._advance_part_revision_tree(level, row_count)
+        part_revision = self._process_subpart_row(part_dict, row_count, csv_headers, parent_part_revision)
+
+        # Always record the outcome (None when skipped) so the next row's level tracking
+        # and parent lookup stay consistent. Recording None for a skipped row is what lets
+        # _advance_part_revision_tree mark its descendants as orphaned.
+        self.last_part_revision = part_revision
+        self.last_level = level
+
+    def _parse_level(self, part_dict, row_count, csv_headers):
+        try:
+            return int(float(csv_headers.get_val_from_row(part_dict, 'level')))
+        except ValueError:
+            # TODO: May want to validate whole file has acceptable levels first.
+            raise ValidationError(f"Row {row_count} - level: invalid level, can't continue.", code='invalid')
+        except TypeError:
+            # no level field was provided, we MUST have a parent part number to upload this way, and in this case all levels are the same
+            if self.parent_part_revision is None:
+                raise ValidationError(
+                    f"Row {row_count} - level: must provide either level, or a parent part to upload a part.",
+                    code='invalid')
+            return 1
+
+    def _advance_part_revision_tree(self, level, row_count):
+        # Adjust the ancestor stack for this row's indent level. Pushing self.last_part_revision
+        # (which is None when the previous row was skipped) marks skipped ancestors so their
+        # descendants can be detected and skipped rather than crashing on a None parent.
+        level_change = level - self.last_level
+        if level_change == 1:  # Level decreases, must only decrease by 1
+            self.part_revision_tree.append(self.last_part_revision)
+        elif level_change <= -1:  # Level increases, going up in assembly; intentionally empty tree if level change is very negative
+            self.part_revision_tree = self.part_revision_tree[:level_change]
+        elif level_change == 0:
+            pass
+        elif level - self.last_level > 1:
+            raise ValidationError(
+                f'Row {row_count} - level: Assembly levels must decrease by no more than 1 from sequential rows.',
+                code='invalid')
+        else:
+            raise ValidationError(f'Row {row_count} - level: Invalid assembly level.', code='invalid')
+
+        parent_part_revision = self.part_revision_tree[-1] if self.part_revision_tree else None
+        if parent_part_revision is not None and parent_part_revision.assembly is None:
+            parent_part_revision.assembly = Assembly.objects.create()
+            parent_part_revision.save()
+        return parent_part_revision
+
+    def _process_subpart_row(self, part_dict, row_count, csv_headers, parent_part_revision):
         dnp = csv_headers.get_val_from_row(part_dict, 'dnp')
         reference = csv_headers.get_val_from_row(part_dict, 'reference')
         part_number = csv_headers.get_val_from_row(part_dict, 'part_number')
         manufacturer_part_number = csv_headers.get_val_from_row(part_dict, 'mpn')
         manufacturer_name = csv_headers.get_val_from_row(part_dict, 'manufacturer_name')
         manufacturer_approval_status = csv_headers.get_val_from_row(part_dict, 'manufacturer_approval_status') or 'P'
-
-        try:
-            level = int(float(csv_headers.get_val_from_row(part_dict, 'level')))
-        except ValueError as e:
-            # TODO: May want to validate whole file has acceptable levels first.
-            raise ValidationError(f"Row {row_count} - level: invalid level, can't continue.", code='invalid')
-        except TypeError as e:
-            # no level field was provided, we MUST have a parent part number to upload this way, and in this case all levels are the same
-            if self.parent_part_revision is None:
-                raise ValidationError(
-                    f"Row {row_count} - level: must provide either level, or a parent part to upload a part.",
-                    code='invalid')
-            else:
-                level = 1
-
-        if self.last_level is None:
-            self.last_level = level
 
         # Extract some values
         part_dict['reference'] = reference
@@ -1276,14 +1311,14 @@ class BOMCSVForm(BaseCSVForm):
             except AttributeError as e:
                 self.add_error(None,
                                f"Row {row_count} - part_number: Uploading of this subpart skipped. Couldn't parse part number.")
-                return
+                return None
         elif manufacturer_part_number:
             try:
                 part = Part.from_manufacturer_part_number(manufacturer_part_number, self.organization)
                 if part is None:
                     self.add_error(None,
                                    f"Row {row_count} - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number.")
-                    return
+                    return None
                 part_dict['number_class'] = part.number_class.code
                 part_dict['number_item'] = part.number_item
                 part_dict['number_variation'] = part.number_variation
@@ -1291,34 +1326,11 @@ class BOMCSVForm(BaseCSVForm):
             except ValueError:
                 self.add_error(None,
                                f"Row {row_count} - manufacturer_part_number: Uploading of this subpart skipped. Too many parts found for manufacturer part number.")
-                return
+                return None
         else:
             raise ValidationError(
                 "No part_number or manufacturer_part_number found. Uploading stopped. No subparts uploaded.",
                 code='invalid')
-
-        # Handle indented bom level changes
-        level_change = level - self.last_level
-        if level_change == 1:  # Level decreases, must only decrease by 1
-            self.part_revision_tree.append(self.last_part_revision)
-        elif level_change <= -1:  # Level increases, going up in assembly; intentionally empty tree if level change is very negative
-            self.part_revision_tree = self.part_revision_tree[:level_change]
-        elif level_change == 0:
-            pass
-        elif level - self.last_level > 1:
-            raise ValidationError(
-                f'Row {row_count} - level: Assembly levels must decrease by no more than 1 from sequential rows.',
-                code='invalid')
-        else:
-            raise ValidationError(f'Row {row_count} - level: Invalid assembly level.', code='invalid')
-
-        try:
-            parent_part_revision = self.part_revision_tree[-1]
-            if parent_part_revision.assembly is None:
-                parent_part_revision.assembly = Assembly.objects.create()
-                parent_part_revision.save()
-        except IndexError:
-            parent_part_revision = None
 
         # Check for existing objects
         existing_part_class = PartClass.objects.filter(code=part_dict['number_class'],
@@ -1337,7 +1349,7 @@ class BOMCSVForm(BaseCSVForm):
 
         if existing_part_revision and existing_part_revision.is_immutable():
             self.warnings.append(f"Row {row_count}: Skipped {part_number} because the existing revision is immutable.")
-            return
+            return None
 
         if existing_part_revision and parent_part_revision:  # Check for infinite recursion
             contains_parent = False
@@ -1369,26 +1381,36 @@ class BOMCSVForm(BaseCSVForm):
                                         organization=self.organization)
         if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT and not part_class_form.is_valid():
             add_nonfield_error_from_existing(part_class_form, self, f'Row {row_count} - ')
-            return
+            return None
 
         PartForm = part_form_from_organization(self.organization)
         part_form = PartForm(part_dict, instance=existing_part, ignore_part_class=True, ignore_unique_constraint=True,
                              organization=self.organization)
         if not part_form.is_valid():
             add_nonfield_error_from_existing(part_form, self, f'Row {row_count} - ')
-            return
+            return None
 
         part_revision_form = PartRevisionForm(part_dict, instance=existing_part_revision,
                                               organization=self.organization)
         if not part_revision_form.is_valid():
             add_nonfield_error_from_existing(part_revision_form, self, f'Row {row_count} - ')
-            return
+            return None
 
         subpart_form = SubpartForm(part_dict, instance=existing_subpart, ignore_part_revision=True,
                                    organization=self.organization)
         if not subpart_form.is_valid():
             add_nonfield_error_from_existing(subpart_form, self, f'Row {row_count} - ')
-            return
+            return None
+
+        # A None parent with a non-empty tree means an ancestor row was skipped, so this
+        # descendant has no valid assembly to attach to. Skip it (recording no revision below
+        # also orphans its own descendants) rather than mis-nesting it under the wrong parent
+        # or rooting it as a top-level part. A None parent with an empty tree is a legitimate
+        # top-level part and is left alone.
+        if parent_part_revision is None and self.part_revision_tree:
+            self.warnings.append(
+                f"Row {row_count}: Skipped {part_number} because a parent row above it was not uploaded.")
+            return None
 
         part_class = part_class_form.save(commit=False)
         part = part_form.save(commit=False)
@@ -1456,8 +1478,7 @@ class BOMCSVForm(BaseCSVForm):
             part.primary_manufacturer_part = manufacturer_part
             part.save()
 
-        self.last_part_revision = part_revision
-        self.last_level = level
+        return part_revision
 
 
 class UploadBOMForm(OrganizationFormMixin, forms.Form):
