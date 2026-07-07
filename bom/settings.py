@@ -127,7 +127,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Social Auth Settings - kept as is
-SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile', 'https://www.googleapis.com/auth/drive', ]
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile', 'https://www.googleapis.com/auth/drive.file', ]
 SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
     'access_type': 'offline',
     'approval_prompt': 'force'

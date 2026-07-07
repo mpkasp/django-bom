@@ -15,7 +15,7 @@ from bom.models import Part
 
 # The scope the Drive integration needs. The Google grant is owned by the host project; it is
 # requested incrementally via the ?drive=1 connect link rather than at login.
-GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
+GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
 
 
 def _granted_scopes(response):
