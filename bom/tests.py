@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 from decimal import Decimal
 from re import finditer
 from unittest import skip
@@ -2121,10 +2122,13 @@ class TestGoogleDriveScope(TestCase):
         self._connect({'scopes': ['email', 'profile', self.DRIVE_SCOPE]})
         self.assertTrue(has_drive_scope(self.user))
 
-    def test_legacy_connection_without_scopes_assumed_drive(self):
+    def test_connection_without_tracked_scopes_fails_closed(self):
+        # No 'scopes' key (identity-only, or predates scope tracking): assuming Drive was
+        # granted would let the user hit a hard 403 at the Drive API, so we fail closed and
+        # make them reconnect via the ?drive=1 link.
         from bom.third_party_apis.google_drive import has_drive_scope
-        self._connect({'access_token': 'legacy'})  # predates scope tracking
-        self.assertTrue(has_drive_scope(self.user))
+        self._connect({'access_token': 'legacy'})
+        self.assertFalse(has_drive_scope(self.user))
 
     def test_store_drive_scope_persists_granted_scopes(self):
         from bom.third_party_apis.google_drive import has_drive_scope, store_drive_scope
@@ -2146,6 +2150,27 @@ class TestGoogleDriveScope(TestCase):
         with patch.object(google_drive, 'create_root') as mock_create:
             google_drive.initialize_parent(backend, self.user, {'scope': f'email {self.DRIVE_SCOPE}'})
         self.assertTrue(mock_create.called)
+
+    def _http_error(self, status, details):
+        from googleapiclient.errors import HttpError
+        resp = type('R', (), {'status': status, 'reason': ''})()
+        content = json.dumps({'error': {'message': 'x', 'details': details}}).encode('utf-8')
+        return HttpError(resp, content)
+
+    def test_insufficient_scope_detected(self):
+        from bom.third_party_apis.google_drive import _is_insufficient_scope
+        err = self._http_error(403, [{'message': 'Insufficient Permission', 'reason': 'insufficientPermissions'}])
+        self.assertTrue(_is_insufficient_scope(err))
+
+    def test_other_403_not_treated_as_insufficient_scope(self):
+        from bom.third_party_apis.google_drive import _is_insufficient_scope
+        err = self._http_error(403, [{'message': 'Rate limit', 'reason': 'rateLimitExceeded'}])
+        self.assertFalse(_is_insufficient_scope(err))
+
+    def test_404_not_treated_as_insufficient_scope(self):
+        from bom.third_party_apis.google_drive import _is_insufficient_scope
+        err = self._http_error(404, [{'reason': 'notFound'}])
+        self.assertFalse(_is_insufficient_scope(err))
 
 
 @override_settings(BOM_SOURCING_ENCRYPTION_KEYS=[FERNET_KEY])

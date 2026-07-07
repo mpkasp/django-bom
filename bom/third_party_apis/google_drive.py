@@ -34,11 +34,10 @@ def has_drive_scope(user):
     social = UserSocialAuth.objects.filter(user=user, provider='google-oauth2').first()
     if social is None:
         return False
-    scopes = social.extra_data.get('scopes')
-    if scopes is None:
-        # Legacy connections predate scope tracking; they always included Drive.
-        return True
-    return GOOGLE_DRIVE_SCOPE in scopes
+    # Fail closed when scopes aren't tracked (connection predates scope tracking, or is
+    # identity-only): assuming Drive was granted lets those users past the gate and into a
+    # hard 403 at the Drive API. Better to prompt a one-time reconnect via the ?drive=1 link.
+    return GOOGLE_DRIVE_SCOPE in (social.extra_data.get('scopes') or [])
 
 
 # Helpers
@@ -121,6 +120,24 @@ def uninitialize_parent(backend, user, *args, **kwargs):
         # service.files().update(fileId=organization.google_drive_parent, body={'name': inactive_filename}).execute()
 
 
+def _is_insufficient_scope(error):
+    """True if an HttpError is Google refusing the call because the token lacks the Drive scope.
+
+    Happens when a user is connected to Google for identity only (host login) and reaches a
+    Drive operation without ever granting Drive access -- Google returns 403 insufficientPermissions.
+    """
+    if getattr(error, 'status_code', None) != 403:
+        return False
+    details = error.error_details if isinstance(error.error_details, list) else []
+    return any(isinstance(d, dict) and d.get('reason') == 'insufficientPermissions' for d in details)
+
+
+def _reconnect_drive_redirect(request):
+    """Send the user back through Google's incremental consent to grant Drive access."""
+    messages.error(request, "Google Drive access wasn't granted. Please reconnect Google Drive.")
+    return HttpResponseRedirect(reverse('social:begin', kwargs={'backend': 'google-oauth2'}) + '?drive=1')
+
+
 # Views
 @login_required
 @google_authenticated
@@ -132,18 +149,22 @@ def get_or_create_and_open_folder(request, part_id):
     except HTTPError as e:
         return HttpResponseRedirect(reverse('social:begin', kwargs={'backend': "google-oauth2"}))
 
-    if not organization.google_drive_parent:
-        if user == organization.owner:
-            create_root(user)
-        else:
-            messages.error(request,
-                           "There's no root Google Drive directory and you're not the owner. Contact your organization owner to set up Google Drive")
-    else:
-        if user == organization.owner:
+    try:
+        if not organization.google_drive_parent:
+            if user == organization.owner:
+                create_root(user)
+            else:
+                messages.error(request,
+                               "There's no root Google Drive directory and you're not the owner. Contact your organization owner to set up Google Drive")
+        elif user == organization.owner:
             try:
                 service.files().get(fileId=organization.google_drive_parent).execute()
             except HttpError:
                 create_root(user)
+    except HttpError as e:
+        if _is_insufficient_scope(e):
+            return _reconnect_drive_redirect(request)
+        raise
 
     try:
         part = Part.objects.get(id=part_id)
@@ -160,6 +181,8 @@ def get_or_create_and_open_folder(request, part_id):
                 try:
                     create_part_folder(user, part)
                 except HttpError as e:
+                    if _is_insufficient_scope(e):
+                        return _reconnect_drive_redirect(request)
                     messages.error(request, "Error: {}".format(e))
                     return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
     # TODO: Check if the folder name exists already before creating it ?
@@ -167,6 +190,8 @@ def get_or_create_and_open_folder(request, part_id):
         try:
             create_part_folder(user, part)
         except HttpError as e:
+            if _is_insufficient_scope(e):
+                return _reconnect_drive_redirect(request)
             for detail in e.error_details:
                 msg = detail['message'] if 'message' in detail else 'Unknown error'
                 if 'reason' in detail and detail['reason'] == 'notFound':
@@ -188,17 +213,22 @@ def update_folder_name(request, part_id):
     except HTTPError as e:
         return HttpResponseRedirect(reverse('social:begin', kwargs={'backend': "google-oauth2"}))
 
-    if not organization.google_drive_parent:
-        create_root(user)
-
     try:
         part = Part.objects.get(id=part_id)
     except ObjectDoesNotExist:
         messages.error(request, "Part object does not exist.")
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
-    if part.google_drive_parent:
-        new_filename = part.full_part_number() + ' ' + part.latest().description
-        service.files().update(fileId=part.google_drive_parent, body={'name': new_filename}).execute()
+    try:
+        if not organization.google_drive_parent:
+            create_root(user)
+
+        if part.google_drive_parent:
+            new_filename = part.full_part_number() + ' ' + part.latest().description
+            service.files().update(fileId=part.google_drive_parent, body={'name': new_filename}).execute()
+    except HttpError as e:
+        if _is_insufficient_scope(e):
+            return _reconnect_drive_redirect(request)
+        raise
     # TODO: Finish this... should update filename on
     return
