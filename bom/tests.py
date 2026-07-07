@@ -1,5 +1,6 @@
 import csv
 import io
+from decimal import Decimal
 from re import finditer
 from unittest import skip
 from unittest.mock import patch
@@ -15,7 +16,7 @@ from django.urls import reverse
 from . import constants
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from .forms import AddSubpartForm, BOMCSVForm, PartFormSemiIntelligent, PartInfoForm, SellerPartForm
+from .forms import AddSubpartForm, BOMCSVForm, PartFormSemiIntelligent, PartInfoForm, SellerPartForm, sanitize_cost
 from .helpers import (
     create_a_fake_assembly,
     create_a_fake_organization,
@@ -27,7 +28,7 @@ from .helpers import (
     create_some_fake_parts,
     create_user_and_organization,
 )
-from .models import Manufacturer, Part, PartClass, Seller, Subpart
+from .models import Manufacturer, Part, PartClass, Seller, SellerPart, Subpart
 
 TEST_FILES_DIR = "bom/test_files"
 
@@ -877,6 +878,49 @@ class TestBOM(TransactionTestCase):
 
         parts_count = Part.objects.all().count()
         self.assertEqual(parts_count - initial_parts_count, 4)
+
+    def test_sanitize_cost(self):
+        # Currency symbols and thousands separators are stripped to a plain decimal string;
+        # empty/None are passed through so existing validation/skip behavior is preserved.
+        self.assertEqual(sanitize_cost("A$1,190.00"), "1190")
+        self.assertEqual(sanitize_cost("A$0.00"), "0")
+        self.assertEqual(sanitize_cost("$1234.56"), "1234.56")
+        self.assertEqual(sanitize_cost("1.2345"), "1.2345")
+        self.assertEqual(sanitize_cost(""), "")
+        self.assertIsNone(sanitize_cost(None))
+
+    def test_upload_part_costs_with_currency_symbol_and_export_roundtrip(self):
+        # Regression: costs were exported as "A$0.00"/"A$1,190.00", which failed re-import
+        # ("costs must be decimal values only"). Export now emits plain decimal amounts, and
+        # import tolerates a currency symbol / thousands separators.
+        create_some_fake_part_classes(self.organization)
+
+        if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            csv_content = (
+                "part_class,description,revision,manufacturer,manufacturer_part_number,seller,unit_cost,part_nre_cost,moq,mpq\n"
+                '200,Cost Test,A,MfgX,MPN-COST-1,SellerX,"A$1,190.00","A$0.00",100,10\n'
+            )
+        else:
+            csv_content = (
+                "part_number,description,revision,manufacturer,manufacturer_part_number,seller,unit_cost,part_nre_cost,moq,mpq\n"
+                'PC-COST-1,Cost Test,A,MfgX,MPN-COST-1,SellerX,"A$1,190.00","A$0.00",100,10\n'
+            )
+
+        f = io.BytesIO(csv_content.encode())
+        f.name = "costs.csv"
+        response = self.client.post(reverse("bom:upload-parts"), {"file": f})
+        self.assertEqual(response.status_code, 302)
+
+        # The currency-formatted costs imported into a real SellerPart with the right amounts.
+        seller_part = SellerPart.objects.get(manufacturer_part__manufacturer_part_number="MPN-COST-1")
+        self.assertEqual(seller_part.unit_cost.amount, Decimal("1190"))
+        self.assertEqual(seller_part.nre_cost.amount, Decimal("0"))
+
+        # Export emits plain decimal amounts, not currency-formatted Money ("A$...").
+        exported = seller_part.as_dict_for_export()
+        self.assertEqual(exported["unit_cost"], Decimal("1190"))
+        self.assertNotIn("$", str(exported["unit_cost"]))
+        self.assertNotIn("$", str(exported["nre_cost"]))
 
     def test_upload_parts_no_manufacturer_column_does_not_create_blank_manufacturer(self):
         # Bug: uploading a parts CSV that has manufacturer_part_number but no manufacturer

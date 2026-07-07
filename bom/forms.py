@@ -44,7 +44,7 @@ from .models import (
     get_user_meta_model,
     get_organization_model,
 )
-from .utils import listify_string, stringify_list
+from .utils import listify_string, parse_number, stringify_list
 from .validators import alphanumeric
 
 logger = logging.getLogger(__name__)
@@ -1073,8 +1073,10 @@ class PartCSVForm(BaseCSVForm):
         description = csv_headers.get_val_from_row(row_data, 'description')
         seller_name = csv_headers.get_val_from_row(row_data, 'seller')
         seller_part_number = csv_headers.get_val_from_row(row_data, 'seller_part_number')
-        unit_cost = csv_headers.get_val_from_row(row_data, 'unit_cost')
-        nre_cost = csv_headers.get_val_from_row(row_data, 'part_nre_cost')
+        # Costs may arrive with currency symbols and thousands separators (e.g. an exported
+        # "A$1,190.00"); normalize to a plain decimal string that MoneyField can parse.
+        unit_cost = sanitize_cost(csv_headers.get_val_from_row(row_data, 'unit_cost'))
+        nre_cost = sanitize_cost(csv_headers.get_val_from_row(row_data, 'part_nre_cost'))
         moq = csv_headers.get_val_from_row(row_data, 'moq')
         mpq = csv_headers.get_val_from_row(row_data, 'minimum_pack_quantity')
 
@@ -1507,6 +1509,16 @@ def part_form_from_organization(organization):
     if organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
         return PartFormSemiIntelligent
     return PartFormIntelligent
+
+
+def sanitize_cost(raw):
+    """Normalize a cost cell (which may carry a currency symbol / thousands separators, e.g.
+    "A$1,190.00") into a plain decimal string MoneyField can parse. Empty or unparseable
+    values are returned unchanged so existing validation/skip behavior is preserved."""
+    if not raw:
+        return raw
+    parsed = parse_number(raw)
+    return str(parsed) if parsed is not None else raw
 
 
 def add_nonfield_error_from_existing(from_form, to_form, prefix=''):

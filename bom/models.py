@@ -1043,9 +1043,9 @@ class SellerPart(models.Model, AsDictModel):
             'manufacturer_part_number': self.manufacturer_part.manufacturer_part_number,
             'seller': self.seller.name,
             'seller_part_number': self.seller_part_number,
-            'unit_cost': self.unit_cost,
+            'unit_cost': self.unit_cost.amount,
             'minimum_order_quantity': self.minimum_order_quantity,
-            'nre_cost': self.nre_cost
+            'nre_cost': self.nre_cost.amount
         }
 
     @staticmethod

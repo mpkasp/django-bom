@@ -188,11 +188,11 @@ class PartBomItem(AsDictModel):
             'part_order_qty': self.order_quantity,
             'part_seller': self.seller_part.seller.name if self.seller_part is not None else '',
             'part_seller_part_number': self.seller_part.seller_part_number if self.seller_part is not None else '',
-            'part_cost': self.seller_part.unit_cost if self.seller_part is not None else '',
+            'part_cost': self.seller_part.unit_cost.amount if self.seller_part is not None else '',
             'part_moq': self.seller_part.minimum_order_quantity if self.seller_part is not None else 0,
-            'part_nre': self.seller_part.nre_cost if self.seller_part is not None else 0,
-            'part_ext_cost': self.extended_cost(),
-            'part_out_of_pocket_cost': self.out_of_pocket_cost(),
+            'part_nre': self.seller_part.nre_cost.amount if self.seller_part is not None else 0,
+            'part_ext_cost': self.extended_cost().amount,
+            'part_out_of_pocket_cost': self.out_of_pocket_cost().amount,
             'part_lead_time_days': self.seller_part.lead_time_days if self.seller_part is not None else 0,
         }
 
