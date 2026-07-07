@@ -2099,7 +2099,7 @@ class TestGoogleDriveScope(TestCase):
     The integration must distinguish an identity-only Google connection from one that was
     actually granted Drive access."""
 
-    DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
+    DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
 
     def setUp(self):
         self.user, self.organization = create_user_and_organization()
