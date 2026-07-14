@@ -666,12 +666,6 @@ class PartClassSelectionForm(OrganizationFormMixin, forms.Form):
 
 class BasePartForm(OrganizationModelForm):
     """Base class for part forms to handle common init and placeholder logic."""
-    add_sourcing = forms.BooleanField(
-        label="Add manufacturer sourcing information immediately?",
-        initial=True,
-        required=False,
-        help_text="Check this to skip straight to adding an MPN after saving."
-    )
 
     def __init__(self, *args, **kwargs):
         self.ignore_part_class = kwargs.pop('ignore_part_class', False)
@@ -683,8 +677,6 @@ class BasePartForm(OrganizationModelForm):
             self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(
                 part__id=self.instance.id
             ).order_by('manufacturer_part_number')
-            # 'add_sourcing' only drives the post-save redirect on create; it does nothing when editing.
-            self.fields.pop('add_sourcing', None)
         elif 'primary_manufacturer_part' in self.fields:
             del self.fields['primary_manufacturer_part']
 
