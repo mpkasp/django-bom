@@ -638,6 +638,96 @@ class TestBOM(TransactionTestCase):
         occurances = [m.start() for m in finditer(p1.full_part_number(), main_content)]
         self.assertEqual(len(occurances), 1)
 
+    def test_create_part_with_image(self):
+        from PIL import Image
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        buffer = io.BytesIO()
+        Image.new('RGB', (8, 8), color='red').save(buffer, format='PNG')
+        image = SimpleUploadedFile('part.png', buffer.getvalue(), content_type='image/png')
+
+        new_part_form_data = {
+            'configuration': 'D',
+            'description': 'IC, MCU 32 Bit',
+            'revision': 'A',
+            'property_sheen': 'flat',
+            'property_voltage': '1.34',
+            'image': image,
+        }
+        if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            new_part_form_data['number_class'] = str(p1.number_class)
+            new_part_form_data['number_item'] = ''
+            new_part_form_data['number_variation'] = ''
+        else:
+            new_part_form_data['number_item'] = 'IMG-PART'
+
+        response = self.client.post(reverse('bom:create-part'), new_part_form_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue('/part/' in response.url)
+
+        created_part = Part.objects.get(id=response.url[6:-1])
+        self.assertTrue(created_part.image)
+        self.assertTrue(created_part.image.name.startswith('part_images/'))
+
+        # The part-info page should render the uploaded picture.
+        response = self.client.get(response.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(created_part.image.url, response.content.decode('utf-8'))
+
+        # Removing the picture clears the field and deletes the file from storage.
+        image_storage = created_part.image.storage
+        image_name = created_part.image.name
+        response = self.client.get(reverse('bom:part-image-delete', kwargs={'part_id': created_part.id}))
+        self.assertEqual(response.status_code, 302)
+        created_part.refresh_from_db()
+        self.assertFalse(created_part.image)
+        self.assertFalse(image_storage.exists(image_name))
+
+    def test_part_image_upload_replace_remove(self):
+        from PIL import Image
+
+        def make_image(color):
+            buffer = io.BytesIO()
+            Image.new('RGB', (8, 8), color=color).save(buffer, format='PNG')
+            return SimpleUploadedFile(f'{color}.png', buffer.getvalue(), content_type='image/png')
+
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        # Upload
+        response = self.client.post(reverse('bom:part-image-upload', kwargs={'part_id': p1.id}),
+                                    {'image': make_image('red')})
+        self.assertEqual(response.status_code, 302)
+        p1.refresh_from_db()
+        self.assertTrue(p1.image)
+        first_name = p1.image.name
+        self.assertTrue(p1.image.storage.exists(first_name))
+
+        # Part page renders the editable thumbnail and the modal upload form.
+        response = self.client.get(reverse('bom:part-info', kwargs={'part_id': p1.id}))
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode('utf-8')
+        self.assertIn('part-image-modal', body)
+        self.assertIn(p1.image.url, body)
+
+        # Replace: new file is stored and the previous one is removed from storage.
+        storage = p1.image.storage
+        response = self.client.post(reverse('bom:part-image-upload', kwargs={'part_id': p1.id}),
+                                    {'image': make_image('blue')})
+        self.assertEqual(response.status_code, 302)
+        p1.refresh_from_db()
+        self.assertNotEqual(p1.image.name, first_name)
+        self.assertTrue(storage.exists(p1.image.name))
+        self.assertFalse(storage.exists(first_name))
+
+        # Remove
+        second_name = p1.image.name
+        response = self.client.get(reverse('bom:part-image-delete', kwargs={'part_id': p1.id}))
+        self.assertEqual(response.status_code, 302)
+        p1.refresh_from_db()
+        self.assertFalse(p1.image)
+        self.assertFalse(storage.exists(second_name))
+
     def test_create_part_variation(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 

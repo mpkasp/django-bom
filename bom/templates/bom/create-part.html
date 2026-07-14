@@ -13,7 +13,8 @@
     <div class="container-app">
         {% if perms.bom.create_part %}
             <div class="row">
-                <form name="form" action="{% url 'bom:create-part' %}" method="post" class="col s12">
+                <form name="form" action="{% url 'bom:create-part' %}" method="post" enctype="multipart/form-data"
+                      class="col s12">
                     {% csrf_token %}
                     <h2>Part Number</h2>
                     {% if organization.number_scheme == 'S' %}
@@ -34,7 +35,7 @@
                         {{ part_revision_form|materializecss:'m4 s12' }}
                     </div>
                     {#                    {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}#}
-                    <h3>Initial Sourcing <small>(Optional)</small></h3>
+                    <h3>Sourcing <small>(Optional)</small></h3>
                     <div class="row">
                         {{ manufacturer_part_form|materializecss:'m4 s12' }}
                     </div>

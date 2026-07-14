@@ -250,6 +250,8 @@ class Part(OrganizationScopedModel):
     primary_manufacturer_part = models.ForeignKey('ManufacturerPart', default=None, null=True, blank=True,
                                                   on_delete=models.SET_NULL, related_name='primary_manufacturer_part')
     google_drive_parent = models.CharField(max_length=128, blank=True, default=None, null=True)
+    image = models.ImageField(upload_to='part_images/', blank=True, null=True,
+                              help_text='A picture to help identify this part.')
 
     class Meta(OrganizationScopedModel.Meta):
         unique_together = ['number_class', 'number_item', 'number_variation', 'organization', ]

@@ -45,6 +45,7 @@ from bom.forms import (
     PartClassForm,
     PartClassSelectionForm,
     PartCSVForm,
+    PartImageForm,
     PartInfoForm,
     PartRevisionForm,
     PartRevisionNewForm,
@@ -1145,7 +1146,7 @@ def create_part(request):
     PartForm = part_form_from_organization(organization)
 
     if request.method == 'POST':
-        part_form = PartForm(request.POST, organization=organization)
+        part_form = PartForm(request.POST, request.FILES, organization=organization)
         part_revision_form = PartRevisionForm(request.POST, organization=organization)
         manufacturer_part_form = ManufacturerPartForm(request.POST, organization=organization)
 
@@ -1202,7 +1203,7 @@ def part_edit(request, part_id):
     PartForm = part_form_from_organization(organization)
 
     if request.method == 'POST':
-        form = PartForm(request.POST, instance=part, organization=organization)
+        form = PartForm(request.POST, request.FILES, instance=part, organization=organization)
         if form.is_valid():
             form.save()
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
@@ -1267,6 +1268,35 @@ def part_delete(request, part_id):
     part = get_object_or_404(Part, pk=part_id)
     part.delete()
     return HttpResponseRedirect(reverse('bom:home'))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
+def part_image_upload(request, part_id):
+    part = get_object_or_404(Part, pk=part_id)
+    if request.method == 'POST':
+        old_name = part.image.name
+        form = PartImageForm(request.POST, request.FILES, instance=part)
+        if form.is_valid():
+            part = form.save()
+            # Remove the previous file so replacing a picture doesn't orphan it in storage.
+            if old_name and old_name != part.image.name:
+                part.image.storage.delete(old_name)
+            messages.success(request, "Updated part picture.")
+        else:
+            messages.error(request, "; ".join(form.errors.get('image', ["Couldn't upload that picture."])))
+    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
+def part_image_delete(request, part_id):
+    part = get_object_or_404(Part, pk=part_id)
+    if part.image:
+        # delete() removes the file from storage and clears the field, then persists the row.
+        part.image.delete(save=True)
+        messages.success(request, "Removed part picture.")
+    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
 
 
 @login_required(login_url=BOM_LOGIN_URL)

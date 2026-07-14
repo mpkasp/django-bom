@@ -60,3 +60,186 @@
     width: 100px;
     text-align: left;
 }
+
+/* --- Part header: title-forward, Part identity + Revision controls --- */
+.part-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px 24px;
+    margin: 8px 0 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.part-identity {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    min-width: 0;
+}
+
+.part-eyebrow {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9e9e9e;
+    font-weight: 600;
+}
+
+/* Thumbnail / empty "Add photo" affordance */
+.part-thumb {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 96px;
+    height: 96px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+}
+
+.part-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.part-thumb.modal-trigger {
+    cursor: pointer;
+}
+
+.part-thumb-hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    opacity: 0;
+    transition: opacity 0.15s ease-in-out;
+}
+
+.part-thumb:hover .part-thumb-hint {
+    opacity: 1;
+}
+
+.part-thumb-empty {
+    flex-direction: column;
+    border-style: dashed;
+    color: #9e9e9e;
+    text-align: center;
+    line-height: 1.15;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.part-thumb-empty i {
+    font-size: 1.6rem;
+}
+
+.part-thumb-empty span {
+    font-size: 0.7rem;
+}
+
+a.part-thumb-empty:hover {
+    color: #26a69a;
+    border-color: #26a69a;
+}
+
+/* Identity text block */
+.part-identity-body {
+    min-width: 0;
+}
+
+.part-number {
+    margin: 2px 0 4px !important;
+    font-size: 2rem;
+    line-height: 1.1;
+    word-break: break-word;
+}
+
+.part-identity-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    color: #616161;
+    font-size: 0.9rem;
+}
+
+.part-identity-meta span + span::before {
+    content: "\00b7";
+    margin: 0 8px;
+    color: #bdbdbd;
+}
+
+.part-identity-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    font-size: 0.85rem;
+}
+
+.part-identity-edit i {
+    font-size: 1rem;
+}
+
+/* Revision controls (right side of header) */
+.part-revision-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.part-revision-controls .part-eyebrow {
+    margin-bottom: 6px;
+}
+
+.revision-selector-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.revision-select-wrapper {
+    margin: 0;
+    min-width: 150px;
+}
+
+.revision-select-wrapper.input-field,
+.revision-select-wrapper .select-wrapper {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.manage-btn-col {
+    margin: 0;
+}
+
+/* Quote quantity control (in Specifications, by the cost readout) */
+.quote-qty-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.quote-qty-form input[type="number"] {
+    width: 90px;
+    height: 2rem;
+    margin: 0;
+    text-align: left;
+}
+
+.quote-qty-refresh {
+    min-width: 36px;
+    padding: 0 8px;
+}

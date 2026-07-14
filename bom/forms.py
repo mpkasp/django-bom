@@ -56,6 +56,17 @@ UserMeta = get_user_meta_model()
 # MIXINS & BASE CLASSES
 # ==========================================
 
+class CurrentFileInput(forms.FileInput):
+    """FileInput that exposes the existing filename via ``data-current-file`` so the UI can show it
+    in Materialize's file-path box -- a plain file input renders nothing for an already-saved file."""
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        if value and hasattr(value, 'url'):
+            context['widget']['attrs']['data-current-file'] = value.name.rsplit('/', 1)[-1]
+        return context
+
+
 class OrganizationFormMixin:
     """Mixin to handle organization injection."""
 
@@ -672,8 +683,15 @@ class BasePartForm(OrganizationModelForm):
             self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(
                 part__id=self.instance.id
             ).order_by('manufacturer_part_number')
+            # 'add_sourcing' only drives the post-save redirect on create; it does nothing when editing.
+            self.fields.pop('add_sourcing', None)
         elif 'primary_manufacturer_part' in self.fields:
             del self.fields['primary_manufacturer_part']
+
+        # Plain file input so it renders as a Materialize file-field (the default ClearableFileInput's
+        # "Currently/Clear/Change" markup doesn't fit); CurrentFileInput surfaces the existing filename.
+        if 'image' in self.fields:
+            self.fields['image'].widget = CurrentFileInput(attrs={'accept': 'image/*'})
 
 
 class PartFormIntelligent(BasePartForm):
@@ -701,9 +719,11 @@ class PartFormSemiIntelligent(BasePartForm):
         self.fields['number_item'].validators.append(alphanumeric)
         self.fields['number_class'] = forms.CharField(
             label='Part Number Class*', required=True,
-            help_text='Select a number class.',
             widget=AutocompleteTextInput(queryset=PartClass.objects.filter(organization=self.organization))
         )
+        # Use a placeholder (like the sibling fields) rather than a help_text block, which renders an
+        # extra <p> that unbalances the floated column grid.
+        self.fields['number_class'].widget.attrs['placeholder'] = 'Select a number class.'
 
         # Convert ID to string for Autocomplete
         if self.initial.get('number_class'):
@@ -756,6 +776,17 @@ class PartFormSemiIntelligent(BasePartForm):
                 self.add_error(None, f"Part number {n_class.code}-{n_item}-{n_var} already in use.")
 
         return cleaned_data
+
+
+class PartImageForm(forms.ModelForm):
+    """Single-field form for the inline picture upload/replace popover on the part page."""
+    class Meta:
+        model = Part
+        fields = ['image']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['image'].required = True
 
 
 class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm):

@@ -15,54 +15,65 @@
     {% include 'bom/bom-action-btn.html' with profile=profile %}
     <div class="container-app">
         <div class="part-info">
-            <div class="header-title-row">
-                <h1 style="margin: 0;">{{ part.full_part_number }}</h1>
-
-                {% if part_revision %}
-                    <div class="input-field">
-                        <select id="select-revision">
-                            {% for r in revisions.all %}
-                                <!--@formatter:off-->
-                                <option {% if part_revision.id == r.id %}selected{% endif %} value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}{% endif %}">Rev {{ r.revision }}{% if part_revision.id != r.id %} ({{ r.get_configuration_display }}){% endif %}</option>
-                                <!--@formatter:on-->
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <span class="chip
-                        {% if part_revision.configuration == 'D' %}grey lighten-2 grey-text text-darken-2
-                        {% elif part_revision.configuration == 'I' %}amber lighten-3 black-text
-                        {% elif part_revision.configuration == 'R' %}teal darken-2 white-text
-                        {% elif part_revision.configuration == 'O' %}red darken-1 white-text
-                        {% else %}grey lighten-4
-                        {% endif %}">
-                        {{ part_revision.get_configuration_display }}
-                    </span>
-                {% endif %}
-            </div>
-
-            <div class="row printer-hide valign-wrapper-row">
-                {% if part_revision %}
-                    <div class="col s6 left-align part-info-form">
-                        <form action="{% url 'bom:part-info' part_id=part.id %}" method="post">
-                            {% csrf_token %}
-                            <div class="row" style="margin-bottom: 0; display: flex; align-items: center;">
-                                <div class="part-info-form-wrapper">
-                                    {{ part_info_form }}
-                                </div>
-                                <button type="submit"
-                                        class="waves-effect waves-green btn-flat input-field btn-icon-round"
-                                        style="margin-left: 8px; margin-top: 15px; min-width: 36px;"><i
-                                        class="material-icons green-text">refresh</i></button>
+            <div class="part-header printer-hide">
+                <div class="part-identity">
+                    <div class="part-identity-media">
+                        {% if part.image %}
+                            <div class="part-thumb{% if perms.bom.edit_part %} modal-trigger{% endif %}"{% if perms.bom.edit_part %} data-target="part-image-modal"{% endif %}>
+                                <img src="{{ part.image.url }}" alt="Picture of {{ part.full_part_number }}">
+                                {% if perms.bom.edit_part %}<span class="part-thumb-hint"><i class="material-icons">photo_camera</i></span>{% endif %}
                             </div>
-                        </form>
+                        {% elif perms.bom.edit_part %}
+                            <a class="part-thumb part-thumb-empty modal-trigger" data-target="part-image-modal">
+                                <i class="material-icons">add_a_photo</i>
+                                <span>Add photo</span>
+                            </a>
+                        {% else %}
+                            <div class="part-thumb part-thumb-empty">
+                                <i class="material-icons">image</i>
+                            </div>
+                        {% endif %}
                     </div>
-                {% endif %}
-                <div class="col s6 right-align manage-btn-col">
-                    {% if perms.bom.edit_part and part_revision %}
+                    <div class="part-identity-body">
+                        <span class="part-eyebrow">Part</span>
+                        <h1 class="part-number">{{ part.full_part_number }}</h1>
+                        <div class="part-identity-meta">
+                            {% if organization.number_scheme == 'S' and part.number_class %}<span title="{{ part.number_class }}">Class {{ part.number_class.code }}</span>{% endif %}
+                            {% if part.primary_manufacturer_part.manufacturer_part_number %}<span>{{ part.primary_manufacturer_part.manufacturer.name }} {{ part.primary_manufacturer_part.manufacturer_part_number }}</span>{% endif %}
+                        </div>
+                        {% if perms.bom.edit_part %}
+                            <a class="part-identity-edit" href="{% url 'bom:part-edit' part_id=part.id %}"><i class="material-icons">edit</i>Edit part</a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="part-revision-controls">
+                    {% if part_revision %}
+                        <span class="part-eyebrow">Revision</span>
+                        <div class="revision-selector-row">
+                            <div class="input-field revision-select-wrapper">
+                                <select id="select-revision">
+                                    {% for r in revisions.all %}
+                                        <!--@formatter:off-->
+                                        <option {% if part_revision.id == r.id %}selected{% endif %} value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}{% endif %}">Rev {{ r.revision }}{% if part_revision.id != r.id %} ({{ r.get_configuration_display }}){% endif %}</option>
+                                        <!--@formatter:on-->
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <span class="chip
+                                {% if part_revision.configuration == 'D' %}grey lighten-2 grey-text text-darken-2
+                                {% elif part_revision.configuration == 'I' %}amber lighten-3 black-text
+                                {% elif part_revision.configuration == 'R' %}teal darken-2 white-text
+                                {% elif part_revision.configuration == 'O' %}red darken-1 white-text
+                                {% else %}grey lighten-4
+                                {% endif %}">
+                                {{ part_revision.get_configuration_display }}
+                            </span>
+                            {% if perms.bom.edit_part %}
+                                <div class="manage-btn-col">
                         <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
                                 href='#' data-target='dropdown-revision'><i
-                                class="material-icons right">arrow_drop_down</i>Manage
+                                class="material-icons right">arrow_drop_down</i>Manage Revision
                         </button>
                         <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
                                 class="material-icons green-text text-lighten-1">more_vert</i></a>
@@ -130,7 +141,10 @@
                             </li>
                             {% endif %}
                         </ul>
-                    {% elif perms.bom.create_part and not part_revision %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% elif perms.bom.create_part %}
                         <a class='waves-effect waves-light btn-flat'
                            href='{% url 'bom:part-revision-new' part_id=part.id %}'><i class="material-icons left">add</i>Create Revision</a>
                     {% endif %}
@@ -161,11 +175,7 @@
                             {% endif %}
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Number:</div>
-                                <div class="col s8 l10">{{ part.full_part_number }}
-                                    {% if perms.bom.edit_part %}
-                                        <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[edit]</a>
-                                    {% endif %}
-                                </div>
+                                <div class="col s8 l10">{{ part.full_part_number }}</div>
                             </div>
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Synopsis:</div>
@@ -231,6 +241,19 @@
                             <!-- One section = the quote. Each figure is marked ⚡ when it's live from a
                                  distributor (hover for source); your stored data shows unmarked. Live-only
                                  extras (lead time, stock, vendor count) fill in via JS when available. -->
+                            {% if part_revision %}
+                                <div class="row printer-hide">
+                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Quantity:</div>
+                                    <div class="col s8 l10">
+                                        <form action="{% url 'bom:part-info' part_id=part.id %}" method="post" class="quote-qty-form">
+                                            {% csrf_token %}
+                                            {{ part_info_form.quantity }}
+                                            <button type="submit" class="waves-effect waves-green btn-flat btn-icon-round quote-qty-refresh"
+                                                    title="Recalculate at this quantity"><i class="material-icons green-text">refresh</i></button>
+                                        </form>
+                                    </div>
+                                </div>
+                            {% endif %}
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Unit Cost:</div>
                                 <div id="specs-unit-cost" class="col s8 l10"><span id="sourcing-est-cost">{{ indented_bom.unit_cost|default_if_none:'-' }}</span><i
@@ -330,6 +353,42 @@
             </div>
         </div>
     </div>
+
+    {% if perms.bom.edit_part %}
+        <div id="part-image-modal" class="modal">
+            <div class="modal-content">
+                <h5 style="margin-top: 0;">Part picture</h5>
+                <p class="grey-text">A photo to help identify {{ part.full_part_number }} at a glance.</p>
+                {% if part.image %}
+                    <div class="center-align" style="margin: 16px 0;">
+                        <img src="{{ part.image.url }}" alt="Current part picture"
+                             style="max-width: 100%; max-height: 240px; border-radius: 4px;">
+                    </div>
+                {% endif %}
+                <form action="{% url 'bom:part-image-upload' part_id=part.id %}" method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="file-field input-field">
+                        <div class="btn btn-primary">
+                            <span>{% if part.image %}Replace{% else %}Choose{% endif %}</span>
+                            <input type="file" name="image" accept="image/*" required>
+                        </div>
+                        <div class="file-path-wrapper">
+                            <input class="file-path validate" type="text" placeholder="Select an image">
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="padding: 0;">
+                        {% if part.image %}
+                            <a href="{% url 'bom:part-image-delete' part_id=part.id %}"
+                               onclick="return confirm('Remove this part picture?');"
+                               class="waves-effect btn-flat red-text left">Remove</a>
+                        {% endif %}
+                        <a href="#!" class="modal-close waves-effect btn-flat">Cancel</a>
+                        <button type="submit" class="waves-effect waves-light btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
 {% endblock %}
 {% block bom-script %}
     <!-- Materialize initializer -->
@@ -354,6 +413,11 @@
         {% endif %}
 
         var tabs = M.Tabs.init(tabsElem);
+
+        // Part picture upload/replace/remove modal
+        $(document).ready(function () {
+            M.Modal.init(document.querySelectorAll('.modal'));
+        });
 
         // For dropdown menu
         $(document).ready(function () {

@@ -12,7 +12,7 @@
 {% block content %}
     <div class="container-app">
     {% if h1 %}<h2 class="light" style="margin-top: 0px;">{{ h1 }}</h2>{% endif %}
-    <form name="seller" action="{{ action }}" method="post" class="col s12">
+    <form name="seller" action="{{ action }}" method="post" enctype="multipart/form-data" class="col s12">
         <div class="row">
             {% csrf_token %}
             {{ form|materializecss:'m6 s12' }}

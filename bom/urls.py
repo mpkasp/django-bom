@@ -60,6 +60,8 @@ bom_patterns = [
     path('part/<int:part_id>/upload/', views.part_upload_bom, name='part-upload-bom'),
     path('part/<int:part_id>/edit/', views.part_edit, name='part-edit'),
     path('part/<int:part_id>/delete/', views.part_delete, name='part-delete'),
+    path('part/<int:part_id>/image/upload/', views.part_image_upload, name='part-image-upload'),
+    path('part/<int:part_id>/image/delete/', views.part_image_delete, name='part-image-delete'),
     path('part/<int:part_id>/rev/new/', views.part_revision_new, name='part-revision-new'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/', views.part_info, name='part-info-history'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/edit/', views.part_revision_edit, name='part-revision-edit'),
@@ -111,3 +113,10 @@ if 'hijack' in settings.INSTALLED_APPS:
     urlpatterns += [
         path('hijack/', include('hijack.urls')),
     ]
+
+# Serve user-uploaded media (e.g. part images) via runserver in development. In production the
+# web server or object storage backend is responsible for MEDIA_URL.
+if settings.DEBUG:
+    from django.conf.urls.static import static
+
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

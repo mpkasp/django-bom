@@ -20,5 +20,18 @@
         $('.sidenav').sidenav();
     });
     </script>
+    <!-- Show the existing filename in Materialize's (otherwise empty) file-path box for any file
+         field that already has a value, so a saved file doesn't look like nothing is set. -->
+    <script>
+    $(function () {
+        document.querySelectorAll('input[type=file][data-current-file]').forEach(function (input) {
+            var field = input.closest('.file-field');
+            var path = field && field.querySelector('.file-path');
+            if (path && !path.value) {
+                path.value = input.getAttribute('data-current-file');
+            }
+        });
+    });
+    </script>
     {% block bom-script %}{% endblock %}
 {% endblock script %}

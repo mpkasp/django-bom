@@ -520,3 +520,12 @@ a.anchor {
     margin: 0;
     line-height: 1; /* Or a specific unitless value to match your inputs */
 }
+
+/* Vertically center form checkboxes with the input-fields beside them in a row -- Materialize
+   renders checkbox columns top-aligned, out of line with the taller input-field columns. */
+.col:has(> div > label > input[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+    margin-top: 1rem;
+    min-height: 3rem;
+}
