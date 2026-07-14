@@ -18,9 +18,10 @@
                     {% csrf_token %}
                     <h2>Part Number</h2>
                     {% if organization.number_scheme == 'S' %}
-                    <p>Part numbers must be in the format CCC-{{ organization.number_ns }}-VV where CCC is the part number class, {{ organization.number_ns }} is the part number number item, and VV
-                        is the part variation. To change the part number item length or to create part classes, go to the <a
-                                href="{% url 'bom:settings' tab_anchor='indabom' %}">Settings</a> page, and create them in the IndaBOM tab.</p>
+                    <p class="grey-text text-darken-1">Part numbers follow the format
+                        <strong>CCC-{{ organization.number_ns }}-VV</strong>: class, item, and variation. Manage part
+                        classes and the item length in <a href="{% url 'bom:settings' tab_anchor='indabom' %}">Settings &rarr;
+                        IndaBOM</a>.</p>
                     {% endif %}
                     <div class="row">
                         {{ part_form.non_field_errors }}
@@ -36,8 +37,8 @@
                     </div>
                     {#                    {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}#}
                     <h3>Sourcing <small>(Optional)</small></h3>
-                    <p class="grey-text text-darken-1">Link a manufacturer part number so this part can be sourced and
-                        priced. You can skip this and add or edit sourcing anytime from the part page.</p>
+                    <p class="grey-text text-darken-1">Link a manufacturer part number to enable sourcing and pricing.
+                        Optional now &mdash; you can add or edit sourcing anytime from the part page.</p>
                     <div class="row">
                         {{ manufacturer_part_form.manufacturer|materializecss:'m4 s12' }}
                         {{ manufacturer_part_form.manufacturer_part_number|materializecss:'m4 s12' }}
