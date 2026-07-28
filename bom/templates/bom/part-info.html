@@ -35,9 +35,9 @@
                         {% endif %}
                     </div>
                     <div class="part-identity-body">
-                        <span class="part-eyebrow">Part</span>
+                        <span class="eyebrow">Part</span>
                         <h1 class="part-number">{{ part.full_part_number }}</h1>
-                        <div class="part-identity-meta">
+                        <div class="part-identity-meta inline-meta">
                             {% if organization.number_scheme == 'S' and part.number_class %}<span title="{{ part.number_class }}">Class {{ part.number_class.code }}</span>{% endif %}
                             {% if part.primary_manufacturer_part.manufacturer_part_number %}<span>{{ part.primary_manufacturer_part.manufacturer.name }} {{ part.primary_manufacturer_part.manufacturer_part_number }}</span>{% endif %}
                         </div>
@@ -49,7 +49,7 @@
 
                 <div class="part-revision-controls">
                     {% if part_revision %}
-                        <span class="part-eyebrow">Revision</span>
+                        <span class="eyebrow">Revision</span>
                         <div class="revision-selector-row">
                             <div class="input-field revision-select-wrapper">
                                 <select id="select-revision">
@@ -442,13 +442,6 @@
     </script>
 
     <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
-    <script>
-        $("#manufacturer-parts").treetable({
-            expandable: true,
-            indent: 2,
-            initialState: 'collapsed',
-        });
-    </script>
 
     <!-- Floating Horizontal Scrollbar -->
     <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
@@ -789,19 +782,18 @@
             addLiveVendorRows(manufacturerPartId, apiInfo);
         }
 
-        // Add every live distributor offer (Nexar aggregates many) as collapsible child rows under the
-        // MPN node, one row per price break -- expand via the MPN's tree arrow. Mirrors the seller-part
-        // rows so your sourcing and live vendors read the same way.
+        // Add every live distributor offer (Nexar aggregates many) as vendor rows in the manufacturer
+        // part's card, one row per price break. Mirrors the seller-part rows so your sourcing and live
+        // vendors read the same way.
         function addLiveVendorRows(manufacturerPartId, apiInfo) {
             const offers = apiInfo['offers'] || [];
             if (offers.length === 0 || renderedBreaks[manufacturerPartId]) return;
-            const node = $('#manufacturer-parts').treetable('node', manufacturerPartId);
-            if (!node) return;
+            const tbody = $('#vendor-rows-' + manufacturerPartId);
+            if (tbody.length === 0) return;
             renderedBreaks[manufacturerPartId] = true;
 
             const boltMarker = liveBoltHtml(apiInfo['provider_label']);
             let rows = $();
-            let rowIndex = 0;
             offers.forEach(function (offer) {
                 const breaks = offer['price_breaks'] || [];
                 if (breaks.length === 0) return;  // skip vendors with no purchasable price
@@ -813,8 +805,7 @@
                 breaks.forEach(function (pb) {
                     const price = currencyUnit + parseFloat(pb['unit_cost']).toFixed(4);
                     rows = rows.add($(
-                        '<tr data-tt-id="live-' + manufacturerPartId + '-' + rowIndex + '" data-tt-parent-id="' + manufacturerPartId + '">'
-                        + '<td class="text-normal"></td><td class="text-normal"></td>'
+                        '<tr>'
                         + '<td class="text-normal">' + sellerName + '</td>'
                         + '<td class="text-normal">' + sku + '</td>'
                         + '<td class="text-normal">' + pb['moq'] + '</td>'
@@ -824,10 +815,12 @@
                         + '<td class="text-normal"></td><td class="text-normal"></td><td class="text-normal"></td>'
                         + '</tr>'
                     ));
-                    rowIndex++;
                 });
             });
-            if (rows.length) $('#manufacturer-parts').treetable('loadBranch', node, rows);
+            if (rows.length) {
+                tbody.find('.no-vendors-row').remove();  // live offers replace the empty state
+                tbody.append(rows);
+            }
         }
 
         $(document).ready(function () {

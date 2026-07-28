@@ -80,15 +80,6 @@
     min-width: 0;
 }
 
-.part-eyebrow {
-    display: block;
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #9e9e9e;
-    font-weight: 600;
-}
-
 /* Thumbnail / empty "Add photo" affordance */
 .part-thumb {
     position: relative;
@@ -172,12 +163,6 @@ a.part-thumb-empty:hover {
     font-size: 0.9rem;
 }
 
-.part-identity-meta span + span::before {
-    content: "\00b7";
-    margin: 0 8px;
-    color: #bdbdbd;
-}
-
 .part-identity-edit {
     display: inline-flex;
     align-items: center;
@@ -197,7 +182,7 @@ a.part-thumb-empty:hover {
     align-items: flex-end;
 }
 
-.part-revision-controls .part-eyebrow {
+.part-revision-controls .eyebrow {
     margin-bottom: 6px;
 }
 
