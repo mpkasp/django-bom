@@ -206,6 +206,10 @@ SOCIAL_AUTH_LOGIN_ERROR_URL = '/'
 # Custom login url for BOM_LOGIN (kept for compatibility)
 BOM_LOGIN_URL = None
 
+# Formset-driven pages (part classes, quantities of measure, large BOMs) can post
+# more fields than Django's default limit of 1000. Raise it to accommodate them.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = locals().get('DATA_UPLOAD_MAX_NUMBER_FIELDS', 50000)
+
 
 # --------------------------------------------------------------------------
 # DJMONEY CONFIG
