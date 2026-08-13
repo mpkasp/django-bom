@@ -27,6 +27,15 @@ NEXAR_GRAPHQL_URL = 'https://api.nexar.com/graphql'
 NEXAR_SCOPE = 'supply.domain'
 OCTOPART_SEARCH_URL = 'https://octopart.com/search?q={}'
 
+# Nexar meters on *parts returned*, not requests, so these limits are the account's spend rate:
+# a BOM quote costs len(bom) * MATCH_CANDIDATE_LIMIT parts. Candidates above 1 exist so the exact
+# MPN survives Nexar's ranking when the top hit is a near variant.
+MATCH_CANDIDATE_LIMIT = 5
+# Connectivity probes only need to know the call was authorized and parsed, not to price a real
+# BOM, so they ask for the cheapest useful number of candidates.
+PROBE_CANDIDATE_LIMIT = 2
+SEARCH_RESULT_LIMIT = 10
+
 SUP_MULTI_MATCH_QUERY = """
 query SupMultiMatch($queries: [SupPartMatchQuery!]!) {
   supMultiMatch(queries: $queries) {
@@ -130,7 +139,7 @@ class NexarProvider(SourcingProvider):
             'client_secret': organization.sourcing_api_secret,
         }
 
-    def match(self, manufacturer_parts: list, currency=None) -> dict:
+    def match(self, manufacturer_parts: list, currency=None, candidate_limit=None) -> dict:
         if not manufacturer_parts:
             return {}
 
@@ -139,8 +148,9 @@ class NexarProvider(SourcingProvider):
 
         # Ask for a few candidates per MPN (still one batched HTTP call) so the exact part is
         # present even when Nexar's top hit is a near variant.
+        limit = candidate_limit or MATCH_CANDIDATE_LIMIT
         queries = [
-            {'mpn': mp.manufacturer_part_number, 'reference': str(mp.id), 'limit': 5}
+            {'mpn': mp.manufacturer_part_number, 'reference': str(mp.id), 'limit': limit}
             for mp in manufacturer_parts
         ]
         data = self._graphql(token, SUP_MULTI_MATCH_QUERY, {'queries': queries})
@@ -189,7 +199,7 @@ class NexarProvider(SourcingProvider):
         authorized vendor (nothing useful to point at), or on any search error.
         """
         try:
-            data = self._graphql(token, SUP_SEARCH_MPN_QUERY, {'q': requested_mpn, 'limit': 10})
+            data = self._graphql(token, SUP_SEARCH_MPN_QUERY, {'q': requested_mpn, 'limit': SEARCH_RESULT_LIMIT})
         except BaseApiError:
             return None
         results = (data.get('supSearchMpn') or {}).get('results') or []

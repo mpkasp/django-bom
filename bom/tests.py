@@ -2115,6 +2115,34 @@ class TestJsonViews(TestCase):
 
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
+class TestLivePricingIsUserInitiated(TestCase):
+    """Live pricing is metered against the organization's own provider allowance, so the part page
+    never fetches it on load -- it renders the stored estimate and waits for a click."""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user('kasper', 'kasper@McFadden.com', 'ghostpassword')
+        self.organization = create_a_fake_organization(self.user)
+        self.profile = self.user.bom_profile(organization=self.organization)
+        self.client.login(username='kasper', password='ghostpassword')
+        (self.p1, self.p2, self.p3, self.p4) = create_some_fake_parts(organization=self.organization)
+        # The live-pricing UI only renders for BOMs that have sourceable parts.
+        PartClass.objects.filter(organization=self.organization).update(sourcing_enabled=True)
+
+    def test_part_page_offers_live_pricing_without_fetching_it(self):
+        response = self.client.get(reverse('bom:part-info', kwargs={'part_id': self.p3.id}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['sourcing_parts'])
+        self.assertContains(response, 'id="sourcing-fetch-button"')
+        # Deferring the live call must not defer the quote: the stored estimate still renders.
+        self.assertContains(response, 'sourcing-est-cost')
+        # Exactly one trigger, and it is the click handler -- nothing fetches on load or on edit.
+        self.assertContains(response, 'fetchSourcing(currentQuantity())', count=1)
+        self.assertContains(response, "$('#sourcing-fetch-button').on('click'")
+
+
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestProviderCredentialSchema(TestCase):
     def test_schema_exposes_per_provider_fields(self):
         from bom.third_party_apis.sourcing import provider_credential_schema

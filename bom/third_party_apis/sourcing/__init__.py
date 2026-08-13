@@ -4,7 +4,7 @@ from dataclasses import asdict
 
 from .base import CredentialField, Offer, PriceBreak, SourcingProvider, offers_to_seller_parts
 from .mouser import MouserProvider
-from .nexar import NexarProvider
+from .nexar import PROBE_CANDIDATE_LIMIT, NexarProvider
 
 _PROVIDERS = {
     MouserProvider.name: MouserProvider,
@@ -53,6 +53,7 @@ __all__ = [
     'offers_to_seller_parts',
     'MouserProvider',
     'NexarProvider',
+    'PROBE_CANDIDATE_LIMIT',
     'get_provider',
     'build_provider',
     'provider_credential_schema',

@@ -12,6 +12,7 @@ from bom.models import SellerPart
 from .base_api import BaseApiError, _sourcing_cache
 from .mouser import MouserApi
 from .sourcing import MouserProvider, NexarProvider, build_provider, get_provider, offers_to_seller_parts
+from .sourcing.nexar import MATCH_CANDIDATE_LIMIT, PROBE_CANDIDATE_LIMIT
 from .sourcing.base import Offer, PriceBreak
 
 
@@ -289,6 +290,21 @@ class TestNexarProvider(TestCase):
         self.assertEqual(offer.price_breaks[1].unit_cost, Money('1.8', 'USD'))
 
         self.assertEqual(offers_by_mp[self.mp2.id][0].seller_name, 'Mouser')
+
+    @patch('bom.third_party_apis.sourcing.nexar._get_token', return_value='tok')
+    @patch('bom.third_party_apis.sourcing.nexar.requests.post')
+    def test_candidate_limit_controls_parts_requested(self, mock_post, mock_token):
+        # Nexar meters on parts *returned*, so the per-MPN limit is what the account is billed for.
+        mock_post.return_value = self._fake_graphql()
+
+        NexarProvider(self.CREDENTIALS).match([self.mp1], currency=None)
+        sent = mock_post.call_args.kwargs['json']['variables']['queries']
+        self.assertEqual(sent[0]['limit'], MATCH_CANDIDATE_LIMIT)
+
+        NexarProvider(self.CREDENTIALS).match([self.mp1], currency=None, candidate_limit=PROBE_CANDIDATE_LIMIT)
+        sent = mock_post.call_args.kwargs['json']['variables']['queries']
+        self.assertEqual(sent[0]['limit'], PROBE_CANDIDATE_LIMIT)
+        self.assertLess(PROBE_CANDIDATE_LIMIT, MATCH_CANDIDATE_LIMIT)
 
     @patch('bom.third_party_apis.sourcing.nexar._get_token', return_value='tok')
     @patch('bom.third_party_apis.sourcing.nexar.requests.post')

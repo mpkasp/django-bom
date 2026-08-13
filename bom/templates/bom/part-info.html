@@ -254,6 +254,18 @@
                                     </div>
                                 </div>
                             {% endif %}
+                            {% if sourcing_parts %}
+                                <div class="row printer-hide" id="sourcing-fetch-row">
+                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Live Pricing:</div>
+                                    <div class="col s8 l10">
+                                        <a id="sourcing-fetch-button" class="waves-effect waves-green btn-flat"
+                                           style="padding: 0 12px;">
+                                            <i class="material-icons left green-text"
+                                               style="margin-right: 6px;">bolt</i>Get live pricing</a>
+                                        <span id="sourcing-fetch-status" class="grey-text"></span>
+                                    </div>
+                                </div>
+                            {% endif %}
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Unit Cost:</div>
                                 <div id="specs-unit-cost" class="col s8 l10"><span id="sourcing-est-cost">{{ indented_bom.unit_cost|default_if_none:'-' }}</span><i
@@ -540,8 +552,8 @@
         }
     </script>
 
-    <!-- Live sourcing: the server is the source of truth for pricing; the browser just renders
-         the response and re-requests with ?quantity= when the quote quantity changes. -->
+    <!-- Live sourcing: the server is the source of truth for pricing; the browser just asks for it
+         once, when the user clicks, and renders the response. -->
     <script>
         {% if part_revision.id and sourcing_parts %}
         // Distributor pricing is live-only and never persisted. The server fetches it, normalizes
@@ -559,12 +571,15 @@
         }
 
         function fetchSourcing(quantity) {
+            $('#sourcing-fetch-status').text('Fetching…');
             $.get(sourcingUrl + "?quantity=" + quantity, function (response) {
                 const errors = response['errors'];
                 if (errors && errors.length > 0) {
                     console.error(errors);
+                    $('#sourcing-fetch-status').text('Live pricing unavailable.');
                     return;
                 }
+                $('#sourcing-fetch-row').remove();  // live figures are on the page now
                 const content = response['content'];
                 const flatBom = content['flat_bom'];
                 if (flatBom) {
@@ -824,13 +839,8 @@
         }
 
         $(document).ready(function () {
-            fetchSourcing(currentQuantity());
-
-            // Debounce quantity edits so a quick typist triggers one refetch, not one per keystroke.
-            let quantityDebounce = null;
-            $('#id_quantity').on('change keyup', function () {
-                clearTimeout(quantityDebounce);
-                quantityDebounce = setTimeout(function () { fetchSourcing(currentQuantity()); }, 400);
+            $('#sourcing-fetch-button').on('click', function () {
+                fetchSourcing(currentQuantity());
             });
         });
         {% endif %}

@@ -53,7 +53,8 @@ class MouserProvider(SourcingProvider):
         ),
     ]
 
-    def match(self, manufacturer_parts: list, currency=None) -> dict:
+    def match(self, manufacturer_parts: list, currency=None, candidate_limit=None) -> dict:
+        # candidate_limit is ignored: Mouser meters per request, not per part returned.
         if not manufacturer_parts:
             return {}
 

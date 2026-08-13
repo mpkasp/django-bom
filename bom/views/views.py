@@ -84,7 +84,7 @@ from bom.models import (
 from bom.permissions import BomPerms
 from bom.third_party_apis.base_api import BaseApiError
 from bom.third_party_apis.google_drive import has_drive_scope
-from bom.third_party_apis.sourcing import build_provider, provider_credential_schema, provider_is_configured
+from bom.third_party_apis.sourcing import PROBE_CANDIDATE_LIMIT, build_provider, provider_credential_schema, provider_is_configured
 from bom.utils import check_references_for_duplicates, listify_string, prep_for_sorting_nicely
 
 logger = logging.getLogger(__name__)
@@ -533,7 +533,7 @@ def bom_settings(request, tab_anchor=None):
                 probe = SimpleNamespace(id=0, manufacturer_part_number='RC0805FR-0710KL', manufacturer=None)
                 try:
                     provider = build_provider(provider_name, organization)
-                    provider.match([probe], currency=organization.currency)
+                    provider.match([probe], currency=organization.currency, candidate_limit=PROBE_CANDIDATE_LIMIT)
                     messages.success(request, f"{provider_label} connection OK — credentials are valid and authorized.")
                 except BaseApiError as err:
                     messages.error(request, f"{provider_label} connection failed: {err}")

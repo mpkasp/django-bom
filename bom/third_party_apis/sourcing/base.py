@@ -93,8 +93,14 @@ class SourcingProvider:
     def __init__(self, credentials: dict | None = None):
         self.credentials = credentials or {}
 
-    def match(self, manufacturer_parts: list, currency=None) -> dict:
-        """Return ``{manufacturer_part.id: [Offer, ...]}``, batched where the API allows."""
+    def match(self, manufacturer_parts: list, currency=None, candidate_limit=None) -> dict:
+        """Return ``{manufacturer_part.id: [Offer, ...]}``, batched where the API allows.
+
+        ``candidate_limit`` caps how many candidate parts are requested per MPN. Providers metered
+        on *parts returned* (Nexar) honor it so cheap connectivity probes don't spend the same quota
+        as a real BOM quote; providers metered per request ignore it. ``None`` means the provider's
+        own default.
+        """
         raise NotImplementedError
 
     @classmethod

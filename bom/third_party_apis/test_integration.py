@@ -18,6 +18,7 @@ from types import SimpleNamespace
 from django.test import SimpleTestCase
 
 from .sourcing import MouserProvider, NexarProvider
+from .sourcing.nexar import PROBE_CANDIDATE_LIMIT
 
 # Yageo 10k 0805 resistor -- a jellybean part stocked broadly by both providers.
 PROBE_MPN = 'RC0805FR-0710KL'
@@ -52,4 +53,7 @@ class TestNexarLive(SimpleTestCase):
             'client_id': os.environ['BOM_TEST_NEXAR_CLIENT_ID'],
             'client_secret': os.environ['BOM_TEST_NEXAR_CLIENT_SECRET'],
         })
-        _assert_priced_offers(self, provider.match([_probe()], currency=None))
+        # Nexar bills per part returned against a lifetime allowance, so this smoke test asks for
+        # the minimum candidates that still prove pricing parses.
+        offers_by_mp = provider.match([_probe()], currency=None, candidate_limit=PROBE_CANDIDATE_LIMIT)
+        _assert_priced_offers(self, offers_by_mp)

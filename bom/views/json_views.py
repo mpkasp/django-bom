@@ -82,9 +82,9 @@ class SourcingMatchBOM(BomJsonResponse):
         organization = profile.organization
 
         part = part_revision.part
-        # The browser re-requests this endpoint with ?quantity= when the quote quantity changes,
-        # so the server stays the single source of truth for cost roll-ups (no client-side pricing
-        # math). Fall back to the cached page quantity.
+        # The browser passes the quote quantity it is displaying, so the server stays the single
+        # source of truth for cost roll-ups (no client-side pricing math). Fall back to the cached
+        # page quantity, as the rest of the app does.
         qty_cache_key = str(part.id) + '_qty'
         try:
             assy_quantity = int(request.GET.get('quantity'))
