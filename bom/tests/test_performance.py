@@ -19,12 +19,11 @@ LAST_RUN_PATH = PERF_DIR / "last_run.json"
 PAGES = ("home", "report", "part_info")
 ITERATIONS = 3
 
-# Tightened after Stage A measurements. Until then these only catch runaway
-# regressions (thousands of extra queries), not the optimizations themselves.
+# Tightened after Stage A. Catches an N+1 regression; not a latency SLA.
 MAX_QUERIES = {
-    "home": 100000,
-    "report": 100000,
-    "part_info": 100000,
+    "home": 200,
+    "report": 200,
+    "part_info": 120,
 }
 
 

@@ -10,7 +10,6 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import IntegrityError
 from django.db.models import (
@@ -83,10 +82,13 @@ from bom.models import (
     User,
     UserMeta,
 )
+from bom.list_queries import paginate_part_revs
 from bom.utils import (
     check_references_for_duplicates,
+    get_session_part_quantity,
     listify_string,
     prep_for_sorting_nicely,
+    set_session_part_quantity,
 )
 
 logger = logging.getLogger(__name__)
@@ -497,15 +499,7 @@ def home(request):
         return response
 
     page_size = settings.BOM_CONFIG.get("admin_dashboard", {}).get("page_size", 25)
-    paginator = Paginator(part_revs, page_size)
-
-    page = request.GET.get("page")
-    try:
-        part_revs = paginator.page(page)
-    except PageNotAnInteger:
-        part_revs = paginator.page(1)
-    except EmptyPage:
-        part_revs = paginator.page(paginator.num_pages)
+    part_revs = paginate_part_revs(request, part_revs, page_size)
 
     return TemplateResponse(request, "bom/dashboard.html", locals())
 
@@ -821,15 +815,7 @@ def report(request):
         return response
 
     page_size = settings.BOM_CONFIG.get("admin_dashboard", {}).get("page_size", 25)
-    paginator = Paginator(part_revs, page_size)
-
-    page = request.GET.get("page")
-    try:
-        part_revs = paginator.page(page)
-    except PageNotAnInteger:
-        part_revs = paginator.page(1)
-    except EmptyPage:
-        part_revs = paginator.page(paginator.num_pages)
+    part_revs = paginate_part_revs(request, part_revs, page_size)
 
     # TODO: delete
     # context = {
@@ -1397,8 +1383,7 @@ def part_info(request, part_id, part_revision_id=None):
         messages.error(request, "Can't access a part that is not yours!")
         return HttpResponseRedirect(reverse("bom:home"))
 
-    qty_cache_key = str(part_id) + "_qty"
-    qty = cache.get(qty_cache_key, 1000)
+    qty = get_session_part_quantity(request, part_id, default=1000)
     part_info_form = PartInfoForm(initial={"quantity": qty})
     upload_file_to_part_form = FileForm()
 
@@ -1412,7 +1397,7 @@ def part_info(request, part_id, part_revision_id=None):
     except ValueError:
         qty = 100
 
-    cache.set(qty_cache_key, qty, timeout=None)
+    set_session_part_quantity(request, part_id, qty)
 
     try:
         indented_bom = part_revision.indented(top_level_quantity=qty)
@@ -1492,8 +1477,7 @@ def part_export_bom(
     )
     response["Content-Disposition"] = f'attachment; filename="{filename}.csv'
 
-    qty_cache_key = str(part_id) + "_qty"
-    qty = cache.get(qty_cache_key, 1000)
+    qty = get_session_part_quantity(request, part.id, default=1000)
 
     try:
         if flat:
@@ -2025,8 +2009,7 @@ def manage_bom(request, part_id, part_revision_id):
     )
     upload_subparts_csv_form = FileForm()
 
-    qty_cache_key = str(part_id) + "_qty"
-    qty = cache.get(qty_cache_key, 100)
+    qty = get_session_part_quantity(request, part_id, default=100)
 
     try:
         indented_bom = part_revision.indented(top_level_quantity=qty)

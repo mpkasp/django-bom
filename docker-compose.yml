@@ -6,7 +6,7 @@ services:
       context: .
       args:
         APT_MIRROR: ${APT_MIRROR:-}
-    command: gunicorn bom.wsgi:application --bind 0.0.0.0:${API_PORT} --timeout 120
+    command: gunicorn bom.wsgi:application --bind 0.0.0.0:${API_PORT} --workers 3 --timeout 120
     volumes:
       - static_volume:/app/staticfiles
     expose:

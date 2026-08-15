@@ -52,6 +52,29 @@
           "response_bytes": 54528
         }
       }
+    },
+    {
+      "id": "stage-a",
+      "pages": {
+        "home": {
+          "queries": 110,
+          "db_seconds": 0.0,
+          "wall_seconds": 0.130203,
+          "response_bytes": 205815
+        },
+        "report": {
+          "queries": 110,
+          "db_seconds": 0.0,
+          "wall_seconds": 0.128519,
+          "response_bytes": 211095
+        },
+        "part_info": {
+          "queries": 63,
+          "db_seconds": 0.0,
+          "wall_seconds": 0.040892,
+          "response_bytes": 54528
+        }
+      }
     }
   ]
 }
