@@ -2,6 +2,7 @@ from email.policy import default
 from bom import constants
 from bom.models import (
     Assembly,
+    AssemblySubparts,
     Manufacturer,
     ManufacturerPart,
     Organization,
@@ -452,3 +453,198 @@ def create_all_part_classes():
         code=238, name="Electronic Assy (Non-Custom)", comment=""
     )
     PartClass.objects.get_or_create(code=239, name="Antenna", comment="")
+
+
+# Fixed dataset used by bom/tests/test_performance.py. Sized to make N+1 and
+# full-catalog autocomplete visible without making the test suite too slow.
+PERF_DATASET = {
+    "n_parts": 80,
+    "revisions_per_part": 2,
+    "n_assemblies": 6,
+    "children_per_assembly": 4,
+    "sellers_per_part": 2,
+}
+
+
+def create_performance_dataset(
+    n_parts=None,
+    revisions_per_part=None,
+    n_assemblies=None,
+    children_per_assembly=None,
+    sellers_per_part=None,
+):
+    """
+    Build an organization large enough to expose list-page query costs.
+
+    Returns a dict with user, organization, parts, and an assembly Part for
+    part-info measurements. Number items are zero-padded so the first page
+    (ordered by part number) includes the assemblies.
+    """
+    params = PERF_DATASET.copy()
+    if n_parts is not None:
+        params["n_parts"] = n_parts
+    if revisions_per_part is not None:
+        params["revisions_per_part"] = revisions_per_part
+    if n_assemblies is not None:
+        params["n_assemblies"] = n_assemblies
+    if children_per_assembly is not None:
+        params["children_per_assembly"] = children_per_assembly
+    if sellers_per_part is not None:
+        params["sellers_per_part"] = sellers_per_part
+
+    n_parts = params["n_parts"]
+    revisions_per_part = params["revisions_per_part"]
+    n_assemblies = params["n_assemblies"]
+    children_per_assembly = params["children_per_assembly"]
+    sellers_per_part = params["sellers_per_part"]
+
+    needed_leaves = n_assemblies * children_per_assembly
+    if n_parts < n_assemblies + needed_leaves:
+        raise ValueError(
+            "n_parts must be >= n_assemblies * (1 + children_per_assembly) "
+            f"({n_assemblies + needed_leaves})"
+        )
+
+    user = User.objects.create_user("perftest", "perf@example.com", "perfpassword")
+    organization = Organization.objects.create(
+        name="PerfOrg",
+        subscription=constants.SUBSCRIPTION_TYPE_PRO,
+        number_scheme=constants.NUMBER_SCHEME_SEMI_INTELLIGENT,
+        number_item_len=4,
+        number_variation_len=2,
+        owner=user,
+    )
+    profile = user.bom_profile(organization=organization)
+    profile.role = "A"
+    profile.save()
+
+    part_class = PartClass.objects.create(
+        code="100", name="PerfClass", organization=organization
+    )
+    manufacturer = Manufacturer.objects.create(
+        name="PerfManufacturer", organization=organization
+    )
+    sellers = [
+        Seller.objects.create(name=f"PerfSeller{i}", organization=organization)
+        for i in range(sellers_per_part)
+    ]
+
+    parts = [
+        Part(
+            organization=organization,
+            number_class=part_class,
+            number_item=f"{i + 1:04d}",
+            number_variation="00",
+        )
+        for i in range(n_parts)
+    ]
+    Part.objects.bulk_create(parts)
+    parts = list(
+        Part.objects.filter(organization=organization).order_by("number_item")
+    )
+
+    manufacturer_parts = [
+        ManufacturerPart(
+            part=part,
+            manufacturer=manufacturer,
+            manufacturer_part_number=f"MPN-{part.number_item}",
+        )
+        for part in parts
+    ]
+    ManufacturerPart.objects.bulk_create(manufacturer_parts)
+    manufacturer_parts = list(
+        ManufacturerPart.objects.filter(part__organization=organization)
+    )
+    mp_by_part_id = {mp.part_id: mp for mp in manufacturer_parts}
+    for part in parts:
+        part.primary_manufacturer_part_id = mp_by_part_id[part.id].id
+    Part.objects.bulk_update(parts, ["primary_manufacturer_part_id"])
+
+    seller_parts = []
+    for mp in manufacturer_parts:
+        for j, seller in enumerate(sellers):
+            seller_parts.append(
+                SellerPart(
+                    seller=seller,
+                    manufacturer_part=mp,
+                    seller_part_number=f"SPN-{mp.part_id}-{j}",
+                    minimum_order_quantity=1,
+                    minimum_pack_quantity=1,
+                    unit_cost=10 + j,
+                    unit_cost_currency="USD",
+                    nre_cost=0,
+                    nre_cost_currency="USD",
+                )
+            )
+    SellerPart.objects.bulk_create(seller_parts)
+
+    n_revisions = n_parts * revisions_per_part
+    assemblies = Assembly.objects.bulk_create(
+        [Assembly() for _ in range(n_revisions)]
+    )
+    if assemblies and assemblies[0].pk is None:
+        assemblies = list(Assembly.objects.order_by("-id")[:n_revisions])
+        assemblies.reverse()
+
+    revisions = []
+    assembly_iter = iter(assemblies)
+    for index, part in enumerate(parts):
+        material = "no_loi" if index < n_assemblies else "no_bom"
+        for rev_n in range(1, revisions_per_part + 1):
+            assembly = next(assembly_iter)
+            description = f"Perf part {part.number_item} rev {rev_n}"
+            revisions.append(
+                PartRevision(
+                    part=part,
+                    revision=str(rev_n),
+                    assembly=assembly,
+                    description=description,
+                    material=material,
+                    searchable_synopsis=description,
+                    displayable_synopsis=description,
+                )
+            )
+    PartRevision.objects.bulk_create(revisions)
+    revisions = list(
+        PartRevision.objects.filter(part__organization=organization).select_related(
+            "part"
+        )
+    )
+    revisions_by_part = {}
+    for revision in revisions:
+        revisions_by_part.setdefault(revision.part_id, []).append(revision)
+    for part_id in revisions_by_part:
+        revisions_by_part[part_id].sort(key=lambda r: int(r.revision))
+
+    subparts = []
+    assembly_subparts = []
+    for assembly_index in range(n_assemblies):
+        parent_part = parts[assembly_index]
+        child_start = n_assemblies + assembly_index * children_per_assembly
+        child_parts = parts[child_start : child_start + children_per_assembly]
+        for parent_revision in revisions_by_part[parent_part.id]:
+            for child_part in child_parts:
+                child_revision = revisions_by_part[child_part.id][-1]
+                subpart = Subpart(
+                    part_revision=child_revision, count=2, reference=""
+                )
+                subparts.append(subpart)
+                assembly_subparts.append((parent_revision.assembly_id, len(subparts) - 1))
+
+    created_subparts = Subpart.objects.bulk_create(subparts)
+    AssemblySubparts.objects.bulk_create(
+        [
+            AssemblySubparts(
+                assembly_id=assembly_id, subpart=created_subparts[subpart_index]
+            )
+            for assembly_id, subpart_index in assembly_subparts
+        ]
+    )
+
+    return {
+        "user": user,
+        "organization": organization,
+        "parts": parts,
+        "assembly_part": parts[0],
+        "params": params,
+    }

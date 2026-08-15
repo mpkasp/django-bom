@@ -1,0 +1,34 @@
+{
+  "dataset": {
+    "n_parts": 80,
+    "revisions_per_part": 2,
+    "n_assemblies": 6,
+    "children_per_assembly": 4,
+    "sellers_per_part": 2
+  },
+  "steps": [
+    {
+      "id": "before",
+      "pages": {
+        "home": {
+          "queries": 1015,
+          "db_seconds": 0.0,
+          "wall_seconds": 0.574016,
+          "response_bytes": 210859
+        },
+        "report": {
+          "queries": 1301,
+          "db_seconds": 0.0,
+          "wall_seconds": 0.687329,
+          "response_bytes": 214363
+        },
+        "part_info": {
+          "queries": 115,
+          "db_seconds": 0.0,
+          "wall_seconds": 0.053777,
+          "response_bytes": 54528
+        }
+      }
+    }
+  ]
+}

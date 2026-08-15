@@ -303,3 +303,6 @@ ENV/
 # Database dumps
 dump_*.sql.gz
 dump_*.sql
+
+# Performance harness last run (committed history lives in perf/baseline.json)
+perf/last_run.json
