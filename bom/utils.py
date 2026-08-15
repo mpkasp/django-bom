@@ -255,3 +255,14 @@ def get_project_version():
             return data.get("project", {}).get("version", "Unknown")
     except FileNotFoundError:
         return "Unknown"
+
+
+def get_session_part_quantity(request, part_id, default=1000):
+    try:
+        return int(request.session.get(f"part_qty_{part_id}", default))
+    except (TypeError, ValueError):
+        return default
+
+
+def set_session_part_quantity(request, part_id, quantity):
+    request.session[f"part_qty_{part_id}"] = int(quantity)

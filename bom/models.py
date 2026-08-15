@@ -5,9 +5,9 @@ from math import ceil
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import Prefetch
 from django.forms import ValidationError
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -62,6 +62,7 @@ from .validators import alphanumeric, validate_pct
 logger = logging.getLogger(__name__)
 User = get_user_model()
 PERCENTAGE_VALIDATOR = [MinValueValidator(0), MaxValueValidator(100)]
+_UNSET = object()
 
 
 class Organization(models.Model):
@@ -491,16 +492,41 @@ class Part(models.Model):
             return part_revision.indented()
 
     def optimal_seller(self, quantity=None):
-        if not quantity:
-            qty_cache_key = str(self.id) + "_qty"
-            quantity = int(cache.get(qty_cache_key, 100))
+        if quantity is None:
+            quantity = 100
+        quantity = int(quantity)
 
-        manufacturer_parts = ManufacturerPart.objects.filter(part=self)
-        sellerparts = SellerPart.objects.filter(
-            manufacturer_part__in=manufacturer_parts
-        )
-        # sellerparts = SellerPart.objects.filter(manufacturer_part__part=self)
-        return SellerPart.optimal(sellerparts, int(quantity))
+        cached = self.__dict__.get("_optimal_seller_result", _UNSET)
+        if (
+            cached is not _UNSET
+            and self.__dict__.get("_optimal_seller_qty") == quantity
+        ):
+            return cached
+
+        prefetched = getattr(self, "_prefetched_objects_cache", {})
+        if "manufacturerpart_set" in prefetched:
+            sellerparts = []
+            for manufacturer_part in self.manufacturerpart_set.all():
+                mp_prefetched = getattr(
+                    manufacturer_part, "_prefetched_objects_cache", {}
+                )
+                if "sellerpart_set" in mp_prefetched:
+                    sellerparts.extend(manufacturer_part.sellerpart_set.all())
+                else:
+                    sellerparts.extend(
+                        SellerPart.objects.filter(manufacturer_part=manufacturer_part)
+                    )
+            result = SellerPart.optimal(sellerparts, quantity)
+        else:
+            manufacturer_parts = ManufacturerPart.objects.filter(part=self)
+            sellerparts = SellerPart.objects.filter(
+                manufacturer_part__in=manufacturer_parts
+            )
+            result = SellerPart.optimal(sellerparts, quantity)
+
+        self._optimal_seller_result = result
+        self._optimal_seller_qty = quantity
+        return result
 
     def assign_part_number(self):
         if self.number_item is None or self.number_item == "":
@@ -882,6 +908,28 @@ class PartRevision(models.Model):
         if "bom_unit_cost" in self.__dict__:
             del self.__dict__["bom_unit_cost"]
 
+    def _bom_walk_subparts(self):
+        if self.assembly_id is None:
+            return []
+        return list(
+            self.assembly.subparts.select_related(
+                "part_revision__part__organization",
+                "part_revision__part__number_class",
+                "part_revision__part__primary_manufacturer_part",
+                "part_revision__assembly",
+            ).prefetch_related(
+                Prefetch(
+                    "part_revision__part__manufacturerpart_set",
+                    queryset=ManufacturerPart.objects.prefetch_related(
+                        Prefetch(
+                            "sellerpart_set",
+                            queryset=SellerPart.objects.select_related("seller"),
+                        )
+                    ),
+                )
+            )
+        )
+
     def indented(self, top_level_quantity=100, is_weighted_bom=True):
         def indented_given_bom(
             bom,
@@ -931,30 +979,23 @@ class PartRevision(models.Model):
             bom.append_item_and_update(bom_item)
 
             indent_level = indent_level + 1
-            if (
-                part_revision is None
-                or part_revision.assembly is None
-                or part_revision.assembly.subparts.count() == 0
-            ):
+            subparts = part_revision._bom_walk_subparts() if part_revision else []
+            if not subparts:
                 return
-            else:
-                parent_qty *= qty
-                # TODO: Cache Me!
-                for sp in part_revision.assembly.subparts.all():
-                    qty = sp.count
-                    reference = sp.reference
-                    indented_given_bom(
-                        bom,
-                        sp.part_revision,
-                        parent_id=bom_item_id,
-                        parent=part_revision,
-                        qty=qty,
-                        parent_qty=parent_qty,
-                        indent_level=indent_level,
-                        subpart=sp,
-                        reference=reference,
-                        do_not_load=sp.do_not_load,
-                    )
+            parent_qty *= qty
+            for sp in subparts:
+                indented_given_bom(
+                    bom,
+                    sp.part_revision,
+                    parent_id=bom_item_id,
+                    parent=part_revision,
+                    qty=sp.count,
+                    parent_qty=parent_qty,
+                    indent_level=indent_level,
+                    subpart=sp,
+                    reference=sp.reference,
+                    do_not_load=sp.do_not_load,
+                )
 
         if is_weighted_bom:
             bom = PartBomWeighted(part_revision=self, quantity=top_level_quantity)
@@ -1005,26 +1046,22 @@ class PartRevision(models.Model):
                 )
             )
 
-            if (
-                part_revision is None
-                or part_revision.assembly is None
-                or part_revision.assembly.subparts.count() == 0
-            ):
+            if part_revision is None:
                 return
-            else:
-                parent_qty *= qty
-                for sp in part_revision.assembly.subparts.all():
-                    qty = sp.count
-                    reference = sp.reference
-                    flat_given_bom(
-                        bom,
-                        sp.part_revision,
-                        parent=part_revision,
-                        qty=qty,
-                        parent_qty=parent_qty,
-                        subpart=sp,
-                        reference=reference,
-                    )
+            subparts = part_revision._bom_walk_subparts()
+            if not subparts:
+                return
+            parent_qty *= qty
+            for sp in subparts:
+                flat_given_bom(
+                    bom,
+                    sp.part_revision,
+                    parent=part_revision,
+                    qty=sp.count,
+                    parent_qty=parent_qty,
+                    subpart=sp,
+                    reference=sp.reference,
+                )
 
         flat_bom = PartBom(part_revision=self, quantity=top_level_quantity)
         flat_given_bom(flat_bom, self)
@@ -1139,10 +1176,9 @@ class ManufacturerPart(models.Model, AsDictModel):
 
     def optimal_seller(self, quantity=None):
         if quantity is None:
-            qty_cache_key = str(self.part.id) + "_qty"
-            quantity = int(cache.get(qty_cache_key, 100))
+            quantity = 100
         sellerparts = SellerPart.objects.filter(manufacturer_part=self)
-        return SellerPart.optimal(sellerparts, quantity)
+        return SellerPart.optimal(sellerparts, int(quantity))
 
     def as_dict_for_export(self):
         return {

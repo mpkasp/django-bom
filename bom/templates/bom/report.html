@@ -117,47 +117,52 @@
                         </thead>
                         <tbody>
                         {% for part_rev in part_revs %}
+                            {% with part=part_rev.part seller=part_rev.part.optimal_seller %}
                             <tr>
                                 {% if profile.role == 'A' %}
-                                    <td class="action-checkbox-column" style="display: none;"><label>{% if part_rev.part.id %}
-                                        <input type="checkbox" class="checkbox-array" name="actions" value="{{ part_rev.part.id }}">{% endif %}<span></span></label></td>
+                                    <td class="action-checkbox-column" style="display: none;"><label>{% if part.id %}
+                                        <input type="checkbox" class="checkbox-array" name="actions" value="{{ part.id }}">{% endif %}<span></span></label></td>
                                 {% endif %}
 
-                                <td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part_rev.part.id %}">{{ part_rev.part.full_part_number }}</a></td>
+                                <td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
 
                                 {% if organization.number_scheme == 'S' %}
-                                    <td class="text-normal td-small">{{ part_rev.part.number_class.name }}</td>
+                                    <td class="text-normal td-small">{{ part.number_class.name }}</td>
                                 {% endif %}
 
                                 <td class="text-normal td-large">{{ part_rev.description }}</td>
 
                                 <td class="text-normal td-small">{{ part_rev.revision }}</td>
 
-                                <td class="text-normal td-med">{% if part_rev.part.optimal_seller %}{{ part_rev.part.optimal_seller.seller_part_number }}{% endif %}</td>
+                                <td class="text-normal td-med">{% if seller %}{{ seller.seller_part_number }}{% endif %}</td>
 
-                                <td class="text-normal td-med">{% if part_rev.part.optimal_seller %}{{ part_rev.part.optimal_seller.seller }}{% endif %}</td>
+                                <td class="text-normal td-med">{% if seller %}{{ seller.seller }}{% endif %}</td>
 
                                 <td class="text-normal td-med">{% if part_rev.material == "no_bom" or part_rev.material == None %}
-                                    {{ part_rev.part.optimal_seller.unit_cost }}
-                                    {% elif part_rev.indented.unit_cost is not 0 %}
-                                    {{ part_rev.indented.unit_cost }}
+                                    {{ seller.unit_cost }}
+                                    {% else %}
+                                    {% with indented_bom=part_rev.indented %}
+                                    {% if indented_bom.unit_cost is not 0 %}
+                                    {{ indented_bom.unit_cost }}
+                                    {% endif %}
+                                    {% endwith %}
                                     {% endif %}</td>
 
                                 <td class="text-normal td-med">
                                     {% if part_rev.configuration == 'W' %}
                                         <a class="green-text text-lighten-1" title="ویرایش این ورژن"
-                                            href="{% url 'bom:part-revision-edit' part_id=part_rev.part.id part_revision_id=part_rev.id %}">
+                                            href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_rev.id %}">
                                             <i class="material-icons green-text text-lighten-1 right">edit</i></a>
-                                        {% if part_rev.part.optimal_seller.id %}
-                                        <a class="green-text text-lighten-1" href="{% url 'bom:sellerpart-edit' sellerpart_id=part_rev.part.optimal_seller.id %}">
+                                        {% if seller.id %}
+                                        <a class="green-text text-lighten-1" href="{% url 'bom:sellerpart-edit' sellerpart_id=seller.id %}">
                                             <i class="material-icons green-text text-lighten-1 right" title="{% trans "Cost and Seller" %}">attach_money</i></a>
                                         {% else %}
-                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=sourcing">
+                                        <a class="green-text text-lighten-1" href="{% url 'bom:part-info' part_id=part.id %}?tab_anchor=sourcing">
                                             <i class="material-icons green-text text-lighten-1 right" title="تأمین کننده">local_airport</i></a>
                                         {% endif %}
-                                        <a class="green-text text-lighten-1" title="ویرایش درخت محصول (BOM)" href="{% url 'bom:part-manage-bom' part_id=part_rev.part.id part_revision_id=part_rev.id %}">
+                                        <a class="green-text text-lighten-1" title="ویرایش درخت محصول (BOM)" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_rev.id %}">
                                             <i class="material-icons green-text text-lighten-1 right">format_list_numbered</i></a>
-                                        <a class="green-text text-lighten-1" title="" href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=used">
+                                        <a class="green-text text-lighten-1" title="" href="{% url 'bom:part-info' part_id=part.id %}?tab_anchor=used">
                                             <i class="material-icons green-text text-lighten-1 right" title="موارد استفاده">my_location</i></a>
                                     {% endif %}
                                     <!-- Dropdown Trigger -->
@@ -176,6 +181,7 @@
                                     </ul>
                                 </td>
                             </tr>
+                            {% endwith %}
                         {% empty %}
                             <tr>
                                 <td colspan="99" style="text-align: center; padding: 5%;"><i>هیچ متریالی پیدا نشد, روی دکمه قرمز + پایین سمت راست صفحه کلیک کنید.</i></td>
