@@ -29,6 +29,29 @@
           "response_bytes": 54528
         }
       }
+    },
+    {
+      "id": "autocomplete-off",
+      "pages": {
+        "home": {
+          "queries": 924,
+          "db_seconds": 0.0,
+          "wall_seconds": 0.578025,
+          "response_bytes": 202915
+        },
+        "report": {
+          "queries": 1210,
+          "db_seconds": 0.0,
+          "wall_seconds": 0.69389,
+          "response_bytes": 206419
+        },
+        "part_info": {
+          "queries": 115,
+          "db_seconds": 0.0,
+          "wall_seconds": 0.052742,
+          "response_bytes": 54528
+        }
+      }
     }
   ]
 }

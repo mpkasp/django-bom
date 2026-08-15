@@ -238,7 +238,7 @@ BOM_CONFIG_DEFAULT = {
     "base_template": "base.html",
     "mouser_api_key": None,
     "admin_dashboard": {
-        "enable_autocomplete": True,
+        "enable_autocomplete": False,
         "page_size": 50,
     },
 }
