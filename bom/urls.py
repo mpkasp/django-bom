@@ -1,9 +1,7 @@
-from django.conf.urls import include
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
-from django.urls import path
+from django.urls import include, path
 
-from bom.third_party_apis import google_drive
 from bom.views import views
 
 
@@ -191,18 +189,8 @@ bom_patterns = [
     ),
 ]
 
-google_drive_patterns = [
-    path(
-        "folder/<int:part_id>/",
-        google_drive.get_or_create_and_open_folder,
-        name="add-folder",
-    ),
-]
-
 urlpatterns = [
     path("", include((bom_patterns, "bom"))),
-    path("", include("social_django.urls", namespace="social")),
-    path("google-drive/", include((google_drive_patterns, "google-drive"))),
     # you will likely have your own implementation of these in your app
     path("admin/", admin.site.urls),
     path("signup/", views.signup, name="signup"),
@@ -215,10 +203,8 @@ urlpatterns = [
         name="login",
     ),
     path(
-        "api/logout/",
+        "logout/",
         auth_views.LogoutView.as_view(),
-        {"next_page": "/"},
         name="logout",
     ),
-    path("api/v1/", include("api.urls_api")),
 ]

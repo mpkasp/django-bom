@@ -6,22 +6,18 @@ authors = [
     { name = "S-Diaco", email = "dyaco8464@yahoo.com" }
 ]
 dependencies = [
-    "django>=5.0.3",
-    "django-money>=3.4.1",
+    "django>=6.1",
+    "django-money>=3.6.1",
     "django-materializecss-form>=1.1.17",
     "psycopg2-binary>=2.9.9",
-    "google-api-python-client>=2.122.0",
-    "django-cors-headers>=4.3.1",
     "gunicorn>=21.2.0",
-    "djangorestframework-simplejwt>=5.5.0",
-    "django-jalali>=7.4.0",
     "jdatetime>=5.2.0",
-    "social-auth-app-django>=5.4.3",
     "openpyxl>=3.1.5",
     "pandas>=2.3.2",
+    "requests>=2.32.0",
 ]
 readme = "README.md"
-requires-python = ">= 3.12"
+requires-python = ">= 3.14"
 
 [build-system]
 requires = ["hatchling"]
@@ -37,7 +33,6 @@ dev = [
     "ruff>=0.3.3",
     "parameterized>=0.9.0",
     "debugpy>=1.8.14",
-    "django-test>=0.4030",
 ]
 
 [tool.hatch.metadata]

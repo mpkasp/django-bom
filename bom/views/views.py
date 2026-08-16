@@ -31,7 +31,6 @@ from django.utils.text import smart_split
 from django.utils.translation import gettext as _
 from django.views.generic.base import TemplateView
 from jdatetime import datetime
-from social_django.models import UserSocialAuth
 
 import bom.constants as constants
 from bom.csv_headers import (
@@ -910,7 +909,6 @@ def bom_settings(request, tab_anchor=None):
         .exclude(id__in=[organization.owner.id])
         .order_by("first_name", "last_name", "email")
     )
-    google_authentication = UserSocialAuth.objects.filter(user=user).first()
 
     organization_parts_count = Part.objects.filter(organization=organization).count()
 

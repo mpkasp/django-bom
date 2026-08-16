@@ -1,6 +1,6 @@
 # BOM
 
-BoM is a Django app to manage a bill of materials. It supports multiple part numbering schemes, tracking component sourcing information and estimates costs. BoM is written in Python 3 and Django 5.
+BoM is a Django app to manage a bill of materials. It supports multiple part numbering schemes, tracking component sourcing information and estimates costs. BoM is written in Python 3.14 and Django 6.
 
 BoM can be added to an existing (or new) Django project, or stand alone on its own, which can be more convenient if you're interested in tweaking the tool. 
 
@@ -13,7 +13,6 @@ If you already have a django project, you can skip to [Add Django Bom To Your Ap
    * [Backup and restore database](#backup-and-restore-database-if-using-docker-compose-and-postgres)
    * [Uninstall](#uninstall)
    * [Run the tests](#run-the-tests)
-   * [Test API](#test-api)
    * [Customize Base Template](#customize-base-template)
    * [Add To Your App](#add-to-your-app)
    * [Integrations](#integrations)
@@ -80,16 +79,6 @@ Cleanup after running the tests:
 docker compose -f docker-compose.test.yml down -v --rmi local
 ```
 
-## Test API
-Obtain a token:
-```
-curl -X POST -d "username=yourusername&password=yourpassword" http://127.0.0.1:1313/api/v1/auth/login/
-```
-Use the obtained token to access the protected endpoint:
-```
-curl -H "Authorization: Bearer youraccesstoken" http://127.0.0.1:1313/api/v1/items/
-```
-
 ## Add To Your App
 django-bom is a [reusable django application](https://docs.djangoproject.com/en/1.11/intro/reusable-apps/). If you don't already have a django project, you can follow some quick steps below to get up and running, or read about creating your first django app [here](https://docs.djangoproject.com/en/1.11/intro/tutorial01/).
 
@@ -103,7 +92,6 @@ pip install django-bom
 INSTALLED_APPS = [
     ...
     'bom',
-    'social_django', # to enable google drive sync in bom
     'djmoney', # for currency
     'djmoney.contrib.exchange', # for currency
     'materializecssform',
@@ -119,7 +107,7 @@ path('bom/', include('bom.urls')),
 And don't forget to import include:
 
 ```
-from django.conf.urls import include
+from django.urls import include
 ```
 
 3. Update your settings.py to add the bom context processor `'bom.context_processors.bom_config',` to your TEMPLATES variable, and create a new empty dictionary BOM_CONFIG.
@@ -163,27 +151,6 @@ BOM_CONFIG = {
 where `base.html` is your base template.
 
 ## Integrations
-
-### Google Drive Integration
-Make sure to add the following to your settings.py:
-```
-AUTHENTICATION_BACKENDS = (
-    'social_core.backends.google.GoogleOpenId',
-    'social_core.backends.google.GoogleOAuth2',
-    'social_core.backends.google.GoogleOAuth',
-    'django.contrib.auth.backends.ModelBackend',
-)
-
-SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/plus.login']
-SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
-    'access_type': 'offline',
-    'approval_prompt': 'auto'
-}
-``` 
-And if you're using https on production add:
-```
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = not DEBUG
-```
 
 ### FIXER
 Fixer.io is used to handle exchange rate calculations. This is helpful if you may be purchasing parts from another currency (especially via Mouser) and you still need to estimate your part costs.

@@ -261,40 +261,6 @@
                 </div>
                 <div class="row">
                     <div class="col s12">
-                        <h3>Part File Storage with Google Drive <img title="Via Google Drive" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;"
-                                                                     src="{% static 'bom/img/google_drive_logo.svg' %}"></h3>
-                        {% if not google_authentication %}
-                            <p>Connect your Google account to access Google Drive features.
-                                {% if not organization.google_drive_parent %}Organization owners can enable file storage using Google Drive. {% if organization.owner == user %} Since you are the
-                                    owner, you are able to enable
-                                    file storage!{% else %}Contact your organization owner to enable.{% endif %}{% endif %}<p>
-                            <p>When you connect, we will create a folder called <b>BoM Part Files</b> in your root of Google drive (and can be moved anywhere in your drive). To add files to a
-                                part,
-                                navigate to the part in BOM, and on the part's <b>Specifications</b> tab, click the <img title="Via Google Drive" style="width: 16px; vertical-align: middle;"
-                                                                                                                             src="{% static 'bom/img/google_drive_logo.svg' %}">&nbsp;Google Drive link.
-                                This will create a folder for your part in your root BoM directory, or take you there if it already exists.
-                            <p>
-                            <p>You'll be able to access the files directly through Google Drive, and through BOM.</p>
-                        {% else %}
-                            <p>You're connected with Google and can access Google Drive features.</p>
-                        {% endif %}
-                        <ul>
-                            {% if google_authentication %}
-                                <p>Logged in to Google as: {{ google_authentication.uid }}
-                                <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
-                                    {% csrf_token %}
-                                    <button class="waves-effect waves-light btn green lighten-1" type="submit">Disconnect</button>
-                                </form>
-                            {% else %}
-                                <a href="{% url "social:begin" "google-oauth2" %}">
-                                    <img title="Google sign-in." src="{% static 'bom/img/google/web/1x/btn_google_signin_dark_normal_web.png' %}">
-                                </a>
-                            {% endif %}
-                        </ul>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col s12">
                         <h3>Automagic Sourcing via Mouser <img title="Sourcing via Mouser.com" style="height: 2.5rem; padding-bottom: 8px; vertical-align: middle;"
                                                                src="{% static 'bom/img/mouser.png' %}">
                         </h3>

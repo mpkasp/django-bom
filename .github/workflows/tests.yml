@@ -14,10 +14,10 @@ jobs:
         uses: astral-sh/setup-uv@v6
 
       - name: Install Python
-        run: uv python install 3.12
+        run: uv python install 3.14
 
       - name: Create venv
-        run: uv venv --python 3.12
+        run: uv venv --python 3.14
 
       - name: Install dependencies
         run: uv pip install -e ".[dev]"

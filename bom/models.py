@@ -12,7 +12,6 @@ from django.forms import ValidationError
 from django.utils import timezone
 from django.utils.functional import cached_property
 from djmoney.models.fields import CURRENCY_CHOICES, CurrencyField, MoneyField
-from social_django.models import UserSocialAuth
 
 from bom.part_bom_weighted import PartBomWeighted, PartBomWeightedItem
 
@@ -155,13 +154,6 @@ class UserMeta(models.Model):
             self.role = "A"
             self.save()
         return self.organization
-
-    def google_authenticated(self) -> bool:
-        try:
-            self.user.social_auth.get(provider="google-oauth2")
-            return True
-        except UserSocialAuth.DoesNotExist:
-            return False
 
     def is_organization_owner(self) -> bool:
         return self.organization.owner == self.user if self.organization else False

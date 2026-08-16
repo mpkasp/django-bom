@@ -13,7 +13,7 @@ services:
       - "sh"
       - "-c"
       - |
-        python -Xfrozen_modules=off /usr/local/lib/python3.12/site-packages/debugpy --wait-for-client --listen 0.0.0.0:5678 \
+        python -Xfrozen_modules=off /usr/local/lib/python3.14/site-packages/debugpy --wait-for-client --listen 0.0.0.0:5678 \
         manage.py runserver 0.0.0.0:8000 --nothreading --noreload
     ports:
       - 8000:8000
