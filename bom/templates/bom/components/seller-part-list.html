@@ -7,6 +7,7 @@
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
+{% if seller_parts %}
 <div class="responsive-table-wrapper">
     <table id="seller-parts" class="highlight tight treetable striped">
         <thead>
@@ -32,15 +33,10 @@
                             class="material-icons red-text text-lighten-1 right">delete_forever</i></a>
                     {% endif %}</td>
                 </tr>
-            {% empty %}
-                <tr data-tt-id="0" data-tt-parent-id="{{ seller_part.id }}">
-                    <td colspan="99" style="text-align: center;"><i>هیچ تأمین کننده‌ای مشخص نشده است.</i></td>
-                </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
-
 
 <!-- Floating Horizontal Scrollbar -->
 <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
@@ -49,3 +45,8 @@
         $('.responsive-table-wrapper').floatingScrollbar();
     });
 </script>
+{% else %}
+<div class="center-align" style="padding: 10vh 0;">
+    <i>هیچ تأمین کننده‌ای مشخص نشده است.</i>
+</div>
+{% endif %}
