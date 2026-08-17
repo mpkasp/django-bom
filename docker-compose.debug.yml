@@ -6,6 +6,9 @@ services:
       context: .
       args:
         REQUIREMENTS_FILE: requirements-dev.lock
+        APT_MIRROR: ${APT_MIRROR:-}
+        UV_IMAGE: ${UV_IMAGE:-ghcr.io/astral-sh/uv:bookworm-slim}
+        DEBIAN_IMAGE: ${DOCKER_REGISTRY_MIRROR:-}debian:bookworm-slim
     volumes:
       - .:/app  # Mount the local project directory to /app in the container
     user: "${USERID}:${GROUPID}"  # Use the host user's UID and GID
@@ -24,7 +27,7 @@ services:
     depends_on:
       - db
   db:
-    image: postgres:17-alpine
+    image: "${DOCKER_REGISTRY_MIRROR:-}postgres:17-alpine"
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     env_file:

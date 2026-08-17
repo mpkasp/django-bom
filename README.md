@@ -22,17 +22,7 @@ If you already have a django project, you can skip to [Add Django Bom To Your Ap
 ## Start from docker (Recommended)
 1.1. create .env.prod and .env.db files or use example files (just rename them).
 
-1.2. If you have a problem accessing pypi add a mirror link to Dockerfile before install pip requirements:
-```
-# Set the environment variable to use the mirror PyPI URL
-ENV PIP_INDEX_URL=https://mirrors.sustech.edu.cn/pypi/web/simple
-```
-If you have a problem accessing Debian package repositories during image build, export `APT_MIRROR` before running Compose:
-```
-export APT_MIRROR=https://mirror.example.com/debian
-docker compose --env-file .env.prod up --build -d
-```
-Note: SSL certificate verification is automatically disabled for the mirror to support self-signed certificates.
+1.2. If you cannot reach PyPI, Debian, or Docker Hub, see [Package mirrors](docs/mirrors.md).
 1.3. Go to project dir
 ```
 cd project_dir
