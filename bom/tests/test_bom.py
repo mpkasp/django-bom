@@ -88,6 +88,20 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse("bom:part-info", kwargs={"part_id": p1.id}))
         self.assertEqual(response.status_code, 200)
 
+    def test_part_info_empty_sourcing(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.get(reverse("bom:part-info", kwargs={"part_id": p3.id}))
+        self.assertEqual(response.status_code, 200)
+        decoded_content = response.content.decode("utf-8")
+        self.assertIn("هیچ تأمین کننده‌ای مشخص نشده است.", decoded_content)
+        self.assertNotIn('id="seller-parts"', decoded_content)
+
+        response = self.client.get(reverse("bom:part-info", kwargs={"part_id": p1.id}))
+        self.assertEqual(response.status_code, 200)
+        decoded_content = response.content.decode("utf-8")
+        self.assertIn('id="seller-parts"', decoded_content)
+
     def test_part_manage_bom(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
