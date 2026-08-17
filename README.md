@@ -33,9 +33,18 @@ cd project_dir
 docker compose --env-file .env.prod up --build -d
 ```
 The web container runs `collectstatic` and migrations automatically on startup.
+
 3. Restore database from dump (optional)
+
+If you have a dump, restore it **before** starting the full stack, or the web container will run migrations first and the restore will fail with "relation already exists" errors. See [Backup and restore database](#backup-and-restore-database-if-using-docker-compose-and-postgres) for the full procedure.
+
+Quick fresh-install + restore:
+
 ```
-gunzip < dump_file.sql.gz | docker compose exec -T db psql -U bom_user -d bom_db
+docker compose --env-file .env.prod down --volumes --rmi local
+docker compose --env-file .env.prod up -d db
+gunzip < dump_file.sql.gz | docker compose --env-file .env.prod exec -T db psql -U bom_user -d bom_db
+docker compose --env-file .env.prod up --build -d
 ```
 
 ## Production operations
@@ -70,18 +79,63 @@ tail -f monitoring/restart-loops.log
 ```
 
 ## Backup and restore database (If using docker-compose and postgres)
+
+Always pass `--env-file .env.prod` on every `docker compose` command (including `exec`).
+
 Backup:
 ```
-docker compose exec -T db pg_dump -c -U bom_user bom_db | gzip > ./dump_bom_db_$(date +"%Y-%m-%d_%H_%M_%S").sql.gz
+docker compose --env-file .env.prod exec -T db pg_dump -c -U bom_user bom_db | gzip > ./dump_bom_db_$(date +"%Y-%m-%d_%H_%M_%S").sql.gz
 ```
-Restore:
+
+### Restore
+
+**Important:** Do not restore on top of a database that already has tables from `migrate`. The web container runs migrations on startup, so if you run `docker compose up -d` before restoring, the dump will fail partially (materials/part data will be missing while some other tables may load).
+
+#### Workflow A — Fresh install with a dump (recommended)
+
+Use this when setting up from scratch or after `down --volumes`:
+
 ```
-gunzip < dump_file.sql.gz | docker compose exec -T db psql -U bom_user -d bom_db
+docker compose --env-file .env.prod down --volumes --rmi local
+docker compose --env-file .env.prod up -d db
+gunzip < dump_file.sql.gz | docker compose --env-file .env.prod exec -T db psql -U bom_user -d bom_db 2>&1 | tee restore.log
+grep -iE 'error|fatal|violates' restore.log
+docker compose --env-file .env.prod up --build -d
 ```
-Restore (Unzipped dump on Windows):
+
+Start only `db` first so migrations do not create tables before the restore.
+
+#### Workflow B — Re-restore on a running stack
+
+Use this to fix a failed restore without wiping the Docker volume:
+
 ```
-cat dump_file.sql | docker compose exec -T db psql -U bom_user -d bom_db
+docker compose --env-file .env.prod stop web backup caddy
+docker compose --env-file .env.prod exec -T db psql -U bom_user -d bom_db -c \
+  "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO bom_user; GRANT ALL ON SCHEMA public TO public;"
+gunzip < dump_file.sql.gz | docker compose --env-file .env.prod exec -T db psql -U bom_user -d bom_db 2>&1 | tee restore.log
+grep -iE 'error|fatal|violates' restore.log
+docker compose --env-file .env.prod up -d
 ```
+
+#### Restore (unzipped dump on Windows)
+
+```
+cat dump_file.sql | docker compose --env-file .env.prod exec -T db psql -U bom_user -d bom_db
+```
+
+#### Verify restore succeeded
+
+After restore, confirm parts and revisions loaded (counts should be greater than zero):
+
+```
+docker compose --env-file .env.prod exec -T db psql -U bom_user -d bom_db -c "
+SELECT 'part' t, COUNT(*) FROM bom_part
+UNION ALL SELECT 'partrevision', COUNT(*) FROM bom_partrevision
+UNION ALL SELECT 'seller', COUNT(*) FROM bom_seller;"
+```
+
+A clean `restore.log` should have no `already exists` or foreign-key violation errors on `bom_*` tables.
 
 ## Uninstall
 To take the server down and remove images and volumes (including database volume):
