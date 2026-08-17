@@ -44,7 +44,19 @@ Production services use `restart: unless-stopped`, so containers recover from cr
 
 Postgres exposes a healthcheck; `web` and `backup` wait for a healthy database before starting, which reduces crash-loops during startup.
 
-Container logs are rotated automatically (`10m` max size, `3` files per service). The optional `monitor` service watches `web`, `caddy`, `db`, and `backup` for restart loops and appends alerts to `monitoring/restart-loops.log` when a container's restart count crosses `RESTART_ALERT_THRESHOLD` (default `5`). Tune via `.env.prod`:
+Container logs are rotated automatically (`10m` max size, `3` files per service). Application log lines include a date/time header, for example:
+
+```
+2026-08-17 22:24:01 INFO bom.forms Upload completed
+```
+
+Gunicorn access logs use Apache-style timestamps (`%(t)s`) on each request line. Docker also stores per-line timestamps in log metadata; pass `-t` to `docker compose logs` to show them:
+
+```
+docker compose logs -t web
+```
+
+The optional `monitor` service watches `web`, `caddy`, `db`, and `backup` for restart loops and appends timestamped alerts to `monitoring/restart-loops.log` when a container's restart count crosses `RESTART_ALERT_THRESHOLD` (default `5`). Tune via `.env.prod`:
 
 ```
 RESTART_ALERT_THRESHOLD=5

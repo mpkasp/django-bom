@@ -96,6 +96,12 @@ DEBUG = os.environ.get("DEBUG", "False") == "True"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
     "handlers": {
         # Include the default Django email handler for errors
         # This is what you'd get without configuring logging at all.
@@ -111,6 +117,7 @@ LOGGING = {
             "filename": (
                 os.path.join(LOG_DIR, "bom.log") if not DEBUG else "./bom_dev.log"
             ),
+            "formatter": "verbose",
         },
     },
     "loggers": {

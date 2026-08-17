@@ -15,7 +15,15 @@ services:
         UV_IMAGE: ${UV_IMAGE:-ghcr.io/astral-sh/uv:bookworm-slim}
         DEBIAN_IMAGE: ${DOCKER_REGISTRY_MIRROR:-}debian:bookworm-slim
     entrypoint: ["sh", "entrypoint.sh"]
-    command: gunicorn bom.wsgi:application --bind 0.0.0.0:${API_PORT} --workers 3 --timeout 120
+    command: >
+      gunicorn bom.wsgi:application
+      --bind 0.0.0.0:${API_PORT}
+      --workers 3
+      --timeout 120
+      --log-level info
+      --access-logfile -
+      --error-logfile -
+      --access-logformat '%(t)s %(h)s "%(r)s" %(s)s %(b)s %(D)s'
     volumes:
       - static_volume:/app/staticfiles
     expose:
