@@ -1,7 +1,9 @@
 # An example of using standalone Python builds with multistage images.
 
 # First, build the application in the `/app` directory
+# FROM substitutions only see ARGs declared before the first FROM.
 ARG UV_IMAGE=ghcr.io/astral-sh/uv:bookworm-slim
+ARG DEBIAN_IMAGE=debian:bookworm-slim
 FROM ${UV_IMAGE} AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
@@ -25,7 +27,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
 # Then, use a final image without uv
-ARG DEBIAN_IMAGE=debian:bookworm-slim
 FROM ${DEBIAN_IMAGE}
 
 ARG APT_MIRROR
