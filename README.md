@@ -10,6 +10,7 @@ If you already have a django project, you can skip to [Add Django Bom To Your Ap
    * [Add Django Bom To Your App](#add-django-bom-to-your-app)
    * [Start From Scratch: Use as standalone Django project](#start-from-scratch-use-as-a-standalone-django-project)
    * [Start from docker](#start-from-docker-recommended)
+   * [Production operations](#production-operations)
    * [Backup and restore database](#backup-and-restore-database-if-using-docker-compose-and-postgres)
    * [Uninstall](#uninstall)
    * [Run the tests](#run-the-tests)
@@ -35,6 +36,25 @@ The web container runs `collectstatic` and migrations automatically on startup.
 3. Restore database from dump (optional)
 ```
 gunzip < dump_file.sql.gz | docker compose exec -T db psql -U bom_user -d bom_db
+```
+
+## Production operations
+
+Production services use `restart: unless-stopped`, so containers recover from crashes and reboots but stay down after an intentional `docker stop`.
+
+Postgres exposes a healthcheck; `web` and `backup` wait for a healthy database before starting, which reduces crash-loops during startup.
+
+Container logs are rotated automatically (`10m` max size, `3` files per service). The optional `monitor` service watches `web`, `caddy`, `db`, and `backup` for restart loops and appends alerts to `monitoring/restart-loops.log` when a container's restart count crosses `RESTART_ALERT_THRESHOLD` (default `5`). Tune via `.env.prod`:
+
+```
+RESTART_ALERT_THRESHOLD=5
+CHECK_INTERVAL_SECONDS=60
+```
+
+View alerts:
+
+```
+tail -f monitoring/restart-loops.log
 ```
 
 ## Backup and restore database (If using docker-compose and postgres)

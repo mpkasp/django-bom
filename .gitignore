@@ -304,5 +304,8 @@ ENV/
 dump_*.sql.gz
 dump_*.sql
 
+# Docker restart-loop monitor output
+monitoring/*.log
+
 # Performance harness last run (committed history lives in perf/baseline.json)
 perf/last_run.json

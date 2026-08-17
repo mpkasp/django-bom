@@ -1,5 +1,11 @@
 name: lithium_bom
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   web:
     build:
@@ -15,8 +21,10 @@ services:
     expose:
       - ${API_PORT}
     depends_on:
-      - db
-    restart: always
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
     env_file:
       - ./.env.prod
   caddy:
@@ -29,14 +37,22 @@ services:
       - "443:443"
     depends_on:
       - web
-    restart: always
+    restart: unless-stopped
+    logging: *default-logging
     env_file:
       - ./.env.prod
   db:
     image: "${DOCKER_REGISTRY_MIRROR:-}postgres:17-alpine"
     volumes:
       - postgres_data:/var/lib/postgresql/data/
-    restart: always
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     env_file:
       - ./.env.prod
   backup:
@@ -55,8 +71,24 @@ services:
       crond -f
       "
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: unless-stopped
+    logging: *default-logging
+  monitor:
+    image: "${DOCKER_REGISTRY_MIRROR:-}docker:cli"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./scripts/check-restart-loops.sh:/check-restart-loops.sh:ro
+      - ./monitoring:/alerts
+    entrypoint: ["/bin/sh", "/check-restart-loops.sh"]
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      COMPOSE_PROJECT_NAME: lithium_bom
+      RESTART_ALERT_THRESHOLD: ${RESTART_ALERT_THRESHOLD:-5}
+      CHECK_INTERVAL_SECONDS: ${CHECK_INTERVAL_SECONDS:-60}
+      RESTART_ALERT_FILE: /alerts/restart-loops.log
 
 volumes:
   postgres_data:
