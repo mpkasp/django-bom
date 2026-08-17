@@ -2,12 +2,16 @@
 
 encode zstd gzip
 
-reverse_proxy /api/* web:8000
-
-handle_path /static/* {
-    root * /app/staticfiles
-    header Cache-Control "public, max-age=86400"
-    file_server
+handle /api/* {
+	reverse_proxy web:8000
 }
 
-reverse_proxy web:8000
+handle_path /static/* {
+	root * /app/staticfiles
+	header Cache-Control "public, max-age=86400"
+	file_server
+}
+
+handle {
+	reverse_proxy web:8000
+}

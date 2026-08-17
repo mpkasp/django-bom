@@ -31,13 +31,10 @@ cd project_dir
 ```
 docker compose --env-file .env.prod up --build -d
 ```
+The web container runs `collectstatic` and migrations automatically on startup.
 3. Restore database from dump (optional)
 ```
 gunzip < dump_file.sql.gz | docker compose exec -T db psql -U bom_user -d bom_db
-```
-4. Prepare django:
-```
-docker compose exec web sh entrypoint.sh
 ```
 
 ## Backup and restore database (If using docker-compose and postgres)
