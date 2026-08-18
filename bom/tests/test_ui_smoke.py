@@ -62,8 +62,22 @@ class TestUiSmoke(TransactionTestCase):
         self.assertIn("bom/css/app.css", html)
         self.assertNotIn("materialize.min.css", html)
         self.assertIn("bom-action-bar", html)
+        self.assertIn("bom-nav-menu", html)
         self.assertIn("bom-nav-link", html)
         self.assertIn("متریال جدید", html)
+        self.assertIn("Raw Material", html)
+        self.assertIn("Products", html)
+        self.assertIn('id="bom-nav-toggle"', html)
+
+        css = open("bom/static/bom/css/app.css").read()
+        src = open("assets/src/input.css").read()
+        self.assertIn(".bom-nav-menu", css)
+        self.assertIn(".bom-nav-checkbox:checked", src)
+        self.assertNotRegex(
+            src,
+            r"(?m)^\.hidden\s*\{",
+            "Unlayered .hidden must not override Tailwind lg:flex / sm:inline",
+        )
 
         part = organization.part_set.first()
         info = self.client.get(reverse("bom:part-info", kwargs={"part_id": part.id}))

@@ -12,13 +12,13 @@
     {% block head %}{% endblock head %}
     <link rel="shortcut icon" type="image/png" href="{% static 'bom/img/favicon.ico' %}"/>
 </head>
-<body class="flex min-h-screen flex-col" x-data="{ mobile: false }">
+<body class="flex min-h-screen flex-col">
 <script src="{% static 'bom/js/jquery-3.4.1.min.js' %}"></script>
 <script src="{% static 'bom/js/jquery.autocomplete-bom.js' %}"></script>
 <script src="{% static 'bom/js/bom-ui.js' %}"></script>
 
 <header class="bom-navbar printer-hide sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur">
-    <div class="flex h-14 items-center gap-3 px-3 sm:px-4">
+    <div class="bom-navbar-inner">
         <a href="{% if user.is_authenticated %}{% url 'bom:home' %}{% else %}{% url 'login' %}{% endif %}" title="لیتیوم | خانه" class="flex shrink-0 items-center gap-2">
             <img width="40" height="40" alt="Lithium Logo" src="{% static 'bom/img/lithium.png' %}"/>
             {% if not user.is_authenticated %}
@@ -26,22 +26,17 @@
             {% endif %}
         </a>
         {% if user.is_authenticated and title %}
-            <span class="hidden min-w-0 truncate text-sm text-ink-muted sm:inline">{{ title|safe }}</span>
+            <span class="bom-navbar-title">{{ title|safe }}</span>
         {% endif %}
-        <nav class="ms-auto hidden items-center gap-0.5 lg:flex">
+        <input type="checkbox" id="bom-nav-toggle" class="bom-nav-checkbox">
+        <label for="bom-nav-toggle" class="bom-nav-toggle" aria-label="منو">
+            <i class="material-icons">menu</i>
+        </label>
+        <nav class="bom-nav-menu" aria-label="main">
             {% block menu %}{% endblock %}
             {% include 'bom/base-menu.html' %}
         </nav>
-        <button type="button" class="bom-btn-icon ms-auto lg:hidden" @click="mobile = !mobile" aria-label="منو">
-            <i class="material-icons">menu</i>
-        </button>
     </div>
-    <nav x-show="mobile" x-cloak class="border-t border-border bg-surface px-3 py-2 lg:hidden">
-        <div class="flex flex-col gap-1">
-            {% block menu-mobile %}{% endblock %}
-            {% include 'bom/base-menu.html' %}
-        </div>
-    </nav>
 </header>
 <div class="printer-show printer-part-number"><p>{{ title|safe }}</p></div>
 

@@ -30,19 +30,52 @@
       }
       $trigger.data("bomDropdownBound", true);
       var target = $trigger.attr("data-target");
+      if (!target) {
+        return;
+      }
       var $menu = $("#" + target);
       $menu.addClass("dropdown-content");
+
+      function placeMenu() {
+        if (!$menu.hasClass("show")) {
+          return;
+        }
+        var rect = $trigger[0].getBoundingClientRect();
+        $menu.css({ display: "block", left: 0, top: 0, right: "auto" });
+        var menuWidth = $menu.outerWidth() || 192;
+        var menuHeight = $menu.outerHeight() || 0;
+        var left = document.documentElement.dir === "rtl" ? rect.right - menuWidth : rect.left;
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        var top = rect.bottom + 4;
+        if (top + menuHeight > window.innerHeight - 8 && rect.top - menuHeight - 4 > 8) {
+          top = rect.top - menuHeight - 4;
+        }
+        $menu.css({
+          position: "fixed",
+          top: top + "px",
+          left: left + "px",
+          right: "auto",
+          zIndex: 80,
+        });
+      }
+
       $trigger.on("click", function (e) {
         e.preventDefault();
         e.stopPropagation();
-        $(".dropdown-content").not($menu).removeClass("show");
-        $menu.toggleClass("show");
+        var opening = !$menu.hasClass("show");
+        $(".dropdown-content").removeClass("show");
+        if (opening) {
+          $menu.addClass("show");
+          placeMenu();
+        }
       });
-      $(document).on("click.bomDropdown", function () {
-        $menu.removeClass("show");
-      });
+      $(window).on("resize.bomDropdown scroll.bomDropdown", placeMenu);
     });
   };
+
+  $(document).on("click.bomDropdown", function () {
+    $(".dropdown-content").removeClass("show");
+  });
 
   $.fn.modal = function () {
     return this.each(function () {
