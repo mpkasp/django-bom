@@ -25,28 +25,66 @@
   --font-sans: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
   --font-print: "IRNazanin", "Vazirmatn", serif;
 
-  --color-primary: #00713c;
-  --color-primary-hover: #005a30;
-  --color-primary-light: #dceee3;
-  --color-accent: #00713c;
+  /* Brand ramp, anchored on Lithium green at step 600 */
+  --color-primary-50: #ecf7f1;
+  --color-primary-100: #d2ebdd;
+  --color-primary-200: #a6d8bd;
+  --color-primary-300: #71bd99;
+  --color-primary-400: #3f9f76;
+  --color-primary-500: #1a8659;
+  --color-primary-600: #00713c;
+  --color-primary-700: #005c33;
+  --color-primary-800: #04492a;
+  --color-primary-900: #063b24;
 
-  /* Green-tinted neutrals — same hue family as primary, not warm beige vs cool green */
-  --color-canvas: #f2f5f3;
+  --color-primary: var(--color-primary-600);
+  --color-primary-hover: var(--color-primary-700);
+  --color-primary-light: var(--color-primary-50);
+  --color-accent: var(--color-primary-600);
+
+  /* Near-neutral greys with a trace of the brand hue: reads modern, avoids olive */
+  --color-canvas: #f7f9f8;
   --color-surface: #ffffff;
-  --color-surface-muted: #e8efe9;
-  --color-row-stripe: #eef4ef;
-  --color-border: #d5dfd7;
-  --color-ink: #1c241d;
-  --color-ink-muted: #5c675e;
+  --color-surface-muted: #f1f4f2;
+  --color-surface-sunken: #e9edeb;
+  --color-row-stripe: #f7f9f8;
+  --color-border-subtle: #edf1ef;
+  --color-border: #dde3e0;
+  --color-border-strong: #c2cbc6;
+  --color-ink: #131a16;
+  --color-ink-muted: #4d5a53;
+  /* Placeholders and disabled text only — below AA for body copy */
+  --color-ink-subtle: #7c8a83;
 
   --color-danger: #b42318;
+  --color-danger-fill: #d92d20;
   --color-danger-light: #fef3f2;
+  --color-danger-border: #fecdca;
   --color-warning: #b54708;
+  --color-warning-fill: #f79009;
   --color-warning-light: #fffaeb;
-  --color-success: #00713c;
-  --color-success-light: #e8f3ec;
+  --color-warning-border: #fedf89;
+  --color-success: #067647;
+  --color-success-fill: #17b26a;
+  --color-success-light: #ecfdf3;
+  --color-success-border: #abefc6;
+  --color-info: #175cd3;
+  --color-info-fill: #2e90fa;
+  --color-info-light: #eff8ff;
+  --color-info-border: #b2ddff;
 
-  --shadow-panel: 0 1px 2px rgb(28 36 29 / 0.06), 0 1px 1px rgb(28 36 29 / 0.04);
+  /* Categorical set for statuses and charts; spaced in luminance so it survives grayscale print */
+  --color-cat-green: #00713c;
+  --color-cat-blue: #175cd3;
+  --color-cat-violet: #6941c6;
+  --color-cat-teal: #0e7490;
+  --color-cat-amber: #b54708;
+  --color-cat-rose: #c01048;
+  --color-cat-slate: #475467;
+
+  --shadow-panel: 0 1px 2px rgb(19 26 22 / 0.06), 0 1px 1px rgb(19 26 22 / 0.04);
+  --shadow-raised: 0 4px 8px -2px rgb(19 26 22 / 0.08), 0 2px 4px -2px rgb(19 26 22 / 0.04);
+  --shadow-overlay: 0 12px 20px -4px rgb(19 26 22 / 0.12), 0 4px 8px -4px rgb(19 26 22 / 0.06);
 }
 
 [x-cloak] {
@@ -140,11 +178,11 @@ a:hover {
   }
 
   .bom-table thead th {
-    @apply sticky top-0 z-10 border-b border-border bg-surface-muted px-2 py-2 text-start text-xs font-semibold text-ink-muted;
+    @apply sticky top-0 z-10 border-b border-border-strong bg-surface-sunken px-2 py-2 text-start text-xs font-semibold text-ink-muted;
   }
 
   .bom-table tbody td {
-    @apply border-b border-border px-2 py-1.5 align-middle;
+    @apply border-b border-border-subtle px-2 py-1.5 align-middle;
   }
 
   .bom-table tbody tr:hover {
@@ -214,19 +252,19 @@ a:hover {
   }
 
   .bom-alert-error {
-    @apply rounded-md border border-red-200 bg-danger-light px-3 py-2 text-sm text-danger;
+    @apply rounded-md border border-danger-border bg-danger-light px-3 py-2 text-sm text-danger;
   }
 
   .bom-alert-warning {
-    @apply rounded-md border border-amber-200 bg-warning-light px-3 py-2 text-sm text-warning;
+    @apply rounded-md border border-warning-border bg-warning-light px-3 py-2 text-sm text-warning;
   }
 
   .bom-alert-success {
-    @apply rounded-md border border-green-200 bg-success-light px-3 py-2 text-sm text-success;
+    @apply rounded-md border border-success-border bg-success-light px-3 py-2 text-sm text-success;
   }
 
   .bom-alert-info {
-    @apply rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-ink;
+    @apply rounded-md border border-info-border bg-info-light px-3 py-2 text-sm text-info;
   }
 
   .bom-pagination {
@@ -712,7 +750,7 @@ table.treetable tr.selected {
 .tablesorter-materialize thead td,
 .tablesorter-materialize tfoot th,
 .tablesorter-materialize tfoot td {
-  background-color: var(--color-surface-muted);
+  background-color: var(--color-surface-sunken);
 }
 
 .tablesorter-materialize tbody tr:nth-child(even) td {
