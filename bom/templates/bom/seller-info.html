@@ -46,6 +46,28 @@
         </div>
 
         {% include 'bom/components/seller-part-list.html' with seller_parts=seller_parts profile=profile %}
+
+        {% if seller_parts.has_other_pages %}
+            <ul class="pagination center" style="padding-top: 24px;">
+                {% if seller_parts.has_previous %}
+                    <li><a href="?page={{ seller_parts.previous_page_number }}"><i class="material-icons">chevron_left</i></a></li>
+                {% else %}
+                    <li class="disabled"><i class="material-icons">chevron_left</i></li>
+                {% endif %}
+                {% for i in seller_parts.paginator.page_range %}
+                    {% if seller_parts.number == i %}
+                        <li class="active green lighten-2"><a>{{ i }}</a></li>
+                    {% else %}
+                        <li class="waves-effect waves-green"><a href="?page={{ i }}">{{ i }}</a></li>
+                    {% endif %}
+                {% endfor %}
+                {% if seller_parts.has_next %}
+                    <li><a href="?page={{ seller_parts.next_page_number }}"><i class="material-icons">chevron_right</i></a></li>
+                {% else %}
+                    <li class="disabled"><i class="material-icons">chevron_right</i></li>
+                {% endif %}
+            </ul>
+        {% endif %}
     </div>
 {% endblock %}
 
@@ -54,7 +76,7 @@
     function deleteSeller() {
         {% if seller is not None %}
             let url = "{% url 'bom:seller-delete' seller_id=seller.id %}";
-            if (confirm("Warning! Are you sure you want to delete this seller?\n\n{{ seller_parts.count }} of its seller parts will also be permanently deleted.")) {
+            if (confirm("Warning! Are you sure you want to delete this seller?\n\n{{ seller_parts.paginator.count }} of its seller parts will also be permanently deleted.")) {
                 window.location.href = url;
             }
         {% else %}

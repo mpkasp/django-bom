@@ -1280,6 +1280,16 @@ def seller_info(request, seller_id):
         "seller__name",
         "minimum_order_quantity",
     )
+
+    paginator = Paginator(seller_parts, 50)
+    page = request.GET.get("page")
+    try:
+        seller_parts = paginator.page(page)
+    except PageNotAnInteger:
+        seller_parts = paginator.page(1)
+    except EmptyPage:
+        seller_parts = paginator.page(paginator.num_pages)
+
     return TemplateResponse(request, "bom/seller-info.html", locals())
 
 
