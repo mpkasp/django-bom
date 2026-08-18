@@ -17,11 +17,12 @@ Roboto is not used for the new UI.
 |-------|-------|------|
 | `--color-primary` | `#00713C` | Actions, links, focus, status |
 | `--color-primary-hover` | `#005a30` | Hover |
-| `--color-primary-light` | `#e8f5e9` | Selected row, chips |
-| `--color-canvas` | `#f6f3ec` | Warm off-white page background |
+| `--color-primary-light` | `#dceee3` | Selected row, chips |
+| `--color-canvas` | `#f2f5f3` | Page background (green-tinted neutral) |
 | `--color-surface` | `#ffffff` | Panels, tables |
-| `--color-surface-muted` | `#f3efe6` | Header rows, hover |
-| `--color-border` | `#e4ddd0` | Hairlines |
+| `--color-surface-muted` | `#e8efe9` | Header rows, hover |
+| `--color-row-stripe` | `#eef4ef` | Alternating table rows |
+| `--color-border` | `#d5dfd7` | Hairlines |
 | `--color-ink` | `#1c241d` | Body text |
 | `--color-ink-muted` | `#5c675e` | Labels, secondary |
 | `--color-danger` | `#b42318` | Destructive actions / errors |

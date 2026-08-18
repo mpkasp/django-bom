@@ -27,13 +27,15 @@
 
   --color-primary: #00713c;
   --color-primary-hover: #005a30;
-  --color-primary-light: #e8f5e9;
+  --color-primary-light: #dceee3;
   --color-accent: #00713c;
 
-  --color-canvas: #f6f3ec;
+  /* Green-tinted neutrals — same hue family as primary, not warm beige vs cool green */
+  --color-canvas: #f2f5f3;
   --color-surface: #ffffff;
-  --color-surface-muted: #f3efe6;
-  --color-border: #e4ddd0;
+  --color-surface-muted: #e8efe9;
+  --color-row-stripe: #eef4ef;
+  --color-border: #d5dfd7;
   --color-ink: #1c241d;
   --color-ink-muted: #5c675e;
 
@@ -42,7 +44,7 @@
   --color-warning: #b54708;
   --color-warning-light: #fffaeb;
   --color-success: #00713c;
-  --color-success-light: #ecfdf3;
+  --color-success-light: #e8f3ec;
 
   --shadow-panel: 0 1px 2px rgb(28 36 29 / 0.06), 0 1px 1px rgb(28 36 29 / 0.04);
 }
@@ -694,7 +696,32 @@ a.btn-flat {
 .collapsible li.active .collapsible-body { display: block; }
 
 table.highlight tbody tr:hover { background: var(--color-surface-muted); }
-table.striped > tbody > tr:nth-child(odd) { background-color: #e8f5e973; }
+table.striped > tbody > tr:nth-child(odd) { background-color: var(--color-row-stripe); }
+
+/* Table plugin themes — align with design tokens (loaded after app.css on BOM pages) */
+table.treetable tr.branch {
+  background-color: var(--color-row-stripe);
+}
+
+table.treetable tr.selected {
+  background-color: var(--color-primary-light);
+  color: var(--color-ink);
+}
+
+.tablesorter-materialize thead th,
+.tablesorter-materialize thead td,
+.tablesorter-materialize tfoot th,
+.tablesorter-materialize tfoot td {
+  background-color: var(--color-surface-muted);
+}
+
+.tablesorter-materialize tbody tr:nth-child(even) td {
+  background-color: var(--color-row-stripe);
+}
+
+.tablesorter-materialize tbody tr:hover td {
+  background-color: var(--color-surface-muted);
+}
 
 .pagination {
   display: flex;
