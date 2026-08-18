@@ -160,15 +160,6 @@ wheels = [
 ]
 
 [[package]]
-name = "django-materializecss-form"
-version = "1.1.17"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1f/f2/8a430fffdfa69e13539ec96eb289e5069a4e8b23daa8ae9096d3dff4cf40/django-materializecss-form-1.1.17.tar.gz", hash = "sha256:29cb4f1cb371d0f7a2b2c10af842e03d6e8b5de5b78aadf1416f24efd854494b", size = 7653, upload-time = "2020-02-03T10:52:30.82Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/76/7d9d0094101705b47a1863c176eb2059d719f96bc939306107e01140eb3d/django_materializecss_form-1.1.17-py2.py3-none-any.whl", hash = "sha256:648e81cc801fda172c7405966b29877d1242d9712b3d52c7b20aa3a78833a96a", size = 10084, upload-time = "2020-02-03T10:52:28.75Z" },
-]
-
-[[package]]
 name = "django-money"
 version = "3.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -247,7 +238,6 @@ version = "1.4.1"
 source = { virtual = "." }
 dependencies = [
     { name = "django" },
-    { name = "django-materializecss-form" },
     { name = "django-money" },
     { name = "gunicorn" },
     { name = "jdatetime" },
@@ -269,7 +259,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "django", specifier = ">=6.1" },
-    { name = "django-materializecss-form", specifier = ">=1.1.17" },
     { name = "django-money", specifier = ">=3.6.1" },
     { name = "gunicorn", specifier = ">=21.2.0" },
     { name = "jdatetime", specifier = ">=5.2.0" },

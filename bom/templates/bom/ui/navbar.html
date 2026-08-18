@@ -1,0 +1,27 @@
+{% load static %}
+<header class="bom-navbar printer-hide sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur" x-data="{ mobile: false }">
+    <div class="flex h-14 items-center gap-3 px-3 sm:px-4">
+        <a href="{% if user.is_authenticated %}{% url 'bom:home' %}{% else %}{% url 'login' %}{% endif %}" title="لیتیوم | خانه" class="flex shrink-0 items-center gap-2">
+            <img width="40" height="40" alt="Lithium Logo" src="{% static 'bom/img/lithium.png' %}"/>
+            {% if not user.is_authenticated %}
+                <span class="text-sm font-semibold text-ink">{% trans "Lithium" %}</span>
+            {% endif %}
+        </a>
+        {% if user.is_authenticated and title %}
+            <span class="hidden min-w-0 truncate text-sm text-ink-muted sm:inline">{{ title|safe }}</span>
+        {% endif %}
+        <nav class="ms-auto hidden items-center gap-0.5 lg:flex">
+            {% block menu %}{% endblock %}
+            {% include 'bom/base-menu.html' %}
+        </nav>
+        <button type="button" class="bom-btn-icon ms-auto lg:hidden" @click="mobile = !mobile" aria-label="منو">
+            <i class="material-icons">menu</i>
+        </button>
+    </div>
+    <nav x-show="mobile" x-cloak @click.outside="mobile = false" class="border-t border-border bg-surface px-3 py-2 lg:hidden">
+        <div class="flex flex-col gap-1">
+            {% block menu-mobile %}{% endblock %}
+            {% include 'bom/base-menu.html' %}
+        </div>
+    </nav>
+</header>

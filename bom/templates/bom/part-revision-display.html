@@ -1,5 +1,5 @@
 {% load static %}
-{% load materializecss %}
+{% load bom_forms %}
 
 {% comment %}
 
@@ -15,15 +15,15 @@ where XXX should be the name of the includee's object that represent its PartRev
 <p>Must include a either a description or electronics value, and value units. The remaining fields are optional.</p>
     -->
 <div class="row">
-        {{ part_revision_form.revision|materializecss:'l1 m2 s12' }}
+        {{ part_revision_form.revision|bom_form:'l1 m2 s12' }}
 </div>
 <div class="row">
-    {{ part_revision_form.description|materializecss:'l3 m4 s12' }}
-    {{ part_revision_form.tolerance|materializecss:'l2 m3 s12' }}
+    {{ part_revision_form.description|bom_form:'l3 m4 s12' }}
+    {{ part_revision_form.tolerance|bom_form:'l2 m3 s12' }}
 </div>
 <h2>{% trans "Cost Calculations" %}</h2>
 <div class="row radioSelect">
-    {{ part_revision_form.material|materializecss:'m6 s12' }}
+    {{ part_revision_form.material|bom_form:'m6 s12' }}
 </div>
 <!--
 <div class="row">
@@ -34,25 +34,25 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="fieldWrapper">
-        {{ part_revision_form.value|materializecss:'m2 s12' }}
+        {{ part_revision_form.value|bom_form:'m2 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.value_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.value_units|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.tolerance|materializecss:'m1 s12' }}
+        {{ part_revision_form.tolerance|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.package|materializecss:'m2 s12' }}
+        {{ part_revision_form.package|bom_form:'m2 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.pin_count|materializecss:'m1 s12' }}
+        {{ part_revision_form.pin_count|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.supply_voltage|materializecss:'m1 s12' }}
+        {{ part_revision_form.supply_voltage|bom_form:'m1 s12' }}
     </div>
      <div class="fieldWrapper">
-        {{ part_revision_form.supply_voltage_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.supply_voltage_units|bom_form:'m1 s12' }}
     </div>
 </div>
 
@@ -64,34 +64,34 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="fieldWrapper">
-        {{ part_revision_form.power_rating|materializecss:'m1 s12' }}
+        {{ part_revision_form.power_rating|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.power_rating_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.power_rating_units|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.voltage_rating|materializecss:'m1 s12' }}
+        {{ part_revision_form.voltage_rating|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.voltage_rating_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.voltage_rating_units|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.current_rating|materializecss:'m1 s12' }}
+        {{ part_revision_form.current_rating|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.current_rating_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.current_rating_units|bom_form:'m1 s12' }}
     </div>
    <div class="fieldWrapper">
-        {{ part_revision_form.temperature_rating|materializecss:'m1 s12' }}
+        {{ part_revision_form.temperature_rating|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.temperature_rating_range_max|materializecss:'m1 s12' }}
+        {{ part_revision_form.temperature_rating_range_max|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.temperature_rating_range_min|materializecss:'m1 s12' }}
+        {{ part_revision_form.temperature_rating_range_min|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.temperature_rating_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.temperature_rating_units|bom_form:'m1 s12' }}
     </div>
 </div>
 
@@ -103,25 +103,25 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="fieldWrapper">
-        {{ part_revision_form.memory|materializecss:'m1 s12' }}
+        {{ part_revision_form.memory|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.memory_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.memory_units|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.interface|materializecss:'m2 s12' }}
+        {{ part_revision_form.interface|bom_form:'m2 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.frequency|materializecss:'m1 s12' }}
+        {{ part_revision_form.frequency|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.frequency_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.frequency_units|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.wavelength|materializecss:'m1 s12' }}
+        {{ part_revision_form.wavelength|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.wavelength_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.wavelength_units|bom_form:'m1 s12' }}
     </div>
 </div>
 
@@ -133,13 +133,13 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
    <div class="fieldWrapper">
-        {{ part_revision_form.color|materializecss:'m2 s12' }}
+        {{ part_revision_form.color|bom_form:'m2 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.material|materializecss:'m2 s12' }}
+        {{ part_revision_form.material|bom_form:'m2 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.finish|materializecss:'m2 s12' }}
+        {{ part_revision_form.finish|bom_form:'m2 s12' }}
     </div>
 </div>
 
@@ -151,28 +151,28 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="fieldWrapper">
-        {{ part_revision_form.length|materializecss:'m1 s12' }}
+        {{ part_revision_form.length|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.length_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.length_units|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.width|materializecss:'m1 s12' }}
+        {{ part_revision_form.width|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.width_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.width_units|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.height|materializecss:'m1 s12' }}
+        {{ part_revision_form.height|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.height_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.height_units|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.weight|materializecss:'m1 s12' }}
+        {{ part_revision_form.weight|bom_form:'m1 s12' }}
     </div>
     <div class="fieldWrapper">
-        {{ part_revision_form.weight_units|materializecss:'m1 s12' }}
+        {{ part_revision_form.weight_units|bom_form:'m1 s12' }}
     </div>
 </div>
 
@@ -184,7 +184,7 @@ where XXX should be the name of the includee's object that represent its PartRev
 
 <div class="row">
     <div class="fieldWrapper">
-        {{ part_revision_form.attribute|materializecss:'m12 s12' }}
+        {{ part_revision_form.attribute|bom_form:'m12 s12' }}
     </div>
 </div>
 -->

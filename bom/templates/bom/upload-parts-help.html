@@ -1,16 +1,15 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
+{% load bom_forms %}
 
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
 {% block bom-menu %}
-    <li><a href="{% url 'bom:home' %}">Home</a></li>
+    <a class="bom-nav-link" href="{% url 'bom:home' %}">Home</a>
 {% endblock %}
 
 {% block content %}

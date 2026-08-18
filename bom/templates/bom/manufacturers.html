@@ -1,13 +1,11 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
+{% load bom_forms %}
 
 {% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/dashboard.css' %}"/>
 {% endblock %}
 
 {% block content %}

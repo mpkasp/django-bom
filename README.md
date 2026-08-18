@@ -167,7 +167,6 @@ INSTALLED_APPS = [
     'bom',
     'djmoney', # for currency
     'djmoney.contrib.exchange', # for currency
-    'materializecssform',
 ]
 ```
 
@@ -213,7 +212,7 @@ BOM_CONFIG = {}
 6. Visit http://127.0.0.1:8000/bom/ to begin.
 
 ## Customize Base Template
-The base template can be customized to your pleasing. Just add the following configuration to your settings.py:
+The base template can be customized. Add the following configuration to your settings.py:
 
 ```
 BOM_CONFIG = {
@@ -222,6 +221,12 @@ BOM_CONFIG = {
 ```
 
 where `base.html` is your base template.
+
+**CSS contract:** Lithium BoM pages load Tailwind CSS from `{% static 'bom/css/app.css' %}`. An overriding base template must:
+
+- Include `app.css` (do not load Materialize CSS or JS on the same page)
+- Keep `dir="rtl"` (or inherit it) for the Persian UI
+- Provide `{% block content %}`, `{% block head %}`, `{% block script %}`, `{% block menu %}`, and `{% block menu-mobile %}`
 
 ## Integrations
 

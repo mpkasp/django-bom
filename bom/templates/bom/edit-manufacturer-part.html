@@ -1,16 +1,15 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
+{% load bom_forms %}
 
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
 {% block bom-menu %}
-    <li><a href="{% url 'bom:part-info' part_id=part.id %}">انصراف</a></li>
+    <a class="bom-nav-link" href="{% url 'bom:part-info' part_id=part.id %}">انصراف</a>
 {% endblock %}
 
 
@@ -52,7 +51,7 @@
                     {% if part.number_class.mouser_enabled %}
 {#                    <label for="{{ manufacturer_part_form.source_mouser.id_for_label }}"><b>Disable sourcing info from Mouser</b></label>#}
                     {{ manufacturer_part_form.mouser_disable.errors }}
-                    {{ manufacturer_part_form.mouser_disable|materializecss:'col s6 input-field' }}
+                    {{ manufacturer_part_form.mouser_disable|bom_form:'col s6 input-field' }}
                     {% endif %}
                 </div>
                 <div class="row">

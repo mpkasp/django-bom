@@ -1,17 +1,16 @@
-{% if user.is_superuser and user.is_authenticated %}<li><a title="Admin" href="/admin/" target="_blank">{% trans "Admin" %}</a></li>{% endif %}
+{% if user.is_superuser and user.is_authenticated %}
+    <a class="bom-nav-link" title="Admin" href="/admin/" target="_blank">{% trans "Admin" %}</a>
+{% endif %}
 {% if user.is_authenticated %}
-    <li>
-        <form method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
-            {% comment %} # TODO: clean up {% endcomment %}
-            <a style="cursor: default;">
-                <button title={% trans "logout" %} style="border:0; background-color: transparent; color: white; cursor: pointer;" class="narrow-padding right" type="submit"><i class="material-icons right">logout</i></button>
-                {{user.username}}
-            </a>
-        </form>
-    </li>
+    <form method="post" action="{% url 'logout' %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="bom-nav-link" title="{% trans "logout" %}">
+            <i class="material-icons text-base">logout</i>
+            {{ user.username }}
+        </button>
+    </form>
 {% endif %}
 {% if not user.is_authenticated %}
-    <li><a title="login" href="{% url 'login' %}">{% trans "Log in" %}</a></li>
-    <li><a title="register" href="{% url 'signup' %}">{% trans "Register" %}</a></li>
+    <a class="bom-nav-link" title="login" href="{% url 'login' %}">{% trans "Log in" %}</a>
+    <a class="bom-nav-link" title="register" href="{% url 'signup' %}">{% trans "Register" %}</a>
 {% endif %}

@@ -1,6 +1,6 @@
 {% extends BASE_TEMPLATE %}
 
-{# This template is for anything we want in the BoM app and should not be overridden. Anything that can be overriden should be in BASE_TEMPLATE, or base.html #}
+{# Tailwind app shell. Unmigrated pages must extend bom-base-legacy.html instead. #}
 
 {% block menu %}
     {% block bom-menu %}{% endblock %}
@@ -12,21 +12,6 @@
     {% include 'bom/bom-base-menu.html' %}
 {% endblock %}
 
-{% if messages %}
-    <div class="messages">
-        {% for message in messages %}
-            <div class="alert {{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    </div>
-{% endif %}
-
 {% block script %}
-    <!-- materialize form select -->
-    <script>
-    $(document).ready(function () {
-        $('select').formSelect();
-        $('.sidenav').sidenav();
-    });
-    </script>
     {% block bom-script %}{% endblock %}
 {% endblock script %}

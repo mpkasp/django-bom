@@ -1,5 +1,6 @@
 /*************
-  Materialize theme (http://materializecss.com/)
+  Lithium BoM TableSorter theme (scoped CSS, not Tailwind utilities)
+  Class prefix remains tablesorter-materialize so existing JS `theme: "materialize"` keeps working.
  *************/
 /* jQuery materialize Theme */
 .tablesorter-materialize {

@@ -1,0 +1,21 @@
+{% if page_obj.has_other_pages %}
+<nav class="bom-pagination printer-hide" aria-label="pagination">
+    {% if page_obj.has_previous %}
+        <a class="bom-page-link" href="?page={{ page_obj.previous_page_number }}{% if extra_query %}&{{ extra_query }}{% endif %}"><i class="material-icons text-base">chevron_right</i></a>
+    {% else %}
+        <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_right</i></span>
+    {% endif %}
+    {% for i in page_obj.paginator.page_range %}
+        {% if page_obj.number == i %}
+            <span class="bom-page-link bom-page-link-active">{{ i }}</span>
+        {% else %}
+            <a class="bom-page-link" href="?page={{ i }}{% if extra_query %}&{{ extra_query }}{% endif %}">{{ i }}</a>
+        {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+        <a class="bom-page-link" href="?page={{ page_obj.next_page_number }}{% if extra_query %}&{{ extra_query }}{% endif %}"><i class="material-icons text-base">chevron_left</i></a>
+    {% else %}
+        <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_left</i></span>
+    {% endif %}
+</nav>
+{% endif %}

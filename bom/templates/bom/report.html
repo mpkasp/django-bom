@@ -1,13 +1,11 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
+{% load bom_forms %}
 
 {% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/dashboard.css' %}"/>
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jalalidatepicker.min.css' %}"/>
     <script type="text/javascript" src="{% static 'bom/js/jalalidatepicker.min.js' %}"></script>
 {% endblock %}
@@ -26,7 +24,7 @@
             <div class="row">
                 {% if organization.number_scheme == 'S' %}
                     <div class="col s12 m4">
-                        {{ part_class_selection_form|materializecss }}
+                        {{ part_class_selection_form|bom_form }}
                     </div>
                 {% endif %}
                 <div class="input-field col s12 {% if organization.number_scheme == 'S' %}m6{% else %}m8{% endif %}">
@@ -214,7 +212,14 @@
             </div>
         </form>
     </div>
-    {% include 'bom/bom-action-btn.html' with profile=profile %}
+    {% if profile.role == 'A' %}
+    <div class="container-app printer-hide">
+        <div class="bom-action-bar">
+            <a class="bom-btn-primary" href="{% url 'bom:create-part' %}"><i class="material-icons text-base">add</i>متریال جدید</a>
+            <a class="bom-btn-secondary" href="{% url 'bom:upload-parts' %}"><i class="material-icons text-base">cloud_upload</i>آپلود متریال</a>
+        </div>
+    </div>
+    {% endif %}
 {% endblock %}
 
 {% block bom-script %}

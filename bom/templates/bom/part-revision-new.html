@@ -1,16 +1,15 @@
 {% extends 'bom/bom-base.html' %}
 
-{% load materializecss %}
+{% load bom_forms %}
 {% load static %}
 
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
 {% block bom-menu %}
-    <li><a href="javascript:history.back()">انصراف</a></li>
+    <a class="bom-nav-link" href="javascript:history.back()">انصراف</a>
 {% endblock %}
 
 {% block content %}
@@ -23,7 +22,7 @@
 
                     {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_new_form %}
 
-                    {{ part_revision_new_form.copy_assembly|materializecss:'m6 s12' }}
+                    {{ part_revision_new_form.copy_assembly|bom_form:'m6 s12' }}
 
                 </div>
                 {% if used_part_revisions.count  > 0 %}

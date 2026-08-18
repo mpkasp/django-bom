@@ -1,27 +1,18 @@
 {% extends 'bom/base.html' %}
 
-{% load materializecss %}
+{% load bom_forms %}
+{% load static %}
 
-{% block title %}ایجاد حساب کاربری{% endblock %}
 {% block head-title %}ایجاد حساب{% endblock %}
 
 {% block content %}
-    {% load static %}
-    <div class="container">
-        <div class="section center">
-            <h5 class="">ایجاد حساب کاربری</h5>
-        </div>
-        <div class="section center">
-            <form method="post">
+    <div class="mx-auto max-w-lg px-4 py-12">
+        <div class="bom-panel-pad">
+            <h1 class="mb-6 text-xl font-semibold text-ink">ایجاد حساب کاربری</h1>
+            <form method="post" class="space-y-4">
                 {% csrf_token %}
-                <div class="row">
-                    <div class="col m6 push-m3 s12">
-                        {{ form|materializecss }}
-                        <div class="center">
-                            <button class="waves-effect waves-light btn green lighten-1" style="min-width:150px" type="submit">تأیید</button>
-                        </div>
-                    </div>
-                </div>
+                {{ form|bom_form }}
+                <button class="bom-btn-primary w-full" type="submit">تأیید</button>
             </form>
         </div>
     </div>

@@ -1,0 +1,5 @@
+{% if href %}
+<a href="{{ href }}" class="{% if variant == 'danger' %}bom-btn-danger{% elif variant == 'secondary' %}bom-btn-secondary{% elif variant == 'ghost' %}bom-btn-ghost{% elif variant == 'icon' %}bom-btn-icon{% else %}bom-btn-primary{% endif %} {{ extra_class }}" {% if title %}title="{{ title }}"{% endif %}>{{ slot }}{% if label %}{{ label }}{% endif %}</a>
+{% else %}
+<button type="{{ type|default:'submit' }}" name="{{ name }}" class="{% if variant == 'danger' %}bom-btn-danger{% elif variant == 'secondary' %}bom-btn-secondary{% elif variant == 'ghost' %}bom-btn-ghost{% elif variant == 'icon' %}bom-btn-icon{% else %}bom-btn-primary{% endif %} {{ extra_class }}" {% if title %}title="{{ title }}"{% endif %}>{{ slot }}{% if label %}{{ label }}{% endif %}</button>
+{% endif %}

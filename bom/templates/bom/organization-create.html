@@ -1,12 +1,11 @@
 {% extends 'bom/bom-base.html' %}
 
-{% load materializecss %}
+{% load bom_forms %}
 {% load static %}
 
 {% block head-title %}Create Your Organization{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
 {% block content %}
@@ -60,7 +59,7 @@
                     <div class="col s12" style="padding: 16px;">
                         <h4>1) Type a name for your organization.</h4>
                         <p>You can always change this later.</p>
-                        {{ form.name|materializecss }}
+                        {{ form.name|bom_form }}
                     </div>
                     <div class="col s12" style="padding: 16px;">
                         <h4>2) What type of numbering scheme do you want your organization to use?</h4>
@@ -79,13 +78,13 @@
                         <p style="font-size: 15px;">You can read more about the options <a href="{% url 'bom:help' %}#part-numbering" target="_blank">here</a>. Some times the "intelligent" way isn't
                             the best way 😉.</p>
                         <p><b>Important!</b> Once you've created parts, you cannot change your organization type without having to delete your parts (export is available).</p>
-                        {{ form.number_scheme|materializecss }}
+                        {{ form.number_scheme|bom_form }}
                     </div>
                     <div id="item-number-length" class="col s12" style="padding: 16px;">
                         <h4>3) How long do you want your item numbers to be?</h4>
                         <p>Your part numbers will have a part class (C), <b>item number (N)</b> and a variation (V) in the format CCC-NNNN-VV. You can always <i>increase</i> these numbers, but you
                             can't decrease them. The recommended values are below (C = 3, N = 4, V = 2).</p>
-                        {{ form.number_class_code_len|materializecss:'s4' }} {{ form.number_item_len|materializecss:'s4' }} {{ form.number_variation_len|materializecss:'s4' }}
+                        {{ form.number_class_code_len|bom_form:'s4' }} {{ form.number_item_len|bom_form:'s4' }} {{ form.number_variation_len|bom_form:'s4' }}
                     </div>
                 </div>
                 <div class="row">

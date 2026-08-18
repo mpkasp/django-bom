@@ -53,3 +53,9 @@ The uv builder image comes from GHCR (`ghcr.io/astral-sh/uv`), not Docker Hub, s
 ```
 UV_IMAGE=ghcr.io/astral-sh/uv:bookworm-slim
 ```
+
+The CSS build uses Node (`node:22-bookworm-slim`). If you cannot pull that image, set the full name:
+
+```
+NODE_IMAGE=node:22-bookworm-slim
+```

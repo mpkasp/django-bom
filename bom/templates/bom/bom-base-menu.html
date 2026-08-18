@@ -1,8 +1,8 @@
 {% if user.is_authenticated and user.bom_profile.organization %}
-    <li {% if name == "raw material" %}class="active"{% endif %}><a title={% trans "Raw Material" %} href="{% url 'bom:home' %}?product=0">{% trans "Raw Material" %}</a></li>
-    <li {% if name == "products" %}class="active"{% endif %}><a title={% trans "Products" %} href="{% url 'bom:home' %}?product=1">{% trans "Products" %}</a></li>
-    <li {% if name == "reports" %}class="active"{% endif %}><a title={% trans "Reports" %} href="{% url 'bom:report' %}">{% trans "Reports" %}</a></li>
-    <li {% if name == "sellers" %}class="active"{% endif %}><a title={% trans "sellers" %} href="{% url 'bom:sellers' %}">{% trans "sellers" %}</a></li>
-    <li {% if name == "settings" %}class="active"{% endif %}><a title={% trans "settings" %} class="narrow-padding" href="{% url 'bom:settings' tab_anchor='user' %}"><i class="material-icons">settings</i></a></li>
+    <a class="bom-nav-link {% if name == 'raw material' %}bom-nav-link-active{% endif %}" title="{% trans "Raw Material" %}" href="{% url 'bom:home' %}?product=0">{% trans "Raw Material" %}</a>
+    <a class="bom-nav-link {% if name == 'products' %}bom-nav-link-active{% endif %}" title="{% trans "Products" %}" href="{% url 'bom:home' %}?product=1">{% trans "Products" %}</a>
+    <a class="bom-nav-link {% if name == 'reports' %}bom-nav-link-active{% endif %}" title="{% trans "Reports" %}" href="{% url 'bom:report' %}">{% trans "Reports" %}</a>
+    <a class="bom-nav-link {% if name == 'sellers' %}bom-nav-link-active{% endif %}" title="{% trans "sellers" %}" href="{% url 'bom:sellers' %}">{% trans "sellers" %}</a>
+    <a class="bom-nav-link {% if name == 'settings' %}bom-nav-link-active{% endif %}" title="{% trans "settings" %}" href="{% url 'bom:settings' tab_anchor='user' %}"><i class="material-icons text-base">settings</i></a>
 {% endif %}
-<li {% if name == "help" %}class="active"{% endif %}><a title={% trans "help" %} href="{% url 'bom:help' %}" class="narrow-padding"><i class="material-icons">help</i></a></li>
+<a class="bom-nav-link {% if name == 'help' %}bom-nav-link-active{% endif %}" title="{% trans "help" %}" href="{% url 'bom:help' %}"><i class="material-icons text-base">help</i></a>

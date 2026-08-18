@@ -1,34 +1,26 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
+{% load bom_forms %}
 
 {% block head-title %}{{ title }}{% endblock %}
-
-{% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
-{% endblock %}
 
 {% block content %}
     <div class="container-app">
         {% if profile.role == 'A' %}
-            <div class="row">
-                <form action="{% url 'bom:part-class-edit' part_class_id=part_class.id %}" method="post" class="col s12">
-                    {% csrf_token %}
-                    {{ part_class_form.non_field_errors }}
-                    {{ part_class_form.code|materializecss:'s12 m2' }}
-                    {{ part_class_form.name|materializecss:'s12 m6' }}
-                    {{ part_class_form.comment|materializecss:'s12 m12' }}
-                    <div class="row">
-                        <div class="col s6">
-                            <a href="{% url 'bom:settings' %}indabom" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">انصراف</a>
-                        </div>
-                        <div class="col s6 left-align">
-                            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">{% trans "Save" %}</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
+            <form action="{% url 'bom:part-class-edit' part_class_id=part_class.id %}" method="post" class="bom-panel-pad">
+                {% csrf_token %}
+                {{ part_class_form.non_field_errors }}
+                <div class="row">
+                    {{ part_class_form.code|bom_form:'s12 m2' }}
+                    {{ part_class_form.name|bom_form:'s12 m6' }}
+                    {{ part_class_form.comment|bom_form:'s12 m12' }}
+                </div>
+                <div class="mt-4 flex justify-between">
+                    <a href="{% url 'bom:settings' %}indabom" class="bom-btn-ghost">انصراف</a>
+                    <button class="bom-btn-primary" type="submit" name="action">{% trans "Save" %}</button>
+                </div>
+            </form>
         {% else %}
             {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
         {% endif %}
