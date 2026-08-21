@@ -33,7 +33,7 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="row printer-hide">
+            <div class="row printer-hide items-end part-info-revision-row">
                 {% if part_revision %}
                     <div class="col l2 m3 s5">
                         <label class="bom-label" for="select-revision">ورژن</label>
@@ -47,12 +47,11 @@
                         </select>
                     </div>
                 {% endif %}
-                <div class="col {% if part_revision %}m3 s1{% else %}m3 s12{% endif %}">
+                <div class="col {% if part_revision %}m3 s1{% else %}m3 s12{% endif %} self-end">
                     {% if profile.role == 'A' and part_revision %}
-                        <div style="margin-top: 2rem;">
                             <!-- Dropdown Trigger -->
                             <button class='dropdown-trigger hide-on-small-and-down bom-btn-secondary'
-                                    href='#' data-target='dropdown-revision'><i class="material-icons right">settings</i><i class="material-icons left">arrow_drop_down</i>مدیریت
+                                    href='#' data-target='dropdown-revision'><i class="material-icons text-base">arrow_drop_down</i>مدیریت<i class="material-icons text-base">settings</i>
                             </button>
                             <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
                                     class="material-icons green-text text-lighten-1">more_vert</i></a>
@@ -85,7 +84,6 @@
                                         <i class="material-icons red-text text-lighten-1 right">delete</i>{% trans "Delete" %}</a>
                                 </li>
                             </ul>
-                        </div>
                     {% elif profile.role == 'A' and not part_revision %}
                         <a class='bom-btn-secondary'
                            href='{% url 'bom:part-revision-new' part_id=part.id %}'><i class="material-icons left">add</i>افزودن ورژن</a>
