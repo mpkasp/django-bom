@@ -858,7 +858,7 @@ a.btn-flat {
   gap: 0.5rem;
   padding: 0.875rem 1.25rem;
   cursor: pointer;
-  background: var(--color-surface-sunken);
+  background: var(--color-surface-muted);
   font-weight: 500;
 }
 .collapsible-body {
