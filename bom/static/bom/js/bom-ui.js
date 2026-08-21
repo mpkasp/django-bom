@@ -20,6 +20,19 @@
     }
   };
 
+  function hideAllDropdowns() {
+    $(".dropdown-content")
+      .removeClass("show")
+      .css({
+        display: "",
+        top: "",
+        left: "",
+        right: "",
+        position: "",
+        zIndex: "",
+      });
+  }
+
   $.fn.dropdown = function () {
     return this.each(function () {
       var $trigger = $(this);
@@ -39,7 +52,7 @@
           return;
         }
         var rect = $trigger[0].getBoundingClientRect();
-        $menu.css({ display: "block", left: 0, top: 0, right: "auto" });
+        $menu.css({ left: 0, top: 0, right: "auto" });
         var menuWidth = $menu.outerWidth() || 192;
         var menuHeight = $menu.outerHeight() || 0;
         var left = document.documentElement.dir === "rtl" ? rect.right - menuWidth : rect.left;
@@ -57,11 +70,18 @@
         });
       }
 
+      if (!$menu.data("bomDropdownMenuBound")) {
+        $menu.data("bomDropdownMenuBound", true);
+        $menu.on("click", function (e) {
+          e.stopPropagation();
+        });
+      }
+
       $trigger.on("click", function (e) {
         e.preventDefault();
         e.stopPropagation();
         var opening = !$menu.hasClass("show");
-        $(".dropdown-content").removeClass("show");
+        hideAllDropdowns();
         if (opening) {
           $menu.addClass("show");
           placeMenu();
@@ -72,7 +92,13 @@
   };
 
   $(document).on("click.bomDropdown", function () {
-    $(".dropdown-content").removeClass("show");
+    hideAllDropdowns();
+  });
+
+  $(document).on("keydown.bomDropdown", function (e) {
+    if (e.key === "Escape") {
+      hideAllDropdowns();
+    }
   });
 
   $.fn.modal = function () {
