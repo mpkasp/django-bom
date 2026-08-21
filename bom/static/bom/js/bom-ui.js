@@ -2,15 +2,13 @@
   "use strict";
 
   window.enableActionCheckboxColumn = function () {
-    $(".action-checkbox-column").show();
-    $(".action-checkbox-hide").show();
-    $(".action-checkbox-show").hide();
+    $(".action-checkbox-column, .action-checkbox-hide").removeClass("hidden");
+    $(".action-checkbox-show").addClass("hidden");
   };
 
   window.disableActionCheckboxColumn = function () {
-    $(".action-checkbox-column").hide();
-    $(".action-checkbox-hide").hide();
-    $(".action-checkbox-show").show();
+    $(".action-checkbox-column, .action-checkbox-hide").addClass("hidden");
+    $(".action-checkbox-show").removeClass("hidden");
   };
 
   window.clearSearchExpression = function () {

@@ -31,7 +31,7 @@
                     </label>
                     <input type="search" id="autocomplete-input" autocomplete="off" class="bom-input autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
                 </div>
-                <div class="col s12 m2 flex flex-wrap items-center gap-1">
+                <div class="col s12 m2 flex flex-wrap items-end gap-1 self-end">
                     <button type="submit" class="bom-btn-primary" name="action">جستجو</button>
                     <a class="bom-btn-icon" title="Help with search" href="{% url 'bom:search-help' %}"><i class="material-icons">help</i></a>
                     {% if part_class or query %}
@@ -71,7 +71,7 @@
 
             <div class="part-list push-footer">
                 <div class="bom-table-wrap responsive-table-wrapper">
-                    <table class="bom-table part-list tight single-line">
+                    <table class="bom-table part-list single-line">
                         <thead>
                         <tr>
                             {% if profile.role == 'A' %}
@@ -85,7 +85,7 @@
                             <th>ورژن</th>
                             <th>{% trans "Seller Part Number" %}</th>
                             <th>{% trans "Seller" %}</th>
-                            <th>{% trans "Unit Cost" %}</th>
+                            <th class="bom-num">{% trans "Unit Cost" %}</th>
                             <th class="printer-hide">گزینه‌ها</th>
                         </tr>
                         </thead>

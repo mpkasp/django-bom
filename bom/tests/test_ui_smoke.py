@@ -85,6 +85,27 @@ class TestUiSmoke(TransactionTestCase):
         info_html = info.content.decode("utf-8")
         self.assertIn('id="tabs"', info_html)
         self.assertIn("dropdown-trigger", info_html)
+        self.assertIn("bom-table", info_html)
+        self.assertIn("collection", info_html)
+
+        sellers = self.client.get(reverse("bom:sellers"))
+        self.assertEqual(sellers.status_code, 200)
+        sellers_html = sellers.content.decode("utf-8")
+        self.assertIn("bom-table-wrap", sellers_html)
+        self.assertIn("bom-table", sellers_html)
+        self.assertIn("bom-input", sellers_html)
+        self.assertIn("bom-btn-primary", sellers_html)
+        self.assertNotIn("striped highlight", sellers_html)
+
+        self.assertIn("bom-table", html)
+        self.assertRegex(
+            src,
+            r"\.bom-table-wrap\s*\{[^}]*max-height",
+            "Long tables need a scrollport so sticky thead can work",
+        )
+        self.assertIn("sticky", css)
+        self.assertIn("bom-btn-primary", html)
+        self.assertNotIn("waves-effect waves-light btn green", html)
 
         create = self.client.get(reverse("bom:create-part"))
         self.assertEqual(create.status_code, 200)

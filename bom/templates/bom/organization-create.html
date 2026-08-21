@@ -17,26 +17,18 @@
 
             <div class="row" style="display: flex; flex-wrap: wrap;">
                 <div class="col s12 m6" style="display: flex;">
-                    <div class="card green lighten-2 waves-effect waves-block waves-light" style="width: 100%;" onclick="selectNewOrganization()">
-                        <div class="card-image">
-                            <i class="material-icons" style="margin-top: 20px; color: white; text-align: center; font-size: 7rem; display: block;">group</i>
-                        </div>
-                        <div class="card-content text-center">
-                            <span class="card-title white-text">Create a new organization</span>
-                            <p class="white-text">Create a new workspace for your team or company to collaborate.</p>
-                        </div>
-                    </div>
+                    <button type="button" class="bom-panel-pad w-full cursor-pointer border-0 bg-primary text-center text-white hover:bg-primary-hover" onclick="selectNewOrganization()">
+                        <i class="material-icons" style="margin-top: 20px; text-align: center; font-size: 7rem; display: block;">group</i>
+                        <span class="mt-2 block text-lg font-semibold">Create a new organization</span>
+                        <p class="mt-1 text-sm opacity-90">Create a new workspace for your team or company to collaborate.</p>
+                    </button>
                 </div>
                 <div class="col s12 m6" style="display: flex;">
-                    <a class="card green lighten-2 waves-effect waves-block waves-light modal-trigger" style="width: 100%;" onclick="selectJoinOrganization()">
-                        <div class="card-image">
-                            <i class="material-icons" style="margin-top: 20px; color: white; text-align: center; font-size: 7rem; display: block;">group_add</i>
-                        </div>
-                        <div class="card-content text-center">
-                            <span class="card-title white-text">Join an existing organization</span>
-                            <p class="white-text">Join a workspace already created by your team member.</p>
-                        </div>
-                    </a>
+                    <button type="button" class="bom-panel-pad w-full cursor-pointer border-0 bg-primary text-center text-white hover:bg-primary-hover" onclick="selectJoinOrganization()">
+                        <i class="material-icons" style="margin-top: 20px; text-align: center; font-size: 7rem; display: block;">group_add</i>
+                        <span class="mt-2 block text-lg font-semibold">Join an existing organization</span>
+                        <p class="mt-1 text-sm opacity-90">Join a workspace already created by your team member.</p>
+                    </button>
                 </div>
             </div>
         </div>
@@ -89,7 +81,7 @@
                 </div>
                 <div class="row">
                     <div class="col s12 center-align">
-                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Let's Go!</button>
+                        <button class="bom-btn-primary" type="submit" name="action">Let's Go!</button>
                     </div>
                 </div>
             </form>

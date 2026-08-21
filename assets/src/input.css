@@ -170,7 +170,10 @@ a:hover {
   }
 
   .bom-table-wrap {
-    @apply overflow-x-auto rounded-lg border border-border bg-surface;
+    /* overflow-x alone forces overflow-y to auto and breaks viewport sticky;
+       scroll the wrap itself so thead sticky top-0 works for long tables */
+    @apply overflow-auto rounded-lg border border-border bg-surface;
+    max-height: calc(100dvh - 13rem);
   }
 
   .bom-table {
@@ -430,8 +433,9 @@ ul.errorlist {
   @apply mx-auto w-[95%] max-w-[90rem] py-5;
 }
 
-.responsive-table-wrapper {
-  @apply overflow-x-auto;
+/* When paired with .bom-table-wrap, overflow comes from that rule (needed for sticky thead) */
+.responsive-table-wrapper:not(.bom-table-wrap) {
+  overflow-x: auto;
 }
 
 /* Autocomplete (jQuery plugin, Materialize-compatible API) */
@@ -449,9 +453,9 @@ ul.errorlist {
   opacity: 1;
 }
 
-/* Numeric alignment helper for cost columns */
+/* Numeric alignment helper for cost columns — physical right (not text-end; RTL would put that on the left) */
 .bom-num {
-  @apply text-end tabular-nums;
+  @apply text-right tabular-nums;
 }
 
 /* Messages */
@@ -509,6 +513,8 @@ ul.errorlist {
   .bom-table-wrap {
     border: none;
     box-shadow: none;
+    max-height: none;
+    overflow: visible;
   }
 
   * {
@@ -592,7 +598,8 @@ ul.errorlist {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   column-gap: 1rem;
-  align-items: start;
+  /* Do not force align-items:start — that beats Tailwind items-end and
+     misaligns search buttons above inputs that have labels */
 }
 
 .col {
@@ -771,58 +778,142 @@ a.btn-flat {
   border-bottom: 1px solid var(--color-border);
   padding-inline-start: 0;
   list-style: none;
-  margin: 0;
+  margin: 0 0 1rem;
+}
+.tabs.bom-tabs {
+  margin-bottom: 1.25rem;
+}
+.tabs .tab {
+  flex-shrink: 0;
 }
 .tabs .tab a {
-  display: inline-block;
-  padding: 0.5rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.625rem 1rem;
   font-size: 0.875rem;
+  font-weight: 500;
   color: var(--color-ink-muted);
   border-bottom: 2px solid transparent;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
 }
 .tabs .tab a.active,
 .tabs .tab a:hover {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
 }
+.tabs-fixed-width .tab {
+  flex: 1;
+  text-align: center;
+}
+.tabs-fixed-width .tab a {
+  width: 100%;
+  justify-content: center;
+}
 
 .collection {
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
   padding-inline-start: 0;
   list-style: none;
+  overflow: hidden;
 }
-.collection-header,
-.collection-item {
-  padding: 0.75rem 1rem;
+.collection-header {
+  padding: 0.875rem 1.25rem;
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+}
+.collection-header h5 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.collection-item {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 .collection-item:last-child { border-bottom: 0; }
+.collection-item .row {
+  margin-bottom: 0.5rem;
+}
+.collection-item .row:last-child {
+  margin-bottom: 0;
+}
 
 .collapsible {
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
   padding-inline-start: 0;
   list-style: none;
+  overflow: hidden;
 }
 .collapsible-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1.25rem;
   cursor: pointer;
+  background: var(--color-surface-sunken);
+  font-weight: 500;
 }
 .collapsible-body {
   display: none;
-  padding: 0.75rem 1rem;
+  padding: 0;
   border-top: 1px solid var(--color-border);
+}
+.collapsible-body .bom-table {
+  border-radius: 0;
 }
 .collapsible li.active .collapsible-body { display: block; }
 
-table.highlight tbody tr:hover { background: var(--color-surface-muted); }
+/* Legacy Materialize table class aliases → bom-table metrics */
+table.highlight,
+table.striped,
+table.part-list:not(.bom-table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+table.highlight thead th,
+table.striped thead th,
+table.part-list:not(.bom-table) thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: var(--color-surface-sunken);
+  padding: 0.5rem;
+  text-align: start;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+table.highlight tbody td,
+table.striped tbody td,
+table.part-list:not(.bom-table) tbody td {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 0.375rem 0.5rem;
+  vertical-align: middle;
+}
+table.highlight tbody tr:hover,
+table.striped tbody tr:hover,
+table.part-list:not(.bom-table) tbody tr:hover {
+  background: var(--color-surface-muted);
+}
 table.striped > tbody > tr:nth-child(odd) { background-color: var(--color-row-stripe); }
+
+.responsive-table-wrapper:not(.bom-table-wrap) {
+  overflow: auto;
+  max-height: calc(100dvh - 13rem);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
 
 /* Table plugin themes — align with design tokens (loaded after app.css on BOM pages) */
 table.treetable tr.branch {
@@ -896,6 +987,31 @@ table.treetable tr.selected {
 }
 
 .file-field input[type="file"] { font-size: 0.875rem; }
+
+/* Native file inputs on upload pages */
+input[type="file"] {
+  display: block;
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+}
+
+/* Materialize color utility leftovers → design tokens */
+.green-text,
+.green-text.text-lighten-1,
+i.green-text {
+  color: var(--color-primary) !important;
+}
+.red-text,
+.red-text.text-lighten-1,
+i.red-text {
+  color: var(--color-danger) !important;
+}
+.grey-text,
+.grey-text.text-lighten-1 {
+  color: var(--color-ink-muted) !important;
+}
+
 .card {
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
