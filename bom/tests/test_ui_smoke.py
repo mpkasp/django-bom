@@ -78,6 +78,17 @@ class TestUiSmoke(TransactionTestCase):
             r"(?m)^\.hidden\s*\{",
             "Unlayered .hidden must not override Tailwind lg:flex / sm:inline",
         )
+        # Global link color must stay in @layer base so a.bom-btn-primary keeps white text
+        self.assertIn("@layer base", src)
+        self.assertRegex(
+            src,
+            r"@layer\s+base[\s\S]*?\ba\s*\{[^}]*color:\s*var\(--color-primary\)",
+            "Unlayered a { color } makes primary button links green-on-green",
+        )
+        self.assertIn("hover:text-white", src)
+        self.assertIn(".bom-btn-primary{", css)
+        self.assertIn("color:var(--color-white)", css)
+        self.assertIn("a{color:var(--color-primary)}", css)
 
         part = organization.part_set.first()
         info = self.client.get(reverse("bom:part-info", kwargs={"part_id": part.id}))
@@ -87,6 +98,10 @@ class TestUiSmoke(TransactionTestCase):
         self.assertIn("dropdown-trigger", info_html)
         self.assertIn("bom-table", info_html)
         self.assertIn("collection", info_html)
+        self.assertNotIn("متریال جدید", info_html)
+        self.assertNotIn("آپلود متریال", info_html)
+        self.assertNotIn(reverse("bom:create-part"), info_html)
+        self.assertNotIn(reverse("bom:upload-parts"), info_html)
 
         sellers = self.client.get(reverse("bom:sellers"))
         self.assertEqual(sellers.status_code, 200)

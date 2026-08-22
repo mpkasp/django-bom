@@ -91,23 +91,27 @@
   display: none !important;
 }
 
-html {
-  line-height: 1.5;
-}
+/* Link color must live in @layer base so component buttons (e.g. a.bom-btn-primary)
+   can keep white / ink text; unlayered `a {}` overrides layered text-* utilities. */
+@layer base {
+  html {
+    line-height: 1.5;
+  }
 
-body {
-  font-family: var(--font-sans);
-  background-color: var(--color-canvas);
-  color: var(--color-ink);
-  min-height: 100vh;
-}
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    min-height: 100vh;
+  }
 
-a {
-  color: var(--color-primary);
-}
+  a {
+    color: var(--color-primary);
+  }
 
-a:hover {
-  color: var(--color-primary-hover);
+  a:hover {
+    color: var(--color-primary-hover);
+  }
 }
 
 @layer components {
@@ -130,15 +134,15 @@ a:hover {
   }
 
   .bom-btn-primary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors bg-primary text-white hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors bg-primary text-white hover:bg-primary-hover hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .bom-btn-secondary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .bom-btn-danger {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-danger px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-danger px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .bom-btn-ghost {

@@ -10,14 +10,6 @@
 {% endblock %}
 
 {% block content %}
-    {% if profile.role == 'A' %}
-    <div class="container-app printer-hide">
-        <div class="bom-action-bar">
-            <a class="bom-btn-primary" href="{% url 'bom:create-part' %}"><i class="material-icons text-base">add</i>متریال جدید</a>
-            <a class="bom-btn-secondary" href="{% url 'bom:upload-parts' %}"><i class="material-icons text-base">cloud_upload</i>آپلود متریال</a>
-        </div>
-    </div>
-    {% endif %}
     <div class="container-app">
         <div class="row" style="margin-bottom: 5px;">
             <div class="col m8 hide-on-small-and-down">
