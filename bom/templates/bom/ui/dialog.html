@@ -1,0 +1,10 @@
+<div x-data="{ open: {{ open|default:'false' }} }" x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" @keydown.escape.window="open = false">
+    <div class="bom-panel-pad w-full max-w-lg" @click.outside="open = false" role="dialog" aria-modal="true">
+        {% if title %}<h2 class="mb-3 text-lg font-semibold">{{ title }}</h2>{% endif %}
+        {{ slot }}
+        <div class="mt-4 flex justify-end gap-2">
+            <button type="button" class="bom-btn-ghost" @click="open = false">انصراف</button>
+            {{ footer }}
+        </div>
+    </div>
+</div>

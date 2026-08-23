@@ -1,0 +1,22 @@
+{% load static %}
+<header class="bom-navbar printer-hide sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur">
+    <div class="bom-navbar-inner">
+        <a href="{% if user.is_authenticated %}{% url 'bom:home' %}{% else %}{% url 'login' %}{% endif %}" title="لیتیوم | خانه" class="flex shrink-0 items-center gap-2">
+            <img width="40" height="40" alt="Lithium Logo" src="{% static 'bom/img/lithium.png' %}"/>
+            {% if not user.is_authenticated %}
+                <span class="text-sm font-semibold text-ink">{% trans "Lithium" %}</span>
+            {% endif %}
+        </a>
+        {% if user.is_authenticated and title %}
+            <span class="bom-navbar-title">{{ title|safe }}</span>
+        {% endif %}
+        <input type="checkbox" id="bom-nav-toggle" class="bom-nav-checkbox">
+        <label for="bom-nav-toggle" class="bom-nav-toggle" aria-label="منو">
+            <i class="material-icons">menu</i>
+        </label>
+        <nav class="bom-nav-menu" aria-label="main">
+            {% block menu %}{% endblock %}
+            {% include 'bom/base-menu.html' %}
+        </nav>
+    </div>
+</header>

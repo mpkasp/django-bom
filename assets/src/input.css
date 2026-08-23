@@ -1,0 +1,1059 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+@source "../../bom/templates/**/*.html";
+@source "../../bom/static/bom/js/bom-ui.js";
+@source "../../bom/templatetags/**/*.py";
+
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("../font/Vazirmatn-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IRNazanin";
+  src: url("../font/IRNazanin.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+  --font-print: "IRNazanin", "Vazirmatn", serif;
+
+  /* Brand ramp, anchored on Lithium green at step 600 */
+  --color-primary-50: #ecf7f1;
+  --color-primary-100: #d2ebdd;
+  --color-primary-200: #a6d8bd;
+  --color-primary-300: #71bd99;
+  --color-primary-400: #3f9f76;
+  --color-primary-500: #1a8659;
+  --color-primary-600: #00713c;
+  --color-primary-700: #005c33;
+  --color-primary-800: #04492a;
+  --color-primary-900: #063b24;
+
+  --color-primary: var(--color-primary-600);
+  --color-primary-hover: var(--color-primary-700);
+  --color-primary-light: var(--color-primary-50);
+  --color-accent: var(--color-primary-600);
+
+  /* Near-neutral greys with a trace of the brand hue: reads modern, avoids olive */
+  --color-canvas: #f7f9f8;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f4f2;
+  --color-surface-sunken: #e9edeb;
+  --color-row-stripe: #f7f9f8;
+  --color-border-subtle: #edf1ef;
+  --color-border: #dde3e0;
+  --color-border-strong: #c2cbc6;
+  --color-ink: #131a16;
+  --color-ink-muted: #4d5a53;
+  /* Placeholders and disabled text only — below AA for body copy */
+  --color-ink-subtle: #7c8a83;
+
+  --color-danger: #b42318;
+  --color-danger-fill: #d92d20;
+  --color-danger-light: #fef3f2;
+  --color-danger-border: #fecdca;
+  --color-warning: #b54708;
+  --color-warning-fill: #f79009;
+  --color-warning-light: #fffaeb;
+  --color-warning-border: #fedf89;
+  --color-success: #067647;
+  --color-success-fill: #17b26a;
+  --color-success-light: #ecfdf3;
+  --color-success-border: #abefc6;
+  --color-info: #175cd3;
+  --color-info-fill: #2e90fa;
+  --color-info-light: #eff8ff;
+  --color-info-border: #b2ddff;
+
+  /* Categorical set for statuses and charts; spaced in luminance so it survives grayscale print */
+  --color-cat-green: #00713c;
+  --color-cat-blue: #175cd3;
+  --color-cat-violet: #6941c6;
+  --color-cat-teal: #0e7490;
+  --color-cat-amber: #b54708;
+  --color-cat-rose: #c01048;
+  --color-cat-slate: #475467;
+
+  --shadow-panel: 0 1px 2px rgb(19 26 22 / 0.06), 0 1px 1px rgb(19 26 22 / 0.04);
+  --shadow-raised: 0 4px 8px -2px rgb(19 26 22 / 0.08), 0 2px 4px -2px rgb(19 26 22 / 0.04);
+  --shadow-overlay: 0 12px 20px -4px rgb(19 26 22 / 0.12), 0 4px 8px -4px rgb(19 26 22 / 0.06);
+}
+
+[x-cloak] {
+  display: none !important;
+}
+
+/* Link color must live in @layer base so component buttons (e.g. a.bom-btn-primary)
+   can keep white / ink text; unlayered `a {}` overrides layered text-* utilities. */
+@layer base {
+  html {
+    line-height: 1.5;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    min-height: 100vh;
+  }
+
+  a {
+    color: var(--color-primary);
+  }
+
+  a:hover {
+    color: var(--color-primary-hover);
+  }
+}
+
+@layer components {
+  .bom-page {
+    @apply mx-auto w-[95%] max-w-[90rem] py-5;
+  }
+
+  .bom-panel {
+    @apply rounded-lg border border-border bg-surface;
+    box-shadow: var(--shadow-panel);
+  }
+
+  .bom-panel-pad {
+    @apply rounded-lg border border-border bg-surface p-4 sm:p-5;
+    box-shadow: var(--shadow-panel);
+  }
+
+  .bom-btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .bom-btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors bg-primary text-white hover:bg-primary-hover hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .bom-btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .bom-btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-danger px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .bom-btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .bom-btn-icon {
+    @apply inline-flex size-9 items-center justify-center rounded-md text-primary hover:bg-primary-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+  }
+
+  .bom-input {
+    @apply block w-full rounded-md border-border bg-surface text-ink shadow-sm focus:border-primary focus:ring-primary text-sm;
+  }
+
+  .bom-select {
+    @apply block w-full rounded-md border-border bg-surface text-ink shadow-sm focus:border-primary focus:ring-primary text-sm;
+  }
+
+  .bom-label {
+    @apply mb-1 block text-sm font-medium text-ink;
+  }
+
+  .bom-help {
+    @apply mt-1 text-xs text-ink-muted;
+  }
+
+  .bom-error {
+    @apply mt-1 text-xs text-danger;
+  }
+
+  .bom-table-wrap {
+    /* overflow-x alone forces overflow-y to auto and breaks viewport sticky;
+       scroll the wrap itself so thead sticky top-0 works for long tables */
+    @apply overflow-auto rounded-lg border border-border bg-surface;
+    max-height: calc(100dvh - 13rem);
+  }
+
+  .bom-table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .bom-table thead th {
+    @apply sticky top-0 z-10 border-b border-border-strong bg-surface-sunken px-2 py-2 text-start text-xs font-semibold text-ink-muted;
+  }
+
+  .bom-table tbody td {
+    @apply border-b border-border-subtle px-2 py-1.5 align-middle;
+  }
+
+  .bom-table tbody tr:hover {
+    @apply bg-surface-muted;
+  }
+
+  .bom-table tbody tr.selected {
+    @apply bg-primary-light;
+  }
+
+  .bom-table.tight td,
+  .bom-table.tight th {
+    @apply px-1.5 py-1;
+  }
+
+  .bom-table.single-line td {
+    @apply whitespace-nowrap;
+  }
+
+  .bom-action-bar {
+    @apply mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3;
+  }
+
+  .bom-chip {
+    @apply inline-flex items-center rounded-full bg-primary-light px-2 py-0.5 text-xs font-medium text-primary;
+  }
+
+  .bom-chip-muted {
+    @apply inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-ink-muted;
+  }
+
+  .bom-empty {
+    @apply py-12 text-center text-sm text-ink-muted;
+  }
+
+  .bom-tabs {
+    @apply flex gap-1 overflow-x-auto border-b border-border;
+  }
+
+  .bom-tab {
+    @apply shrink-0 border-b-2 border-transparent px-3 py-2 text-sm text-ink-muted hover:text-ink;
+  }
+
+  .bom-tab-active {
+    @apply border-primary font-medium text-primary;
+  }
+
+  .bom-nav-link {
+    @apply inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm text-ink hover:bg-surface-muted;
+  }
+
+  .bom-nav-link-active {
+    @apply bg-primary-light font-medium text-primary;
+  }
+
+  .bom-dropdown {
+    @apply absolute z-50 mt-1 min-w-48 rounded-md border border-border bg-surface py-1 shadow-lg;
+  }
+
+  .bom-dropdown a,
+  .bom-dropdown button {
+    @apply flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-ink hover:bg-surface-muted;
+  }
+
+  .bom-alert {
+    @apply rounded-md border px-3 py-2 text-sm;
+  }
+
+  .bom-alert-error {
+    @apply rounded-md border border-danger-border bg-danger-light px-3 py-2 text-sm text-danger;
+  }
+
+  .bom-alert-warning {
+    @apply rounded-md border border-warning-border bg-warning-light px-3 py-2 text-sm text-warning;
+  }
+
+  .bom-alert-success {
+    @apply rounded-md border border-success-border bg-success-light px-3 py-2 text-sm text-success;
+  }
+
+  .bom-alert-info {
+    @apply rounded-md border border-info-border bg-info-light px-3 py-2 text-sm text-info;
+  }
+
+  .bom-pagination {
+    @apply flex flex-wrap items-center justify-center gap-1 pt-4;
+  }
+
+  .bom-page-link {
+    @apply inline-flex min-w-8 items-center justify-center rounded-md px-2 py-1 text-sm text-ink hover:bg-surface-muted;
+  }
+
+  .bom-page-link-active {
+    @apply bg-primary text-white hover:bg-primary-hover;
+  }
+
+  .bom-dl {
+    @apply grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[12rem_1fr];
+  }
+
+  .bom-dt {
+    @apply text-sm text-ink-muted;
+  }
+
+  .bom-dd {
+    @apply text-sm text-ink;
+  }
+}
+
+/* Django widget defaults */
+.bom-radio ul,
+.radioSelect ul {
+  @apply flex flex-col gap-2;
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.bom-radio li,
+.radioSelect li {
+  @apply flex items-center gap-2 text-sm;
+}
+
+.bom-radio input[type="radio"],
+.radioSelect input[type="radio"] {
+  @apply border-border text-primary focus:ring-primary;
+}
+
+ul.errorlist {
+  @apply mt-1 list-none p-0 text-xs text-danger;
+  padding-inline-start: 0;
+}
+
+.text-normal {
+  font-size: 0.875rem;
+}
+
+.text-small {
+  font-size: 0.75rem;
+}
+
+.single-line {
+  white-space: nowrap;
+}
+
+.printer-hide {
+}
+
+.printer-show {
+  display: none;
+}
+
+/* Navbar: unlayered so visibility cannot lose to Tailwind utilities */
+.bom-navbar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.25rem 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .bom-navbar-inner {
+    padding-inline: 1rem;
+  }
+}
+
+.bom-navbar-title {
+  min-width: 0;
+  flex: 1 1 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: var(--color-ink-muted);
+}
+
+.bom-nav-checkbox {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.bom-nav-toggle {
+  display: inline-flex;
+  margin-inline-start: auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.375rem;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.bom-nav-toggle:hover {
+  background: var(--color-primary-light);
+}
+
+.bom-nav-menu {
+  display: none;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-block: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.bom-nav-checkbox:checked ~ .bom-nav-menu {
+  display: flex;
+}
+
+@media (max-width: 1023px) {
+  .bom-nav-menu .bom-nav-link {
+    display: flex;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .bom-nav-toggle {
+    display: none;
+  }
+
+  .bom-nav-menu {
+    display: flex;
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-inline-start: auto;
+    padding-block: 0;
+    border-top: 0;
+  }
+}
+
+.container-app {
+  @apply mx-auto w-[95%] max-w-[90rem] py-5;
+}
+
+/* When paired with .bom-table-wrap, overflow comes from that rule (needed for sticky thead) */
+.responsive-table-wrapper:not(.bom-table-wrap) {
+  overflow-x: auto;
+}
+
+/* Autocomplete (jQuery plugin, Materialize-compatible API) */
+.bom-autocomplete {
+  @apply absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-surface p-0 shadow-lg;
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.bom-autocomplete li {
+  @apply cursor-pointer px-3 py-2 text-sm text-ink hover:bg-primary-light;
+}
+
+.autocomplete-content {
+  opacity: 1;
+}
+
+/* Numeric alignment helper for cost columns — physical right (not text-end; RTL would put that on the left) */
+.bom-num {
+  @apply text-right tabular-nums;
+}
+
+/* Messages */
+.messages {
+  @apply mx-auto w-[95%] max-w-[90rem] space-y-2 pt-3;
+}
+
+@media print {
+  a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+
+  body {
+    font-family: var(--font-print);
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  main {
+    min-height: 0;
+  }
+
+  .bom-navbar,
+  .bom-footer,
+  .bom-action-bar,
+  .bom-tabs,
+  .bom-pagination,
+  .printer-hide,
+  .sidenav,
+  footer,
+  header,
+  .bom-dropdown {
+    display: none !important;
+  }
+
+  .printer-show {
+    display: block !important;
+  }
+
+  .bom-tab-panel {
+    display: block !important;
+  }
+
+  .bom-page,
+  .container-app {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .bom-panel,
+  .bom-panel-pad,
+  .bom-table-wrap {
+    border: none;
+    box-shadow: none;
+    max-height: none;
+    overflow: visible;
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  table {
+    page-break-inside: avoid;
+  }
+
+  table.part-list,
+  table.bom-table,
+  .bom-table {
+    page-break-inside: auto;
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+    border-inline: 1px solid #000;
+  }
+
+  table.part-list th,
+  table.part-list td,
+  .bom-table th,
+  .bom-table td {
+    border-block: 1px solid black;
+    border-inline: 1px solid #e0e0e0;
+    padding: 4px 8px;
+    text-align: start;
+  }
+
+  table.part-list thead,
+  .bom-table thead {
+    display: table-header-group;
+  }
+
+  table.part-list tbody,
+  .bom-table tbody {
+    display: table-row-group;
+  }
+
+  table.part-list tr,
+  .bom-table tr {
+    page-break-inside: avoid;
+  }
+
+  .printer-part-number {
+    font-size: 1.5em;
+    font-weight: bold;
+  }
+
+  #indented-bom {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+  }
+
+  #indented-bom th,
+  #indented-bom td {
+    border: 1px solid #000;
+    padding: 8px;
+  }
+
+  #searchForm,
+  .actions-row {
+    display: none !important;
+  }
+
+  .responsive-table-wrapper {
+    overflow-x: visible !important;
+  }
+
+  @page {
+    size: A5;
+    margin: 1cm;
+  }
+}
+
+/* Materialize class compatibility (markup still uses row/col/btn during migration) */
+.row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: 1rem;
+  /* Do not force align-items:start — that beats Tailwind items-end and
+     misaligns search buttons above inputs that have labels */
+}
+
+.col {
+  grid-column: span 12;
+  min-width: 0;
+}
+
+.s1 { grid-column: span 1; }
+.s2 { grid-column: span 2; }
+.s3 { grid-column: span 3; }
+.s4 { grid-column: span 4; }
+.s5 { grid-column: span 5; }
+.s6 { grid-column: span 6; }
+.s7 { grid-column: span 7; }
+.s8 { grid-column: span 8; }
+.s9 { grid-column: span 9; }
+.s10 { grid-column: span 10; }
+.s11 { grid-column: span 11; }
+.s12 { grid-column: span 12; }
+
+@media (min-width: 601px) {
+  .m1 { grid-column: span 1; }
+  .m2 { grid-column: span 2; }
+  .m3 { grid-column: span 3; }
+  .m4 { grid-column: span 4; }
+  .m5 { grid-column: span 5; }
+  .m6 { grid-column: span 6; }
+  .m7 { grid-column: span 7; }
+  .m8 { grid-column: span 8; }
+  .m9 { grid-column: span 9; }
+  .m10 { grid-column: span 10; }
+  .m11 { grid-column: span 11; }
+  .m12 { grid-column: span 12; }
+}
+
+@media (min-width: 993px) {
+  .l1 { grid-column: span 1; }
+  .l2 { grid-column: span 2; }
+  .l3 { grid-column: span 3; }
+  .l4 { grid-column: span 4; }
+  .l5 { grid-column: span 5; }
+  .l6 { grid-column: span 6; }
+  .l7 { grid-column: span 7; }
+  .l8 { grid-column: span 8; }
+  .l9 { grid-column: span 9; }
+  .l10 { grid-column: span 10; }
+  .l11 { grid-column: span 11; }
+  .l12 { grid-column: span 12; }
+}
+
+.green-text,
+.green-text.text-lighten-1 {
+  color: var(--color-primary);
+}
+
+.red-text,
+.red-text.text-lighten-1 {
+  color: var(--color-danger);
+}
+
+.grey-text,
+.grey-text.text-lighten-1 {
+  color: var(--color-ink-muted);
+}
+
+.white-text { color: #fff; }
+.center, .center-align { text-align: center; }
+.right-align { text-align: end; }
+.left-align { text-align: start; }
+.text-right { text-align: end; }
+.text-center { text-align: center; }
+
+.btn,
+.btn.green,
+.btn.green.lighten-1,
+input.green.lighten-1.btn,
+.waves-effect.waves-light.btn.green,
+.waves-effect.waves-green.btn.green {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 0.375rem;
+  background-color: var(--color-primary);
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 0;
+  cursor: pointer;
+}
+
+.btn:hover,
+.btn.green:hover {
+  background-color: var(--color-primary-hover);
+  color: #fff;
+}
+
+.btn-flat,
+a.btn-flat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--color-ink-muted);
+  background: transparent;
+}
+
+.btn-flat:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+}
+
+.btn-icon-round {
+  border-radius: 9999px;
+  padding: 0.35rem;
+}
+
+.input-field { margin-bottom: 0.75rem; }
+.input-field > label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.input-field input[type="text"],
+.input-field input[type="search"],
+.input-field input[type="password"],
+.input-field input[type="email"],
+.input-field input[type="number"],
+.input-field select,
+.input-field textarea {
+  display: block;
+  width: 100%;
+  border-radius: 0.375rem;
+  border-color: var(--color-border);
+  font-size: 0.875rem;
+}
+
+.dropdown-content {
+  display: none;
+  position: fixed;
+  z-index: 80;
+  min-width: 12rem;
+  margin-top: 0.25rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 0.25rem 0;
+  box-shadow: var(--shadow-overlay);
+  padding-inline-start: 0;
+  list-style: none;
+}
+.dropdown-content.show { display: block; }
+.dropdown-content li > a,
+.dropdown-content li > span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+}
+.dropdown-content li > a:hover { background: var(--color-surface-muted); }
+.dropdown-content li.divider {
+  height: 1px;
+  margin: 0.25rem 0;
+  background: var(--color-border);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border);
+  padding-inline-start: 0;
+  list-style: none;
+  margin: 0 0 1rem;
+}
+.tabs.bom-tabs {
+  margin-bottom: 1.25rem;
+}
+.tabs .tab {
+  flex-shrink: 0;
+}
+.tabs .tab a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tabs .tab a.active,
+.tabs .tab a:hover {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+.tabs-fixed-width .tab {
+  flex: 1;
+  text-align: center;
+}
+.tabs-fixed-width .tab a {
+  width: 100%;
+  justify-content: center;
+}
+
+.collection {
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  padding-inline-start: 0;
+  list-style: none;
+  overflow: hidden;
+}
+.collection-header {
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+}
+.collection-header h5 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.collection-item {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.collection-item:last-child { border-bottom: 0; }
+.collection-item .row {
+  margin-bottom: 0.5rem;
+}
+.collection-item .row:last-child {
+  margin-bottom: 0;
+}
+
+.collapsible {
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  padding-inline-start: 0;
+  list-style: none;
+  overflow: hidden;
+}
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  cursor: pointer;
+  background: var(--color-surface-muted);
+  font-weight: 500;
+}
+.collapsible-body {
+  display: none;
+  padding: 0;
+  border-top: 1px solid var(--color-border);
+}
+.collapsible-body .bom-table {
+  border-radius: 0;
+}
+.collapsible li.active .collapsible-body { display: block; }
+
+/* Legacy Materialize table class aliases → bom-table metrics */
+table.highlight,
+table.striped,
+table.part-list:not(.bom-table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+table.highlight thead th,
+table.striped thead th,
+table.part-list:not(.bom-table) thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: var(--color-surface-sunken);
+  padding: 0.5rem;
+  text-align: start;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+table.highlight tbody td,
+table.striped tbody td,
+table.part-list:not(.bom-table) tbody td {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 0.375rem 0.5rem;
+  vertical-align: middle;
+}
+table.highlight tbody tr:hover,
+table.striped tbody tr:hover,
+table.part-list:not(.bom-table) tbody tr:hover {
+  background: var(--color-surface-muted);
+}
+table.striped > tbody > tr:nth-child(odd) { background-color: var(--color-row-stripe); }
+
+.responsive-table-wrapper:not(.bom-table-wrap) {
+  overflow: auto;
+  max-height: calc(100dvh - 13rem);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+/* Table plugin themes — align with design tokens (loaded after app.css on BOM pages) */
+table.treetable tr.branch {
+  background-color: var(--color-row-stripe);
+}
+
+table.treetable tr.selected {
+  background-color: var(--color-primary-light);
+  color: var(--color-ink);
+}
+
+.tablesorter-materialize thead th,
+.tablesorter-materialize thead td,
+.tablesorter-materialize tfoot th,
+.tablesorter-materialize tfoot td {
+  background-color: var(--color-surface-sunken);
+}
+
+.tablesorter-materialize tbody tr:nth-child(even) td {
+  background-color: var(--color-row-stripe);
+}
+
+.tablesorter-materialize tbody tr:hover td {
+  background-color: var(--color-surface-muted);
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+  padding-top: 1rem;
+  list-style: none;
+  padding-inline-start: 0;
+}
+.pagination li a,
+.pagination li span {
+  display: inline-flex;
+  min-width: 2rem;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+}
+.pagination li.active a,
+.pagination li.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
+  background: rgb(28 36 29 / 0.4);
+}
+.modal.open { display: flex; }
+.modal-content, .modal-footer { background: var(--color-surface); }
+.modal-content {
+  max-width: 36rem;
+  width: 100%;
+  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 1.25rem;
+}
+.modal-footer {
+  border-radius: 0 0 0.5rem 0.5rem;
+  padding: 0.75rem 1.25rem;
+  text-align: end;
+}
+
+.file-field input[type="file"] { font-size: 0.875rem; }
+
+/* Native file inputs on upload pages */
+input[type="file"] {
+  display: block;
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+}
+
+/* Materialize color utility leftovers → design tokens */
+.green-text,
+.green-text.text-lighten-1,
+i.green-text {
+  color: var(--color-primary) !important;
+}
+.red-text,
+.red-text.text-lighten-1,
+i.red-text {
+  color: var(--color-danger) !important;
+}
+.grey-text,
+.grey-text.text-lighten-1 {
+  color: var(--color-ink-muted) !important;
+}
+
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+}
+
+.hide-on-small-and-down { display: none; }
+@media (min-width: 601px) { .hide-on-small-and-down { display: revert; } }
+.hide-on-med-and-up { display: revert; }
+@media (min-width: 601px) { .hide-on-med-and-up { display: none; } }
+.hide-on-med-and-down { display: none; }
+@media (min-width: 993px) { .hide-on-med-and-down { display: revert; } }
+.hide-on-large-only { display: revert; }
+@media (min-width: 993px) { .hide-on-large-only { display: none; } }
+.hide-on-small-only { display: revert; }
+@media (max-width: 600px) { .hide-on-small-only { display: none; } }
+
+.no-padding { padding: 0; }
+.section { padding: 1rem 0; }
+.header { margin-bottom: 1rem; }
+
+.fixed-action-btn {
+  position: fixed;
+  inset-inline-end: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 20;
+}
+.fixed-action-btn ul { display: none; }
+.btn-floating {
+  display: inline-flex;
+  width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  color: #fff;
+}
+.green.lighten-1, .green.lighten-2 {
+  background-color: var(--color-primary);
+}

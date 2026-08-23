@@ -1,15 +1,9 @@
 {% if profile.role == 'A' %}
-    <li>
-        <!-- Dropdown Trigger -->
-        <a class="dropdown-trigger" href='#' data-target='upload-lists-menu{{ upload_id }}'>آپلود<i class="material-icons right">arrow_drop_down</i></a>
-        <ul id='upload-lists-menu{{ upload_id }}' class='dropdown-content'>
-            <li><a class="green-text text-lighten-1" href="{% url 'bom:upload-parts' %}">
-                <i class="material-icons green-text text-lighten-1 right">cloud_upload</i>آپلود فایل CSV متریال</a>
-            </li>
-            <li><a class="green-text text-lighten-1" href="{% url 'bom:upload-bom' %}">
-                <i class="material-icons green-text text-lighten-1 right">cloud_upload</i>آپلود فایل CSV درخت محصول (BOM)</a>
-            </li>
-        </ul>
-        <!-- End dropdown structure -->
-    </li>
+    <div class="relative" x-data="{ open: false }">
+        <button type="button" class="bom-nav-link" @click="open = !open">آپلود<i class="material-icons text-base">arrow_drop_down</i></button>
+        <div x-show="open" x-cloak @click.outside="open = false" class="bom-dropdown">
+            <a href="{% url 'bom:upload-parts' %}"><i class="material-icons text-base">cloud_upload</i>آپلود فایل CSV متریال</a>
+            <a href="{% url 'bom:upload-bom' %}"><i class="material-icons text-base">cloud_upload</i>آپلود فایل CSV درخت محصول (BOM)</a>
+        </div>
+    </div>
 {% endif %}

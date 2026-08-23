@@ -4,18 +4,17 @@
 {% block head %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/treetable-theme.css' %}"/>
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}"/>
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
 {% if seller_parts %}
-<div class="responsive-table-wrapper">
-    <table id="seller-parts" class="highlight tight treetable striped">
+<div class="bom-table-wrap responsive-table-wrapper">
+    <table id="seller-parts" class="bom-table treetable">
         <thead>
         <tr>
             <th>{% trans "Part" %}</th>
             <th>{% trans "Seller" %}</th>
             <th>{% trans "Seller Part Number" %}</th>
-            <th>قیمت</th>
+            <th class="bom-num">قیمت</th>
             <th colspan="2">گزینه‌ها</th>
         </tr>
         </thead>
@@ -25,7 +24,7 @@
                     <td><a href="{% url 'bom:part-info' part_id=seller_part.manufacturer_part.part_id %}">{{ seller_part.manufacturer_part.part }}</a></td>
                     <td>{{ seller_part.seller.name }}</td>
                     <td>{{ seller_part.seller_part_number }}</td>
-                    <td>{{ seller_part.unit_cost }}</td>
+                    <td class="bom-num">{{ seller_part.unit_cost }}</td>
                     <td>{% if profile.role == 'A' %}
                         <a href="{% url 'bom:sellerpart-edit' sellerpart_id=seller_part.id %}"><i
                             class="material-icons green-text text-lighten-1 right">edit</i></a>

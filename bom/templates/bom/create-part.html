@@ -1,16 +1,15 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
+{% load bom_forms %}
 
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
 {% block bom-menu %}
-    <li><a href="{% url 'bom:home' %}">انصراف</a></li>
+    <a class="bom-nav-link" href="{% url 'bom:home' %}">انصراف</a>
 {% endblock %}
 
 {% block content %}
@@ -29,7 +28,7 @@
                     {% endif %}
                     <h2>متریال جدید</h2>
                     <div class="row">
-                        {{ part_form|materializecss:'l2 m3 s12' }}
+                        {{ part_form|bom_form:'l2 m3 s12' }}
                         {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}
                     </div>
                     <div class="hidden">
@@ -39,14 +38,14 @@
                             {{ manufacturer_form.non_field_errors }}
                             {{ manufacturer_part_form.non_field_errors }}
                             {{ manufacturer_part_form.manufacturer_part_number.errors }}
-                            {{ manufacturer_part_form.manufacturer_part_number|materializecss:'l2 m3 s12' }}
+                            {{ manufacturer_part_form.manufacturer_part_number|bom_form:'l2 m3 s12' }}
                             {{ manufacturer_form.name.errors }}
-                            {{ manufacturer_form.name|materializecss:'l3 m4 s12' }}
+                            {{ manufacturer_form.name|bom_form:'l3 m4 s12' }}
                             <!--
                             <div class="input-field col m4 s12 materialize-checkbox-padding">
                                 <span>Select for parts that aren't found on Mouser.com</span>
                             {{ manufacturer_part_form.mouser_disable.errors }}
-                            {{ manufacturer_part_form.mouser_disable|materializecss }}
+                            {{ manufacturer_part_form.mouser_disable|bom_form }}
                             </div>
                             -->
                         </div>
@@ -57,18 +56,18 @@
                         {{ seller_form.non_field_errors }}
                         {{ seller_part_form.non_field_errors }}
                         {{ seller_part_form.seller_part_number.errors }}
-                        {{ seller_part_form.seller_part_number|materializecss:'l2 m3 s12' }}
+                        {{ seller_part_form.seller_part_number|bom_form:'l2 m3 s12' }}
                         {{ seller_form.name.errors }}
-                        {{ seller_form.name|materializecss:'l3 m3 s12' }}
+                        {{ seller_form.name|bom_form:'l3 m3 s12' }}
                         {{ seller_part_form.unit_cost.errors }}
-                        {{ seller_part_form.unit_cost|materializecss:'l2 m3 s12' }}
+                        {{ seller_part_form.unit_cost|bom_form:'l2 m3 s12' }}
                     </div>
                     <div class="row">
                         <div class="col l3 m5 s6">
-                            <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">انصراف</a>
+                            <a href="javascript:history.back()" class="bom-btn-ghost">انصراف</a>
                         </div>
                         <div class="col l4 m5 s6 left-align">
-                            <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">{% trans "Save" %}</button>
+                            <button class="bom-btn-primary" type="submit" name="action">{% trans "Save" %}</button>
                         </div>
                     </div>
                     <label class="hidden" id="organizationName">{% trans organization.name %}</label>

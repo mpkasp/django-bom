@@ -6,12 +6,10 @@
 {% block head-title %}{{ part.full_part_number }}{% if part_revision %} {{ part_revision.description }}{% endif %}{% endblock %}
 
 {% block head %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/part-info.css' %}"/>
 {% endblock %}
 
 {% block content %}
-    {% include 'bom/bom-action-btn.html' with profile=profile %}
     <div class="container-app">
         <div class="row" style="margin-bottom: 5px;">
             <div class="col m8 hide-on-small-and-down">
@@ -23,7 +21,7 @@
             {% if profile.role == 'A' and seller %}
                 <div style="margin-top: 1.5rem;">
                     <!-- Dropdown Trigger -->
-                    <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light grey lighten-4 btn-flat'
+                    <button class='dropdown-trigger hide-on-small-and-down bom-btn-secondary'
                             href='#' data-target='dropdown-revision'><i class="material-icons right">settings</i><i class="material-icons left">arrow_drop_down</i>مدیریت
                     </button>
                     <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
@@ -48,25 +46,25 @@
         {% include 'bom/components/seller-part-list.html' with seller_parts=seller_parts profile=profile %}
 
         {% if seller_parts.has_other_pages %}
-            <ul class="pagination center" style="padding-top: 24px;">
+            <nav class="bom-pagination printer-hide" aria-label="pagination">
                 {% if seller_parts.has_previous %}
-                    <li><a href="?page={{ seller_parts.previous_page_number }}"><i class="material-icons">chevron_left</i></a></li>
+                    <a class="bom-page-link" href="?page={{ seller_parts.previous_page_number }}"><i class="material-icons text-base">chevron_left</i></a>
                 {% else %}
-                    <li class="disabled"><i class="material-icons">chevron_left</i></li>
+                    <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_left</i></span>
                 {% endif %}
                 {% for i in seller_parts.paginator.page_range %}
                     {% if seller_parts.number == i %}
-                        <li class="active green lighten-2"><a>{{ i }}</a></li>
+                        <span class="bom-page-link bom-page-link-active">{{ i }}</span>
                     {% else %}
-                        <li class="waves-effect waves-green"><a href="?page={{ i }}">{{ i }}</a></li>
+                        <a class="bom-page-link" href="?page={{ i }}">{{ i }}</a>
                     {% endif %}
                 {% endfor %}
                 {% if seller_parts.has_next %}
-                    <li><a href="?page={{ seller_parts.next_page_number }}"><i class="material-icons">chevron_right</i></a></li>
+                    <a class="bom-page-link" href="?page={{ seller_parts.next_page_number }}"><i class="material-icons text-base">chevron_right</i></a>
                 {% else %}
-                    <li class="disabled"><i class="material-icons">chevron_right</i></li>
+                    <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_right</i></span>
                 {% endif %}
-            </ul>
+            </nav>
         {% endif %}
     </div>
 {% endblock %}

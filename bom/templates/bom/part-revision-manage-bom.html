@@ -1,12 +1,11 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
+{% load bom_forms %}
 
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
     {{ add_subpart_form.media }}
 {% endblock %}
 
@@ -27,12 +26,12 @@
                     method="post" class="col s12">
                 <div class="row">
                     {% csrf_token %}
-                    {{ add_subpart_form.subpart_part_number|materializecss:'m4 s12' }}
-                    {{ add_subpart_form.count|materializecss:'m1 s12' }}
-                    {{ add_subpart_form.do_not_load|materializecss:'hidden' }}
-                    {{ add_subpart_form.reference|materializecss:'hidden' }}
-                    <div class="fieldWrapper input-field">
-                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">افزودن
+                    {{ add_subpart_form.subpart_part_number|bom_form:'m4 s12' }}
+                    {{ add_subpart_form.count|bom_form:'m1 s12' }}
+                    {{ add_subpart_form.do_not_load|bom_form:'hidden' }}
+                    {{ add_subpart_form.reference|bom_form:'hidden' }}
+                    <div class="flex items-end pb-2">
+                        <button class="bom-btn-primary" type="submit" name="action">افزودن
                         </button>
                     </div>
                 </div>
@@ -44,25 +43,16 @@
             <p>ستون‌های اضافه: 'reference' یا 'designator' برای افزودن فیلد رفرنس به زیرشاخه ;
                'do_not_load' اگر نمی‌خواهید متریال به در درخت لود شود.</p>
             <div class="row">
-                <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
+                <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data" class="col s12 flex flex-wrap items-end gap-3">
                     {% csrf_token %}
-                    <div class="col m6 s9 file-field input-field">
-                        <div class="green lighten-1 btn">
-                            <span>انتخاب فایل</span>
-                            {{ upload_subparts_csv_form.file }}
-                        </div>
-                        <div class="file-path-wrapper">
-                            <input class="file-path validate" type="text" placeholder="آپلود فایل">
-                            {{ upload_subparts_csv_form.file.errors }}
-                        </div>
+                    <div class="min-w-0 flex-1">
+                        <label class="bom-label" for="{{ upload_subparts_csv_form.file.id_for_label }}">انتخاب فایل</label>
+                        {{ upload_subparts_csv_form.file }}
+                        {{ upload_subparts_csv_form.file.errors }}
                     </div>
-                    <div class="col m1 s3 input-field">
-                        <input class="green lighten-1 btn" type="submit" value="آپلود"/>
-                    </div>
+                    <button class="bom-btn-primary" type="submit">آپلود</button>
+                    <a href="{% url 'bom:part-info' part_id=part.id %}" class="bom-btn-ghost">انصراف</a>
                 </form>
-                <div class="col m2 s6 input-field">
-                    <a href="{% url 'bom:part-info' part_id=part.id %}" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">انصراف</a>
-                </div>
             </div>
             <br>
         </div>

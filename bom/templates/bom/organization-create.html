@@ -1,12 +1,11 @@
 {% extends 'bom/bom-base.html' %}
 
-{% load materializecss %}
+{% load bom_forms %}
 {% load static %}
 
 {% block head-title %}Create Your Organization{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
 {% block content %}
@@ -18,26 +17,18 @@
 
             <div class="row" style="display: flex; flex-wrap: wrap;">
                 <div class="col s12 m6" style="display: flex;">
-                    <div class="card green lighten-2 waves-effect waves-block waves-light" style="width: 100%;" onclick="selectNewOrganization()">
-                        <div class="card-image">
-                            <i class="material-icons" style="margin-top: 20px; color: white; text-align: center; font-size: 7rem; display: block;">group</i>
-                        </div>
-                        <div class="card-content text-center">
-                            <span class="card-title white-text">Create a new organization</span>
-                            <p class="white-text">Create a new workspace for your team or company to collaborate.</p>
-                        </div>
-                    </div>
+                    <button type="button" class="bom-panel-pad w-full cursor-pointer border-0 bg-primary text-center text-white hover:bg-primary-hover" onclick="selectNewOrganization()">
+                        <i class="material-icons" style="margin-top: 20px; text-align: center; font-size: 7rem; display: block;">group</i>
+                        <span class="mt-2 block text-lg font-semibold">Create a new organization</span>
+                        <p class="mt-1 text-sm opacity-90">Create a new workspace for your team or company to collaborate.</p>
+                    </button>
                 </div>
                 <div class="col s12 m6" style="display: flex;">
-                    <a class="card green lighten-2 waves-effect waves-block waves-light modal-trigger" style="width: 100%;" onclick="selectJoinOrganization()">
-                        <div class="card-image">
-                            <i class="material-icons" style="margin-top: 20px; color: white; text-align: center; font-size: 7rem; display: block;">group_add</i>
-                        </div>
-                        <div class="card-content text-center">
-                            <span class="card-title white-text">Join an existing organization</span>
-                            <p class="white-text">Join a workspace already created by your team member.</p>
-                        </div>
-                    </a>
+                    <button type="button" class="bom-panel-pad w-full cursor-pointer border-0 bg-primary text-center text-white hover:bg-primary-hover" onclick="selectJoinOrganization()">
+                        <i class="material-icons" style="margin-top: 20px; text-align: center; font-size: 7rem; display: block;">group_add</i>
+                        <span class="mt-2 block text-lg font-semibold">Join an existing organization</span>
+                        <p class="mt-1 text-sm opacity-90">Join a workspace already created by your team member.</p>
+                    </button>
                 </div>
             </div>
         </div>
@@ -60,7 +51,7 @@
                     <div class="col s12" style="padding: 16px;">
                         <h4>1) Type a name for your organization.</h4>
                         <p>You can always change this later.</p>
-                        {{ form.name|materializecss }}
+                        {{ form.name|bom_form }}
                     </div>
                     <div class="col s12" style="padding: 16px;">
                         <h4>2) What type of numbering scheme do you want your organization to use?</h4>
@@ -79,18 +70,18 @@
                         <p style="font-size: 15px;">You can read more about the options <a href="{% url 'bom:help' %}#part-numbering" target="_blank">here</a>. Some times the "intelligent" way isn't
                             the best way 😉.</p>
                         <p><b>Important!</b> Once you've created parts, you cannot change your organization type without having to delete your parts (export is available).</p>
-                        {{ form.number_scheme|materializecss }}
+                        {{ form.number_scheme|bom_form }}
                     </div>
                     <div id="item-number-length" class="col s12" style="padding: 16px;">
                         <h4>3) How long do you want your item numbers to be?</h4>
                         <p>Your part numbers will have a part class (C), <b>item number (N)</b> and a variation (V) in the format CCC-NNNN-VV. You can always <i>increase</i> these numbers, but you
                             can't decrease them. The recommended values are below (C = 3, N = 4, V = 2).</p>
-                        {{ form.number_class_code_len|materializecss:'s4' }} {{ form.number_item_len|materializecss:'s4' }} {{ form.number_variation_len|materializecss:'s4' }}
+                        {{ form.number_class_code_len|bom_form:'s4' }} {{ form.number_item_len|bom_form:'s4' }} {{ form.number_variation_len|bom_form:'s4' }}
                     </div>
                 </div>
                 <div class="row">
                     <div class="col s12 center-align">
-                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">Let's Go!</button>
+                        <button class="bom-btn-primary" type="submit" name="action">Let's Go!</button>
                     </div>
                 </div>
             </form>

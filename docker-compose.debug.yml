@@ -9,6 +9,7 @@ services:
         APT_MIRROR: ${APT_MIRROR:-}
         UV_IMAGE: ${UV_IMAGE:-ghcr.io/astral-sh/uv:bookworm-slim}
         DEBIAN_IMAGE: ${DOCKER_REGISTRY_MIRROR:-}debian:bookworm-slim
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-bookworm-slim}
     volumes:
       - .:/app  # Mount the local project directory to /app in the container
     user: "${USERID}:${GROUPID}"  # Use the host user's UID and GID

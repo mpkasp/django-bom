@@ -1,0 +1,23 @@
+{% if kind == "hidden" %}
+{{ field }}
+{% elif kind == "checkbox" %}
+<div class="{{ cols }}">
+    <label class="flex items-center gap-2 text-sm text-ink">
+        {{ widget }}
+        <span>{{ field.label }}</span>
+    </label>
+    {% if field.help_text %}<p class="bom-help">{{ field.help_text }}</p>{% endif %}
+    {% if field.errors %}<p class="bom-error">{{ field.errors.0 }}</p>{% endif %}
+</div>
+{% else %}
+<div class="{{ cols }}">
+    {% if field.label %}
+    <label class="bom-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+    {% endif %}
+    <div class="{% if kind == 'radio' %}bom-radio{% endif %}">
+        {{ widget }}
+    </div>
+    {% if field.help_text %}<p class="bom-help">{{ field.help_text }}</p>{% endif %}
+    {% if field.errors %}<p class="bom-error">{{ field.errors.0 }}</p>{% endif %}
+</div>
+{% endif %}

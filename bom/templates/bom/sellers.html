@@ -1,36 +1,33 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
+{% load bom_forms %}
 
 {% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/dashboard.css' %}"/>
 {% endblock %}
 
 {% block content %}
     <div class="container-app">
-        <form id="searchForm" name="search-form" action="{% url 'bom:sellers' %}" method="get" enctype="multipart/form-data">
+        <form id="searchForm" name="search-form" action="{% url 'bom:sellers' %}" method="get" enctype="multipart/form-data" class="bom-panel-pad mb-4">
             {% csrf_token %}
-            <div class="row">
-                <div class="input-field col s12 m10">
-                    <i class="material-icons prefix">search</i>
-                    <input type="search" id="autocomplete-input" autocomplete="off" class="text autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
-                    <label for="autocomplete-input">جستجوی تأمین کننده:</label>
+            <div class="row items-end">
+                <div class="col s12 m10">
+                    <label class="bom-label" for="autocomplete-input">جستجوی تأمین کننده:</label>
+                    <input type="search" id="autocomplete-input" autocomplete="off" class="bom-input autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
                 </div>
-                <div class="col s12 m2">
-                    <button type="submit" class="waves-effect waves-green btn green lighten-1 input-field" name="action">جستجو</button>
+                <div class="col s12 m2 flex flex-wrap items-end gap-1 self-end">
+                    <button type="submit" class="bom-btn-primary" name="action">جستجو</button>
                     {% if query %}
-                        <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">پاک کردن</i></a>
+                        <button type="button" class="bom-btn-icon" onclick="clearSearchExpression()" title="پاک کردن"><i class="material-icons">clear</i></button>
                     {% endif %}
                 </div>
             </div>
         </form>
             <div class="part-list push-footer">
-                <div class="responsive-table-wrapper">
-                    <table class="striped highlight part-list tight single-line" style="margin-bottom: 14px;">
+                <div class="bom-table-wrap responsive-table-wrapper">
+                    <table class="bom-table part-list single-line">
                         <thead>
                         <tr>
                             {% if profile.role == 'A' %}
@@ -60,28 +57,27 @@
                     </table>
                 </div>
                 {% if sellers.has_other_pages %}
-                    <ul class="pagination center" style="padding-top: 24px;">
+                    <nav class="bom-pagination printer-hide" aria-label="pagination">
                         {% if sellers.has_previous %}
-                            <li><a href="?page={{ sellers.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
+                            <a class="bom-page-link" href="?page={{ sellers.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons text-base">chevron_left</i></a>
                         {% else %}
-                            <li class="disabled"><i class="material-icons">chevron_left</i></li>
+                            <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_left</i></span>
                         {% endif %}
                         {% for i in sellers.paginator.page_range %}
                             {% if sellers.number == i %}
-                                <li class="active green lighten-2"><a>{{ i }}</a></li>
+                                <span class="bom-page-link bom-page-link-active">{{ i }}</span>
                             {% else %}
-                                <li class="waves-effect waves-green"><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
+                                <a class="bom-page-link" href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a>
                             {% endif %}
                         {% endfor %}
                         {% if sellers.has_next %}
-                            <li><a href="?page={{ sellers.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
+                            <a class="bom-page-link" href="?page={{ sellers.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons text-base">chevron_right</i></a>
                         {% else %}
-                            <li class="disabled"><i class="material-icons">chevron_right</i></li>
+                            <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_right</i></span>
                         {% endif %}
-                    </ul>
+                    </nav>
                 {% endif %}
             </div>
-        </form>
     </div>
 {% endblock %}
 
@@ -94,3 +90,4 @@
         });
     </script>
 {% endblock bom-script %}
+

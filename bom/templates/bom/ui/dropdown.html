@@ -1,0 +1,8 @@
+<div class="relative inline-block" x-data="{ open: false }">
+    <button type="button" class="{{ trigger_class|default:'bom-btn-secondary' }}" @click="open = !open" @keydown.escape="open = false">
+        {{ trigger }}
+    </button>
+    <div x-show="open" x-cloak @click.outside="open = false" class="bom-dropdown {{ menu_class }}">
+        {{ slot }}
+    </div>
+</div>

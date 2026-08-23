@@ -1,3 +1,15 @@
+.part-info-revision-row .bom-select,
+.part-info-revision-row .bom-btn-secondary {
+    height: 2.5rem;
+    box-sizing: border-box;
+}
+
+@media (min-width: 601px) {
+    .part-info-revision-row .hide-on-small-and-down.bom-btn-secondary {
+        display: inline-flex;
+    }
+}
+
 @media print {
     .fixed-action-btn {
         display: none;

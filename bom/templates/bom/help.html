@@ -5,7 +5,6 @@
 {% block head-title %}Help{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
 {% block bom-menu %}
@@ -22,9 +21,9 @@
             </div>
         </div>
     </div>
-    <div class="fixed-action-btn" id="toTop">
-        <a class="btn-floating btn-large green">
-            <i class="large material-icons">arrow_upward</i>
+    <div class="fixed bottom-6 end-6 z-40 printer-hide" id="toTop">
+        <a class="bom-btn-primary inline-flex size-12 items-center justify-center rounded-full shadow-lg" href="#" aria-label="Back to top">
+            <i class="material-icons">arrow_upward</i>
         </a>
     </div>
 {% endblock %}

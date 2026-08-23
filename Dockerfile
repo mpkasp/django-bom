@@ -4,6 +4,18 @@
 # FROM substitutions only see ARGs declared before the first FROM.
 ARG UV_IMAGE=ghcr.io/astral-sh/uv:bookworm-slim
 ARG DEBIAN_IMAGE=debian:bookworm-slim
+ARG NODE_IMAGE=node:22-bookworm-slim
+
+FROM ${NODE_IMAGE} AS css-builder
+WORKDIR /css
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY assets ./assets
+COPY bom/templates ./bom/templates
+COPY bom/templatetags ./bom/templatetags
+COPY bom/static/bom/js/bom-ui.js ./bom/static/bom/js/bom-ui.js
+RUN npm run build:css
+
 FROM ${UV_IMAGE} AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
@@ -23,6 +35,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project --no-dev
 COPY . /app
+COPY --from=css-builder /css/bom/static/bom/css/app.css /app/bom/static/bom/css/app.css
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
@@ -69,4 +82,3 @@ RUN mkdir /app/log
 
 # Compile translation messages
 RUN python manage.py compilemessages -l fa_IR
-

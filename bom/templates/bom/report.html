@@ -1,13 +1,11 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
+{% load bom_forms %}
 
 {% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/dashboard.css' %}"/>
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jalalidatepicker.min.css' %}"/>
     <script type="text/javascript" src="{% static 'bom/js/jalalidatepicker.min.js' %}"></script>
 {% endblock %}
@@ -22,78 +20,67 @@
 
 {% block content %}
     <div class="container-app">
-        <form id="searchForm" name="search-form" action="{% url 'bom:report' %}" method="get" enctype="multipart/form-data">
-            <div class="row">
+        <form id="searchForm" name="search-form" action="{% url 'bom:report' %}" method="get" enctype="multipart/form-data" class="bom-panel-pad mb-4">
+            <div class="row items-end">
                 {% if organization.number_scheme == 'S' %}
                     <div class="col s12 m4">
-                        {{ part_class_selection_form|materializecss }}
+                        {{ part_class_selection_form|bom_form }}
                     </div>
                 {% endif %}
-                <div class="input-field col s12 {% if organization.number_scheme == 'S' %}m6{% else %}m8{% endif %}">
-                    <i class="material-icons prefix">search</i>
-                    <input type="search" id="autocomplete-input" autocomplete="off" class="text autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
-                    {% if part_class %}
-                        <label for="autocomplete-input">جستجوی متریال در کلاس انتخاب شده</label>
-                    {% elif part_assembly %}
-                        <label for="autocomplete-input">جستجوی متریال در ترکیب انتخاب شده:</label>
-                    {% else %}
-                        <label for="autocomplete-input">جستجوی متریال:</label>
-                    {% endif %}
+                <div class="col s12 {% if organization.number_scheme == 'S' %}m8{% else %}m12{% endif %}">
+                    <label class="bom-label" for="autocomplete-input">
+                        {% if part_class %}جستجوی متریال در کلاس انتخاب شده
+                        {% elif part_assembly %}جستجوی متریال در ترکیب انتخاب شده:
+                        {% else %}جستجوی متریال:
+                        {% endif %}
+                    </label>
+                    <input type="search" id="autocomplete-input" autocomplete="off" class="bom-input autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
                 </div>
             </div>
-            <div class="row">
-                <div class="input-field col s12 m2">
-                    <input type="text" id="start-date" name="start_date" data-jdp data-jdp-only-date value="{% if start_date %}{{ start_date }}{% endif %}">
-                    <label for="start-date">{% trans "Start Date" %}</label>
-                </div>
-                <div class="input-field col s12 m2">
-                    <input type="text" id="end-date" name="end_date" data-jdp data-jdp-only-date value="{% if end_date %}{{ end_date }}{% endif %}">
-                    <label for="end-date">{% trans "End Date" %}</label>
+            <div class="row items-end mt-2">
+                <div class="col s12 m2">
+                    <label class="bom-label" for="start-date">{% trans "Start Date" %}</label>
+                    <input type="text" id="start-date" class="bom-input" name="start_date" data-jdp data-jdp-only-date value="{% if start_date %}{{ start_date }}{% endif %}">
                 </div>
                 <div class="col s12 m2">
-                    <button type="submit" class="waves-effect waves-green btn green lighten-1 input-field" name="action">جستجو</button>
-                    <a class="waves-effect waves-green btn-flat input-field btn-icon-round tooltipped" data-position="bottom" data-tooltip="Help with search" href="{% url 'bom:search-help' %}"><i
-                            class="material-icons">help</i></a>
+                    <label class="bom-label" for="end-date">{% trans "End Date" %}</label>
+                    <input type="text" id="end-date" class="bom-input" name="end_date" data-jdp data-jdp-only-date value="{% if end_date %}{{ end_date }}{% endif %}">
+                </div>
+                <div class="col s12 m4 flex flex-wrap items-end gap-1 self-end">
+                    <button type="submit" class="bom-btn-primary" name="action">جستجو</button>
+                    <a class="bom-btn-icon" title="Help with search" href="{% url 'bom:search-help' %}"><i class="material-icons">help</i></a>
                     {% if part_class or query %}
-                        <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
+                        <button type="button" class="bom-btn-icon" onclick="clearSearchExpression()"><i class="material-icons">clear</i></button>
                     {% endif %}
                 </div>
             </div>
         </form>
         <form id="actionForm" name="action-form" action="{% url 'bom:home' %}" method="post" enctype="multipart/form-data">
             {% csrf_token %}
-            <div class="row actions-row" style="margin-bottom: 0;">
-                <div class="col s6 no-padding">
+            <div class="bom-action-bar actions-row">
+                <div class="flex flex-wrap items-center gap-2">
                     {% if profile.role == 'A' %}
-                        <div class="row action-checkbox-hide" style="margin: 0; padding: 0; display: none;">
-                            <div class="col s10 m6">
-                                <select name="part-action">
-                                    <option value="" disabled selected>انتخاب عملیات</option>
-                                    <option name="submit-part-delete">{% trans "Delete" %}</option>
-                                </select>
-                                <label>Action</label>
-                            </div>
-                            <div class="col s12 m4" style="margin: 8px 0;">
-                                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="actions">تأیید</button>
-                                <span><a class="btn-flat waves-green" href="#" onclick="disableActionCheckboxColumn()">انصراف</a></span>
-                            </div>
+                        <div class="action-checkbox-hide hidden flex flex-wrap items-center gap-2">
+                            <select name="part-action" class="bom-select w-auto min-w-40">
+                                <option value="" disabled selected>انتخاب عملیات</option>
+                                <option name="submit-part-delete">{% trans "Delete" %}</option>
+                            </select>
+                            <button class="bom-btn-primary" type="submit" name="actions">تأیید</button>
+                            <a class="bom-btn-ghost" href="#" onclick="disableActionCheckboxColumn()">انصراف</a>
                         </div>
-                        <span><a class="btn-flat action-checkbox-show" href="#" onclick="enableActionCheckboxColumn()"><i class="material-icons right">settings</i>{% trans "Manage" %}</a></span>
+                        <a class="bom-btn-secondary action-checkbox-show" href="#" onclick="enableActionCheckboxColumn()"><i class="material-icons text-base">settings</i>{% trans "Manage" %}</a>
                     {% endif %}
                 </div>
-                <div class="col s6 left-align">
-                    <a class="button waves-effect waves-green btn-flat btn-icon-round tooltipped" data-position="bottom" data-tooltip="دانلود نتایج با فرمت CSV." href="{% url 'bom:home' %}?download=1"><i
-                            class="material-icons">file_download</i></a>
-                </div>
+                <a class="bom-btn-icon" title="دانلود نتایج با فرمت CSV." href="{% url 'bom:home' %}?download=1"><i class="material-icons">file_download</i></a>
             </div>
 
             <div class="part-list push-footer">
-                <div class="responsive-table-wrapper">
-                    <table class="highlight part-list tight single-line striped" style="margin-bottom: 14px;">
+                <div class="bom-table-wrap responsive-table-wrapper">
+                    <table class="bom-table part-list single-line">
                         <thead>
                         <tr>
                             {% if profile.role == 'A' %}
-                                <th class="text-normal td-small action-checkbox-column" style="display: none;"><label><input type="checkbox" id="action-select-all"><span></span></label></th>
+                                <th class="text-normal td-small action-checkbox-column hidden"><label><input type="checkbox" id="action-select-all"></label></th>
                             {% endif %}
 
                             <th class="text-normal td-med">کد متریال</th>
@@ -110,7 +97,7 @@
 
                             <th class="text-normal td-small">{% trans "Seller" %}</th>
 
-                            <th class="text-normal td-small">{% trans "Unit Cost" %}</th>
+                            <th class="text-normal td-small bom-num">{% trans "Unit Cost" %}</th>
 
                             <th class="text-normal td-med">گزینه‌ها</th>
                         </tr>
@@ -120,8 +107,8 @@
                             {% with part=part_rev.part seller=part_rev.part.optimal_seller %}
                             <tr>
                                 {% if profile.role == 'A' %}
-                                    <td class="action-checkbox-column" style="display: none;"><label>{% if part.id %}
-                                        <input type="checkbox" class="checkbox-array" name="actions" value="{{ part.id }}">{% endif %}<span></span></label></td>
+                                    <td class="action-checkbox-column hidden"><label>{% if part.id %}
+                                        <input type="checkbox" class="checkbox-array" name="actions" value="{{ part.id }}">{% endif %}</label></td>
                                 {% endif %}
 
                                 <td class="text-normal td-med"><a href="{% url 'bom:part-info' part_id=part.id %}">{{ part.full_part_number }}</a></td>
@@ -138,7 +125,7 @@
 
                                 <td class="text-normal td-med">{% if seller %}{{ seller.seller }}{% endif %}</td>
 
-                                <td class="text-normal td-med">{% if part_rev.material == "no_bom" or part_rev.material == None %}
+                                <td class="text-normal td-med bom-num">{% if part_rev.material == "no_bom" or part_rev.material == None %}
                                     {{ seller.unit_cost }}
                                     {% else %}
                                     {% with indented_bom=part_rev.indented %}
@@ -191,30 +178,29 @@
                     </table>
                 </div>
                 {% if part_revs.has_other_pages %}
-                    <ul class="pagination center" style="padding-top: 24px;">
+                    <nav class="bom-pagination printer-hide" aria-label="pagination">
                         {% if part_revs.has_previous %}
-                            <li><a href="?page={{ part_revs.previous_page_number }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
+                            <a class="bom-page-link" href="?page={{ part_revs.previous_page_number }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons text-base">chevron_right</i></a>
                         {% else %}
-                            <li class="disabled"><i class="material-icons">chevron_right</i></li>
+                            <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_right</i></span>
                         {% endif %}
                         {% for i in part_revs.paginator.page_range %}
                             {% if part_revs.number == i %}
-                                <li class="active green lighten-2"><a>{{ i }}</a></li>
+                                <span class="bom-page-link bom-page-link-active">{{ i }}</span>
                             {% else %}
-                                <li class="waves-effect waves-green"><a href="?page={{ i }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
+                                <a class="bom-page-link" href="?page={{ i }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a>
                             {% endif %}
                         {% endfor %}
                         {% if part_revs.has_next %}
-                            <li><a href="?page={{ part_revs.next_page_number }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
+                            <a class="bom-page-link" href="?page={{ part_revs.next_page_number }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons text-base">chevron_left</i></a>
                         {% else %}
-                            <li class="disabled"><i class="material-icons">chevron_left</i></li>
+                            <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_left</i></span>
                         {% endif %}
-                    </ul>
+                    </nav>
                 {% endif %}
             </div>
         </form>
     </div>
-    {% include 'bom/bom-action-btn.html' with profile=profile %}
 {% endblock %}
 
 {% block bom-script %}
@@ -268,25 +254,7 @@
     </script>
 
     <script type='text/javascript'>
-        function enableActionCheckboxColumn() {
-            $(".action-checkbox-column").show();
-            $(".action-checkbox-hide").show();
-            $(".action-checkbox-show").hide();
-        }
-
-        function disableActionCheckboxColumn() {
-            $(".action-checkbox-column").hide();
-            $(".action-checkbox-hide").hide();
-            $(".action-checkbox-show").show();
-        }
-    </script>
-
-    <script type='text/javascript'>
-        function clearSearchExpression() {
-            $("#autocomplete-input").val("");
-            $('#id_part_class').val('');
-            $('#searchForm').submit();
-        }
+        /* enableActionCheckboxColumn / disableActionCheckboxColumn / clearSearchExpression: bom-ui.js */
     </script>
 
     <script type='text/javascript'>

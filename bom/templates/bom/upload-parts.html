@@ -5,46 +5,36 @@
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
 {% block bom-menu %}
-    <li><a href="{% url 'bom:home' %}">انصراف</a></li>
+    <a class="bom-nav-link" href="{% url 'bom:home' %}">انصراف</a>
 {% endblock %}
 
 
 {% block content %}
     <div class="container-app">
         {% if profile.role == 'A' %}
-            <h5>آپلود فایل لیست متریال</h5>
-            <p>برای آپلود همزمان چندین متریال، یک فایل CSV آپلود کنید که شامل ستون‌های <b>'کد'</b>، <b>'نوع متریال'</b>
-            ، <b>'ورژن'</b> باشد.</p>
-            <p>کد متریال نباید تکراری باشد.
-             اگر کد متریال را مشخص نکنید یک کد اتوماتیک به متریال اختصاص داده خواهد شد.
-            </p>
-            برای مشاهده سایر ستون‌های اختیاری <a href="{% url 'bom:upload-parts-help' %}">اینجا</a> کلیک کنید.
-            </p>
-            <form action="{% url 'bom:upload-parts' %}" method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="row">
-                    <div class="col m10 s12 file-field input-field">
-                        <div class="green lighten-1 btn">
-                            <span>انتخاب فایل</span>
-                            {{ form.file }}
-                        </div>
-                        <div class="file-path-wrapper">
-                            <input class="file-path validate" type="text" placeholder="آپلود فایل">
-                            {{ form.file.errors }}
-                        </div>
+            <div class="bom-panel-pad">
+                <h5 class="mb-2 text-lg font-semibold">آپلود فایل لیست متریال</h5>
+                <p class="mb-2 text-sm text-ink-muted">برای آپلود همزمان چندین متریال، یک فایل CSV آپلود کنید که شامل ستون‌های <b>'کد'</b>، <b>'نوع متریال'</b>
+                ، <b>'ورژن'</b> باشد.</p>
+                <p class="mb-2 text-sm text-ink-muted">کد متریال نباید تکراری باشد.
+                 اگر کد متریال را مشخص نکنید یک کد اتوماتیک به متریال اختصاص داده خواهد شد.
+                </p>
+                <p class="mb-4 text-sm">برای مشاهده سایر ستون‌های اختیاری <a href="{% url 'bom:upload-parts-help' %}">اینجا</a> کلیک کنید.</p>
+                <form action="{% url 'bom:upload-parts' %}" method="post" enctype="multipart/form-data" class="flex flex-wrap items-end gap-3">
+                    {% csrf_token %}
+                    <div class="min-w-0 flex-1">
+                        <label class="bom-label" for="{{ form.file.id_for_label }}">انتخاب فایل</label>
+                        {{ form.file }}
+                        {{ form.file.errors }}
                     </div>
-                    <div class="col m2 s12 text-center input-field">
-                        <input class="green lighten-1 btn" type="submit" value="آپلود"/>
-                    </div>
-                </div>
-            </form>
+                    <button class="bom-btn-primary" type="submit">آپلود</button>
+                </form>
+            </div>
         {% else %}
             {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
         {% endif %}
     </div>
 {% endblock %}
-

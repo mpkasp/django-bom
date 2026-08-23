@@ -294,6 +294,9 @@ venv/
 ENV/
 .venv/
 
+# Frontend build
+node_modules/
+
 *local_setting.py
 .DS_Store
 *.sqlite3

@@ -4,25 +4,24 @@
 {% block head %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/treetable-theme.css' %}"/>
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/jquery.treetable.css' %}"/>
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/tablesorter-theme.materialize.css' %}"/>
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/tablesorter-theme-bom.css' %}"/>
 {% endblock %}
 
 <div class="row printer-hide" style="padding-top: 16px;">
     <div class="col s6 left left-align">
-        <a class="waves-effect waves-green btn-flat btn-icon-round button-expand tooltipped" data-position="bottom" data-tooltip="Expand BOM" onclick="expandTree()"><i class="material-icons">unfold_more</i></a>
-        <a class="waves-effect waves-green btn-flat btn-icon-round button-collapse tooltipped" data-position="bottom" data-tooltip="Collapse BOM" onclick="collapseTree()"><i class="material-icons">unfold_less</i></a>
-        <a class="waves-effect waves-green btn-flat btn-icon-round button-reset-filter-indented tooltipped" data-position="bottom" data-tooltip="Reset filter" onclick="refreshTableSorterIndented()"><i
+        <a class="bom-btn-icon button-expand" data-position="bottom" data-tooltip="Expand BOM" onclick="expandTree()"><i class="material-icons">unfold_more</i></a>
+        <a class="bom-btn-icon button-collapse" data-position="bottom" data-tooltip="Collapse BOM" onclick="collapseTree()"><i class="material-icons">unfold_less</i></a>
+        <a class="bom-btn-icon button-reset-filter-indented" data-position="bottom" data-tooltip="Reset filter" onclick="refreshTableSorterIndented()"><i
                 class="material-icons">refresh</i></a>
     </div>
     <div class="col s6 right-align">
         {% if manage and profile.role == 'A' %}
-            <a class="btn waves-effect waves-green grey lighten-4 btn-flat red-text"
+            <a class="bom-btn-danger"
                href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
                onclick="return confirm('همه زیرشاخه‌های درخت محصول  {{ part.full_part_number }} خذف شوند?')">حذف همه زیرشاخه‌ها</a>
         {% else %}
             <!-- Dropdown Trigger -->
-            <button class="dropdown-trigger-indented waves-effect waves-green grey lighten-4 btn-flat" data-target='manage-bom-{{ part.id }}-indented'>
+            <button class="dropdown-trigger-indented bom-btn-secondary" data-target='manage-bom-{{ part.id }}-indented'>
                 <i class="material-icons right">settings</i><i class="material-icons left">arrow_drop_down</i>مدیریت
             </button>
             <!-- Dropdown Structure -->
@@ -53,8 +52,8 @@
         {% endif %}
     </div>
 </div>
-<div class="responsive-table-wrapper">
-    <table id="indented-bom" class="highlight part-list tight single-line striped">
+<div class="bom-table-wrap responsive-table-wrapper">
+    <table id="indented-bom" class="bom-table part-list single-line">
         <thead>
         <tr>
             <th class="text-normal printer-hide">سطح</th>
@@ -69,7 +68,7 @@
             <!-- <th class="text-normal"><i>Ext. Qty</i></th> -->
             <!-- <th class="text-normal"><i>Order Qty</i></th> -->
             <th class="text-normal printer-hide">{% trans "L.O.I" %}</th>
-            <th class="text-normal">قیمت</th>
+            <th class="text-normal bom-num">قیمت</th>
             <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
             <!-- <th class="text-normal">NRE</th> -->
             <!-- <th class="text-normal">Childs Qty</th> -->
@@ -88,7 +87,7 @@
                             <p>{{ subpart.part_revision.description }}</p>
                         </div>
                         <div class="modal-footer">
-                            <a href="#!" class="modal-close waves-effect green lighten-1 waves-green btn-flat">Ok</a>
+                            <a href="#!" class="modal-close bom-btn-primary">Ok</a>
                         </div>
                     </div>
                 {% endif %}
@@ -102,7 +101,7 @@
                     {% endif %}
                     <td class="text-normal printer-hide">{{ subpart.part_revision.revision }}</td>
                     <td class="text-normal printer-hide" id="bom-indented-seller-name-{{ subpart.part_revision.id }}">{{ subpart.part_revision.tolerance | default:"-" }}</td>
-                    <td class="text-normal" id="bom-indented-unit-cost-{{ subpart.part_revision.id }}">
+                    <td class="text-normal bom-num" id="bom-indented-unit-cost-{{ subpart.part_revision.id }}">
                         {% if subpart.unit_cost %}
                             {{ subpart.unit_cost }}
                         {% else %}

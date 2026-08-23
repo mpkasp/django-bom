@@ -2,11 +2,10 @@
 {% load static %}
 
 {% block head %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
-<div class="responsive-table-wrapper">
-    <table id="indented-bom-overview" class="highlight part-list tight">
+<div class="bom-table-wrap responsive-table-wrapper">
+    <table id="indented-bom-overview" class="bom-table part-list">
         <thead>
         <tr>
             <th class="text-normal">کد</th>
@@ -20,8 +19,8 @@
             <!-- <th class="text-normal"><i>Order Qty</i></th> -->
             <th class="text-normal printer-hide">{% trans "L.O.I" %}</th>
             <th class="text-normal">مقدار</th>
-            <th class="text-normal">قیمت واحد</th>
-            <th class="text-normal">قیمت در BoM</th>
+            <th class="text-normal bom-num">قیمت واحد</th>
+            <th class="text-normal bom-num">قیمت در BoM</th>
             <!-- <th class="text-normal"><i>Ext Cost</i></th> -->
             <!-- <th class="text-normal">NRE</th> -->
             <!-- <th class="text-normal">Childs Qty</th> -->
@@ -41,7 +40,7 @@
                             <p>{{ subpart.part_revision.description }}</p>
                         </div>
                         <div class="modal-footer">
-                            <a href="#!" class="modal-close waves-effect green lighten-1 waves-green btn-flat">Ok</a>
+                            <a href="#!" class="modal-close bom-btn-primary">Ok</a>
                         </div>
                     </div>
                 {% endif %}

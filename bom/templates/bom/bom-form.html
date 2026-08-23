@@ -1,33 +1,23 @@
 {% extends 'bom/bom-base.html' %}
 
-{% load materializecss %}
+{% load bom_forms %}
 {% load static %}
 
 {% block head-title %}{{ title }}{% endblock %}
 
-{% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
-{% endblock %}
-
 {% block bom-menu %}
-    <li><a href="javascript:history.back()">انصراف</a></li>
+    <a class="bom-nav-link" href="javascript:history.back()">انصراف</a>
 {% endblock %}
 
 {% block content %}
     <div class="container-app">
-    {% if h1 %}<h2 class="light" style="margin-top: 0px;">{{ h1 }}</h2>{% endif %}
-    <form name="seller" action="{{ action }}" method="post" class="col s12">
-        <div class="row">
-            {% csrf_token %}
-            {{ form|materializecss:'m6 s12' }}
-        </div>
-        <div class="row">
-            <div class="col s6">
-                <a href="javascript:history.back()" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">انصراف</a>
-            </div>
-            <div class="col s6 left-align">
-                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="action">{% trans "Save" %}</button>
-            </div>
+    {% if h1 %}<h1 class="mb-4 text-xl font-semibold">{{ h1 }}</h1>{% endif %}
+    <form name="seller" action="{{ action }}" method="post" class="bom-panel-pad">
+        {% csrf_token %}
+        {{ form|bom_form:'m6 s12' }}
+        <div class="mt-4 flex justify-between">
+            <a href="javascript:history.back()" class="bom-btn-ghost">انصراف</a>
+            <button class="bom-btn-primary" type="submit" name="action">{% trans "Save" %}</button>
         </div>
     </form>
     </div>

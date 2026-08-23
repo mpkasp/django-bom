@@ -1,35 +1,25 @@
-{% load materializecss %}
+{% load bom_forms %}
 {% load static %}
 
-<a class="waves-effect waves-light btn green lighten-1 modal-trigger modal-{{ name }}" href="#modal-{{ name }}">{{ modal_title }}</a>
+<a class="bom-btn-primary modal-trigger" href="#modal-{{ name }}">{{ modal_title }}</a>
 
-<div id="modal-{{ name }}" class="modal left-align">
-    <form name="seller" action="{{ action }}" method="post" class="col s12" enctype="multipart/form-data">
+<div id="modal-{{ name }}" class="modal">
+    <form name="seller" action="{{ action }}" method="post" enctype="multipart/form-data">
         <div class="modal-content">
-            <div class="row">
-                {% if modal_title %}<h2 class="light" style="margin-top: 0;">{{ modal_title }}</h2>{% endif %}
-                {% if modal_description %}<p>{{ modal_description }}</p>{% endif %}
-                {% if form %}
-                    {% csrf_token %}
-                    {{ form|materializecss:'m6 s12' }}
-                {% endif %}
-            </div>
+            {% if modal_title %}<h2 class="mb-2 text-lg font-semibold">{{ modal_title }}</h2>{% endif %}
+            {% if modal_description %}<p class="mb-3 text-sm text-ink-muted">{{ modal_description }}</p>{% endif %}
+            {% if form %}
+                {% csrf_token %}
+                {{ form|bom_form:'m6 s12' }}
+            {% endif %}
         </div>
         <div class="modal-footer">
-            <a href="#!" class="modal-close waves-effect waves-green btn-flat">انصراف</a>
+            <a href="#!" class="modal-close bom-btn-ghost">انصراف</a>
             {% if form %}
-                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="{{ name }}">Submit</button>
+                <button class="bom-btn-primary" type="submit" name="{{ name }}">Submit</button>
             {% else %}
-                <a href="#!" class="modal-close waves-effect green lighten-1 waves-green btn-flat">Ok</a>
+                <a href="#!" class="modal-close bom-btn-primary">Ok</a>
             {% endif %}
         </div>
     </form>
 </div>
-
-{% block script %}
-    <script>
-        $(document).ready(function () {
-            $('.modal').modal();
-        });
-    </script>
-{% endblock %}

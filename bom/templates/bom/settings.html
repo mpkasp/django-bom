@@ -1,19 +1,18 @@
 {% extends 'bom/bom-base.html' %}
 
-{% load materializecss %}
+{% load bom_forms %}
 {% load static %}
 
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/style.css' %}"/>
 {% endblock %}
 
 {% block content %}
 
     <div class="row container-app">
         <div class="col s12">
-            <ul id="tabs" class="tabs tabs-fixed-width">
+            <ul id="tabs" class="tabs tabs-fixed-width bom-tabs" role="tablist">
                 <li class="tab"><a id="user-tab" href="#user">کاربر</a></li>
                 <li class="tab"><a id="password-reset-tab" href="#password-reset">{% trans "Reset Password" %}</a></li>
                 <li class="tab"><a id="indabom-tab" href="#indabom">ساختار کد</a></li>
@@ -33,13 +32,13 @@
                     </div>
                 </div>
                 <div class="row">
-                    {{ user_form.first_name|materializecss:'s12 m4' }}
-                    {{ user_form.last_name|materializecss:'s12 m4' }}
-                    {{ user_form.email|materializecss:'s12 m4' }}
+                    {{ user_form.first_name|bom_form:'s12 m4' }}
+                    {{ user_form.last_name|bom_form:'s12 m4' }}
+                    {{ user_form.email|bom_form:'s12 m4' }}
                 </div>
                 <div class="row">
                     <div class="col s12 right-align">
-                        <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-user">{% trans "Save" %}</button>
+                        <button class="bom-btn-primary" type="submit" name="submit-edit-user">{% trans "Save" %}</button>
                     </div>
                 </div>
             </form>
@@ -54,29 +53,21 @@
                         <form name="seller" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" enctype="multipart/form-data">
                             {% csrf_token %}
                             {% if part_classes.count > 0 %}
-                                <div class="row" style="margin-bottom: 0;">
-                                    <div class="input-field col s8 m4">
-                                        <select name="part-class-action">
+                                <div class="bom-action-bar">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <select name="part-class-action" class="bom-select w-auto min-w-48">
                                             <option value="" disabled selected>Choose your action</option>
                                             <option value="submit-part-class-enable-mouser">Enable Mouser</option>
                                             <option value="submit-part-class-disable-mouser">Disable Mouser</option>
                                             <option value="submit-part-class-delete">Delete</option>
                                         </select>
-                                        <label>Action</label>
+                                        <button class="bom-btn-primary" type="submit">Go</button>
                                     </div>
-                                    <div class="col s2 m2">
-                                        <div class="input-field">
-                                            <button class="waves-effect waves-light btn green lighten-1" type="submit">Go</button>
-                                        </div>
-                                    </div>
-                                    <div class="col s2 m6 right-align">
-                                        <div class="input-field">
-                                            <button class="waves-effect btn-flat btn-icon-round tooltipped" type="submit" name="submit-part-class-export" data-tooltip="Export part classes."><i
-                                                    class="material-icons">file_download</i></button>
-                                        </div>
-                                    </div>
+                                    <button class="bom-btn-icon" type="submit" name="submit-part-class-export" title="Export part classes."><i
+                                            class="material-icons">file_download</i></button>
                                 </div>
-                                <table class="striped tight">
+                                <div class="bom-table-wrap">
+                                <table class="bom-table">
                                     <thead>
                                     <tr>
                                         <th class="text-normal"><label><input type="checkbox" id="part-class-select-all"><span></span></label></th>
@@ -93,7 +84,7 @@
                                     {% for part_class in part_classes %}
                                         <tr>
                                             <td>
-                                                <label><input type="checkbox" class="filled-in checkbox-array" name="actions" value="{{ part_class.id }}"><span></span></label>
+                                                <label><input type="checkbox" class="checkbox-array" name="actions" value="{{ part_class.id }}"></label>
                                             </td>
                                             <td class="text-normal">{{ part_class.code }}</td>
                                             <td class="text-normal">{{ part_class.name }}</td>
@@ -101,13 +92,14 @@
                                             <td class="text-normal">{% if part_class.mouser_enabled %}
                                                 <img height="24" style="padding: 4px 4px 0 4px;" alt="Mouser" title="Via Mouser.com" src="{% static 'bom/img/mouser.png' %}">{% endif %}</td>
                                             <td>
-                                                <a class="waves-effect waves-green btn-flat green-text text-lighten-1" href="{% url 'bom:part-class-edit' part_class_id=part_class.id %}"><i
+                                                <a class="bom-btn-ghost" href="{% url 'bom:part-class-edit' part_class_id=part_class.id %}"><i
                                                         class="material-icons left green-text text-lighten-1">edit</i>Edit</a>
                                             </td>
                                         </tr>
                                     {% endfor %}
                                     </tbody>
                                 </table>
+                                </div>
                             {% else %}
                                 <p>No part classes have been defined yet.</p>
                             {% endif %}
@@ -130,9 +122,9 @@
                         <p>Your organization's current configuration is <b>{{ organization.number_cs }}-{{ organization.number_ns }}{% if organization.number_vs %}-
                             {{ organization.number_vs }}{% endif %}</b></p>
                         <div class="row">
-                            {{ organization_number_len_form|materializecss:'s4 m2' }}
-                            <div class="col s12 m6 input-field">
-                                <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-number-item-len"
+                            {{ organization_number_len_form|bom_form:'s4 m2' }}
+                            <div class="col s12 m6 flex items-center">
+                                <button class="bom-btn-primary" type="submit" name="submit-number-item-len"
                                         onclick="return confirm('Are you sure you want to change the number of digits?')">Save
                                 </button>
                             </div>
@@ -165,7 +157,7 @@
                 {% else %}
                     <form name="number-scheme" action="{% url 'bom:settings' tab_anchor=INDABOM_TAB %}" method="post" class="col s12">
                         {% csrf_token %}
-                        <button type="submit" name="change-number-scheme" class="waves-effect waves-light btn red lighten-1">Change Scheme to {% if organization.number_scheme == 'S' %}
+                        <button type="submit" name="change-number-scheme" class="bom-btn-danger">Change Scheme to {% if organization.number_scheme == 'S' %}
                             Intelligent{% else %}Semi-Intelligent{% endif %}</button>
                     </form>
                 {% endif %}
@@ -182,11 +174,11 @@
                         <form name="seller" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
                             {% csrf_token %}
                             <div class="row">
-                                {{ organization_form|materializecss:'s12 m4' }}
+                                {{ organization_form|bom_form:'s12 m4' }}
                             </div>
                             <div class="row">
                                 <div class="col s12 right-align">
-                                    <button class="waves-effect waves-light btn green lighten-1" type="submit" name="submit-edit-organization"
+                                    <button class="bom-btn-primary" type="submit" name="submit-edit-organization"
                                             onclick="return confirm('Are you sure you want to change the organization information?')">Save
                                     </button>
                                 </div>
@@ -215,14 +207,14 @@
                                     {% for org_user in users_in_organization %}
                                         <tr>
                                             <td>
-                                                <label><input type="checkbox" class="filled-in" name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>
+                                                <label><input type="checkbox" name="remove_user_meta_id_{{ org_user.bom_profile.id }}"><span/></label>
                                             </td>
                                             <td class="text-normal">{{ org_user.bom_profile.get_role_display }}</td>
                                             <td class="text-normal">{{ org_user.username }}</td>
                                             <td class="text-normal">{{ org_user.first_name }} {{ org_user.last_name }}</td>
                                             <td class="text-normal"><a href="mailto:{{ user.email }}">{{ org_user.email }}</a></td>
                                             <td>
-                                                <a class="waves-effect waves-green btn-flat green-text text-lighten-1" href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
+                                                <a class="bom-btn-ghost" href="{% url 'bom:user-meta-edit' user_meta_id=org_user.bom_profile.id %}"><i
                                                         class="material-icons left green-text text-lighten-1">edit</i>{% trans "Edit" %}</a>
                                             </td>
                                         </tr>
@@ -232,7 +224,7 @@
                                 <div class="row" style="padding-top: 16px;">
                                     <div class="col s6">
                                         {% comment %}TODO: not working{% endcomment %}
-                                        <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-remove-user"
+                                        <button class="bom-btn-danger" type="submit" name="submit-remove-user"
                                                 onclick="return confirm('کاربر/کاربران انتخاب شده از شرکت {{ organization }} حذف شوند?')">{% trans "Remove selected user" %}
                                         </button>
                                     </div>
@@ -277,7 +269,7 @@
                         <p>{% trans "Warning, the only way back in to {{ organization.name }} is if you are invited by an organization administrator." %}</p>
                         <form name="leave-organization" action="{% url 'bom:settings' tab_anchor=ORGANIZATION_TAB %}" method="post" class="col s12" enctype="multipart/form-data">
                             {% csrf_token %}
-                            <button class="waves-effect waves-light btn red lighten-1" type="submit" name="submit-leave-organization">{% trans "Leave Organization" %}</button>
+                            <button class="bom-btn-danger" type="submit" name="submit-leave-organization">{% trans "Leave Organization" %}</button>
                         </form>
                     </div>
                 </div>
@@ -292,33 +284,27 @@
         </div>
 
         <div id="password-reset" class="col s12">
-            <h3>{% trans "Reset Password" %}</h3>
-            <form action="{% url 'bom:password_reset' %}" method="post" class="col s12">
-                {% csrf_token %}
-                <div class="row">
-                    <div class="col s12 m6">
-                        <label for="current_password">{% trans "Current Password" %}</label>
-                        <input type="password" id="current_password" name="current_password" required>
+            <div class="bom-panel-pad max-w-xl">
+                <h3 class="mb-4 text-lg font-semibold text-ink">{% trans "Reset Password" %}</h3>
+                <form action="{% url 'bom:password_reset' %}" method="post" class="space-y-4">
+                    {% csrf_token %}
+                    <div>
+                        <label class="bom-label" for="current_password">{% trans "Current Password" %}</label>
+                        <input type="password" id="current_password" name="current_password" class="bom-input" autocomplete="current-password" required>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col s12 m6">
-                        <label for="new_password">{% trans "New Password" %}</label>
-                        <input type="password" id="new_password" name="new_password" required>
+                    <div>
+                        <label class="bom-label" for="new_password">{% trans "New Password" %}</label>
+                        <input type="password" id="new_password" name="new_password" class="bom-input" autocomplete="new-password" required>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col s12 m6">
-                        <label for="confirm_password">{% trans "Confirm New Password" %}</label>
-                        <input type="password" id="confirm_password" name="confirm_password" required>
+                    <div>
+                        <label class="bom-label" for="confirm_password">{% trans "Confirm New Password" %}</label>
+                        <input type="password" id="confirm_password" name="confirm_password" class="bom-input" autocomplete="new-password" required>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col s12 right-align">
-                        <button class="waves-effect waves-light btn green lighten-1" type="submit">{% trans "Reset Password" %}</button>
+                    <div class="flex justify-end pt-2">
+                        <button class="bom-btn-primary" type="submit">{% trans "Reset Password" %}</button>
                     </div>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 
