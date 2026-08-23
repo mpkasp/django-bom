@@ -21,31 +21,29 @@ If you already have a django project, you can skip to [Add Django Bom To Your Ap
    * [Installation pitfalls](#installation-pitfalls)
 
 ## Start from docker (Recommended)
-1.1. create .env.prod and .env.db files or use example files (just rename them).
+1. Create `.env.prod` and `.env.db` files or use example files (just rename them).
 
-1.2. If you cannot reach PyPI, Debian, or Docker Hub, see [Package mirrors](docs/mirrors.md).
-1.3. Go to project dir
+2. If you cannot reach PyPI, Debian, or Docker Hub, see [Package mirrors](docs/mirrors.md).
+
+3. Go to project dir
 ```
 cd project_dir
 ```
-2. Build and run the containers
-```
-docker compose --env-file .env.prod up --build -d
-```
-The web container runs `collectstatic` and migrations automatically on startup.
 
-3. Restore database from dump (optional)
-
-If you have a dump, restore it **before** starting the full stack, or the web container will run migrations first and the restore will fail with "relation already exists" errors. See [Backup and restore database](#backup-and-restore-database-if-using-docker-compose-and-postgres) for the full procedure.
-
-Quick fresh-install + restore:
+4. If you have a database dump, restore it **before** starting `web`. Start only Postgres, restore, then continue with step 5. See [Backup and restore database](#backup-and-restore-database-if-using-docker-compose-and-postgres) for the full procedure.
 
 ```
-docker compose --env-file .env.prod down --volumes --rmi local
 docker compose --env-file .env.prod up -d db
 gunzip < dump_file.sql.gz | docker compose --env-file .env.prod exec -T db psql -U bom_user -d bom_db
+```
+
+Do not start the full stack first. The `web` container runs `python manage.py migrate` on startup; migrating an empty database and then restoring fails with "relation already exists" errors and a partial restore. If this volume already has tables, use [Workflow A](#workflow-a--fresh-install-with-a-dump-recommended) or [Workflow B](#workflow-b--re-restore-on-a-running-stack) instead of restoring on top. Before step 5, you can [inspect pending migrations and take a pre-migrate dump](#after-restore-inspect-migrations).
+
+5. Build and run the containers
+```
 docker compose --env-file .env.prod up --build -d
 ```
+The web container runs `collectstatic` and `python manage.py migrate` automatically on startup. After a restore, that migrate applies only migrations that are in the image but not in the dump (for example new models). That is the correct order.
 
 ## Production operations
 
@@ -87,9 +85,11 @@ Backup:
 docker compose --env-file .env.prod exec -T db pg_dump -c -U bom_user bom_db | gzip > ./dump_bom_db_$(date +"%Y-%m-%d_%H_%M_%S").sql.gz
 ```
 
+The `backup` service also writes a nightly dump to `postgres_backup/` and keeps the newest seven files.
+
 ### Restore
 
-**Important:** Do not restore on top of a database that already has tables from `migrate`. The web container runs migrations on startup, so if you run `docker compose up -d` before restoring, the dump will fail partially (materials/part data will be missing while some other tables may load).
+**Important:** Restore first, then migrate. Do not restore on top of a database that already has tables from `migrate`. The web container runs migrations on startup, so if you run `docker compose up -d` before restoring, the dump will fail partially (materials/part data will be missing while some other tables may load).
 
 #### Workflow A — Fresh install with a dump (recommended)
 
@@ -100,10 +100,9 @@ docker compose --env-file .env.prod down --volumes --rmi local
 docker compose --env-file .env.prod up -d db
 gunzip < dump_file.sql.gz | docker compose --env-file .env.prod exec -T db psql -U bom_user -d bom_db 2>&1 | tee restore.log
 grep -iE 'error|fatal|violates' restore.log
-docker compose --env-file .env.prod up --build -d
 ```
 
-Start only `db` first so migrations do not create tables before the restore.
+Start only `db` first so migrations do not create tables before the restore. Then continue with [After restore: inspect migrations](#after-restore-inspect-migrations).
 
 #### Workflow B — Re-restore on a running stack
 
@@ -115,8 +114,41 @@ docker compose --env-file .env.prod exec -T db psql -U bom_user -d bom_db -c \
   "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO bom_user; GRANT ALL ON SCHEMA public TO public;"
 gunzip < dump_file.sql.gz | docker compose --env-file .env.prod exec -T db psql -U bom_user -d bom_db 2>&1 | tee restore.log
 grep -iE 'error|fatal|violates' restore.log
+```
+
+Do not start `web` yet. Continue with [After restore: inspect migrations](#after-restore-inspect-migrations).
+
+#### After restore: inspect migrations
+
+The dump includes the `django_migrations` table, so Django knows which migrations the restored schema already reflects. Starting `web` then applies only newer migrations (new models, new columns, and so on). That is the correct order when the image is ahead of the dump.
+
+Before starting `web`, list applied vs pending migrations. This command builds the image if needed but replaces the entrypoint, so it does **not** run `migrate`:
+
+```
+docker compose --env-file .env.prod run --rm --build --no-deps --entrypoint python web manage.py showmigrations
+```
+
+Unapplied migrations are marked `[ ]`.
+
+If any migrations are unapplied, take a dump of the restored database first so a failed migration does not cost you the restore:
+
+```
+docker compose --env-file .env.prod exec -T db pg_dump -c -U bom_user bom_db | gzip > ./dump_bom_db_pre_migrate_$(date +"%Y-%m-%d_%H_%M_%S").sql.gz
+```
+
+Then start the remaining services. This is when `migrate` actually runs:
+
+```
+docker compose --env-file .env.prod up --build -d
+```
+
+On a re-restore (Workflow B) you can omit `--build` if the image is already current:
+
+```
 docker compose --env-file .env.prod up -d
 ```
+
+If `web` restart-loops, check `docker compose logs web` for a migration error.
 
 #### Restore (unzipped dump on Windows)
 
