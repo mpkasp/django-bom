@@ -126,3 +126,16 @@ class TestUiSmoke(TransactionTestCase):
         self.assertEqual(create.status_code, 200)
         self.assertIn("bom-input", create.content.decode("utf-8"))
         self.assertIn("bom/js/jquery.autocomplete-bom.js", create.content.decode("utf-8"))
+
+    def test_settings_password_reset_uses_tailwind_form_classes(self):
+        user, organization = create_user_and_organization()
+        self.client.login(username="kasper", password="ghostpassword")
+        response = self.client.get(reverse("bom:settings", kwargs={"tab_anchor": "user"}))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode("utf-8")
+        self.assertIn('id="password-reset"', html)
+        self.assertIn("bom-panel-pad", html)
+        self.assertIn('id="current_password"', html)
+        self.assertIn('class="bom-input"', html)
+        self.assertIn('class="bom-label"', html)
+        self.assertIn("bom-btn-primary", html)
