@@ -46,6 +46,8 @@ from .form_fields import AutocompleteTextInput
 from .models import (
     Assembly,
     AssemblySubparts,
+    Customer,
+    CustomerPrice,
     Manufacturer,
     ManufacturerPart,
     Organization,
@@ -59,7 +61,9 @@ from .models import (
     UserMeta,
 )
 from .utils import (
+    apply_profit,
     convert_arabic_to_english,
+    implied_profit_percent,
     listify_string,
     stringify_list,
 )
@@ -496,6 +500,241 @@ class SellerPartForm(forms.ModelForm):
                 defaults={"name": DEFAULT_SELLER_NAME},
             )
             self.cleaned_data["seller"] = obj
+
+
+class CustomerForm(forms.ModelForm):
+    class Meta:
+        model = Customer
+        exclude = ["organization"]
+
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop("organization", None)
+        super().__init__(*args, **kwargs)
+        self.fields["name"].label = _("Customer")
+        self.fields["code"].label = _("Code")
+        self.fields["contact_name"].label = _("Contact Name")
+        self.fields["email"].label = _("Email")
+        self.fields["phone"].label = _("Phone")
+        self.fields["address"].label = _("Address")
+        self.fields["tax_id"].label = _("Tax ID")
+        self.fields["notes"].label = _("Notes")
+        self.fields["is_active"].label = _("Active")
+        self.fields["default_profit_percent"].label = _("Default Profit % (markup on cost)")
+        self.fields["default_profit_percent"].required = False
+        self.fields["name"].required = True
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name")
+        if not name:
+            raise forms.ValidationError(_("Customer name is required."), code="required")
+        qs = Customer.objects.filter(
+            organization=self.organization, name__iexact=name
+        )
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError(
+                _("A customer with this name already exists."), code="unique"
+            )
+        return name
+
+    def save(self, commit=True):
+        customer = super().save(commit=False)
+        if self.organization is not None:
+            customer.organization = self.organization
+        if commit:
+            customer.save()
+        return customer
+
+
+class CustomerPriceForm(forms.ModelForm):
+    price = forms.DecimalField(required=False, min_value=0)
+
+    class Meta:
+        model = CustomerPrice
+        fields = ["part", "quantity", "profit_percent", "price", "note"]
+
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop("organization", None)
+        self.customer = kwargs.pop("customer", None)
+        self.user = kwargs.pop("user", None)
+        currency_unit_txt = self.organization.currency if self.organization else ""
+        super().__init__(*args, **kwargs)
+        self.fields["part"].queryset = Part.objects.filter(
+            organization=self.organization
+        ).order_by("number_class__code", "number_item", "number_variation")
+        self.fields["part"].label = _("Part")
+        self.fields["quantity"].label = _("Quantity")
+        self.fields["quantity"].initial = 1000
+        self.fields["profit_percent"].label = _("Profit % (markup on cost)")
+        self.fields["profit_percent"].required = False
+        if self.customer is not None:
+            self.fields["profit_percent"].initial = (
+                self.customer.effective_profit_percent
+            )
+        self.fields["price"].label = _("Price | {unit}").format(unit=currency_unit_txt)
+        self.fields["price"].help_text = _(
+            "Optional. Leave blank to compute from BoM cost and profit %. "
+            "Enter a value to set the price manually."
+        )
+        self.fields["note"].label = _("Note")
+        self.fields["note"].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        part = cleaned_data.get("part")
+        quantity = cleaned_data.get("quantity")
+        profit_percent = cleaned_data.get("profit_percent")
+        price = cleaned_data.get("price")
+
+        if part is None or quantity is None:
+            return cleaned_data
+
+        if part.organization_id != self.organization.id:
+            raise forms.ValidationError(
+                _("Part does not belong to your organization."), code="invalid"
+            )
+
+        part_revision = part.latest()
+        if part_revision is None:
+            raise forms.ValidationError(
+                _("Part has no revision; cannot compute BoM cost."), code="invalid"
+            )
+
+        base_cost = part_revision.bom_unit_cost_at_quantity(quantity)
+        if base_cost is None:
+            raise forms.ValidationError(
+                _("No BoM cost available for this part at the given quantity."),
+                code="invalid",
+            )
+
+        cleaned_data["base_cost"] = base_cost
+        cleaned_data["part_revision"] = part_revision
+
+        if profit_percent is None:
+            profit_percent = (
+                self.customer.effective_profit_percent
+                if self.customer is not None
+                else Decimal("0")
+            )
+            cleaned_data["profit_percent"] = profit_percent
+
+        if price is not None:
+            cleaned_data["is_manual_price"] = True
+            implied = implied_profit_percent(base_cost, price)
+            if implied is None:
+                raise forms.ValidationError(
+                    _("Cannot derive profit % when base cost is zero."),
+                    code="invalid",
+                )
+            if implied < 0:
+                raise forms.ValidationError(
+                    _("Price cannot be less than BoM cost."), code="invalid"
+                )
+            cleaned_data["profit_percent"] = implied
+            cleaned_data["price"] = Money(price, self.organization.currency)
+        else:
+            cleaned_data["is_manual_price"] = False
+            cleaned_data["price"] = apply_profit(
+                base_cost, profit_percent, currency=self.organization.currency
+            )
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.customer = self.customer
+        instance.part_revision = self.cleaned_data["part_revision"]
+        instance.base_cost = self.cleaned_data["base_cost"]
+        instance.profit_percent = self.cleaned_data["profit_percent"]
+        instance.price = self.cleaned_data["price"]
+        instance.is_manual_price = self.cleaned_data["is_manual_price"]
+        if self.user is not None:
+            instance.created_by = self.user
+        if commit:
+            instance.save()
+        return instance
+
+
+class CustomerPriceBulkForm(forms.Form):
+    parts = forms.ModelMultipleChoiceField(
+        queryset=Part.objects.none(),
+        required=True,
+        label=_("Parts"),
+    )
+    quantity = forms.IntegerField(
+        min_value=1, initial=1000, label=_("Quantity")
+    )
+    profit_percent = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_digits=6,
+        decimal_places=2,
+        label=_("Profit % (markup on cost)"),
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop("organization", None)
+        self.customer = kwargs.pop("customer", None)
+        self.user = kwargs.pop("user", None)
+        product_only = kwargs.pop("product_only", True)
+        super().__init__(*args, **kwargs)
+        parts_qs = Part.objects.filter(organization=self.organization)
+        if product_only:
+            product_part_ids = (
+                PartRevision.objects.filter(
+                    part__organization=self.organization,
+                    material__in=["with_loi", "no_loi"],
+                )
+                .values_list("part_id", flat=True)
+                .distinct()
+            )
+            parts_qs = parts_qs.filter(id__in=product_part_ids)
+        self.fields["parts"].queryset = parts_qs.order_by(
+            "number_class__code", "number_item", "number_variation"
+        )
+        if self.customer is not None:
+            self.fields["profit_percent"].initial = (
+                self.customer.effective_profit_percent
+            )
+
+    def save(self):
+        quantity = self.cleaned_data["quantity"]
+        profit_percent = self.cleaned_data.get("profit_percent")
+        if profit_percent is None:
+            profit_percent = (
+                self.customer.effective_profit_percent
+                if self.customer is not None
+                else Decimal("0")
+            )
+
+        created = []
+        skipped = []
+        for part in self.cleaned_data["parts"]:
+            part_revision = part.latest()
+            if part_revision is None:
+                skipped.append((part, _("No revision")))
+                continue
+            base_cost = part_revision.bom_unit_cost_at_quantity(quantity)
+            if base_cost is None:
+                skipped.append((part, _("No BoM cost")))
+                continue
+            price = apply_profit(
+                base_cost, profit_percent, currency=self.organization.currency
+            )
+            row = CustomerPrice.objects.create(
+                customer=self.customer,
+                part=part,
+                part_revision=part_revision,
+                quantity=quantity,
+                base_cost=base_cost,
+                profit_percent=profit_percent,
+                price=price,
+                is_manual_price=False,
+                created_by=self.user,
+            )
+            created.append(row)
+        return created, skipped
 
 
 class PartClassForm(forms.ModelForm):

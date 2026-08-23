@@ -1,8 +1,9 @@
-from email.policy import default
 from bom import constants
 from bom.models import (
     Assembly,
     AssemblySubparts,
+    Customer,
+    CustomerPrice,
     Manufacturer,
     ManufacturerPart,
     Organization,
@@ -14,6 +15,8 @@ from bom.models import (
     Subpart,
     User,
 )
+from djmoney.money import Money
+from decimal import Decimal
 
 
 def create_a_fake_organization(
@@ -142,6 +145,60 @@ def create_a_fake_seller_part(
     sp1.save()
 
     return sp1
+
+
+def create_a_fake_customer(
+    organization,
+    name="Acme Customer",
+    default_profit_percent=Decimal("20"),
+    **kwargs,
+):
+    customer, _ = Customer.objects.get_or_create(
+        organization=organization,
+        name=name,
+        defaults={
+            "default_profit_percent": default_profit_percent,
+            **kwargs,
+        },
+    )
+    return customer
+
+
+def create_a_fake_customer_price(
+    customer,
+    part,
+    quantity=1000,
+    profit_percent=None,
+    price=None,
+    is_manual_price=False,
+    created_by=None,
+    note="",
+):
+    part_revision = part.latest()
+    if profit_percent is None:
+        profit_percent = customer.effective_profit_percent
+    base_cost = part_revision.bom_unit_cost_at_quantity(quantity)
+    if base_cost is None:
+        currency = customer.organization.currency
+        base_cost = Money(100, currency)
+    if price is None:
+        from bom.utils import apply_profit
+
+        price = apply_profit(
+            base_cost, profit_percent, currency=customer.organization.currency
+        )
+    return CustomerPrice.objects.create(
+        customer=customer,
+        part=part,
+        part_revision=part_revision,
+        quantity=quantity,
+        base_cost=base_cost,
+        profit_percent=profit_percent,
+        price=price,
+        is_manual_price=is_manual_price,
+        created_by=created_by,
+        note=note,
+    )
 
 
 def create_some_fake_intelligent_parts(organization):

@@ -325,3 +325,143 @@ msgstr "رمز عبور شما با موفقیت عوض شد."
 
 #~ msgid "Reset Your Password"
 #~ msgstr "تغییر رمز عبور"
+
+# Customer pricing
+
+msgid "Customers"
+msgstr "مشتریان"
+
+msgid "customers"
+msgstr "مشتریان"
+
+msgid "Customer"
+msgstr "مشتری"
+
+msgid "New Customer"
+msgstr "مشتری جدید"
+
+msgid "Edit Customer"
+msgstr "ویرایش مشتری"
+
+msgid "Code"
+msgstr "کد"
+
+msgid "Contact Name"
+msgstr "نام تماس"
+
+msgid "Contact"
+msgstr "تماس"
+
+msgid "Default Profit %"
+msgstr "درصد سود پیش‌فرض"
+
+msgid "Default Profit % (markup on cost)"
+msgstr "درصد سود پیش‌فرض (حاشیه روی هزینه)"
+
+msgid "Profit % (markup on cost)"
+msgstr "درصد سود (حاشیه روی هزینه)"
+
+msgid "Prices"
+msgstr "قیمت‌ها"
+
+msgid "Active"
+msgstr "فعال"
+
+msgid "Search customers:"
+msgstr "جستجوی مشتری:"
+
+msgid "Search"
+msgstr "جستجو"
+
+msgid "Clear"
+msgstr "پاک کردن"
+
+msgid "No customers found."
+msgstr "مشتری‌ای یافت نشد."
+
+msgid "Create your first customer"
+msgstr "اولین مشتری را بسازید"
+
+msgid "Back to customers"
+msgstr "بازگشت به مشتریان"
+
+msgid "Add Price"
+msgstr "افزودن قیمت"
+
+msgid "Generate Prices"
+msgstr "تولید قیمت‌ها"
+
+msgid "Export"
+msgstr "خروجی"
+
+msgid "Customer details"
+msgstr "جزئیات مشتری"
+
+msgid "Current prices"
+msgstr "قیمت‌های جاری"
+
+msgid "Price history"
+msgstr "تاریخچه قیمت"
+
+msgid "BoM Cost"
+msgstr "هزینه صورت مواد"
+
+msgid "Profit %"
+msgstr "درصد سود"
+
+msgid "Manual"
+msgstr "دستی"
+
+msgid "Created"
+msgstr "ایجاد شده"
+
+msgid "By"
+msgstr "توسط"
+
+msgid "Quantity"
+msgstr "تعداد"
+
+msgid "Note"
+msgstr "یادداشت"
+
+msgid "Yes"
+msgstr "بله"
+
+msgid "No"
+msgstr "خیر"
+
+msgid "Customer prices"
+msgstr "قیمت‌های مشتری"
+
+msgid "No customer prices for this part yet."
+msgstr "هنوز قیمت مشتری برای این قطعه ثبت نشده است."
+
+msgid "No current prices."
+msgstr "قیمت جاری وجود ندارد."
+
+msgid "No price history yet."
+msgstr "هنوز تاریخچه قیمتی وجود ندارد."
+
+msgid "Delete this price record?"
+msgstr "این رکورد قیمت حذف شود؟"
+
+msgid "Warning! Delete this customer and all of its price history?"
+msgstr "هشدار! این مشتری و تمام تاریخچه قیمت آن حذف شود؟"
+
+msgid "Customer created."
+msgstr "مشتری ایجاد شد."
+
+msgid "Customer updated."
+msgstr "مشتری به‌روزرسانی شد."
+
+msgid "Customer deleted."
+msgstr "مشتری حذف شد."
+
+msgid "Customer price recorded."
+msgstr "قیمت مشتری ثبت شد."
+
+msgid "Customer price deleted."
+msgstr "قیمت مشتری حذف شد."
+
+msgid "Can't access a customer that is not yours!"
+msgstr "نمی‌توانید به مشتری که متعلق به شما نیست دسترسی داشته باشید!"

@@ -91,6 +91,7 @@
                         {% endif %}
                         <li class="tab"><a id="used-tab" href="#used">موارد استفاده</a></li>
                         <li class="tab"><a id="sourcing-tab" href="#sourcing">{% trans "Seller" %}</a></li>
+                        <li class="tab"><a id="customers-tab" href="#customers">{% trans "Customers" %}</a></li>
                         {% if part_revision.material == 'with_loi' or part_revision.material == 'no_loi' %}
                         <li class="tab"><a id="overview-tab" href="#overview">نمای کلی</a></li>
                         {% endif %}
@@ -295,6 +296,51 @@
                             </div>
                         </div>
                     {% endif %}
+                </div>
+                <div id="customers" class="col s12">
+                    <h4 class="printer-show">{% trans "Customer prices" %}</h4>
+                    <div class="bom-table-wrap responsive-table-wrapper mb-4">
+                        <table class="bom-table part-list single-line">
+                            <thead>
+                            <tr>
+                                <th class="text-normal td-med">{% trans "Customer" %}</th>
+                                <th class="text-normal td-med">{% trans "Quantity" %}</th>
+                                <th class="text-normal td-med">{% trans "BoM Cost" %}</th>
+                                <th class="text-normal td-med">{% trans "Profit %" %}</th>
+                                <th class="text-normal td-med">{% trans "Price" %}</th>
+                                <th class="text-normal td-med">{% trans "Created" %}</th>
+                                <th class="text-normal td-small"></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for row in customer_prices %}
+                                <tr>
+                                    <td class="text-normal td-med">
+                                        <a href="{% url 'bom:customer-info' customer_id=row.customer.id %}">{{ row.customer.name }}</a>
+                                    </td>
+                                    <td class="text-normal td-med">{{ row.quantity }}</td>
+                                    <td class="text-normal td-med">{{ row.base_cost|default:"-" }}</td>
+                                    <td class="text-normal td-med">{{ row.profit_percent }}</td>
+                                    <td class="text-normal td-med">{{ row.price|default:"-" }}</td>
+                                    <td class="text-normal td-med">{{ row.created_at }}</td>
+                                    <td class="text-normal td-small">
+                                        {% if profile.role == 'A' %}
+                                            <a href="{% url 'bom:customer-price-create' customer_id=row.customer.id %}?part_id={{ part.id }}">
+                                                <i class="material-icons text-base">add</i>
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="99" style="text-align: center; padding: 3%;">
+                                        <i>{% trans "No customer prices for this part yet." %}</i>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 {% if part_revision.material == 'with_loi' or part_revision.material == 'no_loi' %}
                 <div id="overview" class="col s12">

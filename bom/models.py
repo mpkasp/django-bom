@@ -1,13 +1,14 @@
 from __future__ import unicode_literals
 
 import logging
+from decimal import Decimal
 from math import ceil
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import Prefetch
+from django.db.models import Max, Prefetch, Subquery
 from django.forms import ValidationError
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -445,6 +446,13 @@ class Part(models.Model):
         ):
             return q.exclude(id=self.primary_manufacturer_part.optimal_seller().id)
         return q
+
+    def latest_customer_price(self, customer):
+        return (
+            CustomerPrice.objects.filter(part=self, customer=customer)
+            .order_by("-created_at", "-id")
+            .first()
+        )
 
     def manufacturer_parts(self, exclude_primary=False):
         q = ManufacturerPart.objects.filter(part=self).select_related("manufacturer")
@@ -895,6 +903,19 @@ class PartRevision(models.Model):
         else:
             return self.indented().bom_unit_cost
 
+    def bom_unit_cost_at_quantity(self, quantity):
+        """BoM unit cost computed at an explicit top-level quantity.
+
+        Unlike the cached ``bom_unit_cost`` property, this always recomputes so
+        seller selection (via MOQ) reflects ``quantity``.
+        """
+        if self.material == "no_bom" or self.material is None:
+            seller = self.part.optimal_seller(quantity=quantity)
+            if seller:
+                return seller.unit_cost
+            return None
+        return self.indented(top_level_quantity=quantity).bom_unit_cost
+
     def clear_bom_unit_cost_cache(self):
         """Clear the cached bom_unit_cost property."""
         if "bom_unit_cost" in self.__dict__:
@@ -1270,3 +1291,114 @@ class SellerPart(models.Model, AsDictModel):
         return "%s" % (
             self.manufacturer_part.part.full_part_number() + " " + self.seller.name
         )
+
+
+class Customer(models.Model, AsDictModel):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.PROTECT, db_index=True
+    )
+    name = models.CharField(max_length=128)
+    code = models.CharField(max_length=64, blank=True, default="")
+    contact_name = models.CharField(max_length=128, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    phone = models.CharField(max_length=64, blank=True, default="")
+    address = models.TextField(blank=True, default="")
+    tax_id = models.CharField(max_length=64, blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    default_profit_percent = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )
+
+    class Meta:
+        unique_together = (("organization", "name"),)
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def effective_profit_percent(self):
+        if self.default_profit_percent is None:
+            return Decimal("0")
+        return self.default_profit_percent
+
+    def latest_prices(self):
+        """Return the newest CustomerPrice row per part for this customer."""
+        latest_ids = (
+            CustomerPrice.objects.filter(customer=self)
+            .values("part_id")
+            .annotate(max_id=Max("id"))
+            .values("max_id")
+        )
+        return (
+            CustomerPrice.objects.filter(id__in=Subquery(latest_ids))
+            .select_related("part", "part_revision", "part__number_class")
+            .order_by(
+                "part__number_class__code",
+                "part__number_item",
+                "part__number_variation",
+            )
+        )
+
+
+class CustomerPrice(models.Model, AsDictModel):
+    customer = models.ForeignKey(
+        Customer, on_delete=models.CASCADE, related_name="prices", db_index=True
+    )
+    part = models.ForeignKey(
+        Part, on_delete=models.CASCADE, related_name="customer_prices", db_index=True
+    )
+    part_revision = models.ForeignKey(
+        PartRevision,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="customer_prices",
+    )
+    quantity = models.PositiveIntegerField()
+    base_cost = MoneyField(
+        max_digits=19, decimal_places=UNIT_COST_DECIMAL_PLACES, default_currency="USD"
+    )
+    profit_percent = models.DecimalField(
+        max_digits=6, decimal_places=2, validators=[MinValueValidator(0)]
+    )
+    price = MoneyField(
+        max_digits=19, decimal_places=UNIT_COST_DECIMAL_PLACES, default_currency="USD"
+    )
+    is_manual_price = models.BooleanField(default=False)
+    note = models.TextField(blank=True, default="")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_customer_prices",
+    )
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["customer", "part", "-created_at"],
+                name="bom_cprice_cust_part_created",
+            ),
+        ]
+
+    def __str__(self):
+        return "%s / %s @ %s" % (
+            self.customer.name,
+            self.part.full_part_number(),
+            self.price,
+        )
+
+    def as_dict(self):
+        d = super().as_dict()
+        d["base_cost"] = self.base_cost.amount if self.base_cost is not None else None
+        d["price"] = self.price.amount if self.price is not None else None
+        return d

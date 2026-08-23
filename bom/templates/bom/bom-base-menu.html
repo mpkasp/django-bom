@@ -3,6 +3,7 @@
     <a class="bom-nav-link {% if name == 'products' %}bom-nav-link-active{% endif %}" title="{% trans "Products" %}" href="{% url 'bom:home' %}?product=1">{% trans "Products" %}</a>
     <a class="bom-nav-link {% if name == 'reports' %}bom-nav-link-active{% endif %}" title="{% trans "Reports" %}" href="{% url 'bom:report' %}">{% trans "Reports" %}</a>
     <a class="bom-nav-link {% if name == 'sellers' %}bom-nav-link-active{% endif %}" title="{% trans "sellers" %}" href="{% url 'bom:sellers' %}">{% trans "sellers" %}</a>
+    <a class="bom-nav-link {% if name == 'customers' %}bom-nav-link-active{% endif %}" title="{% trans "customers" %}" href="{% url 'bom:customers' %}">{% trans "customers" %}</a>
     <a class="bom-nav-link {% if name == 'settings' %}bom-nav-link-active{% endif %}" title="{% trans "settings" %}" href="{% url 'bom:settings' tab_anchor='user' %}"><i class="material-icons text-base">settings</i></a>
 {% endif %}
 <a class="bom-nav-link {% if name == 'help' %}bom-nav-link-active{% endif %}" title="{% trans "help" %}" href="{% url 'bom:help' %}"><i class="material-icons text-base">help</i></a>

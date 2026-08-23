@@ -44,6 +44,9 @@ from bom.decorators import organization_admin
 from bom.forms import (
     AddSubpartForm,
     BOMCSVForm,
+    CustomerForm,
+    CustomerPriceBulkForm,
+    CustomerPriceForm,
     FileForm,
     ManufacturerForm,
     ManufacturerPartForm,
@@ -71,6 +74,8 @@ from bom.forms import (
 from bom.models import (
     Assembly,
     AssemblySubparts,
+    Customer,
+    CustomerPrice,
     Manufacturer,
     ManufacturerPart,
     Part,
@@ -1327,6 +1332,289 @@ def seller_delete(request, seller_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+def customers(request):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    name = "customers"
+    query = request.GET.get("q", "")
+    title = _("Customers")
+
+    if query:
+        title = f"{title} - {_('Search Results')}"
+
+    customers = (
+        Customer.objects.filter(organization=organization, name__icontains=query)
+        .annotate(price_count=Count("prices"))
+        .order_by("name")
+    )
+
+    autocomplete_dict = {customer.name: None for customer in customers}
+    autocomplete = dumps(autocomplete_dict)
+
+    paginator = Paginator(customers, 50)
+    page = request.GET.get("page")
+    try:
+        customers = paginator.page(page)
+    except PageNotAnInteger:
+        customers = paginator.page(1)
+    except EmptyPage:
+        customers = paginator.page(paginator.num_pages)
+
+    return TemplateResponse(request, "bom/customers.html", locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def customer_create(request):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    title = _("New Customer")
+    action = reverse("bom:customer-create")
+
+    if request.method == "POST":
+        form = CustomerForm(request.POST, organization=organization)
+        if form.is_valid():
+            customer = form.save()
+            messages.success(request, _("Customer created."))
+            return HttpResponseRedirect(
+                reverse("bom:customer-info", kwargs={"customer_id": customer.id})
+            )
+    else:
+        form = CustomerForm(organization=organization)
+
+    return TemplateResponse(request, "bom/bom-form.html", locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def customer_info(request, customer_id):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    customer = get_object_or_404(Customer, pk=customer_id)
+
+    if customer.organization != organization:
+        messages.error(request, _("Can't access a customer that is not yours!"))
+        return HttpResponseRedirect(reverse("bom:customers"))
+
+    latest_prices = customer.latest_prices()
+    price_history = (
+        CustomerPrice.objects.filter(customer=customer)
+        .select_related("part", "part_revision", "created_by")
+        .order_by("-created_at", "-id")
+    )
+
+    paginator = Paginator(price_history, 50)
+    page = request.GET.get("page")
+    try:
+        price_history = paginator.page(page)
+    except PageNotAnInteger:
+        price_history = paginator.page(1)
+    except EmptyPage:
+        price_history = paginator.page(paginator.num_pages)
+
+    return TemplateResponse(request, "bom/customer-info.html", locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def customer_edit(request, customer_id):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    customer = get_object_or_404(Customer, pk=customer_id)
+
+    if customer.organization != organization:
+        messages.error(request, _("Can't access a customer that is not yours!"))
+        return HttpResponseRedirect(reverse("bom:customers"))
+
+    title = _("Edit Customer")
+    action = reverse("bom:customer-edit", kwargs={"customer_id": customer_id})
+
+    if request.method == "POST":
+        form = CustomerForm(
+            request.POST, instance=customer, organization=organization
+        )
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("Customer updated."))
+            return HttpResponseRedirect(
+                reverse("bom:customer-info", kwargs={"customer_id": customer_id})
+            )
+    else:
+        form = CustomerForm(instance=customer, organization=organization)
+
+    return TemplateResponse(request, "bom/bom-form.html", locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@organization_admin
+def customer_delete(request, customer_id):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    customer = get_object_or_404(Customer, pk=customer_id)
+
+    if customer.organization != organization:
+        messages.error(request, _("Can't access a customer that is not yours!"))
+        return HttpResponseRedirect(reverse("bom:customers"))
+
+    customer.delete()
+    messages.success(request, _("Customer deleted."))
+    return HttpResponseRedirect(reverse("bom:customers"))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def customer_price_create(request, customer_id):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    customer = get_object_or_404(Customer, pk=customer_id)
+
+    if customer.organization != organization:
+        messages.error(request, _("Can't access a customer that is not yours!"))
+        return HttpResponseRedirect(reverse("bom:customers"))
+
+    title = _("Add Customer Price")
+    action = reverse(
+        "bom:customer-price-create", kwargs={"customer_id": customer_id}
+    )
+    initial = {}
+    part_id = request.GET.get("part_id")
+    if part_id:
+        initial["part"] = part_id
+
+    if request.method == "POST":
+        form = CustomerPriceForm(
+            request.POST,
+            organization=organization,
+            customer=customer,
+            user=request.user,
+        )
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("Customer price recorded."))
+            return HttpResponseRedirect(
+                reverse("bom:customer-info", kwargs={"customer_id": customer_id})
+            )
+    else:
+        form = CustomerPriceForm(
+            organization=organization,
+            customer=customer,
+            user=request.user,
+            initial=initial,
+        )
+
+    return TemplateResponse(request, "bom/bom-form.html", locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def customer_price_bulk_create(request, customer_id):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    customer = get_object_or_404(Customer, pk=customer_id)
+
+    if customer.organization != organization:
+        messages.error(request, _("Can't access a customer that is not yours!"))
+        return HttpResponseRedirect(reverse("bom:customers"))
+
+    title = _("Generate Customer Prices")
+    action = reverse(
+        "bom:customer-price-bulk-create", kwargs={"customer_id": customer_id}
+    )
+
+    if request.method == "POST":
+        form = CustomerPriceBulkForm(
+            request.POST,
+            organization=organization,
+            customer=customer,
+            user=request.user,
+        )
+        if form.is_valid():
+            created, skipped = form.save()
+            messages.success(
+                request,
+                _("Created %(created)d prices; skipped %(skipped)d.")
+                % {"created": len(created), "skipped": len(skipped)},
+            )
+            return HttpResponseRedirect(
+                reverse("bom:customer-info", kwargs={"customer_id": customer_id})
+            )
+    else:
+        form = CustomerPriceBulkForm(
+            organization=organization,
+            customer=customer,
+            user=request.user,
+        )
+
+    return TemplateResponse(request, "bom/bom-form.html", locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@organization_admin
+def customer_price_delete(request, customer_price_id):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    customer_price = get_object_or_404(CustomerPrice, pk=customer_price_id)
+
+    if customer_price.customer.organization != organization:
+        messages.error(request, _("Can't access a customer that is not yours!"))
+        return HttpResponseRedirect(reverse("bom:customers"))
+
+    customer_id = customer_price.customer_id
+    customer_price.delete()
+    messages.success(request, _("Customer price deleted."))
+    return HttpResponseRedirect(
+        reverse("bom:customer-info", kwargs={"customer_id": customer_id})
+    )
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def customer_export_prices(request, customer_id):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    customer = get_object_or_404(Customer, pk=customer_id)
+
+    if customer.organization != organization:
+        messages.error(request, _("Can't access a customer that is not yours!"))
+        return HttpResponseRedirect(reverse("bom:customers"))
+
+    export_format = request.GET.get("format", "xlsx")
+    rows = []
+    for row in customer.latest_prices():
+        rows.append(
+            {
+                "کد متریال": row.part.full_part_number(),
+                "متریال": (
+                    row.part_revision.description if row.part_revision else ""
+                ),
+                "ورژن": (
+                    row.part_revision.revision if row.part_revision else ""
+                ),
+                "تعداد": row.quantity,
+                "هزینه پایه": (
+                    row.base_cost.amount if row.base_cost is not None else None
+                ),
+                "درصد سود": row.profit_percent,
+                "قیمت": row.price.amount if row.price is not None else None,
+                "دستی": _("Yes") if row.is_manual_price else _("No"),
+                "یادداشت": row.note,
+                "تاریخ": row.created_at,
+            }
+        )
+
+    df = pd.DataFrame(rows)
+    if export_format == "csv":
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            f'attachment; filename="customer_{customer.id}_prices.csv"'
+        )
+        df.to_csv(response, index=False)
+    else:
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="customer_{customer.id}_prices.xlsx"'
+        )
+        df.to_excel(response, index=False)
+    return response
+
+
+@login_required(login_url=BOM_LOGIN_URL)
 def user_meta_edit(request, user_meta_id):
     user = request.user
     profile = user.bom_profile()
@@ -1449,6 +1737,14 @@ def part_info(request, part_id, part_revision_id=None):
 
     where_used_part = part.where_used()
     seller_parts = part.seller_parts()
+    customer_prices = (
+        CustomerPrice.objects.filter(part=part, customer__organization=organization)
+        .select_related("customer", "part_revision", "created_by")
+        .order_by("customer__name", "-created_at", "-id")
+    )
+    customers = Customer.objects.filter(
+        organization=organization, is_active=True
+    ).order_by("name")
     return TemplateResponse(request, "bom/part-info.html", locals())
 
 

@@ -1,0 +1,93 @@
+{% extends 'bom/bom-base.html' %}
+
+{% load static %}
+{% load bom_forms %}
+
+{% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
+
+{% block main %}
+{% endblock %}
+
+{% block content %}
+    <div class="container-app">
+        <form id="searchForm" name="search-form" action="{% url 'bom:customers' %}" method="get" enctype="multipart/form-data" class="bom-panel-pad mb-4">
+            {% csrf_token %}
+            <div class="row items-end">
+                <div class="col s12 m8">
+                    <label class="bom-label" for="autocomplete-input">{% trans "Search customers:" %}</label>
+                    <input type="search" id="autocomplete-input" autocomplete="off" class="bom-input autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
+                </div>
+                <div class="col s12 m4 flex flex-wrap items-end gap-1 self-end">
+                    <button type="submit" class="bom-btn-primary" name="action">{% trans "Search" %}</button>
+                    {% if query %}
+                        <button type="button" class="bom-btn-icon" onclick="clearSearchExpression()" title="{% trans "Clear" %}"><i class="material-icons">clear</i></button>
+                    {% endif %}
+                    <a class="bom-btn-secondary" href="{% url 'bom:customer-create' %}"><i class="material-icons left">add</i>{% trans "New Customer" %}</a>
+                </div>
+            </div>
+        </form>
+            <div class="part-list push-footer">
+                <div class="bom-table-wrap responsive-table-wrapper">
+                    <table class="bom-table part-list single-line">
+                        <thead>
+                        <tr>
+                            <th class="text-normal td-med">{% trans "Customer" %}</th>
+                            <th class="text-normal td-med">{% trans "Code" %}</th>
+                            <th class="text-normal td-med">{% trans "Default Profit %" %}</th>
+                            <th class="text-normal td-med">{% trans "Prices" %}</th>
+                            <th class="text-normal td-med">{% trans "Active" %}</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for customer in customers %}
+                            <tr>
+                                <td class="text-normal td-med"><a href="{% url 'bom:customer-info' customer_id=customer.id %}">{{ customer.name|default:"<i>No name</i>" }}</a></td>
+                                <td class="text-normal td-med">{{ customer.code|default:"-" }}</td>
+                                <td class="text-normal td-med">{{ customer.effective_profit_percent }}</td>
+                                <td class="text-normal td-med">{{ customer.price_count }}</td>
+                                <td class="text-normal td-med">{% if customer.is_active %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="99" style="text-align: center; padding: 5%;"><i>{% trans "No customers found." %} <a href="{% url 'bom:customer-create' %}">{% trans "Create your first customer" %}</a>.</i></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if customers.has_other_pages %}
+                    <nav class="bom-pagination printer-hide" aria-label="pagination">
+                        {% if customers.has_previous %}
+                            <a class="bom-page-link" href="?page={{ customers.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons text-base">chevron_left</i></a>
+                        {% else %}
+                            <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_left</i></span>
+                        {% endif %}
+                        {% for i in customers.paginator.page_range %}
+                            {% if customers.number == i %}
+                                <span class="bom-page-link bom-page-link-active">{{ i }}</span>
+                            {% else %}
+                                <a class="bom-page-link" href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if customers.has_next %}
+                            <a class="bom-page-link" href="?page={{ customers.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons text-base">chevron_right</i></a>
+                        {% else %}
+                            <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_right</i></span>
+                        {% endif %}
+                    </nav>
+                {% endif %}
+            </div>
+    </div>
+{% endblock %}
+
+{% block bom-script %}
+    <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
+    <script>
+        $(function () {
+            $('.responsive-table-wrapper').floatingScrollbar();
+        });
+        function clearSearchExpression() {
+            window.location.href = "{% url 'bom:customers' %}";
+        }
+    </script>
+{% endblock bom-script %}

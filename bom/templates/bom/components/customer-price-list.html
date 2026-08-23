@@ -1,0 +1,58 @@
+{% load djmoney %}
+
+<div class="bom-table-wrap responsive-table-wrapper mb-4">
+    <table class="bom-table part-list single-line">
+        <thead>
+        <tr>
+            <th class="text-normal td-med">{% trans "Part" %}</th>
+            <th class="text-normal td-med">{% trans "Quantity" %}</th>
+            <th class="text-normal td-med">{% trans "BoM Cost" %}</th>
+            <th class="text-normal td-med">{% trans "Profit %" %}</th>
+            <th class="text-normal td-med">{% trans "Price" %}</th>
+            {% if show_history %}
+                <th class="text-normal td-med">{% trans "Manual" %}</th>
+                <th class="text-normal td-med">{% trans "Created" %}</th>
+                <th class="text-normal td-med">{% trans "By" %}</th>
+            {% endif %}
+            {% if profile.role == 'A' and show_history %}
+                <th class="text-normal td-small"></th>
+            {% endif %}
+        </tr>
+        </thead>
+        <tbody>
+        {% for row in prices %}
+            <tr>
+                <td class="text-normal td-med">
+                    <a href="{% url 'bom:part-info' part_id=row.part.id %}">{{ row.part.full_part_number }}</a>
+                    {% if row.part_revision %}
+                        <div class="text-sm opacity-70">{{ row.part_revision.description }}</div>
+                    {% endif %}
+                </td>
+                <td class="text-normal td-med">{{ row.quantity }}</td>
+                <td class="text-normal td-med">{{ row.base_cost|default:"-" }}</td>
+                <td class="text-normal td-med">{{ row.profit_percent }}</td>
+                <td class="text-normal td-med">{{ row.price|default:"-" }}</td>
+                {% if show_history %}
+                    <td class="text-normal td-med">{% if row.is_manual_price %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</td>
+                    <td class="text-normal td-med">{{ row.created_at }}</td>
+                    <td class="text-normal td-med">{% if row.created_by %}{{ row.created_by.username }}{% else %}-{% endif %}</td>
+                {% endif %}
+                {% if profile.role == 'A' and show_history %}
+                    <td class="text-normal td-small">
+                        <a class="red-text" href="{% url 'bom:customer-price-delete' customer_price_id=row.id %}"
+                           onclick="return confirm('{% trans "Delete this price record?" %}');">
+                            <i class="material-icons text-base">delete</i>
+                        </a>
+                    </td>
+                {% endif %}
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="99" style="text-align: center; padding: 3%;">
+                    <i>{% if show_history %}{% trans "No price history yet." %}{% else %}{% trans "No current prices." %}{% endif %}</i>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

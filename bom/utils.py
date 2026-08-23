@@ -1,5 +1,10 @@
 import re
 import tomllib
+from decimal import ROUND_HALF_UP, Decimal
+
+from djmoney.money import Money
+
+from bom.constants import UNIT_COST_DECIMAL_PLACES
 
 
 def increment_char(c):
@@ -266,3 +271,49 @@ def get_session_part_quantity(request, part_id, default=1000):
 
 def set_session_part_quantity(request, part_id, quantity):
     request.session[f"part_qty_{part_id}"] = int(quantity)
+
+
+def _money_amount(value):
+    if value is None:
+        return None
+    if isinstance(value, Money):
+        return Decimal(value.amount)
+    return Decimal(value)
+
+
+def apply_profit(base_cost, profit_percent, currency=None):
+    """Markup on cost: price = base_cost * (1 + profit_percent / 100).
+
+    Quantizes to UNIT_COST_DECIMAL_PLACES with ROUND_HALF_UP.
+    Returns a Money when ``currency`` is given or ``base_cost`` is Money;
+    otherwise returns a Decimal.
+    """
+    amount = _money_amount(base_cost)
+    if amount is None:
+        return None
+    percent = Decimal("0") if profit_percent is None else Decimal(profit_percent)
+    price_amount = amount * (Decimal("1") + percent / Decimal("100"))
+    quantize_exp = Decimal("1").scaleb(-UNIT_COST_DECIMAL_PLACES)
+    price_amount = price_amount.quantize(quantize_exp, rounding=ROUND_HALF_UP)
+
+    resolved_currency = currency
+    if resolved_currency is None and isinstance(base_cost, Money):
+        resolved_currency = base_cost.currency
+    if resolved_currency is not None:
+        return Money(price_amount, resolved_currency)
+    return price_amount
+
+
+def implied_profit_percent(base_cost, price):
+    """Back-compute markup percent from base cost and final price.
+
+    Returns None when base cost is zero or missing.
+    """
+    base_amount = _money_amount(base_cost)
+    price_amount = _money_amount(price)
+    if base_amount is None or price_amount is None:
+        return None
+    if base_amount == 0:
+        return None
+    percent = (price_amount / base_amount - Decimal("1")) * Decimal("100")
+    return percent.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)

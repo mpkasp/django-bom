@@ -37,6 +37,37 @@ bom_patterns = [
     path("seller/<int:seller_id>/", views.seller_info, name="seller-info"),
     path("seller/<int:seller_id>/edit/", views.seller_edit, name="seller-edit"),
     path("seller/<int:seller_id>/delete/", views.seller_delete, name="seller-delete"),
+    path("customers/", views.customers, name="customers"),
+    path("customers/create/", views.customer_create, name="customer-create"),
+    path("customer/<int:customer_id>/", views.customer_info, name="customer-info"),
+    path(
+        "customer/<int:customer_id>/edit/", views.customer_edit, name="customer-edit"
+    ),
+    path(
+        "customer/<int:customer_id>/delete/",
+        views.customer_delete,
+        name="customer-delete",
+    ),
+    path(
+        "customer/<int:customer_id>/prices/create/",
+        views.customer_price_create,
+        name="customer-price-create",
+    ),
+    path(
+        "customer/<int:customer_id>/prices/bulk/",
+        views.customer_price_bulk_create,
+        name="customer-price-bulk-create",
+    ),
+    path(
+        "customer/<int:customer_id>/prices/export/",
+        views.customer_export_prices,
+        name="customer-export-prices",
+    ),
+    path(
+        "customer-price/<int:customer_price_id>/delete/",
+        views.customer_price_delete,
+        name="customer-price-delete",
+    ),
     path("export/", views.export_part_list, name="export-part-list"),
     path(
         "user-meta/<int:user_meta_id>/edit/",

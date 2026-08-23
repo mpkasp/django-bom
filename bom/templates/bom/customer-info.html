@@ -1,0 +1,89 @@
+{% extends 'bom/bom-base.html' %}
+
+{% load static %}
+{% load djmoney %}
+
+{% block head-title %}{{ customer.name }}{% endblock %}
+
+{% block content %}
+    <div class="container-app">
+        <div class="row" style="margin-bottom: 5px;">
+            <div class="col m8 hide-on-small-and-down">
+                <h3 class="light">{% trans "Customer" %}: {{ customer.name }}</h3>
+                <a href="{% url 'bom:customers' %}">{% trans "Back to customers" %}</a>
+            </div>
+            <div class="col m4 s12">
+                {% if profile.role == 'A' %}
+                    <div style="margin-top: 1.5rem;" class="flex flex-wrap gap-1 justify-end">
+                        <a class="bom-btn-secondary" href="{% url 'bom:customer-edit' customer_id=customer.id %}">
+                            <i class="material-icons left">edit</i>{% trans "Edit" %}
+                        </a>
+                        <a class="bom-btn-secondary" href="{% url 'bom:customer-price-create' customer_id=customer.id %}">
+                            <i class="material-icons left">add</i>{% trans "Add Price" %}
+                        </a>
+                        <a class="bom-btn-secondary" href="{% url 'bom:customer-price-bulk-create' customer_id=customer.id %}">
+                            <i class="material-icons left">playlist_add</i>{% trans "Generate Prices" %}
+                        </a>
+                        <a class="bom-btn-secondary" href="{% url 'bom:customer-export-prices' customer_id=customer.id %}?format=xlsx">
+                            <i class="material-icons left">file_download</i>{% trans "Export" %}
+                        </a>
+                        <a class="bom-btn-secondary red-text" onclick="deleteCustomer()">
+                            <i class="material-icons left">delete</i>{% trans "Delete" %}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <ul class="collection with-header bom-panel mb-4">
+            <li class="collection-header"><h5>{% trans "Customer details" %}</h5></li>
+            <li class="collection-item">
+                <div class="row"><div class="col s4 l2 text-right">{% trans "Code" %}:</div><div class="col s8 l10">{{ customer.code|default:"-" }}</div></div>
+                <div class="row"><div class="col s4 l2 text-right">{% trans "Contact" %}:</div><div class="col s8 l10">{{ customer.contact_name|default:"-" }}</div></div>
+                <div class="row"><div class="col s4 l2 text-right">{% trans "Email" %}:</div><div class="col s8 l10">{{ customer.email|default:"-" }}</div></div>
+                <div class="row"><div class="col s4 l2 text-right">{% trans "Phone" %}:</div><div class="col s8 l10">{{ customer.phone|default:"-" }}</div></div>
+                <div class="row"><div class="col s4 l2 text-right">{% trans "Default Profit %" %}:</div><div class="col s8 l10">{{ customer.effective_profit_percent }}</div></div>
+                <div class="row"><div class="col s4 l2 text-right">{% trans "Notes" %}:</div><div class="col s8 l10">{{ customer.notes|default:"-" }}</div></div>
+            </li>
+        </ul>
+
+        <h5 class="mb-2">{% trans "Current prices" %}</h5>
+        {% include 'bom/components/customer-price-list.html' with prices=latest_prices show_history=False profile=profile %}
+
+        <h5 class="mb-2 mt-4">{% trans "Price history" %}</h5>
+        {% include 'bom/components/customer-price-list.html' with prices=price_history show_history=True profile=profile %}
+
+        {% if price_history.has_other_pages %}
+            <nav class="bom-pagination printer-hide" aria-label="pagination">
+                {% if price_history.has_previous %}
+                    <a class="bom-page-link" href="?page={{ price_history.previous_page_number }}"><i class="material-icons text-base">chevron_left</i></a>
+                {% else %}
+                    <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_left</i></span>
+                {% endif %}
+                {% for i in price_history.paginator.page_range %}
+                    {% if price_history.number == i %}
+                        <span class="bom-page-link bom-page-link-active">{{ i }}</span>
+                    {% else %}
+                        <a class="bom-page-link" href="?page={{ i }}">{{ i }}</a>
+                    {% endif %}
+                {% endfor %}
+                {% if price_history.has_next %}
+                    <a class="bom-page-link" href="?page={{ price_history.next_page_number }}"><i class="material-icons text-base">chevron_right</i></a>
+                {% else %}
+                    <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_right</i></span>
+                {% endif %}
+            </nav>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block bom-script %}
+<script>
+    function deleteCustomer() {
+        let url = "{% url 'bom:customer-delete' customer_id=customer.id %}";
+        if (confirm("{% trans "Warning! Delete this customer and all of its price history?" %}")) {
+            window.location.href = url;
+        }
+    }
+</script>
+{% endblock %}

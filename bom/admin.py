@@ -4,6 +4,8 @@ from django.contrib.auth.admin import UserAdmin
 
 from .models import (
     Assembly,
+    Customer,
+    CustomerPrice,
     Manufacturer,
     ManufacturerPart,
     Organization,
@@ -47,6 +49,34 @@ class SubpartInline(admin.TabularInline):
 
 class SellerAdmin(admin.ModelAdmin):
     list_display = ("name",)
+
+
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "organization",
+        "code",
+        "default_profit_percent",
+        "is_active",
+    )
+    list_filter = ("is_active", "organization")
+    search_fields = ("name", "code", "contact_name", "email")
+
+
+class CustomerPriceAdmin(admin.ModelAdmin):
+    list_display = (
+        "customer",
+        "part",
+        "quantity",
+        "base_cost",
+        "profit_percent",
+        "price",
+        "is_manual_price",
+        "created_at",
+    )
+    list_filter = ("is_manual_price", "customer__organization")
+    raw_id_fields = ("customer", "part", "part_revision", "created_by")
+    readonly_fields = ("created_at",)
 
 
 class SellerPartAdmin(admin.ModelAdmin):
@@ -184,6 +214,8 @@ admin.site.register(User, UserAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Seller, SellerAdmin)
 admin.site.register(SellerPart, SellerPartAdmin)
+admin.site.register(Customer, CustomerAdmin)
+admin.site.register(CustomerPrice, CustomerPriceAdmin)
 admin.site.register(ManufacturerPart, ManufacturerPartAdmin)
 admin.site.register(PartClass, PartClassAdmin)
 admin.site.register(Part, PartAdmin)
