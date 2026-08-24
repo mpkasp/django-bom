@@ -1,4 +1,5 @@
 {% load djmoney %}
+{% load bom_dates %}
 
 <div class="bom-table-wrap responsive-table-wrapper mb-4">
     <table class="bom-table part-list single-line">
@@ -34,7 +35,7 @@
                 <td class="text-normal td-med">{{ row.price|default:"-" }}</td>
                 {% if show_history %}
                     <td class="text-normal td-med">{% if row.is_manual_price %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</td>
-                    <td class="text-normal td-med">{{ row.created_at }}</td>
+                    <td class="text-normal td-med">{{ row.created_at|jalali_datetime }}</td>
                     <td class="text-normal td-med">{% if row.created_by %}{{ row.created_by.username }}{% else %}-{% endif %}</td>
                 {% endif %}
                 {% if profile.role == 'A' and show_history %}

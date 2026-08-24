@@ -2,6 +2,7 @@
 
 {% load static %}
 {% load djmoney %}
+{% load bom_dates %}
 
 {% block head-title %}{{ part.full_part_number }}{% if part_revision %} {{ part_revision.description }}{% endif %}{% endblock %}
 
@@ -322,7 +323,7 @@
                                     <td class="text-normal td-med">{{ row.base_cost|default:"-" }}</td>
                                     <td class="text-normal td-med">{{ row.profit_percent }}</td>
                                     <td class="text-normal td-med">{{ row.price|default:"-" }}</td>
-                                    <td class="text-normal td-med">{{ row.created_at }}</td>
+                                    <td class="text-normal td-med">{{ row.created_at|jalali_datetime }}</td>
                                     <td class="text-normal td-small">
                                         {% if profile.role == 'A' %}
                                             <a href="{% url 'bom:customer-price-create' customer_id=row.customer.id %}?part_id={{ part.id }}">

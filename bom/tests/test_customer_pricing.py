@@ -39,6 +39,21 @@ class TestCustomerPricingHelpers(TransactionTestCase):
         self.assertIsNone(implied_profit_percent(Decimal("0"), Decimal("10")))
         self.assertIsNone(implied_profit_percent(None, Decimal("10")))
 
+    def test_jalali_datetime_filter(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        from django.utils import timezone
+
+        from bom.templatetags.bom_dates import jalali_datetime
+
+        self.assertEqual(jalali_datetime(None), "-")
+
+        tehran = ZoneInfo("Asia/Tehran")
+        dt = datetime(2026, 8, 23, 12, 30, tzinfo=tehran)
+        with timezone.override("Asia/Tehran"):
+            self.assertEqual(jalali_datetime(dt), "1405/06/01 12:30")
+
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestCustomerPricing(TransactionTestCase):
@@ -279,3 +294,29 @@ class TestCustomerPricing(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.customer.name)
         self.assertIn("customer_prices", response.context)
+
+    def test_price_history_shows_jalali_created_at(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        from django.utils import timezone
+
+        from bom.templatetags.bom_dates import jalali_datetime
+
+        row = create_a_fake_customer_price(self.customer, self.part)
+        tehran = ZoneInfo("Asia/Tehran")
+        row.created_at = datetime(2026, 8, 23, 12, 30, tzinfo=tehran)
+        row.save(update_fields=["created_at"])
+
+        translation.activate("fa-IR")
+        with timezone.override("Asia/Tehran"):
+            expected = jalali_datetime(row.created_at)
+            response = self.client.get(
+                reverse("bom:customer-info", kwargs={"customer_id": self.customer.id})
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, expected)
+        # Gregorian localized fa_IR form (e.g. "۲۴ اوت ۲۰۲۶، ساعت ۱۲:۳۰")
+        self.assertNotContains(response, "اوت")
+        self.assertNotContains(response, "Aug. 23, 2026")
+        self.assertNotContains(response, "2026-08-23")
