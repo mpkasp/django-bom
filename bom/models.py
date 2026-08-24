@@ -18,6 +18,8 @@ from bom.part_bom_weighted import PartBomWeighted, PartBomWeightedItem
 
 from .base_classes import AsDictModel
 from .constants import (
+    CALENDAR_JALALI,
+    CALENDAR_TYPES,
     CONFIGURATION_TYPES,
     CURRENT_UNITS,
     DISTANCE_UNITS,
@@ -139,6 +141,9 @@ class UserMeta(models.Model):
         Organization, blank=True, null=True, on_delete=models.PROTECT
     )
     role = models.CharField(max_length=1, choices=ROLE_TYPES)
+    calendar = models.CharField(
+        max_length=1, choices=CALENDAR_TYPES, default=CALENDAR_JALALI
+    )
 
     def get_or_create_organization(self):
         if self.organization is None:

@@ -1,24 +1,30 @@
-from datetime import datetime
-
-import jdatetime
 from django import template
-from django.utils import timezone
+
+from bom.constants import CALENDAR_JALALI
+from bom.datetime_format import format_datetime
 
 register = template.Library()
 
 
-@register.filter
-def jalali_datetime(value):
-    """Format a datetime as Jalali in Asia/Tehran, e.g. 1405/06/01 23:30."""
-    if value is None:
-        return "-"
-    if isinstance(value, str):
-        return value
-    if not isinstance(value, datetime):
-        return "-"
-    if timezone.is_aware(value):
-        value = timezone.localtime(value)
-    elif timezone.is_naive(value):
-        value = timezone.make_aware(value, timezone.get_current_timezone())
-    jalali = jdatetime.datetime.fromgregorian(datetime=value)
-    return jalali.strftime("%Y/%m/%d %H:%M")
+def _resolve_calendar(context, calendar=None):
+    if calendar:
+        return calendar
+    profile = context.get("profile")
+    if profile is not None and getattr(profile, "calendar", None):
+        return profile.calendar
+    request = context.get("request")
+    if request is not None and getattr(request, "user", None) and request.user.is_authenticated:
+        return request.user.bom_profile().calendar
+    return CALENDAR_JALALI
+
+
+@register.simple_tag(takes_context=True)
+def user_datetime(context, value, calendar=None):
+    """Format a datetime using the current user's calendar preference."""
+    return format_datetime(value, calendar=_resolve_calendar(context, calendar))
+
+
+@register.filter(name="user_datetime")
+def user_datetime_filter(value, calendar=CALENDAR_JALALI):
+    """Filter form: {{ dt|user_datetime:profile.calendar }}."""
+    return format_datetime(value, calendar=calendar or CALENDAR_JALALI)

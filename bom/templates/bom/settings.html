@@ -37,6 +37,15 @@
                     {{ user_form.email|bom_form:'s12 m4' }}
                 </div>
                 <div class="row">
+                    <div class="col s12 m4">
+                        <label class="bom-label" for="id_calendar">{% trans "Calendar" %}</label>
+                        <select class="bom-select" name="calendar" id="id_calendar">
+                            <option value="J" {% if profile.calendar == "J" %}selected{% endif %}>{% trans "Jalali" %}</option>
+                            <option value="G" {% if profile.calendar == "G" %}selected{% endif %}>{% trans "Gregorian" %}</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
                     <div class="col s12 right-align">
                         <button class="bom-btn-primary" type="submit" name="submit-edit-user">{% trans "Save" %}</button>
                     </div>

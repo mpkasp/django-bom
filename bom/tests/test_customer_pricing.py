@@ -39,20 +39,28 @@ class TestCustomerPricingHelpers(TransactionTestCase):
         self.assertIsNone(implied_profit_percent(Decimal("0"), Decimal("10")))
         self.assertIsNone(implied_profit_percent(None, Decimal("10")))
 
-    def test_jalali_datetime_filter(self):
+    def test_format_datetime_helper(self):
         from datetime import datetime
         from zoneinfo import ZoneInfo
 
         from django.utils import timezone
 
-        from bom.templatetags.bom_dates import jalali_datetime
+        from bom.constants import CALENDAR_GREGORIAN, CALENDAR_JALALI
+        from bom.datetime_format import format_datetime
 
-        self.assertEqual(jalali_datetime(None), "-")
+        self.assertEqual(format_datetime(None), "-")
 
         tehran = ZoneInfo("Asia/Tehran")
         dt = datetime(2026, 8, 23, 12, 30, tzinfo=tehran)
         with timezone.override("Asia/Tehran"):
-            self.assertEqual(jalali_datetime(dt), "1405/06/01 12:30")
+            self.assertEqual(
+                format_datetime(dt, calendar=CALENDAR_JALALI),
+                "۱۴۰۵/۶/۱, ۱۲:۳۰",
+            )
+            self.assertEqual(
+                format_datetime(dt, calendar=CALENDAR_GREGORIAN),
+                "2026/8/23, 12:30",
+            )
 
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
@@ -301,16 +309,19 @@ class TestCustomerPricing(TransactionTestCase):
 
         from django.utils import timezone
 
-        from bom.templatetags.bom_dates import jalali_datetime
+        from bom.constants import CALENDAR_JALALI
+        from bom.datetime_format import format_datetime
 
         row = create_a_fake_customer_price(self.customer, self.part)
         tehran = ZoneInfo("Asia/Tehran")
         row.created_at = datetime(2026, 8, 23, 12, 30, tzinfo=tehran)
         row.save(update_fields=["created_at"])
+        self.profile.calendar = CALENDAR_JALALI
+        self.profile.save(update_fields=["calendar"])
 
         translation.activate("fa-IR")
         with timezone.override("Asia/Tehran"):
-            expected = jalali_datetime(row.created_at)
+            expected = format_datetime(row.created_at, calendar=CALENDAR_JALALI)
             response = self.client.get(
                 reverse("bom:customer-info", kwargs={"customer_id": self.customer.id})
             )
@@ -320,3 +331,74 @@ class TestCustomerPricing(TransactionTestCase):
         self.assertNotContains(response, "اوت")
         self.assertNotContains(response, "Aug. 23, 2026")
         self.assertNotContains(response, "2026-08-23")
+
+    def test_price_history_respects_gregorian_calendar_preference(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        from django.utils import timezone
+
+        from bom.constants import CALENDAR_GREGORIAN, CALENDAR_JALALI
+        from bom.datetime_format import format_datetime
+
+        row = create_a_fake_customer_price(self.customer, self.part)
+        tehran = ZoneInfo("Asia/Tehran")
+        row.created_at = datetime(2026, 8, 23, 12, 30, tzinfo=tehran)
+        row.save(update_fields=["created_at"])
+        self.profile.calendar = CALENDAR_GREGORIAN
+        self.profile.save(update_fields=["calendar"])
+
+        with timezone.override("Asia/Tehran"):
+            expected = format_datetime(row.created_at, calendar=CALENDAR_GREGORIAN)
+            response = self.client.get(
+                reverse("bom:customer-info", kwargs={"customer_id": self.customer.id})
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, expected)
+        self.assertNotContains(
+            response, format_datetime(row.created_at, calendar=CALENDAR_JALALI)
+        )
+
+    def test_settings_saves_calendar_preference(self):
+        from bom.constants import CALENDAR_GREGORIAN
+
+        response = self.client.post(
+            reverse("bom:settings", kwargs={"tab_anchor": "user"}),
+            {
+                "submit-edit-user": "",
+                "first_name": self.user.first_name,
+                "last_name": self.user.last_name,
+                "email": self.user.email,
+                "calendar": CALENDAR_GREGORIAN,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.calendar, CALENDAR_GREGORIAN)
+
+    def test_part_info_version_status_uses_user_datetime(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        from django.utils import timezone
+
+        from bom.constants import CALENDAR_JALALI
+        from bom.datetime_format import format_datetime
+
+        part_revision = self.part.latest()
+        tehran = ZoneInfo("Asia/Tehran")
+        part_revision.timestamp = datetime(2026, 8, 23, 12, 30, tzinfo=tehran)
+        part_revision.save(update_fields=["timestamp"])
+        self.profile.calendar = CALENDAR_JALALI
+        self.profile.save(update_fields=["calendar"])
+
+        with timezone.override("Asia/Tehran"):
+            expected = format_datetime(
+                part_revision.timestamp, calendar=CALENDAR_JALALI
+            )
+            response = self.client.get(
+                reverse("bom:part-info", kwargs={"part_id": self.part.id})
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, expected)
+        self.assertNotContains(response, "specs-revision-timestamp")

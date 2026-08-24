@@ -465,3 +465,12 @@ msgstr "قیمت مشتری حذف شد."
 
 msgid "Can't access a customer that is not yours!"
 msgstr "نمی‌توانید به مشتری که متعلق به شما نیست دسترسی داشته باشید!"
+
+msgid "Calendar"
+msgstr "تقویم"
+
+msgid "Jalali"
+msgstr "جلالی"
+
+msgid "Gregorian"
+msgstr "میلادی"

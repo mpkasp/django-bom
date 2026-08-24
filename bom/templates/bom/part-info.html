@@ -136,7 +136,7 @@
                             {% endif %}
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">وضعیت ورژن:</div>
-                                <div class="col s8 l10">{{ part_revision.get_configuration_display|default:'نامشخص' }}&nbsp;{% if part_revision %}(آخرین ویرایش: <span id="specs-revision-timestamp"></span>)
+                                <div class="col s8 l10">{{ part_revision.get_configuration_display|default:'نامشخص' }}&nbsp;{% if part_revision %}(آخرین ویرایش: {% user_datetime part_revision.timestamp %})
                                     {% endif %}
                                 </div>
                             </div>
@@ -323,7 +323,7 @@
                                     <td class="text-normal td-med">{{ row.base_cost|default:"-" }}</td>
                                     <td class="text-normal td-med">{{ row.profit_percent }}</td>
                                     <td class="text-normal td-med">{{ row.price|default:"-" }}</td>
-                                    <td class="text-normal td-med">{{ row.created_at|jalali_datetime }}</td>
+                                    <td class="text-normal td-med">{% user_datetime row.created_at %}</td>
                                     <td class="text-normal td-small">
                                         {% if profile.role == 'A' %}
                                             <a href="{% url 'bom:customer-price-create' customer_id=row.customer.id %}?part_id={{ part.id }}">
@@ -438,14 +438,6 @@
             }
             window.location.href = url;
         });
-    </script>
-
-    <!-- Revision timestamp to local time -->
-    <script>
-        $(document).ready(function () {
-            let revision_configuration_date = new Date("{{ part_revision.timestamp.isoformat }}")
-            $("#specs-revision-timestamp").text(revision_configuration_date.toLocaleString("fa"));
-        })
     </script>
 
     <!-- Confirmation popups?  -->

@@ -929,6 +929,13 @@ def bom_settings(request, tab_anchor=None):
             user_form = UserForm(request.POST, instance=user)
             if user_form.is_valid():
                 user = user_form.save()
+                calendar = request.POST.get("calendar")
+                if calendar in (
+                    constants.CALENDAR_JALALI,
+                    constants.CALENDAR_GREGORIAN,
+                ):
+                    profile.calendar = calendar
+                    profile.save(update_fields=["calendar"])
             else:
                 messages.error(request, user_form.errors)
 
