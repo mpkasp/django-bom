@@ -1509,6 +1509,44 @@ def customer_price_create(request, customer_id):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@organization_admin
+def part_customer_price_create(request, part_id):
+    profile = request.user.bom_profile()
+    organization = profile.organization
+    part = get_object_or_404(Part, pk=part_id)
+
+    if part.organization != organization:
+        messages.error(request, _("Can't access a part that is not yours!"))
+        return HttpResponseRedirect(reverse("bom:home"))
+
+    title = _("Add Customer Price")
+    action = reverse(
+        "bom:part-customer-price-create", kwargs={"part_id": part_id}
+    )
+    part_info_url = reverse("bom:part-info", kwargs={"part_id": part_id})
+
+    if request.method == "POST":
+        form = CustomerPriceForm(
+            request.POST,
+            organization=organization,
+            part=part,
+            user=request.user,
+        )
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("Customer price recorded."))
+            return HttpResponseRedirect(f"{part_info_url}#customers")
+    else:
+        form = CustomerPriceForm(
+            organization=organization,
+            part=part,
+            user=request.user,
+        )
+
+    return TemplateResponse(request, "bom/bom-form.html", locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
 def customer_price_bulk_create(request, customer_id):
     profile = request.user.bom_profile()
     organization = profile.organization
@@ -1591,7 +1629,6 @@ def customer_export_prices(request, customer_id):
                 "ورژن": (
                     row.part_revision.revision if row.part_revision else ""
                 ),
-                "تعداد": row.quantity,
                 "هزینه پایه": (
                     row.base_cost.amount if row.base_cost is not None else None
                 ),

@@ -108,7 +108,7 @@ class TestCustomerPricing(TransactionTestCase):
 
     def test_customer_price_create_derived(self):
         part_revision = self.part.latest()
-        base_cost = part_revision.bom_unit_cost_at_quantity(1000)
+        base_cost = part_revision.bom_unit_cost_at_quantity(1)
         self.assertIsNotNone(base_cost)
 
         response = self.client.post(
@@ -117,7 +117,6 @@ class TestCustomerPricing(TransactionTestCase):
             ),
             {
                 "part": self.part.id,
-                "quantity": 1000,
                 "profit_percent": "20",
                 "price": "",
                 "note": "auto",
@@ -125,13 +124,15 @@ class TestCustomerPricing(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 302)
         row = CustomerPrice.objects.get(customer=self.customer, part=self.part)
+        self.assertEqual(row.quantity, 1)
         self.assertFalse(row.is_manual_price)
         self.assertEqual(row.profit_percent, Decimal("20.00"))
         self.assertEqual(row.price, apply_profit(row.base_cost, row.profit_percent))
+        self.assertEqual(row.base_cost, base_cost)
 
     def test_customer_price_create_manual_back_computes_percent(self):
         part_revision = self.part.latest()
-        base_cost = part_revision.bom_unit_cost_at_quantity(1000)
+        base_cost = part_revision.bom_unit_cost_at_quantity(1)
         manual_price = apply_profit(base_cost, Decimal("50")).amount
 
         response = self.client.post(
@@ -140,7 +141,6 @@ class TestCustomerPricing(TransactionTestCase):
             ),
             {
                 "part": self.part.id,
-                "quantity": 1000,
                 "price": str(manual_price),
                 "note": "manual",
             },
@@ -149,6 +149,7 @@ class TestCustomerPricing(TransactionTestCase):
             form = response.context.get("form")
             self.fail(f"Expected redirect, got {response.status_code}: {getattr(form, 'errors', None)}")
         row = CustomerPrice.objects.get(customer=self.customer, part=self.part)
+        self.assertEqual(row.quantity, 1)
         self.assertTrue(row.is_manual_price)
         self.assertEqual(row.profit_percent, Decimal("50.00"))
 
@@ -159,7 +160,6 @@ class TestCustomerPricing(TransactionTestCase):
             ),
             {
                 "part": self.part.id,
-                "quantity": 1000,
                 "profit_percent": "",
                 "price": "",
                 "note": "",
@@ -167,6 +167,7 @@ class TestCustomerPricing(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 302)
         row = CustomerPrice.objects.get(customer=self.customer, part=self.part)
+        self.assertEqual(row.quantity, 1)
         self.assertEqual(row.profit_percent, Decimal("25.00"))
 
     def test_latest_prices_returns_newest_per_part(self):
@@ -182,7 +183,7 @@ class TestCustomerPricing(TransactionTestCase):
         self.assertEqual(self.part.latest_customer_price(self.customer).id, newer.id)
         self.assertNotEqual(older.id, newer.id)
 
-    def test_quantity_affects_base_cost_via_seller_selection(self):
+    def test_bom_unit_cost_varies_with_quantity_via_seller_selection(self):
         from bom.models import SellerPart
 
         sellers = create_some_fake_sellers(self.organization)
@@ -210,11 +211,11 @@ class TestCustomerPricing(TransactionTestCase):
         part_revision.material = "no_bom"
         part_revision.save()
 
-        low_qty_cost = part_revision.bom_unit_cost_at_quantity(10)
+        unit_cost = part_revision.bom_unit_cost_at_quantity(1)
         high_qty_cost = part_revision.bom_unit_cost_at_quantity(10000)
-        self.assertIsNotNone(low_qty_cost)
+        self.assertIsNotNone(unit_cost)
         self.assertIsNotNone(high_qty_cost)
-        self.assertNotEqual(low_qty_cost.amount, high_qty_cost.amount)
+        self.assertNotEqual(unit_cost.amount, high_qty_cost.amount)
 
     def test_cross_org_isolation(self):
         other_user = User.objects.create_user(
@@ -292,6 +293,7 @@ class TestCustomerPricing(TransactionTestCase):
         body = response.content.decode("utf-8")
         self.assertIn("کد متریال", body)
         self.assertIn("قیمت", body)
+        self.assertNotIn("تعداد", body)
         self.assertIn(self.part.full_part_number(), body)
 
     def test_part_info_customers_tab_context(self):
@@ -302,6 +304,54 @@ class TestCustomerPricing(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.customer.name)
         self.assertIn("customer_prices", response.context)
+        self.assertContains(
+            response,
+            reverse(
+                "bom:part-customer-price-create", kwargs={"part_id": self.part.id}
+            ),
+        )
+
+    def test_part_customer_price_create(self):
+        response = self.client.get(
+            reverse(
+                "bom:part-customer-price-create", kwargs={"part_id": self.part.id}
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.customer.name)
+
+        response = self.client.post(
+            reverse(
+                "bom:part-customer-price-create", kwargs={"part_id": self.part.id}
+            ),
+            {
+                "customer": self.customer.id,
+                "profit_percent": "15",
+                "price": "",
+                "note": "from part",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse("bom:part-info", kwargs={"part_id": self.part.id}) + "#customers",
+        )
+        row = CustomerPrice.objects.get(customer=self.customer, part=self.part)
+        self.assertEqual(row.quantity, 1)
+        self.assertEqual(row.profit_percent, Decimal("15.00"))
+        self.assertEqual(row.note, "from part")
+
+    def test_viewer_cannot_create_part_customer_price(self):
+        self.profile.role = "V"
+        self.profile.save()
+        response = self.client.get(
+            reverse(
+                "bom:part-customer-price-create", kwargs={"part_id": self.part.id}
+            ),
+            HTTP_REFERER=reverse("bom:part-info", kwargs={"part_id": self.part.id}),
+        )
+        self.assertIn(response.status_code, (302, 307))
+        self.assertFalse(CustomerPrice.objects.exists())
 
     def test_price_history_shows_jalali_created_at(self):
         from datetime import datetime

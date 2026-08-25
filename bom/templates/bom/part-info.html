@@ -305,7 +305,6 @@
                             <thead>
                             <tr>
                                 <th class="text-normal td-med">{% trans "Customer" %}</th>
-                                <th class="text-normal td-med">{% trans "Quantity" %}</th>
                                 <th class="text-normal td-med">{% trans "BoM Cost" %}</th>
                                 <th class="text-normal td-med">{% trans "Profit %" %}</th>
                                 <th class="text-normal td-med">{% trans "Price" %}</th>
@@ -319,7 +318,6 @@
                                     <td class="text-normal td-med">
                                         <a href="{% url 'bom:customer-info' customer_id=row.customer.id %}">{{ row.customer.name }}</a>
                                     </td>
-                                    <td class="text-normal td-med">{{ row.quantity }}</td>
                                     <td class="text-normal td-med">{{ row.base_cost|default:"-" }}</td>
                                     <td class="text-normal td-med">{{ row.profit_percent }}</td>
                                     <td class="text-normal td-med">{{ row.price|default:"-" }}</td>
@@ -342,6 +340,14 @@
                             </tbody>
                         </table>
                     </div>
+                    {% if profile.role == 'A' %}
+                        <div class="row" style="padding-top: 16px;">
+                            <div class="col s12 center-align">
+                                <a class="bom-btn-secondary"
+                                   href="{% url 'bom:part-customer-price-create' part_id=part.id %}">{% trans "Add Price" %}</a>
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
                 {% if part_revision.material == 'with_loi' or part_revision.material == 'no_loi' %}
                 <div id="overview" class="col s12">

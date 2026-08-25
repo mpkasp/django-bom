@@ -167,7 +167,7 @@ def create_a_fake_customer(
 def create_a_fake_customer_price(
     customer,
     part,
-    quantity=1000,
+    quantity=1,
     profit_percent=None,
     price=None,
     is_manual_price=False,

@@ -548,24 +548,40 @@ class CustomerForm(forms.ModelForm):
 
 
 class CustomerPriceForm(forms.ModelForm):
+    UNIT_QUANTITY = 1
     price = forms.DecimalField(required=False, min_value=0)
 
     class Meta:
         model = CustomerPrice
-        fields = ["part", "quantity", "profit_percent", "price", "note"]
+        fields = ["part", "profit_percent", "price", "note"]
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop("organization", None)
         self.customer = kwargs.pop("customer", None)
+        self.part = kwargs.pop("part", None)
         self.user = kwargs.pop("user", None)
         currency_unit_txt = self.organization.currency if self.organization else ""
         super().__init__(*args, **kwargs)
-        self.fields["part"].queryset = Part.objects.filter(
-            organization=self.organization
-        ).order_by("number_class__code", "number_item", "number_variation")
-        self.fields["part"].label = _("Part")
-        self.fields["quantity"].label = _("Quantity")
-        self.fields["quantity"].initial = 1000
+
+        if self.part is not None:
+            # Part-scoped: lock part, ask for customer.
+            self.fields.pop("part", None)
+            self.fields["customer"] = forms.ModelChoiceField(
+                queryset=Customer.objects.filter(
+                    organization=self.organization, is_active=True
+                ).order_by("name"),
+                label=_("Customer"),
+                required=True,
+            )
+            # Keep field order: customer, profit, price, note
+            field_order = ["customer", "profit_percent", "price", "note"]
+            self.order_fields(field_order)
+        else:
+            self.fields["part"].queryset = Part.objects.filter(
+                organization=self.organization
+            ).order_by("number_class__code", "number_item", "number_variation")
+            self.fields["part"].label = _("Part")
+
         self.fields["profit_percent"].label = _("Profit % (markup on cost)")
         self.fields["profit_percent"].required = False
         if self.customer is not None:
@@ -582,17 +598,35 @@ class CustomerPriceForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        part = cleaned_data.get("part")
-        quantity = cleaned_data.get("quantity")
+        part = self.part if self.part is not None else cleaned_data.get("part")
+        customer = (
+            cleaned_data.get("customer")
+            if self.part is not None
+            else self.customer
+        )
         profit_percent = cleaned_data.get("profit_percent")
         price = cleaned_data.get("price")
 
-        if part is None or quantity is None:
+        cleaned_data["quantity"] = self.UNIT_QUANTITY
+        cleaned_data["part"] = part
+        cleaned_data["customer"] = customer
+
+        if part is None:
             return cleaned_data
 
         if part.organization_id != self.organization.id:
             raise forms.ValidationError(
                 _("Part does not belong to your organization."), code="invalid"
+            )
+
+        if customer is None:
+            raise forms.ValidationError(
+                _("Customer is required."), code="invalid"
+            )
+
+        if customer.organization_id != self.organization.id:
+            raise forms.ValidationError(
+                _("Customer does not belong to your organization."), code="invalid"
             )
 
         part_revision = part.latest()
@@ -601,10 +635,10 @@ class CustomerPriceForm(forms.ModelForm):
                 _("Part has no revision; cannot compute BoM cost."), code="invalid"
             )
 
-        base_cost = part_revision.bom_unit_cost_at_quantity(quantity)
+        base_cost = part_revision.bom_unit_cost_at_quantity(self.UNIT_QUANTITY)
         if base_cost is None:
             raise forms.ValidationError(
-                _("No BoM cost available for this part at the given quantity."),
+                _("No BoM cost available for this part."),
                 code="invalid",
             )
 
@@ -612,11 +646,7 @@ class CustomerPriceForm(forms.ModelForm):
         cleaned_data["part_revision"] = part_revision
 
         if profit_percent is None:
-            profit_percent = (
-                self.customer.effective_profit_percent
-                if self.customer is not None
-                else Decimal("0")
-            )
+            profit_percent = customer.effective_profit_percent
             cleaned_data["profit_percent"] = profit_percent
 
         if price is not None:
@@ -643,7 +673,9 @@ class CustomerPriceForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        instance.customer = self.customer
+        instance.customer = self.cleaned_data["customer"]
+        instance.part = self.cleaned_data["part"]
+        instance.quantity = self.UNIT_QUANTITY
         instance.part_revision = self.cleaned_data["part_revision"]
         instance.base_cost = self.cleaned_data["base_cost"]
         instance.profit_percent = self.cleaned_data["profit_percent"]
@@ -657,13 +689,11 @@ class CustomerPriceForm(forms.ModelForm):
 
 
 class CustomerPriceBulkForm(forms.Form):
+    UNIT_QUANTITY = 1
     parts = forms.ModelMultipleChoiceField(
         queryset=Part.objects.none(),
         required=True,
         label=_("Parts"),
-    )
-    quantity = forms.IntegerField(
-        min_value=1, initial=1000, label=_("Quantity")
     )
     profit_percent = forms.DecimalField(
         required=False,
@@ -699,7 +729,7 @@ class CustomerPriceBulkForm(forms.Form):
             )
 
     def save(self):
-        quantity = self.cleaned_data["quantity"]
+        quantity = self.UNIT_QUANTITY
         profit_percent = self.cleaned_data.get("profit_percent")
         if profit_percent is None:
             profit_percent = (
