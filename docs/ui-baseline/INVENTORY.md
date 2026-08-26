@@ -44,3 +44,4 @@ After this migration, all app pages use Tailwind only.
 2. Include `{% static 'bom/css/app.css' %}` (not Materialize)
 3. Keep `dir="rtl"` (or inherit from a parent that does)
 4. Not load `materialize.min.css` / `materialize.min.js` on the same page as `app.css`
+5. Include `{% include 'bom/ui/page-loading.html' %}` and load `{% static 'bom/js/bom-ui.js' %}` (after jQuery) so the page-navigation progress bar still works

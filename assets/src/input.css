@@ -91,6 +91,43 @@
   display: none !important;
 }
 
+/* Indeterminate page-navigation progress bar (full document loads). */
+.bom-page-loading {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 50;
+  height: 3px;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.bom-page-loading.is-active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.bom-page-loading-bar {
+  height: 100%;
+  width: 40%;
+  background-color: var(--color-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+.bom-page-loading.is-active .bom-page-loading-bar {
+  animation: bom-page-loading-indeterminate 1s ease-in-out infinite;
+}
+
+@keyframes bom-page-loading-indeterminate {
+  0% {
+    margin-inline-start: -40%;
+  }
+  100% {
+    margin-inline-start: 100%;
+  }
+}
+
 /* Link color must live in @layer base so component buttons (e.g. a.bom-btn-primary)
    can keep white / ink text; unlayered `a {}` overrides layered text-* utilities. */
 @layer base {

@@ -259,6 +259,7 @@ where `base.html` is your base template.
 - Include `app.css` (do not load Materialize CSS or JS on the same page)
 - Keep `dir="rtl"` (or inherit it) for the Persian UI
 - Provide `{% block content %}`, `{% block head %}`, `{% block script %}`, `{% block menu %}`, and `{% block menu-mobile %}`
+- Include `{% include 'bom/ui/page-loading.html' %}` and load `bom-ui.js` after jQuery so the page-navigation progress bar still appears on slow loads
 
 ## Integrations
 

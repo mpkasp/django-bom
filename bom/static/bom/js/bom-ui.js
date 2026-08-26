@@ -1,6 +1,111 @@
 (function ($) {
   "use strict";
 
+  var pageLoadingShowTimer = null;
+  var PAGE_LOADING_DELAY_MS = 0;
+
+  function pageLoadingEl() {
+    return document.getElementById("bom-page-loading");
+  }
+
+  function showPageLoading() {
+    var el = pageLoadingEl();
+    if (!el) {
+      return;
+    }
+    el.classList.add("is-active");
+    el.setAttribute("aria-hidden", "false");
+  }
+
+  function hidePageLoading() {
+    if (pageLoadingShowTimer) {
+      clearTimeout(pageLoadingShowTimer);
+      pageLoadingShowTimer = null;
+    }
+    var el = pageLoadingEl();
+    if (!el) {
+      return;
+    }
+    el.classList.remove("is-active");
+    el.setAttribute("aria-hidden", "true");
+  }
+
+  function schedulePageLoading() {
+    if (pageLoadingShowTimer || (pageLoadingEl() && pageLoadingEl().classList.contains("is-active"))) {
+      return;
+    }
+    if (PAGE_LOADING_DELAY_MS <= 0) {
+      showPageLoading();
+      return;
+    }
+    pageLoadingShowTimer = setTimeout(function () {
+      pageLoadingShowTimer = null;
+      showPageLoading();
+    }, PAGE_LOADING_DELAY_MS);
+  }
+
+  function shouldIgnoreLinkNavigation(anchor, event) {
+    if (!anchor || !anchor.getAttribute) {
+      return true;
+    }
+    if (event.defaultPrevented) {
+      return true;
+    }
+    if (typeof event.button === "number" && event.button !== 0) {
+      return true;
+    }
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return true;
+    }
+    if (anchor.target && anchor.target !== "_self") {
+      return true;
+    }
+    if (anchor.hasAttribute("download")) {
+      return true;
+    }
+    var href = anchor.getAttribute("href");
+    if (!href || href.charAt(0) === "#") {
+      return true;
+    }
+    var protocol = href.split(":", 1)[0].toLowerCase();
+    if (protocol === "mailto" || protocol === "tel" || protocol === "javascript") {
+      return true;
+    }
+    try {
+      var url = new URL(href, window.location.href);
+      if (url.origin !== window.location.origin) {
+        return true;
+      }
+      if (
+        url.pathname === window.location.pathname &&
+        url.search === window.location.search &&
+        url.hash
+      ) {
+        return true;
+      }
+    } catch (err) {
+      return true;
+    }
+    return false;
+  }
+
+  $(document).on("click.bomPageLoading", "a[href]", function (e) {
+    if (shouldIgnoreLinkNavigation(this, e)) {
+      return;
+    }
+    schedulePageLoading();
+  });
+
+  $(document).on("submit.bomPageLoading", "form", function () {
+    schedulePageLoading();
+  });
+
+  $(window).on("pageshow.bomPageLoading", function (e) {
+    if (e.originalEvent && e.originalEvent.persisted) {
+      hidePageLoading();
+    }
+  });
+
   window.enableActionCheckboxColumn = function () {
     $(".action-checkbox-column, .action-checkbox-hide").removeClass("hidden");
     $(".action-checkbox-show").addClass("hidden");
