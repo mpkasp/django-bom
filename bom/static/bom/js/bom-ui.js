@@ -268,25 +268,80 @@
           panels.push($panel);
         }
       });
-      function show(id) {
+      function isKnownPanel(id) {
+        return panels.some(function ($p) {
+          return $p.attr("id") === id;
+        });
+      }
+      function panelIdFromHash() {
+        var raw = (window.location.hash || "").replace(/^#/, "");
+        if (!raw) {
+          return null;
+        }
+        var id;
+        try {
+          id = decodeURIComponent(raw);
+        } catch (err) {
+          return null;
+        }
+        return isKnownPanel(id) ? id : null;
+      }
+      function syncUrl(id) {
+        if (!id || !window.history || typeof window.history.replaceState !== "function") {
+          return;
+        }
+        var search = "";
+        if (window.location.search) {
+          var params = new URLSearchParams(window.location.search);
+          params.delete("tab_anchor");
+          search = params.toString();
+          search = search ? "?" + search : "";
+        }
+        var next = window.location.pathname + search + "#" + id;
+        var current = window.location.pathname + window.location.search + window.location.hash;
+        if (current === next) {
+          return;
+        }
+        window.history.replaceState(null, "", next);
+      }
+      function show(id, updateUrl) {
+        if (!isKnownPanel(id)) {
+          return;
+        }
         panels.forEach(function ($p) {
           $p.toggle($p.attr("id") === id);
         });
         $tabs.find("a").removeClass("active");
         $tabs.find("a[href='#" + id + "']").addClass("active");
+        if (updateUrl) {
+          syncUrl(id);
+        }
       }
-      $tabs.on("click", "a[href^='#']", function (e) {
+      $tabs.off("click.bomTabs").on("click.bomTabs", "a[href^='#']", function (e) {
         e.preventDefault();
-        show(this.getAttribute("href").slice(1));
+        show(this.getAttribute("href").slice(1), true);
       });
+      $(window)
+        .off("hashchange.bomTabs")
+        .on("hashchange.bomTabs", function () {
+          var fromHash = panelIdFromHash();
+          if (fromHash) {
+            show(fromHash, false);
+          }
+        });
       var initial = $tabs.find("a.active").attr("href");
+      var hashId = panelIdFromHash();
       if (initial) {
-        show(initial.slice(1));
+        show(initial.slice(1), false);
+      } else if (hashId) {
+        show(hashId, false);
       } else if (panels[0]) {
-        show(panels[0].attr("id"));
+        show(panels[0].attr("id"), false);
       }
       return {
-        select: show,
+        select: function (id) {
+          show(id, true);
+        },
       };
     },
   };

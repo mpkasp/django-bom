@@ -95,6 +95,9 @@ class TestUiSmoke(TransactionTestCase):
         self.assertEqual(info.status_code, 200)
         info_html = info.content.decode("utf-8")
         self.assertIn('id="tabs"', info_html)
+        self.assertIn('href="#specs"', info_html)
+        self.assertIn('href="#sourcing"', info_html)
+        self.assertIn('href="#customers"', info_html)
         self.assertIn("dropdown-trigger", info_html)
         self.assertIn("bom-table", info_html)
         self.assertIn("collection", info_html)
@@ -139,3 +142,13 @@ class TestUiSmoke(TransactionTestCase):
         self.assertIn('class="bom-input"', html)
         self.assertIn('class="bom-label"', html)
         self.assertIn("bom-btn-primary", html)
+
+
+class TestBomTabsUrlHash(SimpleTestCase):
+    def test_tabs_js_syncs_address_bar_hash(self):
+        js = open("bom/static/bom/js/bom-ui.js").read()
+        self.assertIn("history.replaceState", js)
+        self.assertIn("location.hash", js)
+        self.assertIn('params.delete("tab_anchor")', js)
+        self.assertIn("hashchange.bomTabs", js)
+        self.assertIn("panelIdFromHash", js)
