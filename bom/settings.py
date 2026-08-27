@@ -182,6 +182,7 @@ EXCHANGE_BACKEND = "djmoney.contrib.exchange.backends.FixerBackend"
 BOM_CONFIG_DEFAULT = {
     "base_template": "base.html",
     "mouser_api_key": None,
+    "page_loading_delay_ms": 300,
     "admin_dashboard": {
         "enable_autocomplete": False,
         "page_size": 50,

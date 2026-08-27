@@ -91,40 +91,63 @@
   display: none !important;
 }
 
-/* Indeterminate page-navigation progress bar (full document loads). */
+/* Full-page navigation overlay with pulsing Lithium mark. */
 .bom-page-loading {
   position: fixed;
-  inset-block-start: 0;
-  inset-inline: 0;
+  inset: 0;
   z-index: 50;
-  height: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
+  background-color: rgb(19 26 22 / 0.4);
 }
 
 .bom-page-loading.is-active {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
 }
 
-.bom-page-loading-bar {
-  height: 100%;
-  width: 40%;
-  background-color: var(--color-primary);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 55%, transparent);
+.bom-page-loading-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.75rem;
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
 }
 
-.bom-page-loading.is-active .bom-page-loading-bar {
-  animation: bom-page-loading-indeterminate 1s ease-in-out infinite;
+.bom-page-loading-mark {
+  width: 4.5rem;
+  height: 4.5rem;
+  display: block;
+  transform-origin: center;
 }
 
-@keyframes bom-page-loading-indeterminate {
-  0% {
-    margin-inline-start: -40%;
-  }
+.bom-page-loading.is-active .bom-page-loading-mark {
+  animation: bom-page-loading-pulse 1.1s ease-in-out infinite;
+}
+
+.bom-page-loading-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+}
+
+@keyframes bom-page-loading-pulse {
+  0%,
   100% {
-    margin-inline-start: 100%;
+    transform: scale(0.92);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
   }
 }
 

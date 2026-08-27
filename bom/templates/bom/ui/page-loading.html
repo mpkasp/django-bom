@@ -1,3 +1,7 @@
-<div id="bom-page-loading" class="bom-page-loading printer-hide" role="progressbar" aria-hidden="true" aria-valuetext="در حال بارگذاری">
-    <div class="bom-page-loading-bar"></div>
+{% load static %}
+<div id="bom-page-loading" class="bom-page-loading printer-hide" role="progressbar" aria-hidden="true" aria-valuetext="در حال بارگذاری" aria-busy="false" data-delay-ms="{{ BOM_PAGE_LOADING_DELAY_MS }}">
+    <div class="bom-page-loading-panel">
+        <img class="bom-page-loading-mark" src="{% static 'bom/img/lithium.png' %}" width="72" height="72" alt="" />
+        <span class="bom-page-loading-label">{% trans "Loading…" %}</span>
+    </div>
 </div>

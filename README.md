@@ -249,10 +249,11 @@ The base template can be customized. Add the following configuration to your set
 ```
 BOM_CONFIG = {
     'base_template': 'base.html',
+    'page_loading_delay_ms': 300,  # ms before overlay; 0 = show immediately
 }
 ```
 
-where `base.html` is your base template.
+where `base.html` is your base template. `page_loading_delay_ms` controls how long a navigation must take before the Lithium loading overlay appears (default `300`). Set it to `0` to show immediately, or higher to avoid flashes on fast pages.
 
 **CSS contract:** Lithium BoM pages load Tailwind CSS from `{% static 'bom/css/app.css' %}`. An overriding base template must:
 

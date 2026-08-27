@@ -2,10 +2,23 @@
   "use strict";
 
   var pageLoadingShowTimer = null;
-  var PAGE_LOADING_DELAY_MS = 0;
+  var PAGE_LOADING_DELAY_FALLBACK_MS = 300;
 
   function pageLoadingEl() {
     return document.getElementById("bom-page-loading");
+  }
+
+  function pageLoadingDelayMs() {
+    var el = pageLoadingEl();
+    if (!el) {
+      return PAGE_LOADING_DELAY_FALLBACK_MS;
+    }
+    var raw = el.getAttribute("data-delay-ms");
+    var value = parseInt(raw, 10);
+    if (isNaN(value) || value < 0) {
+      return PAGE_LOADING_DELAY_FALLBACK_MS;
+    }
+    return value;
   }
 
   function showPageLoading() {
@@ -15,6 +28,7 @@
     }
     el.classList.add("is-active");
     el.setAttribute("aria-hidden", "false");
+    el.setAttribute("aria-busy", "true");
   }
 
   function hidePageLoading() {
@@ -28,20 +42,22 @@
     }
     el.classList.remove("is-active");
     el.setAttribute("aria-hidden", "true");
+    el.setAttribute("aria-busy", "false");
   }
 
   function schedulePageLoading() {
     if (pageLoadingShowTimer || (pageLoadingEl() && pageLoadingEl().classList.contains("is-active"))) {
       return;
     }
-    if (PAGE_LOADING_DELAY_MS <= 0) {
+    var delayMs = pageLoadingDelayMs();
+    if (delayMs <= 0) {
       showPageLoading();
       return;
     }
     pageLoadingShowTimer = setTimeout(function () {
       pageLoadingShowTimer = null;
       showPageLoading();
-    }, PAGE_LOADING_DELAY_MS);
+    }, delayMs);
   }
 
   function shouldIgnoreLinkNavigation(anchor, event) {
