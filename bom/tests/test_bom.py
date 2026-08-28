@@ -67,7 +67,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(len(response.context["part_revs"]), 1)
 
     def test_home_print_all_rows(self):
-        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        (p1, p2, p3, _p4) = create_some_fake_parts(organization=self.organization)
         raw_rev = p1.latest()
         raw_rev.material = "no_bom"
         raw_rev.save()
@@ -127,7 +127,7 @@ class TestBOM(TransactionTestCase):
                 {"print": "1", "q": f'"{p1.full_part_number()}"'},
             )
             self.assertEqual(len(search.context["part_revs"]), 1)
-            self.assertEqual(list(search.context["part_revs"])[0].part.id, p1.id)
+            self.assertEqual(next(iter(search.context["part_revs"])).part.id, p1.id)
 
     def test_part_info(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
