@@ -58,13 +58,18 @@
                         <a class="bom-btn-secondary" href="{% url 'bom:upload-parts' %}"><i class="material-icons text-base">cloud_upload</i>آپلود متریال</a>
                     {% endif %}
                 </div>
-                <div class="relative" x-data="{ open: false }">
-                    <button type="button" class="bom-btn-secondary" @click="open = !open" title="{% trans "Download" %}">
-                        <i class="material-icons text-base">file_download</i>{% trans "Download" %}
-                    </button>
-                    <div x-show="open" x-cloak @click.outside="open = false" class="bom-dropdown">
-                        <a href="{% url 'bom:home' %}?download=1&format=xlsx{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">{% trans "Download as XLSX" %}</a>
-                        <a href="{% url 'bom:home' %}?download=1&format=csv{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">{% trans "Download as CSV" %}</a>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a class="bom-btn-secondary" href="{% url 'bom:home' %}?print=1{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}" title="{% trans "Print" %}">
+                        <i class="material-icons text-base">print</i>{% trans "Print" %}
+                    </a>
+                    <div class="relative" x-data="{ open: false }">
+                        <button type="button" class="bom-btn-secondary" @click="open = !open" title="{% trans "Download" %}">
+                            <i class="material-icons text-base">file_download</i>{% trans "Download" %}
+                        </button>
+                        <div x-show="open" x-cloak @click.outside="open = false" class="bom-dropdown">
+                            <a href="{% url 'bom:home' %}?download=1&format=xlsx{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">{% trans "Download as XLSX" %}</a>
+                            <a href="{% url 'bom:home' %}?download=1&format=csv{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">{% trans "Download as CSV" %}</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -170,4 +175,11 @@
             $('.responsive-table-wrapper').floatingScrollbar();
         });
     </script>
+    {% if print_all %}
+        <script>
+            window.addEventListener("load", function () {
+                window.print();
+            });
+        </script>
+    {% endif %}
 {% endblock bom-script %}

@@ -58,3 +58,29 @@ def paginate_part_revs(request, part_revs, page_size):
     except EmptyPage:
         part_revs = paginator.page(paginator.num_pages)
     return prepare_part_revs_for_list_page(part_revs)
+
+
+class UnpaginatedPartRevList:
+    """Iterable stand-in for a Django Page when rendering the full list."""
+
+    def __init__(self, object_list):
+        self.object_list = object_list
+
+    def has_other_pages(self):
+        return False
+
+    def __iter__(self):
+        return iter(self.object_list)
+
+    def __len__(self):
+        return len(self.object_list)
+
+
+def prepare_all_part_revs_for_list_page(
+    part_revs, quantity=LIST_PAGE_SELLER_QUANTITY
+):
+    """Prefetch seller data for every matching row (no pagination)."""
+    part_revs = part_revs.select_related(*LIST_PAGE_SELECT_RELATED)
+    return prepare_part_revs_for_list_page(
+        UnpaginatedPartRevList(part_revs), quantity
+    )

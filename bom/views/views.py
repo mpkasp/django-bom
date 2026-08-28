@@ -86,7 +86,7 @@ from bom.models import (
     User,
     UserMeta,
 )
-from bom.list_queries import paginate_part_revs
+from bom.list_queries import paginate_part_revs, prepare_all_part_revs_for_list_page
 from bom.utils import (
     check_references_for_duplicates,
     get_session_part_quantity,
@@ -120,9 +120,10 @@ def home(request):
     if not organization:
         return HttpResponseRedirect(reverse("bom:organization-create"))
 
-    # Build a querystring with all GET params except 'page'
+    # Build a querystring with all GET params except 'page' and 'print'
     query_params = request.GET.copy()
     query_params.pop("page", None)
+    query_params.pop("print", None)
     querystring_except_page = urlencode(query_params)
 
     query = request.GET.get("q", "")
@@ -502,8 +503,12 @@ def home(request):
                 df.to_excel(writer, index=False, sheet_name="Parts")
         return response
 
-    page_size = settings.BOM_CONFIG.get("admin_dashboard", {}).get("page_size", 25)
-    part_revs = paginate_part_revs(request, part_revs, page_size)
+    print_all = "print" in request.GET
+    if print_all:
+        part_revs = prepare_all_part_revs_for_list_page(part_revs)
+    else:
+        page_size = settings.BOM_CONFIG.get("admin_dashboard", {}).get("page_size", 25)
+        part_revs = paginate_part_revs(request, part_revs, page_size)
 
     return TemplateResponse(request, "bom/dashboard.html", locals())
 
