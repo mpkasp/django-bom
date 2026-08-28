@@ -575,9 +575,8 @@ ul.errorlist {
   }
 
   .printer-doc {
-    display: flex !important;
-    align-items: center;
-    gap: 0.75rem;
+    display: block !important;
+    overflow: hidden;
     margin: 0 0 0.9rem;
     padding: 0 0 0.7rem;
     border-bottom: 2px solid var(--color-primary);
@@ -586,9 +585,10 @@ ul.errorlist {
   }
 
   .printer-logo {
-    width: 48px;
-    height: 48px;
-    flex-shrink: 0;
+    float: inline-start;
+    width: 56px;
+    height: 56px;
+    margin-inline-end: 0.75rem;
   }
 
   .printer-doc-title,
@@ -601,9 +601,9 @@ ul.errorlist {
   }
 
   .printer-doc-meta {
-    margin: 0.2rem 0 0;
-    font-size: 9pt;
-    color: var(--color-ink-muted);
+    margin: 0.25rem 0 0;
+    font-size: 10.5pt;
+    color: var(--color-ink);
   }
 
   .single-line,
