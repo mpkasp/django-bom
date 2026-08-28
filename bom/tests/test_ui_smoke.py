@@ -41,6 +41,9 @@ class TestUiSmoke(TransactionTestCase):
         self.assertIn('name="username"', html)
         self.assertIn('name="password"', html)
         self.assertIn("@media print", open("bom/static/bom/css/app.css").read())
+        css = open("bom/static/bom/css/app.css").read()
+        self.assertRegex(css, r"size:\s*A4")
+        self.assertNotRegex(css, r"size:\s*A5")
 
     def test_login_form_error_display(self):
         response = self.client.post(reverse("login"), {"username": "x", "password": "bad"})

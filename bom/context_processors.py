@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.utils import timezone
 
 from bom.utils import get_project_version
 
@@ -26,6 +27,7 @@ def bom_config(request):
     return {
         "BASE_TEMPLATE": base_template,
         "BOM_PAGE_LOADING_DELAY_MS": _page_loading_delay_ms(),
+        "print_generated_at": timezone.now(),
     }
 
 
