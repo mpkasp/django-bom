@@ -22,6 +22,7 @@ class TestBomFormHelpers(SimpleTestCase):
         self.assertIn("bom-input", html)
         self.assertIn("Name", html)
         self.assertIn('type="checkbox"', html)
+        self.assertIn("col-span-12 grid grid-cols-12", html)
 
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
@@ -130,8 +131,36 @@ class TestUiSmoke(TransactionTestCase):
 
         create = self.client.get(reverse("bom:create-part"))
         self.assertEqual(create.status_code, 200)
-        self.assertIn("bom-input", create.content.decode("utf-8"))
-        self.assertIn("bom/js/jquery.autocomplete-bom.js", create.content.decode("utf-8"))
+        create_html = create.content.decode("utf-8")
+        self.assertIn("bom-input", create_html)
+        self.assertIn("bom-panel-pad", create_html)
+        self.assertIn("text-lg font-semibold", create_html)
+        self.assertIn("bom-btn-primary", create_html)
+        self.assertIn("bom-btn-ghost", create_html)
+        self.assertIn("bom/js/jquery.autocomplete-bom.js", create_html)
+        self.assertIn('label[for="id_unit_cost"]', open("bom/static/bom/js/radio.js").read())
+
+        upload = self.client.get(reverse("bom:upload-bom"))
+        self.assertEqual(upload.status_code, 200)
+        upload_html = upload.content.decode("utf-8")
+        self.assertIn("bom-panel-pad", upload_html)
+        self.assertIn("bom-btn-primary", upload_html)
+        self.assertIn("text-ink-muted", upload_html)
+        self.assertNotIn("jquery.treetable.js", upload_html)
+
+        part = organization.part_set.first()
+        part_rev = part.latest()
+        manage = self.client.get(
+            reverse(
+                "bom:part-manage-bom",
+                kwargs={"part_id": part.id, "part_revision_id": part_rev.id},
+            )
+        )
+        self.assertEqual(manage.status_code, 200)
+        manage_html = manage.content.decode("utf-8")
+        self.assertIn("افزودن", manage_html)
+        self.assertIn("flex flex-wrap items-end gap-3", manage_html)
+        self.assertIn("bom-btn-primary", manage_html)
 
     def test_settings_password_reset_uses_tailwind_form_classes(self):
         user, organization = create_user_and_organization()

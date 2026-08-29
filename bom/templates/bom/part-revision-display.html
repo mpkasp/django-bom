@@ -14,16 +14,16 @@ where XXX should be the name of the includee's object that represent its PartRev
 <!--
 <p>Must include a either a description or electronics value, and value units. The remaining fields are optional.</p>
     -->
-<div class="row">
-        {{ part_revision_form.revision|bom_form:'l1 m2 s12' }}
+<div class="row gap-y-3 mt-4">
+        {{ part_revision_form.revision|bom_form:'m2 s12' }}
 </div>
-<div class="row">
-    {{ part_revision_form.description|bom_form:'l3 m4 s12' }}
-    {{ part_revision_form.tolerance|bom_form:'l2 m3 s12' }}
+<div class="row gap-y-3">
+    {{ part_revision_form.description|bom_form:'m8 s12' }}
+    {{ part_revision_form.tolerance|bom_form:'m4 s12' }}
 </div>
-<h2>{% trans "Cost Calculations" %}</h2>
-<div class="row radioSelect">
-    {{ part_revision_form.material|bom_form:'m6 s12' }}
+<h2 class="mb-3 mt-4 text-base font-semibold text-ink">{% trans "Cost Calculations" %}</h2>
+<div class="row radioSelect gap-y-3">
+    {{ part_revision_form.material|bom_form:'m12 s12' }}
 </div>
 <!--
 <div class="row">

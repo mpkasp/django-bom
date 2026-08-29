@@ -6,89 +6,47 @@
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
-    {{ add_subpart_form.media }}
 {% endblock %}
 
 {% block bom-menu %}
+    <a class="bom-nav-link" href="{% url 'bom:home' %}">انصراف</a>
 {% endblock %}
 
 {% block content %}
     <div class="container-app">
         {% if profile.role == 'A' %}
-            <div class="upload-bom">
-                <p>برای دیدن <a href="{% static 'bom/doc/test_bom_5_intelligent.csv' %}">یک فایل نمونه برای آپلود درخت محصول</a> کلیک کنید. زمانی که متریال یا ورژن مورد نظر از قبل تعریف شده باشد، به روز رسانی می‌شود و
+            <div class="bom-panel-pad">
+                <h1 class="mb-2 text-lg font-semibold text-ink">آپلود درخت محصول (BOM)</h1>
+                <p class="mb-2 text-sm text-ink-muted">برای دیدن <a href="{% static 'bom/doc/test_bom_5_intelligent.csv' %}">یک فایل نمونه برای آپلود درخت محصول</a> کلیک کنید. زمانی که متریال یا ورژن مورد نظر از قبل تعریف شده باشد، به روز رسانی می‌شود و
                  اگر تعریف <b>نشده</b> باشد از نو ایجاد خواهد شد.</p>
-                <p>برای مشاهده ملزومات فایل CSV مستندات مربوطه را  <a href="{% url 'bom:help' %}#uploading-parts" target="_blank">اینجا<i class="material-icons" style="font-size: 1em;">open_in_new</i></a> ببینید.</p>
+                <p class="mb-4 text-sm text-ink-muted">برای مشاهده ملزومات فایل CSV مستندات مربوطه را <a href="{% url 'bom:help' %}#uploading-parts" target="_blank">اینجا<i class="material-icons text-base">open_in_new</i></a> ببینید.</p>
 
-                <form action="{% url 'bom:upload-bom' %}" method="post" enctype="multipart/form-data" class="bom-panel-pad">
+                <form action="{% url 'bom:upload-bom' %}" method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="mb-4 flex flex-wrap items-end gap-3">
-                        <div class="min-w-0 flex-1">
+                        <div>
                             <label class="bom-label" for="{{ bom_csv_form.file.id_for_label }}">انتخاب فایل</label>
                             {{ bom_csv_form.file }}
                             {{ bom_csv_form.file.errors }}
                         </div>
                         <button class="bom-btn-primary" type="submit">آپلود</button>
                     </div>
-                    <div class="row">
-                        {{ upload_bom_form.parent_part_number|bom_form:'m3 s12' }}
-                        <div class="col m6 s12 text-sm text-ink-muted">
-                            <b>{{upload_bom_form.parent_part_number.label}}</b> <i>[اختیاری]</i> با انتخاب کد متریال این درخت محصول را به متریال مورد نظر وصل کنید.
+                    <div class="row items-end gap-y-3">
+                        {{ upload_bom_form.parent_part_number|bom_form:'m4 s12' }}
+                        <div class="col m8 s12 text-sm text-ink-muted">
+                            <p class="bom-help">[اختیاری] با انتخاب کد متریال این درخت محصول را به متریال مورد نظر وصل کنید.</p>
                             {% if parent_part %}
-                                <br><a href="{% url 'bom:part-info' part_id=parent_part.id %}">رفتن به {{ parent_part_number }}</a>
+                                <p class="mt-1"><a href="{% url 'bom:part-info' part_id=parent_part.id %}">رفتن به {{ parent_part_number }}</a></p>
                             {% endif %}
                         </div>
                     </div>
+                    <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+                        <a href="{% url 'bom:home' %}" class="bom-btn-ghost">انصراف</a>
+                    </div>
                 </form>
-                <div class="mt-3">
-                    <a href="{% url 'bom:upload-bom' %}" class="bom-btn-ghost">انصراف</a>
-                </div>
-                <br>
             </div>
         {% else %}
             {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
         {% endif %}
     </div>
-{% endblock %}
-
-{% block bom-script %}
-    <!-- Tree Table -->
-    <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
-    <script>
-        $("#indented-bom").treetable({
-            expandable: true,
-            indent: 2,
-            initialState: 'collapsed',
-            onInitialized: function () {
-                $("#indented-bom").treetable("reveal", {{ part_revision.id }});
-            }
-        });
-    </script>
-
-    <!-- Floating Horizontal Scrollbar -->
-    <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
-    <script>
-        $(function () {
-            $('.responsive-table-wrapper').floatingScrollbar();
-        });
-    </script>
-
-    <!-- Handle if there's an anchor, select tab -->
-    <script type='text/javascript'>
-        // For dropdown menu
-        $(document).ready(function () {
-            $('.dropdown-trigger').dropdown({
-                    inDuration: 300,
-                    outDuration: 225,
-                    constrainWidth: false, // Does not change width of dropdown to that of the activator
-                    hover: false, // Activate on hover
-                    gutter: 0, // Spacing from edge
-                    belowOrigin: false, // Displays dropdown below the button
-                    alignment: 'left', // Displays dropdown with edge aligned to the left of button
-                    stopPropagation: false // Stops event propagation
-                }
-            );
-
-        });
-    </script>
 {% endblock %}

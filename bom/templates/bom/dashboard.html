@@ -175,4 +175,11 @@
             $('.responsive-table-wrapper').floatingScrollbar();
         });
     </script>
+    {% if print_all %}
+        <script>
+            window.addEventListener("load", function () {
+                window.print();
+            });
+        </script>
+    {% endif %}
 {% endblock bom-script %}
