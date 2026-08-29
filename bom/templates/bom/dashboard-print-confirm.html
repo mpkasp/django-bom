@@ -1,5 +1,35 @@
 {% extends 'bom/print-base.html' %}
+{% load static %}
+{% load bom_dates %}
 
 {% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
 
-{% block content %}{% endblock %}
+{% block content %}
+    <div class="container-app print-confirm-shell">
+        <div class="bom-panel-pad print-confirm-card" role="status">
+            <div class="print-confirm-header">
+                <img class="print-confirm-logo" width="56" height="56" alt="Lithium" src="{% static 'bom/img/lithium.png' %}">
+                <div class="print-confirm-heading">
+                    {% if title %}<h1 class="print-confirm-title">{{ title|safe }}</h1>{% endif %}
+                    <p class="print-confirm-meta">
+                        {% user_datetime print_generated_at %} · {{ print_row_count }} {% trans "items" %}
+                    </p>
+                </div>
+            </div>
+            <p class="print-confirm-message">
+                {% blocktrans with count=print_row_count %}This list has {{ count }} items. Browser print may take a while.{% endblocktrans %}
+            </p>
+            <div class="print-confirm-actions">
+                <a class="bom-btn-primary" href="{% url 'bom:home' %}?print=1&print_go=1{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">
+                    {% trans "Print now" %}
+                </a>
+                <a class="bom-btn-secondary" href="{% url 'bom:home' %}?download=1&format=xlsx{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">
+                    {% trans "Download as XLSX" %}
+                </a>
+                <a class="bom-btn-ghost" href="{% url 'bom:home' %}{% if querystring_except_page %}?{{ querystring_except_page }}{% endif %}">
+                    {% trans "Back to list" %}
+                </a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

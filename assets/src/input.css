@@ -438,6 +438,46 @@ ul.errorlist {
   @apply flex-1;
 }
 
+.print-confirm-page {
+  @apply flex min-h-screen flex-col;
+}
+
+.print-confirm-page .print-page-main {
+  @apply flex flex-1 flex-col;
+}
+
+.print-confirm-shell {
+  @apply flex flex-1 flex-col items-center justify-center py-8;
+}
+
+.print-confirm-card {
+  @apply w-full max-w-lg;
+}
+
+.print-confirm-header {
+  @apply mb-4 flex items-start gap-3 border-b border-border pb-4;
+}
+
+.print-confirm-logo {
+  @apply shrink-0;
+}
+
+.print-confirm-title {
+  @apply m-0 text-lg font-semibold text-ink;
+}
+
+.print-confirm-meta {
+  @apply mt-1 text-sm text-ink-muted;
+}
+
+.print-confirm-message {
+  @apply mb-4 rounded-md border border-warning-border bg-warning-light px-4 py-3 text-sm leading-relaxed text-ink;
+}
+
+.print-confirm-actions {
+  @apply flex flex-wrap items-center gap-2;
+}
+
 /* Navbar: unlayered so visibility cannot lose to Tailwind utilities */
 .bom-navbar-inner {
   display: flex;

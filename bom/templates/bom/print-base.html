@@ -8,7 +8,8 @@
     <title>{% block head-title %}{{ title }}{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'bom/css/app.css' %}">
 </head>
-<body class="print-page-body">
+<body class="print-page-body{% if print_confirm_only %} print-confirm-page{% endif %}">
+{% if not print_confirm_only %}
 <div class="printer-show printer-doc">
     <img class="printer-logo" width="56" height="56" alt="Lithium" src="{% static 'bom/img/lithium.png' %}">
     <div class="printer-doc-text">
@@ -18,29 +19,9 @@
         </p>
     </div>
 </div>
+{% endif %}
 
-{% if not print_auto %}
-    <div class="print-screen-only print-ready-bar" role="status">
-        <p class="print-ready-message">
-            {% blocktrans with count=print_row_count %}This list has {{ count }} items. Browser print may take a while.{% endblocktrans %}
-        </p>
-        <div class="print-ready-actions">
-            {% if print_confirm_only %}
-                <a class="bom-btn-primary" href="{% url 'bom:home' %}?print=1&print_go=1{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">
-                    {% trans "Print now" %}
-                </a>
-            {% else %}
-                <button type="button" class="bom-btn-primary" id="print-now-button">{% trans "Print now" %}</button>
-            {% endif %}
-            <a class="bom-btn-secondary" href="{% url 'bom:home' %}?download=1&format=xlsx{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">
-                {% trans "Download as XLSX" %}
-            </a>
-            <a class="bom-btn-ghost" href="{% url 'bom:home' %}{% if querystring_except_page %}?{{ querystring_except_page }}{% endif %}">
-                {% trans "Back to list" %}
-            </a>
-        </div>
-    </div>
-{% else %}
+{% if print_auto %}
     <div class="print-screen-only print-ready-bar print-ready-bar-compact" role="status" aria-live="polite">
         <p class="print-ready-message">{% trans "Preparing print…" %}</p>
     </div>
