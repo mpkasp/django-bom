@@ -24,4 +24,16 @@
         font-weight: bold;
         margin-top: 12px;
     }
+
+    body.printing-overview #specs,
+    body.printing-overview #bom,
+    body.printing-overview #used,
+    body.printing-overview #sourcing,
+    body.printing-overview #customers {
+        display: none !important;
+    }
+
+    body.printing-overview #overview {
+        display: block !important;
+    }
 }

@@ -351,6 +351,7 @@
                 </div>
                 {% if part_revision.material == 'with_loi' or part_revision.material == 'no_loi' %}
                 <div id="overview" class="col s12">
+                    <h4 class="printer-show">نمای کلی</h4>
                     <br />
                     <div id="bom-indented">
                         {% include 'bom/components/bom-indented-overview.html' with order_by=order_by bom_items=indented_bom.parts part=part part_revision=part_revision profile=profile childs_unit_cost=childs_unit_cost total_bom_weight=total_bom_weight product_weight=product_weight material=part_revision.material %}
@@ -481,5 +482,25 @@
             $('#bom-flat').hide();
             $('#bom-indented').show();
         }
+    </script>
+
+    <script>
+        (function () {
+            var printButton = document.getElementById('overview-print-button');
+            if (!printButton) {
+                return;
+            }
+
+            function clearOverviewPrintMode() {
+                document.body.classList.remove('printing-overview');
+            }
+
+            printButton.addEventListener('click', function () {
+                document.body.classList.add('printing-overview');
+                window.print();
+            });
+
+            window.addEventListener('afterprint', clearOverviewPrintMode);
+        })();
     </script>
 {% endblock bom-script %}

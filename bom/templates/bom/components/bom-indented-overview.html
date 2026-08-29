@@ -4,6 +4,14 @@
 {% block head %}
 {% endblock %}
 
+<div class="row printer-hide overview-print-actions">
+    <div class="col s12 flex justify-end">
+        <button type="button" class="bom-btn-secondary" id="overview-print-button">
+            <i class="material-icons text-base">print</i>{% trans "Print" %}
+        </button>
+    </div>
+</div>
+
 <div class="bom-table-wrap bom-table-wrap--fit">
     <table id="indented-bom-overview" class="bom-table part-list">
         <thead>

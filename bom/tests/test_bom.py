@@ -195,6 +195,20 @@ class TestBOM(TransactionTestCase):
         decoded_content = response.content.decode("utf-8")
         self.assertIn('id="seller-parts"', decoded_content)
 
+    def test_part_info_overview_print_button(self):
+        (p1, p2, _p3, _p4) = create_some_fake_parts(organization=self.organization)
+        product_rev = p2.latest()
+        product_rev.material = "with_loi"
+        product_rev.save()
+
+        response = self.client.get(reverse("bom:part-info", kwargs={"part_id": p2.id}))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode("utf-8")
+        self.assertIn('id="overview-tab"', html)
+        self.assertIn('id="overview-print-button"', html)
+        self.assertIn("printing-overview", html)
+        self.assertIn('id="indented-bom-overview"', html)
+
     def test_part_manage_bom(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
