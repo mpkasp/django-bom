@@ -177,6 +177,26 @@ msgstr "قیمت"
 msgid "Print"
 msgstr "چاپ"
 
+#: bom/templates/bom/print-base.html:18
+msgid "items"
+msgstr "مورد"
+
+#: bom/templates/bom/print-base.html:26
+msgid "This list has %(count)s items. Browser print may take a while."
+msgstr "این لیست %(count)s مورد دارد. چاپ در مرورگر ممکن است زمان ببرد."
+
+#: bom/templates/bom/print-base.html:30
+msgid "Print now"
+msgstr "چاپ"
+
+#: bom/templates/bom/print-base.html:36
+msgid "Back to list"
+msgstr "بازگشت به لیست"
+
+#: bom/templates/bom/print-base.html:42
+msgid "Preparing print…"
+msgstr "در حال آماده‌سازی چاپ…"
+
 #: bom/templates/bom/dashboard.html:66
 msgid "Download"
 msgstr "دانلود"

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+{% load static %}
+{% load bom_dates %}
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block head-title %}{{ title }}{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'bom/css/app.css' %}">
+</head>
+<body class="print-page-body">
+<div class="printer-show printer-doc">
+    <img class="printer-logo" width="56" height="56" alt="Lithium" src="{% static 'bom/img/lithium.png' %}">
+    <div class="printer-doc-text">
+        {% if title %}<p class="printer-doc-title printer-part-number">{{ title|safe }}</p>{% endif %}
+        <p class="printer-doc-meta">
+            {% user_datetime print_generated_at %} · {{ print_row_count }} {% trans "items" %}
+        </p>
+    </div>
+</div>
+
+{% if not print_auto %}
+    <div class="print-screen-only print-ready-bar" role="status">
+        <p class="print-ready-message">
+            {% blocktrans with count=print_row_count %}This list has {{ count }} items. Browser print may take a while.{% endblocktrans %}
+        </p>
+        <div class="print-ready-actions">
+            {% if print_confirm_only %}
+                <a class="bom-btn-primary" href="{% url 'bom:home' %}?print=1&print_go=1{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">
+                    {% trans "Print now" %}
+                </a>
+            {% else %}
+                <button type="button" class="bom-btn-primary" id="print-now-button">{% trans "Print now" %}</button>
+            {% endif %}
+            <a class="bom-btn-secondary" href="{% url 'bom:home' %}?download=1&format=xlsx{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">
+                {% trans "Download as XLSX" %}
+            </a>
+            <a class="bom-btn-ghost" href="{% url 'bom:home' %}{% if querystring_except_page %}?{{ querystring_except_page }}{% endif %}">
+                {% trans "Back to list" %}
+            </a>
+        </div>
+    </div>
+{% else %}
+    <div class="print-screen-only print-ready-bar print-ready-bar-compact" role="status" aria-live="polite">
+        <p class="print-ready-message">{% trans "Preparing print…" %}</p>
+    </div>
+{% endif %}
+
+<main class="print-page-main">
+    {% block content %}{% endblock %}
+</main>
+
+<script>
+    (function () {
+        var printButton = document.getElementById("print-now-button");
+        if (printButton) {
+            printButton.addEventListener("click", function () {
+                window.print();
+            });
+            return;
+        }
+        {% if print_auto %}
+        window.addEventListener("load", function () {
+            window.print();
+        });
+        {% endif %}
+    })();
+</script>
+</body>
+</html>

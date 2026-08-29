@@ -124,6 +124,7 @@ def home(request):
     query_params = request.GET.copy()
     query_params.pop("page", None)
     query_params.pop("print", None)
+    query_params.pop("print_go", None)
     querystring_except_page = urlencode(query_params)
 
     query = request.GET.get("q", "")
@@ -505,10 +506,22 @@ def home(request):
 
     print_all = "print" in request.GET
     if print_all:
-        part_revs = prepare_all_part_revs_for_list_page(part_revs)
-    else:
-        page_size = settings.BOM_CONFIG.get("admin_dashboard", {}).get("page_size", 25)
-        part_revs = paginate_part_revs(request, part_revs, page_size)
+        print_row_count = part_revs.count()
+        print_auto_threshold = settings.BOM_CONFIG.get("admin_dashboard", {}).get(
+            "print_auto_threshold", 200
+        )
+        print_go = "print_go" in request.GET
+        if print_row_count <= print_auto_threshold or print_go:
+            print_auto = True
+            part_revs = prepare_all_part_revs_for_list_page(part_revs)
+            return TemplateResponse(request, "bom/dashboard-print.html", locals())
+
+        print_auto = False
+        print_confirm_only = True
+        return TemplateResponse(request, "bom/dashboard-print-confirm.html", locals())
+
+    page_size = settings.BOM_CONFIG.get("admin_dashboard", {}).get("page_size", 25)
+    part_revs = paginate_part_revs(request, part_revs, page_size)
 
     return TemplateResponse(request, "bom/dashboard.html", locals())
 

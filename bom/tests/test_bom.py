@@ -96,28 +96,52 @@ class TestBOM(TransactionTestCase):
             self.assertEqual(printed.status_code, 200)
             self.assertGreater(len(printed.context["part_revs"]), 1)
             self.assertFalse(printed.context["part_revs"].has_other_pages())
+            self.assertTrue(printed.context["print_auto"])
             printed_html = printed.content.decode("utf-8")
             self.assertIn("window.print", printed_html)
+            self.assertNotIn('id="print-now-button"', printed_html)
+            self.assertNotIn("jquery-3.4.1.min.js", printed_html)
+            self.assertIn("print-page-body", printed_html)
             self.assertNotIn("bom-pagination", printed_html)
             self.assertIn("printer-doc", printed_html)
             self.assertIn("bom/img/lithium.png", printed_html)
             self.assertIn("printer-doc-title", printed_html)
-            self.assertIn("مورد", printed_html)
+            self.assertIn("items", printed_html)
             self.assertIsNotNone(printed.context["print_generated_at"])
             self.assertIn(p1.full_part_number(), printed_html)
             self.assertIn(p2.full_part_number(), printed_html)
             self.assertIn(p3.full_part_number(), printed_html)
+            self.assertNotIn("dropdown-content", printed_html)
 
-            raw = self.client.get(reverse("bom:home"), {"print": "1", "product": "0"})
+            config["admin_dashboard"]["print_auto_threshold"] = 2
+            large_print = self.client.get(reverse("bom:home"), {"print": "1"})
+            self.assertEqual(large_print.status_code, 200)
+            self.assertFalse(large_print.context["print_auto"])
+            self.assertTrue(large_print.context["print_confirm_only"])
+            self.assertGreater(large_print.context["print_row_count"], 2)
+            large_html = large_print.content.decode("utf-8")
+            self.assertIn("print_go=1", large_html)
+            self.assertIn("Download as XLSX", large_html)
+            self.assertNotIn(p1.full_part_number(), large_html)
+            self.assertNotIn("<tbody>", large_html)
+
+            large_go = self.client.get(
+                reverse("bom:home"), {"print": "1", "print_go": "1"}
+            )
+            self.assertEqual(large_go.status_code, 200)
+            self.assertTrue(large_go.context["print_auto"])
+            self.assertIn(p1.full_part_number(), large_go.content.decode("utf-8"))
+
+            raw = self.client.get(
+                reverse("bom:home"), {"print": "1", "print_go": "1", "product": "0"}
+            )
             self.assertEqual(raw.status_code, 200)
             raw_numbers = [pr.part.full_part_number() for pr in raw.context["part_revs"]]
             self.assertEqual(raw_numbers, [p1.full_part_number()])
-            raw_html = raw.content.decode("utf-8")
-            self.assertIn("print=1", raw_html)
-            self.assertIn("product=0", raw_html)
+            self.assertEqual(raw.context["print_row_count"], 1)
 
             products = self.client.get(
-                reverse("bom:home"), {"print": "1", "product": "1"}
+                reverse("bom:home"), {"print": "1", "print_go": "1", "product": "1"}
             )
             self.assertEqual(products.status_code, 200)
             product_numbers = [
@@ -129,7 +153,7 @@ class TestBOM(TransactionTestCase):
 
             search = self.client.get(
                 reverse("bom:home"),
-                {"print": "1", "q": f'"{p1.full_part_number()}"'},
+                {"print": "1", "print_go": "1", "q": f'"{p1.full_part_number()}"'},
             )
             self.assertEqual(len(search.context["part_revs"]), 1)
             self.assertEqual(next(iter(search.context["part_revs"])).part.id, p1.id)
