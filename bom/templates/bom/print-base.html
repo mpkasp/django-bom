@@ -14,7 +14,7 @@
     <div class="printer-doc-text">
         {% if title %}<p class="printer-doc-title printer-part-number">{{ title|safe }}</p>{% endif %}
         <p class="printer-doc-meta">
-            {% user_datetime print_generated_at %} · {{ part_revs|length }} {% trans "items" %}
+            {% user_datetime print_generated_at %} · {{ print_row_count }} {% trans "items" %}
         </p>
     </div>
 </div>
@@ -25,7 +25,13 @@
             {% blocktrans with count=print_row_count %}This list has {{ count }} items. Browser print may take a while.{% endblocktrans %}
         </p>
         <div class="print-ready-actions">
-            <button type="button" class="bom-btn-primary" id="print-now-button">{% trans "Print now" %}</button>
+            {% if print_confirm_only %}
+                <a class="bom-btn-primary" href="{% url 'bom:home' %}?print=1&print_go=1{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">
+                    {% trans "Print now" %}
+                </a>
+            {% else %}
+                <button type="button" class="bom-btn-primary" id="print-now-button">{% trans "Print now" %}</button>
+            {% endif %}
             <a class="bom-btn-secondary" href="{% url 'bom:home' %}?download=1&format=xlsx{% if querystring_except_page %}&{{ querystring_except_page }}{% endif %}">
                 {% trans "Download as XLSX" %}
             </a>
@@ -53,9 +59,11 @@
             });
             return;
         }
+        {% if print_auto %}
         window.addEventListener("load", function () {
             window.print();
         });
+        {% endif %}
     })();
 </script>
 </body>

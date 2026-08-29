@@ -117,18 +117,31 @@ class TestBOM(TransactionTestCase):
             large_print = self.client.get(reverse("bom:home"), {"print": "1"})
             self.assertEqual(large_print.status_code, 200)
             self.assertFalse(large_print.context["print_auto"])
+            self.assertTrue(large_print.context["print_confirm_only"])
+            self.assertGreater(large_print.context["print_row_count"], 2)
             large_html = large_print.content.decode("utf-8")
-            self.assertIn("print-now-button", large_html)
+            self.assertIn("print_go=1", large_html)
             self.assertIn("Download as XLSX", large_html)
+            self.assertNotIn(p1.full_part_number(), large_html)
+            self.assertNotIn("<tbody>", large_html)
 
-            raw = self.client.get(reverse("bom:home"), {"print": "1", "product": "0"})
+            large_go = self.client.get(
+                reverse("bom:home"), {"print": "1", "print_go": "1"}
+            )
+            self.assertEqual(large_go.status_code, 200)
+            self.assertTrue(large_go.context["print_auto"])
+            self.assertIn(p1.full_part_number(), large_go.content.decode("utf-8"))
+
+            raw = self.client.get(
+                reverse("bom:home"), {"print": "1", "print_go": "1", "product": "0"}
+            )
             self.assertEqual(raw.status_code, 200)
             raw_numbers = [pr.part.full_part_number() for pr in raw.context["part_revs"]]
             self.assertEqual(raw_numbers, [p1.full_part_number()])
             self.assertEqual(raw.context["print_row_count"], 1)
 
             products = self.client.get(
-                reverse("bom:home"), {"print": "1", "product": "1"}
+                reverse("bom:home"), {"print": "1", "print_go": "1", "product": "1"}
             )
             self.assertEqual(products.status_code, 200)
             product_numbers = [
@@ -140,7 +153,7 @@ class TestBOM(TransactionTestCase):
 
             search = self.client.get(
                 reverse("bom:home"),
-                {"print": "1", "q": f'"{p1.full_part_number()}"'},
+                {"print": "1", "print_go": "1", "q": f'"{p1.full_part_number()}"'},
             )
             self.assertEqual(len(search.context["part_revs"]), 1)
             self.assertEqual(next(iter(search.context["part_revs"])).part.id, p1.id)
