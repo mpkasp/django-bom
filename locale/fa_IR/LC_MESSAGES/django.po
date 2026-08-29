@@ -173,7 +173,11 @@ msgstr "متریال"
 msgid "Price"
 msgstr "قیمت"
 
-#: bom/templates/bom/dashboard.html:76
+#: bom/templates/bom/dashboard.html:62
+msgid "Print"
+msgstr "چاپ"
+
+#: bom/templates/bom/dashboard.html:66
 msgid "Download"
 msgstr "دانلود"
 

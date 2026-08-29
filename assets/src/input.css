@@ -537,6 +537,17 @@ ul.errorlist {
 }
 
 @media print {
+  * {
+    text-shadow: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
   a {
     color: #000 !important;
     text-decoration: none !important;
@@ -545,7 +556,9 @@ ul.errorlist {
   body {
     font-family: var(--font-print);
     background: #fff !important;
-    color: #000 !important;
+    color: var(--color-ink) !important;
+    font-size: 10.5pt;
+    line-height: 1.35;
   }
 
   main {
@@ -561,12 +574,51 @@ ul.errorlist {
   .sidenav,
   footer,
   header,
-  .bom-dropdown {
+  .bom-dropdown,
+  .action-checkbox-column {
     display: none !important;
   }
 
   .printer-show {
     display: block !important;
+  }
+
+  .printer-doc {
+    display: block !important;
+    overflow: hidden;
+    margin: 0 0 0.9rem;
+    padding: 0 0 0.7rem;
+    border-bottom: 2px solid var(--color-primary);
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .printer-logo {
+    float: inline-start;
+    width: 56px;
+    height: 56px;
+    margin-inline-end: 0.75rem;
+  }
+
+  .printer-doc-title,
+  .printer-part-number {
+    margin: 0;
+    font-size: 16pt;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-ink);
+  }
+
+  .printer-doc-meta {
+    margin: 0.25rem 0 0;
+    font-size: 10.5pt;
+    color: var(--color-ink);
+  }
+
+  .single-line,
+  .bom-table.single-line td,
+  table.part-list.single-line td {
+    white-space: normal !important;
   }
 
   .bom-tab-panel {
@@ -585,14 +637,9 @@ ul.errorlist {
   .bom-panel-pad,
   .bom-table-wrap {
     border: none;
-    box-shadow: none;
+    box-shadow: none !important;
     max-height: none;
     overflow: visible;
-  }
-
-  * {
-    box-shadow: none !important;
-    text-shadow: none !important;
   }
 
   table {
@@ -605,18 +652,33 @@ ul.errorlist {
     page-break-inside: auto;
     border-collapse: collapse;
     width: 100%;
-    font-size: 12px;
-    border-inline: 1px solid #000;
+    font-size: 10pt;
+    border: none;
   }
 
   table.part-list th,
   table.part-list td,
   .bom-table th,
   .bom-table td {
-    border-block: 1px solid black;
-    border-inline: 1px solid #e0e0e0;
-    padding: 4px 8px;
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    padding: 5px 8px;
     text-align: start;
+    vertical-align: top;
+  }
+
+  table.part-list th,
+  .bom-table th {
+    background: var(--color-primary-50);
+    box-shadow: inset 0 -1000px 0 var(--color-primary-50);
+    border-bottom: 2px solid var(--color-primary);
+    font-weight: 700;
+  }
+
+  table.part-list tbody tr:nth-child(even),
+  .bom-table tbody tr:nth-child(even) {
+    background: var(--color-row-stripe);
+    box-shadow: inset 0 0 0 999px var(--color-row-stripe);
   }
 
   table.part-list thead,
@@ -631,24 +693,32 @@ ul.errorlist {
 
   table.part-list tr,
   .bom-table tr {
+    break-inside: avoid;
     page-break-inside: avoid;
   }
 
-  .printer-part-number {
-    font-size: 1.5em;
-    font-weight: bold;
+  table.part-list .bom-num,
+  .bom-table .bom-num {
+    text-align: right !important;
   }
 
   #indented-bom {
     border-collapse: collapse;
     width: 100%;
-    font-size: 12px;
+    font-size: 10pt;
   }
 
   #indented-bom th,
   #indented-bom td {
-    border: 1px solid #000;
-    padding: 8px;
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    padding: 5px 8px;
+  }
+
+  #indented-bom th {
+    background: var(--color-primary-50);
+    box-shadow: inset 0 -1000px 0 var(--color-primary-50);
+    border-bottom: 2px solid var(--color-primary);
   }
 
   #searchForm,
@@ -658,11 +728,6 @@ ul.errorlist {
 
   .responsive-table-wrapper {
     overflow-x: visible !important;
-  }
-
-  @page {
-    size: A5;
-    margin: 1cm;
   }
 }
 

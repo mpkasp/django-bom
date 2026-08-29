@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 {% load static %}
+{% load bom_dates %}
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -39,7 +40,15 @@
         </nav>
     </div>
 </header>
-<div class="printer-show printer-part-number"><p>{{ title|safe }}</p></div>
+<div class="printer-show printer-doc">
+    <img class="printer-logo" width="56" height="56" alt="Lithium" src="{% static 'bom/img/lithium.png' %}">
+    <div class="printer-doc-text">
+        {% if title %}<p class="printer-doc-title printer-part-number">{{ title|safe }}</p>{% endif %}
+        <p class="printer-doc-meta">
+            {% user_datetime print_generated_at %}{% if print_all %} · {{ part_revs|length }} مورد{% endif %}
+        </p>
+    </div>
+</div>
 
 <main class="flex-1">
     {% block main %}{% endblock main %}

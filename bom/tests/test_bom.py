@@ -1,5 +1,6 @@
 import csv
 import re
+from copy import deepcopy
 from re import finditer
 from unittest import skip
 
@@ -64,6 +65,74 @@ class TestBOM(TransactionTestCase):
             reverse("bom:home"), {"q": f'"{p1.full_part_number()}"'}
         )
         self.assertEqual(len(response.context["part_revs"]), 1)
+
+    def test_home_print_all_rows(self):
+        (p1, p2, p3, _p4) = create_some_fake_parts(organization=self.organization)
+        raw_rev = p1.latest()
+        raw_rev.material = "no_bom"
+        raw_rev.save()
+        product_rev = p2.latest()
+        product_rev.material = "with_loi"
+        product_rev.save()
+        product_rev_2 = p3.latest()
+        product_rev_2.material = "no_loi"
+        product_rev_2.save()
+
+        config = deepcopy(settings.BOM_CONFIG_DEFAULT)
+        config["admin_dashboard"]["page_size"] = 1
+
+        with override_settings(BOM_CONFIG=config):
+            paged = self.client.get(reverse("bom:home"))
+            self.assertEqual(paged.status_code, 200)
+            self.assertEqual(len(paged.context["part_revs"]), 1)
+            self.assertTrue(paged.context["part_revs"].has_other_pages())
+            paged_html = paged.content.decode("utf-8")
+            self.assertIn("print=1", paged_html)
+            self.assertIn("print</i>Print", paged_html)
+            self.assertNotIn("window.print();", paged_html)
+            self.assertIn("bom-pagination", paged_html)
+
+            printed = self.client.get(reverse("bom:home"), {"print": "1"})
+            self.assertEqual(printed.status_code, 200)
+            self.assertGreater(len(printed.context["part_revs"]), 1)
+            self.assertFalse(printed.context["part_revs"].has_other_pages())
+            printed_html = printed.content.decode("utf-8")
+            self.assertIn("window.print", printed_html)
+            self.assertNotIn("bom-pagination", printed_html)
+            self.assertIn("printer-doc", printed_html)
+            self.assertIn("bom/img/lithium.png", printed_html)
+            self.assertIn("printer-doc-title", printed_html)
+            self.assertIn("مورد", printed_html)
+            self.assertIsNotNone(printed.context["print_generated_at"])
+            self.assertIn(p1.full_part_number(), printed_html)
+            self.assertIn(p2.full_part_number(), printed_html)
+            self.assertIn(p3.full_part_number(), printed_html)
+
+            raw = self.client.get(reverse("bom:home"), {"print": "1", "product": "0"})
+            self.assertEqual(raw.status_code, 200)
+            raw_numbers = [pr.part.full_part_number() for pr in raw.context["part_revs"]]
+            self.assertEqual(raw_numbers, [p1.full_part_number()])
+            raw_html = raw.content.decode("utf-8")
+            self.assertIn("print=1", raw_html)
+            self.assertIn("product=0", raw_html)
+
+            products = self.client.get(
+                reverse("bom:home"), {"print": "1", "product": "1"}
+            )
+            self.assertEqual(products.status_code, 200)
+            product_numbers = [
+                pr.part.full_part_number() for pr in products.context["part_revs"]
+            ]
+            self.assertIn(p2.full_part_number(), product_numbers)
+            self.assertIn(p3.full_part_number(), product_numbers)
+            self.assertNotIn(p1.full_part_number(), product_numbers)
+
+            search = self.client.get(
+                reverse("bom:home"),
+                {"print": "1", "q": f'"{p1.full_part_number()}"'},
+            )
+            self.assertEqual(len(search.context["part_revs"]), 1)
+            self.assertEqual(next(iter(search.context["part_revs"])).part.id, p1.id)
 
     def test_part_info(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
