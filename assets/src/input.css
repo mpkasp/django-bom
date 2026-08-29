@@ -240,6 +240,11 @@
     max-height: calc(100dvh - 13rem);
   }
 
+  .bom-table-wrap--fit {
+    max-height: none;
+    overflow: visible;
+  }
+
   .bom-table {
     @apply w-full border-collapse text-sm;
   }
@@ -250,6 +255,10 @@
 
   .bom-table tbody td {
     @apply border-b border-border-subtle px-2 py-1.5 align-middle;
+  }
+
+  .bom-table tfoot td {
+    @apply border-t border-border-strong bg-surface-sunken px-2 py-1.5 align-middle font-semibold;
   }
 
   .bom-table tbody tr:hover {

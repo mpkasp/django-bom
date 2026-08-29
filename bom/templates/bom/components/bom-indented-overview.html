@@ -4,7 +4,7 @@
 {% block head %}
 {% endblock %}
 
-<div class="bom-table-wrap responsive-table-wrapper">
+<div class="bom-table-wrap bom-table-wrap--fit">
     <table id="indented-bom-overview" class="bom-table part-list">
         <thead>
         <tr>
@@ -73,9 +73,10 @@
             <td class="text-normal printer-hide"></td>
             <td class="text-normal"></td>
             <td class="text-normal printer-hide"></td>
-            <td class="text-normal">{{ total_bom_weight|floatformat:0 }}</td>
+            <td class="text-normal bom-num">{{ total_bom_weight|floatformat:0 }}</td>
             <td class="text-normal"></td>
-            <td class="text-normal">{{ childs_unit_cost }}</td>
+            <td class="text-normal bom-num">{{ childs_unit_cost }}</td>
+        </tr>
         </tfoot>
     </table>
 </div>
