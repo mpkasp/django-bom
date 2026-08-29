@@ -15,91 +15,73 @@
 {% block content %}
     <div class="container-app">
         {% if profile.role == 'A' %}
-            <div class="row">
-                <form name="form" action="{% url 'bom:create-part' %}" method="post" class="col s12">
-                    {% csrf_token %}
-                    <!--
-                        <h2>کد متریال</h2>
-                    -->
-                    {% if organization.number_scheme == 'S' %}
-                    <p>Part numbers must be in the format CCC-{{ organization.number_ns }}-VV where CCC is the part number class, {{ organization.number_ns }} is the part number number item, and VV
-                        is the part variation. To change the part number item length or to create part classes, go to the <a
-                                href="{% url 'bom:settings' tab_anchor='indabom' %}">Settings</a> page, and create them in the LithiumBoM tab.</p>
-                    {% endif %}
-                    <h2>متریال جدید</h2>
-                    <div class="row">
-                        {{ part_form|bom_form:'l2 m3 s12' }}
-                        {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}
+            {% if organization.number_scheme == 'S' %}
+                <div class="bom-alert-info mb-4">
+                    Part numbers must be in the format CCC-{{ organization.number_ns }}-VV where CCC is the part number class, {{ organization.number_ns }} is the part number number item, and VV
+                    is the part variation. To change the part number item length or to create part classes, go to the <a
+                            href="{% url 'bom:settings' tab_anchor='indabom' %}">Settings</a> page, and create them in the LithiumBoM tab.
+                </div>
+            {% endif %}
+            <form name="form" action="{% url 'bom:create-part' %}" method="post" class="bom-panel-pad">
+                {% csrf_token %}
+                <h1 class="mb-4 text-lg font-semibold text-ink">متریال جدید</h1>
+                {{ part_form|bom_form:'m4 s12' }}
+                {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}
+                <div class="hidden">
+                    <h2 class="mb-3 mt-4 text-base font-semibold text-ink">{% trans "Manufacturer" %}</h2>
+                    <div class="row gap-y-3">
+                        {{ manufacturer_form.non_field_errors }}
+                        {{ manufacturer_part_form.non_field_errors }}
+                        {{ manufacturer_part_form.manufacturer_part_number.errors }}
+                        {{ manufacturer_part_form.manufacturer_part_number|bom_form:'l2 m3 s12' }}
+                        {{ manufacturer_form.name.errors }}
+                        {{ manufacturer_form.name|bom_form:'l3 m4 s12' }}
                     </div>
-                    <div class="hidden">
-                        <h2>{% trans "Manufacturer" %}</h2>
-                        <!--<p><i>The below fields are optional.</i></p>-->
-                        <div class="row">
-                            {{ manufacturer_form.non_field_errors }}
-                            {{ manufacturer_part_form.non_field_errors }}
-                            {{ manufacturer_part_form.manufacturer_part_number.errors }}
-                            {{ manufacturer_part_form.manufacturer_part_number|bom_form:'l2 m3 s12' }}
-                            {{ manufacturer_form.name.errors }}
-                            {{ manufacturer_form.name|bom_form:'l3 m4 s12' }}
-                            <!--
-                            <div class="input-field col m4 s12 materialize-checkbox-padding">
-                                <span>Select for parts that aren't found on Mouser.com</span>
-                            {{ manufacturer_part_form.mouser_disable.errors }}
-                            {{ manufacturer_part_form.mouser_disable|bom_form }}
-                            </div>
-                            -->
-                        </div>
-                    </div>
-                    <h2>{% trans "Seller" %}</h2>
-                    <!--<p><i>The below fields are optional.</i></p>-->
-                    <div class="row">
-                        {{ seller_form.non_field_errors }}
-                        {{ seller_part_form.non_field_errors }}
-                        {{ seller_part_form.seller_part_number.errors }}
-                        {{ seller_part_form.seller_part_number|bom_form:'l2 m3 s12' }}
-                        {{ seller_form.name.errors }}
-                        {{ seller_form.name|bom_form:'l3 m3 s12' }}
-                        {{ seller_part_form.unit_cost.errors }}
-                        {{ seller_part_form.unit_cost|bom_form:'l2 m3 s12' }}
-                    </div>
-                    <div class="row">
-                        <div class="col l3 m5 s6">
-                            <a href="javascript:history.back()" class="bom-btn-ghost">انصراف</a>
-                        </div>
-                        <div class="col l4 m5 s6 left-align">
-                            <button class="bom-btn-primary" type="submit" name="action">{% trans "Save" %}</button>
-                        </div>
-                    </div>
-                    <label class="hidden" id="organizationName">{% trans organization.name %}</label>
-                    <label class="hidden" id="labelNoBom">{% trans "Price" %}</label>
-                    <label class="hidden" id="labelWithBom">{% trans "Overload Cost" %}</label>
-                    <label class="hidden" id="currencyText">{% trans organization.currency %}</label>
-                    <script src="{% static 'bom/js/radio.js' %}"></script>
-                    <script>
-                        function updateTargetInput() {
-                            const sourceInputValue = document.getElementById('id_number_item').value;
-                            initManuDestVal = document.getElementById('id_manufacturer_part_number').value;
-                            if (initManuDestVal == "") {
-                                document.getElementById("id_manufacturer_part_number").focus();
-                                document.getElementById('id_manufacturer_part_number').value = sourceInputValue;
-                                document.getElementById("id_number_item").focus();
-                            }
-                            else {
-                                document.getElementById('id_manufacturer_part_number').value = sourceInputValue;
-                            }
-                            initSellerDestVal = document.getElementById('id_seller_part_number').value;
-                            if (initSellerDestVal == "") {
-                                document.getElementById("id_seller_part_number").focus();
-                                document.getElementById('id_seller_part_number').value = sourceInputValue;
-                                document.getElementById("id_number_item").focus();
-                            }
-                            else {
-                                document.getElementById('id_seller_part_number').value = sourceInputValue;
-                            }
+                </div>
+                <h2 class="mb-3 mt-4 text-base font-semibold text-ink">{% trans "Seller" %}</h2>
+                    <div class="row gap-y-3">
+                    {{ seller_form.non_field_errors }}
+                    {{ seller_part_form.non_field_errors }}
+                    {{ seller_part_form.seller_part_number.errors }}
+                    {{ seller_part_form.seller_part_number|bom_form:'m4 s12' }}
+                    {{ seller_form.name.errors }}
+                    {{ seller_form.name|bom_form:'m4 s12' }}
+                    {{ seller_part_form.unit_cost.errors }}
+                    {{ seller_part_form.unit_cost|bom_form:'m4 s12' }}
+                </div>
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+                    <a href="javascript:history.back()" class="bom-btn-ghost">انصراف</a>
+                    <button class="bom-btn-primary" type="submit" name="action">{% trans "Save" %}</button>
+                </div>
+                <label class="hidden" id="organizationName">{% trans organization.name %}</label>
+                <label class="hidden" id="labelNoBom">{% trans "Price" %}</label>
+                <label class="hidden" id="labelWithBom">{% trans "Overload Cost" %}</label>
+                <label class="hidden" id="currencyText">{% trans organization.currency %}</label>
+                <script src="{% static 'bom/js/radio.js' %}"></script>
+                <script>
+                    function updateTargetInput() {
+                        const sourceInputValue = document.getElementById('id_number_item').value;
+                        initManuDestVal = document.getElementById('id_manufacturer_part_number').value;
+                        if (initManuDestVal == "") {
+                            document.getElementById("id_manufacturer_part_number").focus();
+                            document.getElementById('id_manufacturer_part_number').value = sourceInputValue;
+                            document.getElementById("id_number_item").focus();
                         }
-                    </script>
-                </form>
-            </div>
+                        else {
+                            document.getElementById('id_manufacturer_part_number').value = sourceInputValue;
+                        }
+                        initSellerDestVal = document.getElementById('id_seller_part_number').value;
+                        if (initSellerDestVal == "") {
+                            document.getElementById("id_seller_part_number").focus();
+                            document.getElementById('id_seller_part_number').value = sourceInputValue;
+                            document.getElementById("id_number_item").focus();
+                        }
+                        else {
+                            document.getElementById('id_seller_part_number').value = sourceInputValue;
+                        }
+                    }
+                </script>
+            </form>
         {% else %}
             {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
         {% endif %}

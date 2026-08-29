@@ -15,35 +15,35 @@
 {% block content %}
     <div class="part-info container-app">
         <a href="{% url 'bom:part-info' part_id=part.id %}">بازگشت به {{ part.full_part_number }}</a>
-        <!-- <h5>{{ part.description }}</h5> -->
-        <div id="bom" class="col s12">
-            <br><h5>ویرایش زیرشاخه‌ها</h5>
+        <div id="bom">
+            <h2 class="mb-3 mt-4 text-lg font-semibold text-ink">ویرایش زیرشاخه‌ها</h2>
 
             {% include 'bom/components/bom-indented.html' with order_by='indented' manage=1 bom_items=indented_bom.parts part=part part_revision=part_revision profile=profile %}
 
-            <br><h5>افزودن زیرشاخه</h5>
-            <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}"
-                    method="post" class="col s12">
-                <div class="row">
+            <div class="bom-panel-pad mt-4">
+                <h2 class="mb-3 text-base font-semibold text-ink">افزودن زیرشاخه</h2>
+                <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}"
+                        method="post" class="flex flex-wrap items-end gap-3">
                     {% csrf_token %}
-                    {{ add_subpart_form.subpart_part_number|bom_form:'m4 s12' }}
-                    {{ add_subpart_form.count|bom_form:'m1 s12' }}
+                    <div class="min-w-0 flex-1">
+                        {{ add_subpart_form.subpart_part_number|bom_form }}
+                    </div>
+                    <div class="min-w-40">
+                        {{ add_subpart_form.count|bom_form }}
+                    </div>
                     {{ add_subpart_form.do_not_load|bom_form:'hidden' }}
                     {{ add_subpart_form.reference|bom_form:'hidden' }}
-                    <div class="flex items-end pb-2">
-                        <button class="bom-btn-primary" type="submit" name="action">افزودن
-                        </button>
-                    </div>
-                </div>
-            </form>
-            <br><h5>افزدون کل زیرشاخه‌ها</h5>
-            <p>برای افزدون زیرشاخه‌ها یک فایل csv آپلود کنید که حداقل دو ستون داشته باشد:
-                <b>part_number</b> <i>یا</i> <b>manufacturer_part_number</b> و <b>quantity</b>; ستون‌های 'part_number' یا
-                'manufacturer_part_number' باید کدهایی باشند که قبلاً در این سیستم تعریف شده‌اند.</p>
-            <p>ستون‌های اضافه: 'reference' یا 'designator' برای افزودن فیلد رفرنس به زیرشاخه ;
-               'do_not_load' اگر نمی‌خواهید متریال به در درخت لود شود.</p>
-            <div class="row">
-                <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data" class="col s12 flex flex-wrap items-end gap-3">
+                    <button class="bom-btn-primary" type="submit" name="action">افزودن</button>
+                </form>
+            </div>
+            <div class="bom-panel-pad mt-4">
+                <h2 class="mb-2 text-base font-semibold text-ink">افزودن کل زیرشاخه‌ها</h2>
+                <p class="mb-2 text-sm text-ink-muted">برای افزودن زیرشاخه‌ها یک فایل csv آپلود کنید که حداقل دو ستون داشته باشد:
+                    <b>part_number</b> <i>یا</i> <b>manufacturer_part_number</b> و <b>quantity</b>; ستون‌های 'part_number' یا
+                    'manufacturer_part_number' باید کدهایی باشند که قبلاً در این سیستم تعریف شده‌اند.</p>
+                <p class="mb-4 text-sm text-ink-muted">ستون‌های اضافه: 'reference' یا 'designator' برای افزودن فیلد رفرنس به زیرشاخه ;
+                   'do_not_load' اگر نمی‌خواهید متریال به در درخت لود شود.</p>
+                <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data" class="flex flex-wrap items-end gap-3">
                     {% csrf_token %}
                     <div class="min-w-0 flex-1">
                         <label class="bom-label" for="{{ upload_subparts_csv_form.file.id_for_label }}">انتخاب فایل</label>
@@ -54,7 +54,6 @@
                     <a href="{% url 'bom:part-info' part_id=part.id %}" class="bom-btn-ghost">انصراف</a>
                 </form>
             </div>
-            <br>
         </div>
     </div>
 {% endblock %}
