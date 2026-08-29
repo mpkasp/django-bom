@@ -186,6 +186,7 @@ BOM_CONFIG_DEFAULT = {
     "admin_dashboard": {
         "enable_autocomplete": False,
         "page_size": 50,
+        "print_auto_threshold": 200,
     },
 }
 

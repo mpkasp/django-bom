@@ -410,6 +410,34 @@ ul.errorlist {
   display: none;
 }
 
+.print-screen-only {
+  display: block;
+}
+
+.print-page-body {
+  @apply bg-canvas text-ink;
+}
+
+.print-ready-bar {
+  @apply mx-auto mb-4 w-[95%] max-w-[90rem] rounded-md border border-warning-border bg-warning-light px-4 py-3;
+}
+
+.print-ready-bar-compact {
+  @apply border-border bg-surface-muted;
+}
+
+.print-ready-message {
+  @apply mb-3 text-sm text-ink;
+}
+
+.print-ready-actions {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.print-page-main {
+  @apply flex-1;
+}
+
 /* Navbar: unlayered so visibility cannot lose to Tailwind utilities */
 .bom-navbar-inner {
   display: flex;
@@ -571,6 +599,7 @@ ul.errorlist {
   .bom-tabs,
   .bom-pagination,
   .printer-hide,
+  .print-screen-only,
   .sidenav,
   footer,
   header,

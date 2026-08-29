@@ -1,0 +1,44 @@
+{% extends 'bom/print-base.html' %}
+
+{% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
+
+{% block content %}
+    <div class="container-app">
+        <table class="bom-table part-list">
+            <thead>
+            <tr>
+                <th>کد متریال</th>
+                {% if organization.number_scheme == 'S' %}
+                    <th>Category</th>
+                {% endif %}
+                <th>متریال</th>
+                <th>ورژن</th>
+                <th>{% trans "Seller Part Number" %}</th>
+                <th>{% trans "Seller" %}</th>
+                <th class="bom-num">{% trans "Unit Cost" %}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for part_rev in part_revs %}
+                {% with part=part_rev.part seller=part_rev.part.optimal_seller %}
+                <tr>
+                    <td>{{ part.full_part_number }}</td>
+                    {% if organization.number_scheme == 'S' %}
+                        <td>{{ part.number_class.name }}</td>
+                    {% endif %}
+                    <td>{{ part_rev.description }}</td>
+                    <td>{{ part_rev.revision }}</td>
+                    <td>{% if seller %}{{ seller.seller_part_number }}{% endif %}</td>
+                    <td>{% if seller %}{{ seller.seller }}{% endif %}</td>
+                    <td class="bom-num">{{ part_rev.print_unit_cost|default_if_none:"" }}</td>
+                </tr>
+                {% endwith %}
+            {% empty %}
+                <tr>
+                    <td colspan="99" class="bom-empty">هیچ متریالی پیدا نشد.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

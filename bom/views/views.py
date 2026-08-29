@@ -505,10 +505,16 @@ def home(request):
 
     print_all = "print" in request.GET
     if print_all:
+        print_row_count = part_revs.count()
+        print_auto_threshold = settings.BOM_CONFIG.get("admin_dashboard", {}).get(
+            "print_auto_threshold", 200
+        )
+        print_auto = print_row_count <= print_auto_threshold
         part_revs = prepare_all_part_revs_for_list_page(part_revs)
-    else:
-        page_size = settings.BOM_CONFIG.get("admin_dashboard", {}).get("page_size", 25)
-        part_revs = paginate_part_revs(request, part_revs, page_size)
+        return TemplateResponse(request, "bom/dashboard-print.html", locals())
+
+    page_size = settings.BOM_CONFIG.get("admin_dashboard", {}).get("page_size", 25)
+    part_revs = paginate_part_revs(request, part_revs, page_size)
 
     return TemplateResponse(request, "bom/dashboard.html", locals())
 

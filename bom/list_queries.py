@@ -81,6 +81,20 @@ def prepare_all_part_revs_for_list_page(
 ):
     """Prefetch seller data for every matching row (no pagination)."""
     part_revs = part_revs.select_related(*LIST_PAGE_SELECT_RELATED)
-    return prepare_part_revs_for_list_page(
+    page = prepare_part_revs_for_list_page(
         UnpaginatedPartRevList(part_revs), quantity
     )
+    attach_print_unit_costs(page)
+    return page
+
+
+def attach_print_unit_costs(part_revs_page):
+    """Set print_unit_cost without walking BOM trees for raw materials."""
+    for part_rev in part_revs_page:
+        seller = part_rev.part.optimal_seller()
+        material = part_rev.material
+        if material in (None, "", "no_bom"):
+            part_rev.print_unit_cost = seller.unit_cost if seller else None
+        else:
+            part_rev.print_unit_cost = part_rev.bom_unit_cost
+    return part_revs_page
