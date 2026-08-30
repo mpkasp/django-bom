@@ -18,6 +18,27 @@
 
     body.printing-overview {
         page: overview;
+        font-size: 9pt;
+        line-height: 1.3;
+    }
+
+    body.printing-overview .printer-doc-title,
+    body.printing-overview .printer-part-number {
+        font-size: 13pt;
+    }
+
+    body.printing-overview .printer-doc-meta {
+        font-size: 9pt;
+    }
+
+    body.printing-overview h4.printer-show {
+        font-size: 11pt;
+    }
+
+    body.printing-overview table.part-list,
+    body.printing-overview .bom-table,
+    body.printing-overview #indented-bom-overview {
+        font-size: 8.5pt;
     }
 
     .fixed-action-btn {

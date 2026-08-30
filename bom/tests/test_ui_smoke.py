@@ -52,6 +52,8 @@ class TestUiSmoke(TransactionTestCase):
         self.assertRegex(part_info_css, r"size:\s*A5")
         self.assertIn("body.printing-overview", part_info_css)
         self.assertIn("page: overview", part_info_css)
+        self.assertIn("font-size: 9pt", part_info_css)
+        self.assertIn("font-size: 8.5pt", part_info_css)
 
     def test_login_form_error_display(self):
         response = self.client.post(reverse("login"), {"username": "x", "password": "bad"})
