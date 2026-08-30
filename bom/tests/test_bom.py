@@ -66,6 +66,27 @@ class TestBOM(TransactionTestCase):
         )
         self.assertEqual(len(response.context["part_revs"]), 1)
 
+    def test_home_partial_part_search(self):
+        (p1, _p2, _p3, _p4) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.get(reverse("bom:home"), {"q": "333"})
+        self.assertEqual(response.status_code, 200)
+        part_numbers = [pr.part.full_part_number() for pr in response.context["part_revs"]]
+        self.assertIn(p1.full_part_number(), part_numbers)
+
+        if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            response = self.client.get(reverse("bom:home"), {"q": "200-33"})
+            self.assertEqual(response.status_code, 200)
+            part_numbers = [
+                pr.part.full_part_number() for pr in response.context["part_revs"]
+            ]
+            self.assertIn(p1.full_part_number(), part_numbers)
+
+        response = self.client.get(
+            reverse("bom:home"), {"q": f'"{p1.full_part_number()}"'}
+        )
+        self.assertEqual(len(response.context["part_revs"]), 1)
+
     def test_home_print_all_rows(self):
         (p1, p2, p3, _p4) = create_some_fake_parts(organization=self.organization)
         raw_rev = p1.latest()

@@ -1,3 +1,8 @@
+import operator
+from functools import reduce
+
+from django.db.models import Q
+
 from bom import constants
 from bom.models import (
     Assembly,
@@ -17,6 +22,59 @@ from bom.models import (
 )
 from djmoney.money import Money
 from decimal import Decimal
+
+
+def _part_number_partial_q(term, organization):
+    if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+        if "-" in term:
+            elements = term.split("-", 2)
+            q = Q()
+            if elements[0]:
+                q &= Q(number_class__code__icontains=elements[0])
+            if len(elements) >= 2 and elements[1]:
+                q &= Q(number_item__icontains=elements[1])
+            if len(elements) >= 3 and elements[2]:
+                q &= Q(number_variation__icontains=elements[2])
+            return q
+        return (
+            Q(number_item__icontains=term)
+            | Q(number_class__code__icontains=term)
+            | Q(number_variation__icontains=term)
+        )
+    return Q(number_item__icontains=term)
+
+
+def build_part_search_q(search_terms, organization):
+    part_synopsis_ids = PartRevision.objects.filter(
+        reduce(
+            operator.or_,
+            (Q(searchable_synopsis__icontains=term) for term in search_terms),
+        )
+    ).values_list("part", flat=True)
+    q_primary_mpn = reduce(
+        operator.or_,
+        (
+            Q(primary_manufacturer_part__manufacturer_part_number__icontains=term)
+            for term in search_terms
+        ),
+    )
+    q_primary_mfg = reduce(
+        operator.or_,
+        (
+            Q(primary_manufacturer_part__manufacturer__name__icontains=term)
+            for term in search_terms
+        ),
+    )
+    q_part_number = reduce(
+        operator.or_,
+        (_part_number_partial_q(term, organization) for term in search_terms),
+    )
+    return (
+        q_part_number
+        | Q(id__in=part_synopsis_ids)
+        | q_primary_mpn
+        | q_primary_mfg
+    )
 
 
 def create_a_fake_organization(
