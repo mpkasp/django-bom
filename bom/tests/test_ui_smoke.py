@@ -46,6 +46,13 @@ class TestUiSmoke(TransactionTestCase):
         self.assertRegex(css, r"size:\s*A4")
         self.assertNotRegex(css, r"size:\s*A5")
 
+    def test_part_info_overview_print_uses_a5_page(self):
+        part_info_css = open("bom/static/bom/css/part-info.css").read()
+        self.assertIn("@page overview", part_info_css)
+        self.assertRegex(part_info_css, r"size:\s*A5")
+        self.assertIn("body.printing-overview", part_info_css)
+        self.assertIn("page: overview", part_info_css)
+
     def test_login_form_error_display(self):
         response = self.client.post(reverse("login"), {"username": "x", "password": "bad"})
         self.assertEqual(response.status_code, 200)
