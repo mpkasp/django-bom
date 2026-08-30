@@ -185,7 +185,7 @@ BOM_CONFIG_DEFAULT = {
     "page_loading_delay_ms": 300,
     "admin_dashboard": {
         "enable_autocomplete": False,
-        "page_size": 50,
+        "page_size": 25,
         "print_auto_threshold": 200,
     },
 }

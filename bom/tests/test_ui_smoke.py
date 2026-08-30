@@ -122,12 +122,13 @@ class TestUiSmoke(TransactionTestCase):
         sellers = self.client.get(reverse("bom:sellers"))
         self.assertEqual(sellers.status_code, 200)
         sellers_html = sellers.content.decode("utf-8")
-        self.assertIn("bom-table-wrap", sellers_html)
+        self.assertIn("bom-table-wrap bom-table-wrap--fit", sellers_html)
         self.assertIn("bom-table", sellers_html)
         self.assertIn("bom-input", sellers_html)
         self.assertIn("bom-btn-primary", sellers_html)
         self.assertNotIn("striped highlight", sellers_html)
 
+        self.assertIn("bom-table-wrap bom-table-wrap--fit", html)
         self.assertIn("bom-table", html)
         self.assertRegex(
             src,

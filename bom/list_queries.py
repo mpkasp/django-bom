@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Prefetch, prefetch_related_objects
 
@@ -10,6 +11,10 @@ LIST_PAGE_SELECT_RELATED = (
     "part__number_class",
     "part__primary_manufacturer_part",
 )
+
+
+def get_list_page_size():
+    return settings.BOM_CONFIG.get("admin_dashboard", {}).get("page_size", 25)
 
 
 def prepare_part_revs_for_list_page(
