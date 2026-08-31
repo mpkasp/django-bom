@@ -57,25 +57,7 @@
                     </table>
                 </div>
                 {% if manufacturers.has_other_pages %}
-                    <nav class="bom-pagination printer-hide" aria-label="pagination">
-                        {% if manufacturers.has_previous %}
-                            <a class="bom-page-link" href="?page={{ manufacturers.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons text-base">chevron_left</i></a>
-                        {% else %}
-                            <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_left</i></span>
-                        {% endif %}
-                        {% for i in manufacturers.paginator.page_range %}
-                            {% if manufacturers.number == i %}
-                                <span class="bom-page-link bom-page-link-active">{{ i }}</span>
-                            {% else %}
-                                <a class="bom-page-link" href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a>
-                            {% endif %}
-                        {% endfor %}
-                        {% if manufacturers.has_next %}
-                            <a class="bom-page-link" href="?page={{ manufacturers.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons text-base">chevron_right</i></a>
-                        {% else %}
-                            <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_right</i></span>
-                        {% endif %}
-                    </nav>
+                    {% include 'bom/ui/pagination.html' with page_obj=manufacturers extra_query=querystring_except_page %}
                 {% endif %}
             </div>
     </div>

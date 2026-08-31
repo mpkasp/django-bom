@@ -46,25 +46,7 @@
         {% include 'bom/components/seller-part-list.html' with seller_parts=seller_parts profile=profile %}
 
         {% if seller_parts.has_other_pages %}
-            <nav class="bom-pagination printer-hide" aria-label="pagination">
-                {% if seller_parts.has_previous %}
-                    <a class="bom-page-link" href="?page={{ seller_parts.previous_page_number }}"><i class="material-icons text-base">chevron_left</i></a>
-                {% else %}
-                    <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_left</i></span>
-                {% endif %}
-                {% for i in seller_parts.paginator.page_range %}
-                    {% if seller_parts.number == i %}
-                        <span class="bom-page-link bom-page-link-active">{{ i }}</span>
-                    {% else %}
-                        <a class="bom-page-link" href="?page={{ i }}">{{ i }}</a>
-                    {% endif %}
-                {% endfor %}
-                {% if seller_parts.has_next %}
-                    <a class="bom-page-link" href="?page={{ seller_parts.next_page_number }}"><i class="material-icons text-base">chevron_right</i></a>
-                {% else %}
-                    <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_right</i></span>
-                {% endif %}
-            </nav>
+            {% include 'bom/ui/pagination.html' with page_obj=seller_parts extra_query=querystring_except_page %}
         {% endif %}
     </div>
 {% endblock %}

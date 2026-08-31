@@ -19,7 +19,7 @@ from bom.helpers import (
     create_some_fake_parts,
     create_user_and_organization,
 )
-from bom.models import Part, PartClass, Subpart
+from bom.models import Part, PartClass, Seller, Subpart
 from bom.utils import convert_arabic_to_english
 
 TEST_FILES_DIR = "bom/test_files"
@@ -86,6 +86,60 @@ class TestBOM(TransactionTestCase):
             reverse("bom:home"), {"q": f'"{p1.full_part_number()}"'}
         )
         self.assertEqual(len(response.context["part_revs"]), 1)
+
+    def test_home_pagination_elided_page_range(self):
+        pc1 = create_some_fake_part_classes(self.organization)[0]
+        for i in range(15):
+            part = Part(
+                number_class=pc1,
+                number_item=str(1000 + i),
+                organization=self.organization,
+            )
+            part.save()
+            create_a_fake_part_revision(part, None)
+
+        config = deepcopy(settings.BOM_CONFIG_DEFAULT)
+        config["admin_dashboard"]["page_size"] = 1
+
+        with override_settings(BOM_CONFIG=config):
+            response = self.client.get(reverse("bom:home"))
+            self.assertEqual(response.status_code, 200)
+            html = response.content.decode("utf-8")
+            nav_start = html.find('<nav class="bom-pagination')
+            nav_end = html.find("</nav>", nav_start)
+            self.assertNotEqual(nav_start, -1)
+            nav = html[nav_start:nav_end]
+            self.assertIn("…", nav)
+            self.assertNotIn("?page=10", nav)
+
+    def test_sellers_pagination_rtl_arrows(self):
+        Seller.objects.bulk_create(
+            [
+                Seller(name=f"Seller-{i}", organization=self.organization)
+                for i in range(15)
+            ]
+        )
+
+        config = deepcopy(settings.BOM_CONFIG_DEFAULT)
+        config["admin_dashboard"]["page_size"] = 1
+
+        with override_settings(BOM_CONFIG=config):
+            response = self.client.get(reverse("bom:sellers"))
+            self.assertEqual(response.status_code, 200)
+            html = response.content.decode("utf-8")
+            nav_start = html.find('<nav class="bom-pagination')
+            nav_end = html.find("</nav>", nav_start)
+            self.assertNotEqual(nav_start, -1)
+            nav = html[nav_start:nav_end]
+            right_idx = nav.find("chevron_right")
+            left_idx = nav.find("chevron_left")
+            self.assertNotEqual(right_idx, -1)
+            self.assertNotEqual(left_idx, -1)
+            self.assertLess(right_idx, left_idx)
+            first_chevron = nav.find("chevron_")
+            self.assertTrue(
+                nav[first_chevron : first_chevron + 20].startswith("chevron_right")
+            )
 
     def test_home_print_all_rows(self):
         (p1, p2, p3, _p4) = create_some_fake_parts(organization=self.organization)

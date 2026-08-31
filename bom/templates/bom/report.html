@@ -178,25 +178,7 @@
                     </table>
                 </div>
                 {% if part_revs.has_other_pages %}
-                    <nav class="bom-pagination printer-hide" aria-label="pagination">
-                        {% if part_revs.has_previous %}
-                            <a class="bom-page-link" href="?page={{ part_revs.previous_page_number }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons text-base">chevron_right</i></a>
-                        {% else %}
-                            <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_right</i></span>
-                        {% endif %}
-                        {% for i in part_revs.paginator.page_range %}
-                            {% if part_revs.number == i %}
-                                <span class="bom-page-link bom-page-link-active">{{ i }}</span>
-                            {% else %}
-                                <a class="bom-page-link" href="?page={{ i }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a>
-                            {% endif %}
-                        {% endfor %}
-                        {% if part_revs.has_next %}
-                            <a class="bom-page-link" href="?page={{ part_revs.next_page_number }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons text-base">chevron_left</i></a>
-                        {% else %}
-                            <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_left</i></span>
-                        {% endif %}
-                    </nav>
+                    {% include 'bom/ui/pagination.html' with page_obj=part_revs extra_query=querystring_except_page %}
                 {% endif %}
             </div>
         </form>

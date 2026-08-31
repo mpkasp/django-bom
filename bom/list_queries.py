@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from django.conf import settings
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Prefetch, prefetch_related_objects
@@ -15,6 +17,13 @@ LIST_PAGE_SELECT_RELATED = (
 
 def get_list_page_size():
     return settings.BOM_CONFIG.get("admin_dashboard", {}).get("page_size", 25)
+
+
+def querystring_except_page(request, *exclude):
+    query_params = request.GET.copy()
+    for key in ("page", *exclude):
+        query_params.pop(key, None)
+    return urlencode(query_params)
 
 
 def prepare_part_revs_for_list_page(

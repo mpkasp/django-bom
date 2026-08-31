@@ -54,25 +54,7 @@
         {% include 'bom/components/customer-price-list.html' with prices=price_history show_history=True profile=profile %}
 
         {% if price_history.has_other_pages %}
-            <nav class="bom-pagination printer-hide" aria-label="pagination">
-                {% if price_history.has_previous %}
-                    <a class="bom-page-link" href="?page={{ price_history.previous_page_number }}"><i class="material-icons text-base">chevron_left</i></a>
-                {% else %}
-                    <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_left</i></span>
-                {% endif %}
-                {% for i in price_history.paginator.page_range %}
-                    {% if price_history.number == i %}
-                        <span class="bom-page-link bom-page-link-active">{{ i }}</span>
-                    {% else %}
-                        <a class="bom-page-link" href="?page={{ i }}">{{ i }}</a>
-                    {% endif %}
-                {% endfor %}
-                {% if price_history.has_next %}
-                    <a class="bom-page-link" href="?page={{ price_history.next_page_number }}"><i class="material-icons text-base">chevron_right</i></a>
-                {% else %}
-                    <span class="bom-page-link pointer-events-none opacity-40"><i class="material-icons text-base">chevron_right</i></span>
-                {% endif %}
-            </nav>
+            {% include 'bom/ui/pagination.html' with page_obj=price_history extra_query=querystring_except_page %}
         {% endif %}
     </div>
 {% endblock %}

@@ -1,7 +1,6 @@
 import csv
 import logging
 from json import dumps
-from urllib.parse import urlencode
 
 import pandas as pd
 from django.conf import settings
@@ -89,6 +88,7 @@ from bom.list_queries import (
     get_list_page_size,
     paginate_part_revs,
     prepare_all_part_revs_for_list_page,
+    querystring_except_page as build_querystring_except_page,
 )
 from bom.utils import (
     check_references_for_duplicates,
@@ -124,11 +124,7 @@ def home(request):
         return HttpResponseRedirect(reverse("bom:organization-create"))
 
     # Build a querystring with all GET params except 'page' and 'print'
-    query_params = request.GET.copy()
-    query_params.pop("page", None)
-    query_params.pop("print", None)
-    query_params.pop("print_go", None)
-    querystring_except_page = urlencode(query_params)
+    querystring_except_page = build_querystring_except_page(request, "print", "print_go")
 
     query = request.GET.get("q", "")
     title = f"{organization.name}"
@@ -689,6 +685,7 @@ def report(request):
 
     page_size = get_list_page_size()
     part_revs = paginate_part_revs(request, part_revs, page_size)
+    querystring_except_page = build_querystring_except_page(request)
 
     # TODO: delete
     # context = {
@@ -1048,6 +1045,8 @@ def manufacturers(request):
     except EmptyPage:
         manufacturers = paginator.page(paginator.num_pages)
 
+    querystring_except_page = build_querystring_except_page(request)
+
     return TemplateResponse(request, "bom/manufacturers.html", locals())
 
 
@@ -1137,6 +1136,8 @@ def sellers(request):
     except EmptyPage:
         sellers = paginator.page(paginator.num_pages)
 
+    querystring_except_page = build_querystring_except_page(request)
+
     return TemplateResponse(request, "bom/sellers.html", locals())
 
 
@@ -1170,6 +1171,8 @@ def seller_info(request, seller_id):
         seller_parts = paginator.page(1)
     except EmptyPage:
         seller_parts = paginator.page(paginator.num_pages)
+
+    querystring_except_page = build_querystring_except_page(request)
 
     return TemplateResponse(request, "bom/seller-info.html", locals())
 
@@ -1236,6 +1239,8 @@ def customers(request):
     except EmptyPage:
         customers = paginator.page(paginator.num_pages)
 
+    querystring_except_page = build_querystring_except_page(request)
+
     return TemplateResponse(request, "bom/customers.html", locals())
 
 
@@ -1285,6 +1290,8 @@ def customer_info(request, customer_id):
         price_history = paginator.page(1)
     except EmptyPage:
         price_history = paginator.page(paginator.num_pages)
+
+    querystring_except_page = build_querystring_except_page(request)
 
     return TemplateResponse(request, "bom/customer-info.html", locals())
 
