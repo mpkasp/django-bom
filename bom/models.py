@@ -986,7 +986,8 @@ class ManufacturerPart(models.Model, AsDictModel):
     def as_dict_for_export(self):
         return {
             'manufacturer_name': self.manufacturer.name if self.manufacturer is not None else '',
-            'manufacturer_part_number': self.manufacturer_part_number
+            'manufacturer_part_number': self.manufacturer_part_number,
+            'manufacturer_approval_status': self.manufacturer.approval_status if self.manufacturer is not None else '',
         }
 
     def clean(self):
@@ -1043,6 +1044,7 @@ class SellerPart(models.Model, AsDictModel):
         return {
             'manufacturer_name': self.manufacturer_part.manufacturer.name if self.manufacturer_part.manufacturer is not None else '',
             'manufacturer_part_number': self.manufacturer_part.manufacturer_part_number,
+            'manufacturer_approval_status': self.manufacturer_part.manufacturer.approval_status if self.manufacturer_part.manufacturer is not None else '',
             'seller': self.seller.name,
             'seller_part_number': self.seller_part_number,
             'unit_cost': self.unit_cost.amount,

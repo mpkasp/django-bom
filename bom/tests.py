@@ -192,6 +192,22 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:part-revision-export-bom-flat-sourcing-detailed', kwargs={'part_revision_id': p1.latest().id}))
         self.assertEqual(response.status_code, 200)
 
+    def test_export_bom_manufacturer_approval_status(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        manufacturer = p1.primary_manufacturer_part.manufacturer
+        manufacturer.approval_status = constants.APPROVAL_STATUS_APPROVED
+        manufacturer.save()
+
+        # Primary manufacturer's approval status populates the base column.
+        response = self.client.post(reverse('bom:part-export-bom', kwargs={'part_id': p1.id}))
+        rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8'))))
+        self.assertEqual(rows[0]['manufacturer_approval_status'], constants.APPROVAL_STATUS_APPROVED)
+
+        # Detailed sourcing populates the per-seller-part manufacturer_approval_status_N columns.
+        response = self.client.post(reverse('bom:part-export-bom-sourcing-detailed', kwargs={'part_id': p1.id}))
+        rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8'))))
+        self.assertEqual(rows[0]['manufacturer_approval_status_1'], constants.APPROVAL_STATUS_APPROVED)
+
     def test_export_parts(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 

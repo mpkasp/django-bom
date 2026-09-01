@@ -184,6 +184,7 @@ class PartBomItem(AsDictModel):
             'part_revision': self.part_revision.revision,
             'part_manufacturer': self.part.primary_manufacturer_part.manufacturer.name if self.part.primary_manufacturer_part is not None and self.part.primary_manufacturer_part.manufacturer is not None else '',
             'part_manufacturer_part_number': self.part.primary_manufacturer_part.manufacturer_part_number if self.part.primary_manufacturer_part is not None else '',
+            'manufacturer_approval_status': self.part.primary_manufacturer_part.manufacturer.approval_status if self.part.primary_manufacturer_part is not None and self.part.primary_manufacturer_part.manufacturer is not None else '',
             'part_ext_qty': self.extended_quantity,
             'part_order_qty': self.order_quantity,
             'part_seller': self.seller_part.seller.name if self.seller_part is not None else '',
