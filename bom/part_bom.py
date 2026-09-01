@@ -173,7 +173,7 @@ class PartBomItem(AsDictModel):
         return dict
 
     def as_dict_for_export(self):
-        return {
+        row = {
             'part_number': self.part.full_part_number(),
             'quantity': self.quantity,
             'do_not_load': self.do_not_load,
@@ -196,6 +196,13 @@ class PartBomItem(AsDictModel):
             'part_out_of_pocket_cost': self.out_of_pocket_cost().amount,
             'part_lead_time_days': self.seller_part.lead_time_days if self.seller_part is not None else 0,
         }
+
+        for prop in self.part_revision.properties.all():
+            row[prop.property_definition.form_field_name] = prop.value_raw
+            if prop.property_definition.quantity_of_measure:
+                row[prop.property_definition.form_unit_field_name] = prop.unit_definition.symbol if prop.unit_definition else ''
+
+        return row
 
     def manufacturer_parts_for_export(self):
         return [mp.as_dict_for_export() for mp in self.part.manufacturer_parts(exclude_primary=True)]

@@ -25,8 +25,6 @@ from social_django.models import UserSocialAuth
 
 import bom.constants as constants
 from bom.csv_headers import (
-    BOMFlatCSVHeaders,
-    BOMIndentedCSVHeaders,
     ManufacturerPartCSVHeaders,
     PartClassesCSVHeaders,
     SellerPartCSVHeaders,
@@ -974,9 +972,9 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
         bom = []
 
     if flat:
-        csv_headers = BOMFlatCSVHeaders()
+        csv_headers = organization.bom_flat_csv_headers()
     else:
-        csv_headers = BOMIndentedCSVHeaders()
+        csv_headers = organization.bom_indented_csv_headers()
 
     csv_headers_raw = csv_headers.get_default_all()
     csv_rows = []
@@ -984,7 +982,6 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
         mapped_row = {}
         raw_row = {k: smart_str(v) for k, v in item.as_dict_for_export().items()}
         for kx, vx in raw_row.items():
-            if csv_headers.get_default(kx) is None: print ("NONE", kx)
             mapped_row.update({csv_headers.get_default(kx): vx})
 
         if sourcing_detailed:

@@ -208,6 +208,16 @@ class TestBOM(TransactionTestCase):
         rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8'))))
         self.assertEqual(rows[0]['manufacturer_approval_status_1'], constants.APPROVAL_STATUS_APPROVED)
 
+    def test_export_bom_properties(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+
+        response = self.client.post(reverse('bom:part-export-bom', kwargs={'part_id': p1.id}))
+        rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8'))))
+        self.assertTrue(rows)
+        self.assertEqual(rows[0]['property_voltage'], '.01')
+        self.assertEqual(rows[0]['property_voltage_unit'], 'V')
+        self.assertEqual(rows[0]['property_count'], '5.2')
+
     def test_export_parts(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
