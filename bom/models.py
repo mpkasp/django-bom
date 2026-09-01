@@ -646,11 +646,11 @@ class PartRevision(models.Model):
         if hasattr(self, field_name):
             return getattr(self, field_name)
 
-        is_unit = field_name.endswith('_units')
-        prop_name = field_name[:-6] if is_unit else field_name
+        is_unit = field_name.endswith('_unit')
+        prop_name = field_name[:-5] if is_unit else field_name
 
         for prop in self.properties.all():
-            if prop.property_definition.name == prop_name:
+            if prop.property_definition.form_field_name == prop_name:
                 if is_unit:
                     return prop.unit_definition.symbol if prop.unit_definition else ''
                 else:

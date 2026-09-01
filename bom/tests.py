@@ -201,6 +201,14 @@ class TestBOM(TransactionTestCase):
         response = self.client.get(reverse('bom:home'), {'download': f'{p1.id}'}, follow=True)
         self.assertEqual(response.status_code, 200)
 
+        # Property and unit columns must be populated, not left blank.
+        rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8'))))
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertEqual(row['property_voltage'], '.01')
+            self.assertEqual(row['property_voltage_unit'], 'V')
+            self.assertEqual(row['property_count'], '5.2')
+
     def test_part_upload_bom(self):
         sheen, voltage, _, _, _ = create_some_fake_part_revision_property_definitions(self.organization, False)
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
