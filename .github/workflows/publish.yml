@@ -76,15 +76,22 @@ jobs:
         working-directory: indabom
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # --refresh-package bypasses uv's local index cache so a freshly published
-          # version is picked up even if an earlier resolve cached the index.
-          uv lock --upgrade-package django-bom --refresh-package django-bom
-          LOCKED_VERSION=$(grep -A2 'name = "django-bom"' uv.lock | grep 'version =' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
-          echo "uv.lock now pins django-bom $LOCKED_VERSION (expected $VERSION)"
-          if [ "$LOCKED_VERSION" != "$VERSION" ]; then
-            echo "✗ uv.lock did not update to $VERSION — aborting so no empty PR is opened."
-            exit 1
-          fi
+          # The simple-index check above and this resolve can hit different PyPI CDN
+          # (Fastly) edges, so the index may still be stale for uv even once the check
+          # passed. --refresh-package only clears uv's *local* cache — it can't fix a
+          # stale edge — so retry the resolve until the lock actually pins $VERSION.
+          for i in {1..30}; do
+            uv lock --upgrade-package django-bom --refresh-package django-bom
+            LOCKED_VERSION=$(grep -A2 'name = "django-bom"' uv.lock | grep 'version =' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+            echo "uv.lock now pins django-bom $LOCKED_VERSION (expected $VERSION)"
+            if [ "$LOCKED_VERSION" = "$VERSION" ]; then
+              exit 0
+            fi
+            echo "⏳ Attempt $i/30: uv.lock still on $LOCKED_VERSION, waiting for the index to propagate..."
+            sleep 10
+          done
+          echo "✗ uv.lock did not update to $VERSION after 300s — aborting so no empty PR is opened."
+          exit 1
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
