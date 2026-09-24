@@ -12,6 +12,7 @@
 {% block content %}
     <div class="container-app">
         {% if perms.bom.create_part %}
+            {% include 'bom/starter-part-classes-prompt.html' %}
             <div class="row">
                 <form name="form" action="{% url 'bom:create-part' %}" method="post" enctype="multipart/form-data"
                       class="col s12">

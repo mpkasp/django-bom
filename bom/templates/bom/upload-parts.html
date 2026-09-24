@@ -17,11 +17,8 @@
                 are in an assembly, instead <a href="{% url 'bom:upload-bom' %}">upload a bill of materials</a>.</p>
 
             <p style="margin-top: 8px; font-size: 0.85rem;">
-                {% if organization.number_scheme == 'S' %}
-                    <a href="{% static 'bom/doc/test_new_parts.csv' %}">Download a Sample CSV</a>
-                {% else %}
-                    <a href="{% static 'bom/doc/test_new_parts_5_intelligent.csv' %}">Download a Sample CSV</a>
-                {% endif %}
+                <a href="{% url 'bom:upload-parts-template' %}">Download a template CSV</a> set up for your
+                organization's numbering{% if organization.number_scheme == 'S' %} and part classes{% endif %}.
             </p>
 
             <div class="row" style="margin-bottom: 0;">
@@ -36,12 +33,13 @@
                         {% if organization.number_scheme == 'S' %}
                             <tr>
                                 <td><code>part_class</code> <em>or</em> <code>part_number</code></td>
-                                <td>Class code, or full <code>CCC-NNNN-VV</code> number</td>
+                                <td>A class code to number the part for you, or a full number like
+                                    <code>{{ organization.example_part_number }}</code></td>
                             </tr>
                         {% else %}
                             <tr>
                                 <td><code>part_number</code></td>
-                                <td>Must be unique</td>
+                                <td>Any unique number, e.g. <code>{{ organization.example_part_number }}</code></td>
                             </tr>
                         {% endif %}
                         <tr>
@@ -76,13 +74,7 @@
                 </div>
 
                 <div class="col s12 m6">
-                    {% if organization.number_scheme == 'S' and organization.partclass_set.count == 0 %}
-                        <div class="card-panel orange lighten-4">
-                            <i class="material-icons left" style="font-size: 1.2rem;">warning</i>
-                            No part classes defined. <a href="{% url 'bom:settings' 'indabom' %}">Create part classes in
-                            Settings</a> before uploading.
-                        </div>
-                    {% endif %}
+                    {% include 'bom/starter-part-classes-prompt.html' %}
 
                     <div class="card-panel">
                         <form action="{% url 'bom:upload-parts' %}" method="post" enctype="multipart/form-data">

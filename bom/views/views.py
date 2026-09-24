@@ -19,7 +19,9 @@ from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.encoding import smart_str
+from django.utils.html import format_html, format_html_join
 from django.utils.text import smart_split
+from django.views.decorators.http import require_POST
 from django.views.generic.base import TemplateView
 from social_django.models import UserSocialAuth
 
@@ -107,6 +109,40 @@ def add_form_error_messages(request, form):
                     messages.error(request, error)
                 else:
                     messages.error(request, f"{field.capitalize()}: {error}")
+
+
+CSV_UPLOAD_MESSAGE_LIMIT = 10
+
+
+def add_csv_upload_messages(request, csv_form, singular_noun, plural_noun):
+    """Summarize a CSV upload in at most three messages: imported, errors and warnings.
+
+    One message per row buried large uploads under thousands of alerts. Rows are imported while the
+    form cleans, so successes are reported even when other rows failed and the form is invalid.
+    """
+    # Reading errors runs the import, which is also what fills in successes and warnings.
+    errors = [str(error) for field_errors in csv_form.errors.values() for error in field_errors]
+    successes = getattr(csv_form, 'successes', [])
+    if successes:
+        noun = singular_noun if len(successes) == 1 else plural_noun
+        messages.info(request, f"Imported {len(successes):,} {noun}.")
+    _add_capped_message(request, messages.ERROR, errors, 'error')
+    _add_capped_message(request, messages.WARNING, getattr(csv_form, 'warnings', []), 'warning')
+
+
+def _add_capped_message(request, level, texts, noun):
+    if not texts:
+        return
+    # Messages render with |safe, so CSV-derived text is escaped here.
+    if len(texts) == 1:
+        messages.add_message(request, level, format_html('{}', texts[0]))
+        return
+    shown = texts[:CSV_UPLOAD_MESSAGE_LIMIT]
+    summary = f"{len(texts):,} {noun}s"
+    if len(shown) < len(texts):
+        summary += f", showing the first {len(shown)}"
+    items = format_html_join('', '<li>{}</li>', ((text,) for text in shown))
+    messages.add_message(request, level, format_html('{}:<ul class="browser-default">{}</ul>', summary, items))
 
 @login_required(login_url=BOM_LOGIN_URL)
 def home(request):
@@ -321,7 +357,12 @@ def organization_create(request):
     else:
         org_name = user.first_name + ' ' + user.last_name
 
-    form = OrganizationCreateForm(initial={'name': org_name, 'number_item_len': 4})
+    # Intelligent keeps the part numbers people already have, so an existing parts list imports as-is.
+    form = OrganizationCreateForm(initial={
+        'name': org_name,
+        'number_item_len': 4,
+        'number_scheme': constants.NUMBER_SCHEME_INTELLIGENT,
+    })
     if request.method == 'POST':
         form = OrganizationCreateForm(request.POST)
         if form.is_valid():
@@ -329,6 +370,7 @@ def organization_create(request):
             organization.owner = user
             organization.subscription = constants.SUBSCRIPTION_TYPE_FREE
             organization.save()
+            organization.create_starter_part_classes()
             profile.organization = organization
             profile.role = constants.ROLE_TYPE_ADMIN
             profile.save()
@@ -563,12 +605,7 @@ def bom_settings(request, tab_anchor=None):
         elif 'submit-part-class-upload' in request.POST and request.FILES.get('file') is not None:
             tab_anchor = INDABOM_TAB
             part_class_csv_form = PartClassCSVForm(request.POST, request.FILES, organization=organization)
-            if part_class_csv_form.is_valid():
-                messages.info(request, f'Successfully uploaded {len(part_class_csv_form.successes)} part classes.')
-                for warning in part_class_csv_form.warnings:
-                    messages.warning(request, warning)
-            else:
-                add_form_error_messages(request, part_class_csv_form)
+            add_csv_upload_messages(request, part_class_csv_form, 'part class', 'part classes')
 
         elif 'submit-part-class-export' in request.POST:
             response = HttpResponse(content_type='text/csv')
@@ -1017,13 +1054,7 @@ def upload_bom(request):
         upload_bom_form = UploadBOMForm(request.POST, organization=organization)
         if upload_bom_form.is_valid():
             bom_csv_form = BOMCSVForm(request.POST, request.FILES, parent_part=upload_bom_form.parent_part, organization=organization)
-            if bom_csv_form.is_valid():
-                for success in bom_csv_form.successes:
-                    messages.info(request, success)
-                for warning in bom_csv_form.warnings:
-                    messages.info(request, warning)
-            else:
-                add_form_error_messages(request, bom_csv_form)
+            add_csv_upload_messages(request, bom_csv_form, 'BOM row', 'BOM rows')
         else:
             add_form_error_messages(request, upload_bom_form)
     else:
@@ -1046,15 +1077,9 @@ def part_upload_bom(request, part_id):
         messages.error(request, "No part found with given part_id {}.".format(part_id))
         return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
-    if request.method == 'POST' and request.FILES['file'] is not None:
+    if request.method == 'POST' and request.FILES.get('file') is not None:
         bom_csv_form = BOMCSVForm(request.POST, request.FILES, parent_part=parent_part, organization=organization)
-        if bom_csv_form.is_valid():
-            for success in bom_csv_form.successes:
-                messages.info(request, success)
-            for warning in bom_csv_form.warnings:
-                messages.info(request, warning)
-        else:
-            add_form_error_messages(request, bom_csv_form)
+        add_csv_upload_messages(request, bom_csv_form, 'BOM row', 'BOM rows')
     else:
         upload_bom_form = UploadBOMForm(initial={'organization': organization})
         bom_csv_form = BOMCSVForm()
@@ -1075,22 +1100,37 @@ def upload_parts(request):
     organization = profile.organization
     title = 'Upload Parts'
 
-    if request.method == 'POST' and request.FILES['file'] is not None:
+    if request.method == 'POST' and request.FILES.get('file') is not None:
         form = PartCSVForm(request.POST, request.FILES, organization=organization)
-        if form.is_valid():
-            for success in form.successes:
-                messages.info(request, success)
-            for warning in form.warnings:
-                messages.warning(request, warning)
-        else:
-            add_form_error_messages(request, form)
+        add_csv_upload_messages(request, form, 'part', 'parts')
     else:
         form = FileForm()
-        if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT and organization.partclass_set.count() <= 0:
-            messages.warning(request, f'!! Warning !! Before you upload parts, you must create any part classes. You can do this in Settings > Indabom.')
         return TemplateResponse(request, 'bom/upload-parts.html', locals())
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.CREATE_PART)
+def upload_parts_template(request):
+    """A parts CSV that imports as-is for this organization, using its own numbering and part classes."""
+    organization = request.user.bom_profile().organization
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="indabom_parts_template.csv"'
+    writer = csv.writer(response)
+    columns = ['description', 'revision', 'manufacturer_name', 'manufacturer_part_number']
+
+    if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+        # Leaving part_number out lets IndaBOM assign the next number in each class.
+        writer.writerow(['part_class'] + columns)
+        for part_class in PartClass.objects.filter(organization=organization)[:3]:
+            writer.writerow([part_class.code, f'Example {part_class.name} part', 'A', '', ''])
+    else:
+        writer.writerow(['part_number'] + columns)
+        writer.writerow(['C0402X7R100NF', 'Capacitor 100nF 16V 0402 X7R', 'A', 'Murata', 'GRM155R71C104KA88D'])
+        writer.writerow(['R0402-10K', 'Resistor 10k 0402 1%', 'A', 'Yageo', 'RC0402FR-0710KL'])
+    return response
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1468,6 +1508,19 @@ def quantity_of_measure_delete(request, quantity_of_measure_id):
     else:
         quantity_of_measure.delete()
     return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SCHEMA)
+@require_POST
+def part_class_create_starter(request):
+    organization = request.user.bom_profile().organization
+    created = organization.create_starter_part_classes()
+    if created:
+        messages.info(request, f"Added {len(created)} starter part classes. You can rename or remove them in Settings.")
+    else:
+        messages.info(request, "Your organization already has the starter part classes.")
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
 
 
 @login_required(login_url=BOM_LOGIN_URL)

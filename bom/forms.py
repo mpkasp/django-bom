@@ -1176,8 +1176,8 @@ class PartCSVForm(BaseCSVForm):
                                                                 manufacturer__name=mfg_name,
                                                                 manufacturer__organization=self.organization)
             if manufacturer_part.count() > 0:
-                self.add_error(None, "Part already exists for manufacturer part {0} in row {1}. "
-                                     "Uploading of this part skipped.".format(row_count, mpn, row_count))
+                self.add_error(None, f"Part already exists for manufacturer part {mpn} in row {row_count}. "
+                                     "Uploading of this part skipped.")
                 return
 
         skip = False

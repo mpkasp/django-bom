@@ -117,6 +117,38 @@ class AbstractOrganization(models.Model):
     def number_vs(self):
         return "V" * self.number_variation_len
 
+    def _starter_class_code(self, digit):
+        return str(digit).ljust(self.number_class_code_len, '0')
+
+    def create_starter_part_classes(self):
+        """Create STARTER_PART_CLASSES for a semi-intelligent organization, skipping codes already in use.
+
+        Semi-intelligent numbering requires a part class on every part, so a new organization with no
+        part classes can't create or upload a single part until it has some.
+        """
+        if self.number_scheme != NUMBER_SCHEME_SEMI_INTELLIGENT:
+            return []
+
+        existing_codes = set(PartClass.objects.filter(organization=self).values_list('code', flat=True))
+        part_classes = []
+        for digit, name, comment in STARTER_PART_CLASSES:
+            code = self._starter_class_code(digit)
+            if code not in existing_codes:
+                part_classes.append(PartClass(organization=self, code=code, name=name, comment=comment))
+        return PartClass.objects.bulk_create(part_classes)
+
+    def example_part_number(self):
+        """A part number in this organization's format, numbered the way a first new part would be."""
+        if self.number_scheme == NUMBER_SCHEME_INTELLIGENT:
+            return 'C0402X5R33PF'
+
+        first_part_class = PartClass.objects.filter(organization=self).first()
+        code = first_part_class.code if first_part_class else self._starter_class_code(1)
+        part_number = f"{code}-{'1'.zfill(self.number_item_len)}"
+        if self.number_variation_len > 0:
+            part_number += f"-{'0'.zfill(self.number_variation_len)}"
+        return part_number
+
     def __str__(self):
         return u'%s' % self.name
 

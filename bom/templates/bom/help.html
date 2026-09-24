@@ -366,8 +366,8 @@
                         <li>Rows with errors are skipped; valid rows in the same file are still imported.</li>
                     </ul>
                     <p>
-                        <a href="{% static 'bom/doc/test_new_parts.csv' %}">Sample semi-intelligent CSV</a> &nbsp;|&nbsp;
-                        <a href="{% static 'bom/doc/test_new_parts_5_intelligent.csv' %}">Sample intelligent CSV</a>
+                        <a href="{% url 'bom:upload-parts-template' %}">Download a template CSV</a> set up for your
+                        organization's numbering and part classes.
                     </p>
                 </div>
 

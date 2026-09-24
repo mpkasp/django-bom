@@ -2,6 +2,7 @@ import csv
 import io
 import json
 from decimal import Decimal
+from html import unescape
 from re import finditer
 from unittest import skip
 from unittest.mock import patch
@@ -79,6 +80,97 @@ class TestBomAuth(TransactionTestCase):
 
         response = self.client.post(reverse('bom:organization-create'), organization_form_data)
         self.assertEqual(response.status_code, 302)
+
+    def _create_semi_intelligent_organization(self):
+        User.objects.create_user('kasper', 'kasper@McFadden.com', 'ghostpassword')
+        self.client.login(username='kasper', password='ghostpassword')
+        self.client.post(reverse('bom:organization-create'), {
+            'name': 'Kasper Inc.',
+            'number_scheme': 'S',
+            'number_class_code_len': 3,
+            'number_item_len': 4,
+            'number_variation_len': 2,
+        })
+        return User.objects.get(username='kasper').bom_profile().organization
+
+    def test_create_organization_defaults_to_intelligent(self):
+        User.objects.create_user('kasper', 'kasper@McFadden.com', 'ghostpassword')
+        self.client.login(username='kasper', password='ghostpassword')
+
+        response = self.client.get(reverse('bom:organization-create'))
+        self.assertEqual(response.context['form']['number_scheme'].value(), constants.NUMBER_SCHEME_INTELLIGENT)
+
+    def test_create_organization_semi_intelligent_gets_starter_part_classes(self):
+        organization = self._create_semi_intelligent_organization()
+
+        codes = list(PartClass.objects.filter(organization=organization).values_list('code', flat=True))
+        self.assertEqual(codes, [f'{digit}00' for digit in range(1, 10)])
+
+    def test_create_organization_intelligent_gets_no_part_classes(self):
+        User.objects.create_user('kasper', 'kasper@McFadden.com', 'ghostpassword')
+        self.client.login(username='kasper', password='ghostpassword')
+
+        self.client.post(reverse('bom:organization-create'), {'name': 'Kasper Inc.', 'number_scheme': 'I'})
+        self.assertFalse(PartClass.objects.exists())
+
+    def test_starter_part_classes_prompt_until_organization_has_part_classes(self):
+        self._create_semi_intelligent_organization()
+        PartClass.objects.all().delete()  # An organization created before starter part classes existed.
+
+        response = self.client.get(reverse('bom:upload-parts'))
+        self.assertContains(response, 'Add starter part classes')
+
+        self.client.post(reverse('bom:part-class-create-starter'))
+        self.assertEqual(PartClass.objects.count(), len(constants.STARTER_PART_CLASSES))
+
+        response = self.client.get(reverse('bom:upload-parts'))
+        self.assertNotContains(response, 'Add starter part classes')
+
+    def test_create_starter_part_classes_requires_manage_schema(self):
+        organization = self._create_semi_intelligent_organization()
+        PartClass.objects.all().delete()
+        profile = User.objects.get(username='kasper').bom_profile()
+        profile.role = constants.ROLE_TYPE_EDITOR
+        profile.save()
+
+        self.client.post(reverse('bom:part-class-create-starter'))
+        self.assertFalse(PartClass.objects.filter(organization=organization).exists())
+
+
+class TestStarterPartClasses(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('kasper', 'kasper@McFadden.com', 'ghostpassword')
+        self.organization = create_a_fake_organization(self.user)
+
+    def test_codes_pad_to_class_code_length(self):
+        self.organization.number_class_code_len = 4
+        self.organization.save()
+
+        self.organization.create_starter_part_classes()
+        self.assertTrue(PartClass.objects.filter(organization=self.organization, code='1000').exists())
+
+    def test_skips_codes_already_in_use(self):
+        PartClass.objects.create(organization=self.organization, code='300', name='Resistor')
+
+        created = self.organization.create_starter_part_classes()
+        self.assertEqual(len(created), len(constants.STARTER_PART_CLASSES) - 1)
+        self.assertEqual(PartClass.objects.get(organization=self.organization, code='300').name, 'Resistor')
+
+    def test_intelligent_organizations_get_none(self):
+        self.organization.number_scheme = constants.NUMBER_SCHEME_INTELLIGENT
+        self.organization.save()
+
+        self.assertEqual(self.organization.create_starter_part_classes(), [])
+        self.assertFalse(PartClass.objects.exists())
+
+    def test_example_part_number_matches_first_new_part(self):
+        self.assertEqual(self.organization.example_part_number(), '100-0001-00')
+
+        PartClass.objects.create(organization=self.organization, code='050', name='Capacitor')
+        self.organization.number_variation_len = 0
+        self.organization.save()
+        self.assertEqual(self.organization.example_part_number(), '050-0001')
+
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class TestBOM(TransactionTestCase):
@@ -269,9 +361,9 @@ class TestBOM(TransactionTestCase):
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
-        message_texts = [str(msg.message) for msg in response.context.get('messages')]
-        self.assertIn("Row 5 - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number.", message_texts)
-        self.assertIn("Row 6 - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number.", message_texts)
+        message_text = ' '.join(str(msg.message) for msg in response.context.get('messages'))
+        self.assertIn("Row 5 - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number.", message_text)
+        self.assertIn("Row 6 - manufacturer_part_number: Uploading of this subpart skipped. No part found for manufacturer part number.", message_text)
 
         p1.refresh_from_db()
         bom = p1.latest().indented()
@@ -310,7 +402,6 @@ class TestBOM(TransactionTestCase):
 
         messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertEqual(msg.tags, "info")
             self.assertNotEqual(msg.tags, "error")
 
         parent_part_number = '100-0001-02' if self.organization.number_variation_len > 0 else '100-0001'
@@ -355,7 +446,6 @@ class TestBOM(TransactionTestCase):
 
         messages = list(response.context.get('messages'))
         for msg in messages:
-            self.assertEqual(msg.tags, "info", msg.message)
             self.assertNotEqual(msg.tags, "error", msg.message)
 
         p4.refresh_from_db()
@@ -368,8 +458,8 @@ class TestBOM(TransactionTestCase):
             response = self.client.post(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p3.full_part_number()}, follow=True)
         self.assertEqual(response.status_code, 200)
 
-        # Each validation error is surfaced as its own plain-text message (no nested errorlist HTML).
-        message_texts = [str(msg.message) for msg in response.context.get('messages')]
+        # Upload errors are grouped into one escaped HTML message, so compare against the text a user reads.
+        message_texts = ' '.join(unescape(str(msg.message)) for msg in response.context.get('messages'))
 
         if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
             self.assertIn("Row 38 - part_number: Uploading of this subpart skipped. Couldn't parse part number.", message_texts)
@@ -395,10 +485,10 @@ class TestBOM(TransactionTestCase):
             response = self.client.post(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p3.full_part_number()}, follow=True)
         self.assertEqual(response.status_code, 200)
 
-        messages = list(response.context.get('messages'))
-        for idx, msg in enumerate(messages):
-            self.assertTrue("it would cause infinite recursion. Uploading of this subpart skipped." in str(msg.message))
-            self.assertTrue("Row 15" in str(msg.message))
+        errors = [msg for msg in response.context.get('messages') if msg.tags == "error"]
+        self.assertEqual(len(errors), 1)
+        self.assertIn("it would cause infinite recursion. Uploading of this subpart skipped.", str(errors[0].message))
+        self.assertIn("Row 15", str(errors[0].message))
 
     def test_upload_bom_skipped_parent_does_not_crash_children(self):
         # Regression: a level-1 row that gets skipped (here, an unknown manufacturer part
@@ -482,10 +572,9 @@ class TestBOM(TransactionTestCase):
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
-        messages = list(response.context.get('messages'))
-        for msg in messages:
-            self.assertEqual(msg.tags, "error")
-            self.assertTrue("recursion" in str(msg.message))
+        errors = [msg for msg in response.context.get('messages') if msg.tags == "error"]
+        self.assertEqual(len(errors), 1)
+        self.assertIn("recursion", str(errors[0].message))
 
         with open(f'{TEST_FILES_DIR}/test_bom_4_no_part_rev.csv') as test_csv:
             response = self.client.post(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
@@ -974,9 +1063,54 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 302)
         found_error = False
         for m in response.wsgi_request._messages:
-            if "Part already exists for manufacturer part 2 in row GhostBuster2000. Uploading of this part skipped." in str(m):
+            if "Part already exists for manufacturer part GhostBuster2000 in row 2. Uploading of this part skipped." in str(m):
                 found_error = True
         self.assertTrue(found_error)
+
+    def test_upload_parts_template_imports_cleanly(self):
+        self.organization.create_starter_part_classes()
+        template = self.client.get(reverse('bom:upload-parts-template'))
+        upload = SimpleUploadedFile('template.csv', template.content, content_type='text/csv')
+
+        response = self.client.post(reverse('bom:upload-parts'), {'file': upload}, follow=True)
+        self.assertEqual([message.tags for message in response.context['messages']], ['info'])
+        self.assertTrue(Part.objects.filter(organization=self.organization).exists())
+
+    def _upload_parts_with_revisions(self, revisions):
+        """Upload one part per revision, numbered to suit this organization's scheme, and return the messages."""
+        self.organization.create_starter_part_classes()
+        if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            number_header = 'part_class'
+            numbers = [PartClass.objects.filter(organization=self.organization).first().code] * len(revisions)
+        else:
+            number_header = 'part_number'
+            numbers = [f'SUMMARY-{i}' for i in range(len(revisions))]
+        csv_text = io.StringIO()
+        writer = csv.writer(csv_text)
+        writer.writerow([number_header, 'description', 'revision'])
+        for i, (number, revision) in enumerate(zip(numbers, revisions)):
+            writer.writerow([number, f'Part {i}', revision])
+        upload = SimpleUploadedFile('parts.csv', csv_text.getvalue().encode(), content_type='text/csv')
+
+        response = self.client.post(reverse('bom:upload-parts'), {'file': upload}, follow=True)
+        return list(response.context['messages'])
+
+    def test_upload_parts_summarizes_and_reports_imports_alongside_errors(self):
+        messages = self._upload_parts_with_revisions(['A'] * 12 + ['TOOLONG'] * 12)
+        self.assertEqual([message.tags for message in messages], ['info', 'error'])
+        self.assertEqual(messages[0].message, 'Imported 12 parts.')
+        self.assertIn('12 errors, showing the first 10', messages[1].message)
+        self.assertEqual(Part.objects.filter(organization=self.organization).count(), 12)
+
+    def test_upload_parts_summary_for_a_single_row(self):
+        messages = self._upload_parts_with_revisions(['A', 'TOOLONG'])
+        self.assertEqual(messages[0].message, 'Imported 1 part.')
+        self.assertTrue(messages[1].message.startswith('Revision TOOLONG in row 3'))
+        self.assertNotIn('<ul', messages[1].message)
+
+    def test_upload_parts_without_a_file(self):
+        response = self.client.post(reverse('bom:upload-parts'))
+        self.assertEqual(response.status_code, 200)
 
     def test_upload_parts_break_too_many_characters(self):
         pc1, _, _ = create_some_fake_part_classes(self.organization)
@@ -985,13 +1119,11 @@ class TestBOM(TransactionTestCase):
         # Should break with data error
         with open(f'{TEST_FILES_DIR}/test_new_parts_broken.csv') as test_csv:
             response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
-        messages = list(response.context.get('messages'))
+        errors = [msg for msg in response.context.get('messages') if msg.tags == 'error']
 
-        self.assertTrue(len(messages) == 1)
-        msg = messages[0]
-        self.assertEqual(msg.tags, 'error', msg.message)
+        self.assertEqual(len(errors), 1)
         self.assertIn('Error on Row 2, property_sheen: Ensure this value has at most 255 characters (it has 483)',
-                      msg.message)
+                      errors[0].message)
 
     def test_upload_part_with_sellers(self):
         create_some_fake_part_classes(self.organization)
@@ -1274,7 +1406,6 @@ class TestBOM(TransactionTestCase):
         messages = list(response.context.get('messages'))
         for idx, msg in enumerate(messages):
             self.assertNotEqual(msg.tags, "error")
-            self.assertEqual(msg.tags, "info")
 
         # Check that that rows that have a part number already used but which denote a distinct designator are
         # consolidated into one subpart with one part number but multiple designators and matching quantity counts.
