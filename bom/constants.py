@@ -53,6 +53,20 @@ NUMBER_VARIATION_LEN_MIN = 0
 NUMBER_VARIATION_LEN_MAX = 16
 NUMBER_VARIATION_LEN_DEFAULT = 2
 
+# Seeded into semi-intelligent organizations, which can't create a part until a part class exists.
+# The digit is padded with zeros to the organization's class code length, e.g. 3 -> '300'.
+STARTER_PART_CLASSES = (
+    (1, 'Assembly', 'Products and sub-assemblies'),
+    (2, 'PCB', 'Bare and assembled printed circuit boards'),
+    (3, 'Electrical', 'Resistors, capacitors, ICs and other electronic components'),
+    (4, 'Mechanical', 'Machined, molded and sheet metal parts'),
+    (5, 'Hardware', 'Screws, nuts, standoffs and other fasteners'),
+    (6, 'Cable', 'Cables, harnesses and wiring'),
+    (7, 'Packaging', 'Boxes, labels and inserts'),
+    (8, 'Document', 'Drawings, specifications, firmware and software'),
+    (9, 'Miscellaneous', "Anything that doesn't fit another class"),
+)
+
 DATA_SOURCE_OCTOPART = 'octopart'
 DATA_SOURCE_MOUSER = 'mouser'
 DATA_SOURCES = (

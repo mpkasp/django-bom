@@ -22,11 +22,9 @@
                 <a href="{% url 'bom:settings' 'indabom' %}">Settings → IndaBOM</a>. Every part must belong to a valid
                 part class.
             </div>
-
-            <a href="{% static 'bom/doc/test_new_parts.csv' %}">Download a sample CSV</a>
-        {% else %}
-            <a href="{% static 'bom/doc/test_new_parts_5_intelligent.csv' %}">Download a sample CSV</a>
         {% endif %}
+
+        <a href="{% url 'bom:upload-parts-template' %}">Download a template CSV</a> set up for your organization.
 
         {# ------------------------------------------------------------------ #}
         <h2 class="section">Required Columns</h2>

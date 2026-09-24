@@ -1,0 +1,21 @@
+{# Semi-intelligent numbering needs a part class on every part, so without one nothing can be created. #}
+{% if organization.number_scheme == 'S' and not organization.partclass_set.exists %}
+    <div class="card-panel orange lighten-4">
+        <p style="margin-top: 0;">
+            <i class="material-icons left" style="font-size: 1.2rem;">warning</i>
+            Every part needs a part class, and your organization doesn't have any yet.
+        </p>
+        {% if perms.bom.manage_schema %}
+            <form action="{% url 'bom:part-class-create-starter' %}" method="post" style="display: inline;">
+                {% csrf_token %}
+                <button class="btn green lighten-1" type="submit">Add starter part classes</button>
+            </form>
+            <span style="margin-left: 8px;">
+                You can rename or remove them later, or <a href="{% url 'bom:settings' 'indabom' %}">create your own
+                in Settings</a>.
+            </span>
+        {% else %}
+            Ask an organization admin to add part classes.
+        {% endif %}
+    </div>
+{% endif %}
