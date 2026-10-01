@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import NON_FIELD_ERRORS, ImproperlyConfigured, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Count, ProtectedError, Q, Subquery, prefetch_related_objects
+from django.db.models import Count, ProtectedError, Q, Subquery
 from django.db.models.aggregates import Max
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
@@ -144,6 +144,24 @@ def _add_capped_message(request, level, texts, noun):
     items = format_html_join('', '<li>{}</li>', ((text,) for text in shown))
     messages.add_message(request, level, format_html('{}:<ul class="browser-default">{}</ul>', summary, items))
 
+
+def latest_part_revisions(part_ids):
+    return PartRevision.objects \
+        .filter(id__in=Subquery(
+            PartRevision.objects.filter(
+                part_id__in=part_ids
+            ).annotate(max_id=Max('id')).values("id")
+        )).select_related(
+            'part__organization',
+            'part__number_class',
+            'part__primary_manufacturer_part__manufacturer',
+        ).order_by(
+            "part__number_class__code",
+            "part__number_item",
+            "part__number_variation",
+        )
+
+
 @login_required(login_url=BOM_LOGIN_URL)
 def home(request):
     profile = request.user.bom_profile()
@@ -191,22 +209,12 @@ def home(request):
 
     part_ids = list(parts.values_list('id', flat=True))
 
-    part_revs = PartRevision.objects\
-        .filter(id__in=Subquery(
-            PartRevision.objects.filter(
-                part_id__in=part_ids
-            ).annotate(max_id=Max('id')).values("id")
-        )).order_by(
-            "part__number_class__code",
-            "part__number_item",
-            "part__number_variation",
-        )
+    part_revs = latest_part_revisions(part_ids)
 
     autocomplete_dict = {}
     enable_autocomplete = settings.BOM_CONFIG.get('admin_dashboard', {}).get('enable_autocomplete', False)
     if enable_autocomplete:
-        prefetch_related_objects(part_revs, 'part')
-        manufacturer_parts = ManufacturerPart.objects.filter(part__in=parts)
+        manufacturer_parts = ManufacturerPart.objects.filter(part__in=parts).select_related('manufacturer')
 
         for pr in part_revs:
             autocomplete_dict.update({pr.searchable_synopsis.replace('"', ''): None})
@@ -275,16 +283,7 @@ def home(request):
 
         part_ids = list(parts.values_list('id', flat=True))
 
-        part_revs = PartRevision.objects \
-            .filter(id__in=Subquery(
-                PartRevision.objects.filter(
-                    part_id__in=part_ids
-                ).annotate(max_id=Max('id')).values("id")
-            )).order_by(
-                "part__number_class__code",
-                "part__number_item",
-                "part__number_variation"
-            )
+        part_revs = latest_part_revisions(part_ids)
 
     if 'download' in request.GET:
         response = HttpResponse(content_type='text/csv')
@@ -424,9 +423,12 @@ def bom_settings(request, tab_anchor=None):
 
     part_classes = PartClass.objects.all().filter(organization=organization)
     property_definitions = PartRevisionPropertyDefinition.objects.available_to(organization=organization).order_by(
-        'name')
-    quantities_of_measure = QuantityOfMeasure.objects.available_to(organization=organization).order_by('name')
+        'name').select_related('quantity_of_measure')
+    quantities_of_measure = QuantityOfMeasure.objects.available_to(organization=organization).order_by('name')\
+        .select_related('organization').prefetch_related('units')
 
+    organization_user_metas = UserMeta.objects.filter(organization=organization).select_related('user').order_by(
+        'user__first_name', 'user__last_name', 'user__email')
     users_in_organization = User.objects.filter(
         id__in=UserMeta.objects.filter(organization=organization).values_list('user', flat=True)).order_by(
         'first_name', 'last_name', 'email')
@@ -660,6 +662,7 @@ def bom_settings(request, tab_anchor=None):
                 profile.save()
                 if users_in_organization == 0:
                     organization.delete()
+                return HttpResponseRedirect(reverse('bom:home'))
         else:
             messages.warning(request, "No action was taken because no form field was submitted.")
 

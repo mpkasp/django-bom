@@ -13,6 +13,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 from django.test import Client, TestCase, TransactionTestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from . import constants
@@ -30,7 +31,18 @@ from .helpers import (
     create_some_fake_parts,
     create_user_and_organization,
 )
-from .models import Manufacturer, Part, PartClass, Seller, SellerPart, Subpart
+from .models import (
+    Manufacturer,
+    ManufacturerPart,
+    Part,
+    PartClass,
+    PartRevision,
+    QuantityOfMeasure,
+    Seller,
+    SellerPart,
+    Subpart,
+    UnitDefinition,
+)
 
 TEST_FILES_DIR = "bom/test_files"
 
@@ -135,6 +147,20 @@ class TestBomAuth(TransactionTestCase):
 
         self.client.post(reverse('bom:part-class-create-starter'))
         self.assertFalse(PartClass.objects.filter(organization=organization).exists())
+
+    def test_member_leaving_organization_is_redirected_home(self):
+        _, organization = create_user_and_organization()
+        member = User.objects.create_user('member', password='memberpassword')
+        member_profile = member.bom_profile(organization=organization)
+        member_profile.role = constants.ROLE_TYPE_ADMIN
+        member_profile.save()
+        self.client.force_login(member)
+
+        response = self.client.post(reverse('bom:settings'), {'submit-leave-organization': ''})
+
+        self.assertRedirects(response, reverse('bom:home'), fetch_redirect_response=False)
+        member_profile.refresh_from_db()
+        self.assertIsNone(member_profile.organization)
 
 
 class TestStarterPartClasses(TestCase):
@@ -2673,3 +2699,59 @@ class TestImmutableRevisioning(TransactionTestCase):
         # RELEASED = True
         self.pr1.configuration = constants.CONFIGURATION_TYPE_RELEASED
         self.assertTrue(self.pr1.is_immutable())
+
+
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
+class TestQueryCountDoesNotGrowWithRows(TestCase):
+    def setUp(self):
+        self.user, self.organization = create_user_and_organization()
+        self.part_class = PartClass.objects.create(code='500', name='Switches', organization=self.organization)
+        self.manufacturer = Manufacturer.objects.create(name='Acme', organization=self.organization)
+        self.assembly_part = self.create_part_with_revision()
+        self.rows_added = 0
+        self.client.force_login(self.user)
+
+    def create_part_with_revision(self):
+        part = Part.objects.create(number_class=self.part_class, organization=self.organization)
+        manufacturer_part = ManufacturerPart.objects.create(
+            part=part, manufacturer=self.manufacturer, manufacturer_part_number=f'MPN-{part.id}')
+        part.primary_manufacturer_part = manufacturer_part
+        part.save()
+        PartRevision.objects.create(part=part, revision='1', description=f'Part {part.id}')
+        return part
+
+    def add_rows(self, count):
+        for _ in range(count):
+            self.rows_added += 1
+            self.create_part_with_revision()
+            member = User.objects.create_user(f'member{self.rows_added}', password='memberpassword')
+            member.bom_profile(organization=self.organization)
+            quantity_of_measure = QuantityOfMeasure.objects.create(
+                name=f'Quantity {self.rows_added}', organization=self.organization)
+            for index in range(4):
+                UnitDefinition.objects.create(
+                    name=f'Unit {self.rows_added}.{index}', symbol=f'u{index}', organization=self.organization,
+                    quantity_of_measure=quantity_of_measure, base_multiplier=Decimal(10) ** index)
+
+    def query_count(self, url):
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        return len(queries)
+
+    def assertQueryCountConstant(self, url):
+        self.add_rows(3)
+        query_count_with_few_rows = self.query_count(url)
+        self.add_rows(3)
+        self.assertEqual(self.query_count(url), query_count_with_few_rows)
+
+    def test_part_list(self):
+        self.assertQueryCountConstant(reverse('bom:home'))
+
+    def test_manage_bom(self):
+        part_revision = self.assembly_part.latest()
+        self.assertQueryCountConstant(reverse(
+            'bom:part-manage-bom', kwargs={'part_id': self.assembly_part.id, 'part_revision_id': part_revision.id}))
+
+    def test_settings(self):
+        self.assertQueryCountConstant(reverse('bom:settings'))
