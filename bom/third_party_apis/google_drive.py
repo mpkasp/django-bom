@@ -133,9 +133,9 @@ def _is_insufficient_scope(error):
 
 
 def _reconnect_drive_redirect(request):
-    """Send the user back through Google's incremental consent to grant Drive access."""
+    """Send the user to the Connect Google Drive button; social-auth only starts sign-in from a POST."""
     messages.error(request, "Google Drive access wasn't granted. Please reconnect Google Drive.")
-    return HttpResponseRedirect(reverse('social:begin', kwargs={'backend': 'google-oauth2'}) + '?drive=1')
+    return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
 
 
 # Views
@@ -147,7 +147,7 @@ def get_or_create_and_open_folder(request, part_id):
     try:
         service = get_service(user)
     except HTTPError as e:
-        return HttpResponseRedirect(reverse('social:begin', kwargs={'backend': "google-oauth2"}))
+        return _reconnect_drive_redirect(request)
 
     try:
         if not organization.google_drive_parent:
@@ -211,7 +211,7 @@ def update_folder_name(request, part_id):
     try:
         service = get_service(user)
     except HTTPError as e:
-        return HttpResponseRedirect(reverse('social:begin', kwargs={'backend': "google-oauth2"}))
+        return _reconnect_drive_redirect(request)
 
     try:
         part = Part.objects.get(id=part_id)

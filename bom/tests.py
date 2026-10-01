@@ -2471,6 +2471,28 @@ class TestGoogleDriveScope(TestCase):
             google_drive.initialize_parent(backend, self.user, {'scope': f'email {self.DRIVE_SCOPE}'})
         self.assertTrue(mock_create.called)
 
+    def test_connect_google_drive_starts_sign_in_with_post(self):
+        # social-auth-app-django 6 only starts sign-in from a POST, so the button must be a form.
+        self.client.force_login(self.user)
+        begin_url = reverse('social:begin', kwargs={'backend': 'google-oauth2'})
+        response = self.client.get(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
+        self.assertContains(response, f'action="{begin_url}?drive=1"')
+        self.assertNotContains(response, f'href="{begin_url}')
+
+        response = self.client.post(f'{begin_url}?drive=1')
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response['Location'].startswith('https://accounts.google.com/'))
+
+    def test_drive_token_error_redirects_to_connect_button(self):
+        from requests import HTTPError
+        from bom.third_party_apis import google_drive
+        self._connect({'scopes': [self.DRIVE_SCOPE]})
+        self.client.force_login(self.user)
+        with patch.object(google_drive, 'get_service', side_effect=HTTPError()):
+            response = self.client.get(reverse('google-drive:add-folder', kwargs={'part_id': 1}))
+        self.assertRedirects(response, reverse('bom:settings', kwargs={'tab_anchor': 'organization'}),
+                             fetch_redirect_response=False)
+
     def _http_error(self, status, details):
         from googleapiclient.errors import HttpError
         resp = type('R', (), {'status': status, 'reason': ''})()

@@ -145,14 +145,15 @@
                             </form>
                         </div>
                     {% else %}
-                        <div class="right-align">
-                            <a class="waves-effect waves-light btn btn-primary"
-                               href="{% url 'social:begin' 'google-oauth2' %}?drive=1">
+                        <form class="right-align" action="{% url 'social:begin' 'google-oauth2' %}?drive=1"
+                              method="post">
+                            {% csrf_token %}
+                            <button class="waves-effect waves-light btn btn-primary" type="submit">
                                 <img title="Google Drive"
                                      style="height: 1em; margin-right: 6px; vertical-align: text-bottom;"
                                      src="{% static 'bom/img/google_drive_logo.png' %}">Connect Google Drive
-                            </a>
-                        </div>
+                            </button>
+                        </form>
                     {% endif %}
                 </div>
 
