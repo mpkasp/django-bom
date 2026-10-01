@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
@@ -12,6 +14,8 @@ from social_django.utils import load_strategy
 
 from bom.decorators import google_authenticated
 from bom.models import Part
+
+logger = logging.getLogger(__name__)
 
 # The scope the Drive integration needs. The Google grant is owned by the host project; it is
 # requested incrementally via the ?drive=1 connect link rather than at login.
@@ -104,7 +108,14 @@ def initialize_parent(backend, user, response, *args, **kwargs):
     if backend.name == 'google-oauth2' and GOOGLE_DRIVE_SCOPE in _granted_scopes(response):
         # Only the owner can create the root folder
         if user.bom_profile().organization.owner == user:
-            create_root(user)
+            try:
+                create_root(user)
+            except HttpError:
+                # Drive problems shouldn't fail sign-in; opening a part's folder retries creating the root.
+                logger.exception("Couldn't create the Google Drive root folder during sign-in")
+                messages.error(backend.strategy.request,
+                               "Google Drive is connected, but the IndaBOM Part Files folder couldn't be created. "
+                               "It will be created when you open a part's folder.", fail_silently=True)
 
 
 def uninitialize_parent(backend, user, *args, **kwargs):

@@ -2471,6 +2471,21 @@ class TestGoogleDriveScope(TestCase):
             google_drive.initialize_parent(backend, self.user, {'scope': f'email {self.DRIVE_SCOPE}'})
         self.assertTrue(mock_create.called)
 
+    def test_initialize_parent_drive_error_keeps_sign_in(self):
+        from django.contrib.messages import get_messages
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+        from bom.third_party_apis import google_drive
+        request = RequestFactory().get('/auth/complete/google-oauth2/')
+        request.session = self.client.session
+        request._messages = FallbackStorage(request)
+        backend = type('B', (), {'name': 'google-oauth2', 'strategy': type('S', (), {'request': request})()})()
+        drive_api_disabled = self._http_error(403, [{'reason': 'accessNotConfigured'}])
+        with patch.object(google_drive, 'create_root', side_effect=drive_api_disabled), \
+                self.assertLogs('bom.third_party_apis.google_drive', 'ERROR'):
+            google_drive.initialize_parent(backend, self.user, {'scope': f'email {self.DRIVE_SCOPE}'})
+        self.assertEqual(len(list(get_messages(request))), 1)
+
     def test_connect_google_drive_starts_sign_in_with_post(self):
         # social-auth-app-django 6 only starts sign-in from a POST, so the button must be a form.
         self.client.force_login(self.user)
