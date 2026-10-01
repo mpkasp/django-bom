@@ -19,11 +19,20 @@ from django.urls import reverse
 from . import constants
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from .forms import AddSubpartForm, BOMCSVForm, PartFormSemiIntelligent, PartInfoForm, SellerPartForm, sanitize_cost
+from .forms import (
+    AddSubpartForm,
+    BOMCSVForm,
+    PartFormSemiIntelligent,
+    PartInfoForm,
+    PartRevisionForm,
+    SellerPartForm,
+    sanitize_cost,
+)
 from .helpers import (
     create_a_fake_assembly,
     create_a_fake_organization,
     create_a_fake_part_revision,
+    create_a_fake_seller_part,
     create_a_fake_subpart,
     create_some_fake_manufacturers,
     create_some_fake_part_classes,
@@ -37,6 +46,8 @@ from .models import (
     Part,
     PartClass,
     PartRevision,
+    PartRevisionProperty,
+    PartRevisionPropertyDefinition,
     QuantityOfMeasure,
     Seller,
     SellerPart,
@@ -2755,3 +2766,52 @@ class TestQueryCountDoesNotGrowWithRows(TestCase):
 
     def test_settings(self):
         self.assertQueryCountConstant(reverse('bom:settings'))
+
+    def test_optimal_seller(self):
+        part = self.create_part_with_revision()
+        seller = Seller.objects.create(name='Digi', organization=self.organization)
+
+        def add_seller_parts(count):
+            for minimum_order_quantity in range(1, count + 1):
+                create_a_fake_seller_part(seller, part.primary_manufacturer_part, minimum_order_quantity, 1, 1, 7,
+                                          nre_cost=0)
+
+        def optimal_seller_query_count():
+            with CaptureQueriesContext(connection) as queries:
+                part.optimal_seller(quantity=100)
+                part.primary_manufacturer_part.optimal_seller(quantity=100)
+            return len(queries)
+
+        add_seller_parts(3)
+        query_count_with_few_seller_parts = optimal_seller_query_count()
+        add_seller_parts(3)
+        self.assertEqual(optimal_seller_query_count(), query_count_with_few_seller_parts)
+
+    def test_part_revision_form_properties(self):
+        part_revision = self.assembly_part.latest()
+
+        def add_properties(count):
+            for _ in range(count):
+                self.rows_added += 1
+                quantity_of_measure = QuantityOfMeasure.objects.create(
+                    name=f'Quantity {self.rows_added}', organization=self.organization)
+                unit = UnitDefinition.objects.create(
+                    name=f'Unit {self.rows_added}', symbol='u', organization=self.organization,
+                    quantity_of_measure=quantity_of_measure)
+                definition = PartRevisionPropertyDefinition.objects.create(
+                    code=f'property{self.rows_added}', name=f'Property {self.rows_added}',
+                    type=constants.PART_REVISION_PROPERTY_TYPE_DECIMAL, organization=self.organization,
+                    quantity_of_measure=quantity_of_measure)
+                self.part_class.property_definitions.add(definition)
+                PartRevisionProperty.objects.create(part_revision=part_revision, property_definition=definition,
+                                                    value_raw='1', unit_definition=unit)
+
+        def form_query_count():
+            with CaptureQueriesContext(connection) as queries:
+                PartRevisionForm(instance=part_revision, organization=self.organization, part_class=self.part_class)
+            return len(queries)
+
+        add_properties(3)
+        query_count_with_few_properties = form_query_count()
+        add_properties(3)
+        self.assertEqual(form_query_count(), query_count_with_few_properties)
