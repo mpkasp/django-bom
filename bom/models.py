@@ -452,7 +452,8 @@ class Part(OrganizationScopedModel):
             quantity = int(cache.get(qty_cache_key, 100))
 
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
-        sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)
+        sellerparts = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts)\
+            .select_related('seller', 'manufacturer_part__manufacturer', 'manufacturer_part__part__organization')
         # sellerparts = SellerPart.objects.filter(manufacturer_part__part=self)
         return SellerPart.optimal(sellerparts, int(quantity))
 
@@ -1009,7 +1010,8 @@ class ManufacturerPart(models.Model, AsDictModel):
         if quantity is None:
             qty_cache_key = str(self.part.id) + '_qty'
             quantity = int(cache.get(qty_cache_key, 100))
-        sellerparts = SellerPart.objects.filter(manufacturer_part=self)
+        sellerparts = SellerPart.objects.filter(manufacturer_part=self)\
+            .select_related('seller', 'manufacturer_part__manufacturer', 'manufacturer_part__part__organization')
         return SellerPart.optimal(sellerparts, quantity)
 
     def as_dict_for_export(self):

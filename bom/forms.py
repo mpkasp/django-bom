@@ -803,6 +803,8 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
                 'name')
         else:
             self.property_definitions = PartRevisionPropertyDefinition.objects.none()
+        self.property_definitions = self.property_definitions.select_related('quantity_of_measure')\
+            .prefetch_related('quantity_of_measure__units')
 
         self._init_dynamic_properties()
 
@@ -815,6 +817,10 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
     def _init_dynamic_properties(self):
         """Dynamically add fields based on Property Definitions."""
         model_field = PartRevisionProperty._meta.get_field('value_raw')
+        existing_properties = {}
+        if self.instance.pk:
+            for existing_property in self.instance.properties.select_related('unit_definition').order_by('id'):
+                existing_properties.setdefault(existing_property.property_definition_id, existing_property)
         for pd in self.property_definitions:
             field_name = pd.form_field_name
             if self.organization.number_scheme == NUMBER_SCHEME_INTELLIGENT:
@@ -833,15 +839,13 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
                                                               attrs={'maxlength': str(model_field.max_length)}))
 
             # Pre-fill
-            prop = None
-            if self.instance.pk:
-                prop = self.instance.properties.filter(property_definition=pd).first()
-                if prop: self.fields[field_name].initial = prop.value_raw
+            prop = existing_properties.get(pd.id)
+            if prop: self.fields[field_name].initial = prop.value_raw
 
             # Unit Logic
             if pd.quantity_of_measure:
                 unit_field = pd.form_unit_field_name
-                units = UnitDefinition.objects.filter(quantity_of_measure=pd.quantity_of_measure)
+                units = pd.quantity_of_measure.units.all()
                 choices = [('', '---------')] + [(u.id, u.symbol) for u in units]
                 self.fields[unit_field] = forms.ChoiceField(choices=choices, required=False, label=f"{pd.name} Unit")
                 if self.instance.pk and prop and prop.unit_definition:
