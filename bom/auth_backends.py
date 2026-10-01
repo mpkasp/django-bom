@@ -26,7 +26,11 @@ class OrganizationPermissionBackend:
         if not perm.startswith('bom.'):
             return None
 
-        profile = user_obj.bom_profile()
+        # Templates check perms once per table row, so reuse the profile for the request like
+        # Django's ModelBackend does with _perm_cache.
+        if not hasattr(user_obj, '_bom_profile_cache'):
+            user_obj._bom_profile_cache = user_obj.bom_profile()
+        profile = user_obj._bom_profile_cache
         if not profile or not profile.organization:
             return False
 

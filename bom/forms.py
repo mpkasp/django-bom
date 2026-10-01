@@ -7,6 +7,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxLengthValidator, MinLengthValidator
 from django.db import IntegrityError
+from django.db.models import OuterRef, Subquery
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
 from djmoney.forms.widgets import MoneyWidget
@@ -980,8 +981,11 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
         # Filter logic
         self.fields['subpart_part_number'].widget = AutocompleteTextInput(
             attrs={'placeholder': 'Select a part.'},
-            queryset=Part.objects.filter(organization=self.organization).exclude(id=self.part.id),
-            verbose_string_function=Part.verbose_str
+            queryset=Part.objects.filter(organization=self.organization).exclude(id=self.part.id)
+            .select_related('organization', 'number_class')
+            .annotate(latest_description=Subquery(
+                PartRevision.objects.filter(part=OuterRef('pk')).order_by('-id').values('description')[:1])),
+            verbose_string_function=lambda part: f'{part.full_part_number()} ┆ {part.latest_description or ""}'
         )
 
     def clean_subpart_part_number(self):
