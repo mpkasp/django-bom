@@ -1009,6 +1009,12 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
                 self.add_error('subpart_part_number', f"No part revision exists for part {part.full_part_number()}. Create a revision before adding to an assembly.")
                 return subpart_part_number
 
+            if self.subpart_part.is_obsolete():
+                raise ValidationError(
+                    f"Cannot add Obsolete PartRevision {self.subpart_part} to BOM. "
+                    f"Obsolete parts cannot be added to new BOMs."
+                )
+
             unusable_ids = [pr.id for pr in self.part_revision.where_used_full()] + [self.part_revision.id]
             if self.subpart_part.id in unusable_ids:
                 raise ValidationError("Infinite recursion! Can't add a part to itself.")

@@ -963,6 +963,18 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:part-delete', kwargs={'part_id': p1.id}))
         self.assertEqual(response.status_code, 302)
 
+    def test_add_obsolete_subpart_shows_error(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        obsolete_revision = p2.latest()
+        obsolete_revision.configuration = constants.CONFIGURATION_TYPE_OBSOLETE
+        obsolete_revision.save()
+
+        form_data = {'subpart_part_number': p2.full_part_number(), 'count': 1, 'reference': '', 'do_not_load': False}
+        response = self.client.post(reverse('bom:part-add-subpart', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id, }), form_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Obsolete parts cannot be added to new BOMs.')
+        self.assertFalse(p1.latest().assembly.subparts.filter(part_revision=obsolete_revision).exists())
+
     def test_add_subpart(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
