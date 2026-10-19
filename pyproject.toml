@@ -60,6 +60,7 @@ dependencies = [
     "pytz>=2024.1",
     "cachetools",
     "pillow>=12.3.0",
+    "mcp>=2.3",
 ]
 
 [dependency-groups]

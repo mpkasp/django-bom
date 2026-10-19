@@ -1,7 +1,5 @@
 import csv
 import logging
-import operator
-from functools import reduce
 from json import dumps
 from types import SimpleNamespace
 
@@ -12,15 +10,13 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import NON_FIELD_ERRORS, ImproperlyConfigured, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Count, ProtectedError, Q, Subquery
-from django.db.models.aggregates import Max
+from django.db.models import Count, ProtectedError, Q
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.encoding import smart_str
 from django.utils.html import format_html, format_html_join
-from django.utils.text import smart_split
 from django.views.decorators.http import require_POST
 from django.views.generic.base import TemplateView
 from social_django.models import UserSocialAuth
@@ -82,6 +78,7 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
+from bom.services.search import latest_part_revisions, search_parts
 from bom.third_party_apis.base_api import BaseApiError
 from bom.third_party_apis.google_drive import has_drive_scope
 from bom.third_party_apis.sourcing import PROBE_CANDIDATE_LIMIT, build_provider, provider_credential_schema, provider_is_configured
@@ -143,23 +140,6 @@ def _add_capped_message(request, level, texts, noun):
         summary += f", showing the first {len(shown)}"
     items = format_html_join('', '<li>{}</li>', ((text,) for text in shown))
     messages.add_message(request, level, format_html('{}:<ul class="browser-default">{}</ul>', summary, items))
-
-
-def latest_part_revisions(part_ids):
-    return PartRevision.objects \
-        .filter(id__in=Subquery(
-            PartRevision.objects.filter(
-                part_id__in=part_ids
-            ).annotate(max_id=Max('id')).values("id")
-        )).select_related(
-            'part__organization',
-            'part__number_class',
-            'part__primary_manufacturer_part__manufacturer',
-        ).order_by(
-            "part__number_class__code",
-            "part__number_item",
-            "part__number_variation",
-        )
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -229,60 +209,8 @@ def home(request):
     autocomplete = dumps(autocomplete_dict)
 
     if query:
-        query_stripped = query.strip()
-
-        # Parse terms separated by white space but keep together words inside of double quotes,
-        # for example 
-        #   "Big Company Inc." 
-        # is parsed as 'Big Company Inc.' while 
-        #    Big Company Inc.
-        # is parsed as 'Big' 'Company' 'Inc.'
-        search_terms = query_stripped
-        search_terms = list(smart_split(search_terms))
-        search_terms = [search_term.replace('"', '') for search_term in search_terms]
-        noqoutes_query = query_stripped.replace('"', '')
-
-        number_class = None
-        number_item = None
-        number_variation = None
-
-        # Scan for search terms that might represent a complete or partial part number
-        if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
-            for search_term in search_terms:
-                try:
-                    (number_class, number_item, number_variation) = Part.parse_partial_part_number(search_term, organization, validate=False)
-                except AttributeError:
-                    pass
-
-        # Query searchable_synopsis by OR'ing search terms
-        part_synopsis_ids = PartRevision.objects.filter(reduce(operator.or_, (Q(searchable_synopsis__icontains=term) for term in search_terms))).values_list("part", flat=True)
-        # Prepare Part.primary_manufacturer_part.manufacturer_part_number query by OR'ing search terms
-        q_primary_mpn = reduce(operator.or_, (Q(primary_manufacturer_part__manufacturer_part_number__icontains=term) for term in search_terms))
-
-        # Prepare Part.primary_manufacturer.part__manufacturer.name query by OR'ing search terms
-        q_primary_mfg = reduce(operator.or_, (Q(primary_manufacturer_part__manufacturer__name__icontains=term) for term in search_terms))
-
-        if number_class and number_item and number_variation:
-            parts = parts.filter(
-                Q(number_class__code=number_class, number_item=number_item, number_variation=number_variation) |
-                Q(id__in=part_synopsis_ids) |
-                q_primary_mpn |
-                q_primary_mfg)
-        elif number_class and number_item:
-            parts = parts.filter(
-                Q(number_class__code=number_class, number_item=number_item) |
-                Q(id__in=part_synopsis_ids) |
-                q_primary_mpn |
-                q_primary_mfg)
-        else:
-            parts = parts.filter(
-                Q(number_item__in=search_terms) |
-                Q(id__in=part_synopsis_ids) |
-                q_primary_mpn |
-                q_primary_mfg)
-
+        parts = search_parts(organization, query, part_class.code if part_class else None)
         part_ids = list(parts.values_list('id', flat=True))
-
         part_revs = latest_part_revisions(part_ids)
 
     if 'download' in request.GET:
