@@ -12,8 +12,9 @@
         {% if profile.role == 'A' %}
 
             <p>Upload a CSV to populate or update a Bill of Materials. Parts and revisions are created if they don't
-                exist, or updated if they do. Immutable revisions (Released / Obsolete) are skipped. You'll see a
-                preview of every change, and nothing is saved until you confirm it.</p>
+                exist, or updated if they do. Released revisions are added to BOMs as they are: their part details
+                and their own BOMs are left unchanged. Obsolete revisions are skipped. You'll see a preview of every
+                change, and nothing is saved until you confirm it.</p>
             <p>When a sub-assembly has rows beneath it in the file, its BOM is set to match those rows: subparts are
                 added, quantities are updated, and subparts not in the file are removed. A sub-assembly listed without
                 rows beneath it is left as it is.</p>
