@@ -64,7 +64,8 @@
                                 <label>Action</label>
                             </div>
                             <div class="col s12 m4" style="margin: 8px 0;">
-                                <button class="waves-effect waves-light btn btn-primary" type="submit" name="actions">
+                                <button class="waves-effect waves-light btn btn-primary" type="submit" name="actions"
+                                        onclick="return this.form.elements['part-action'].value !== 'Delete' || confirm('Are you sure you want to delete the selected parts?\n\nAll of their revisions will also be permanently deleted. This can\'t be undone.')">
                                     Go
                                 </button>
                                 <span><a class="btn-flat waves-green" href="#" onclick="disableActionCheckboxColumn()">Hide</a></span>
