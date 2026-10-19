@@ -516,7 +516,7 @@
                     return;
                 } else if (c == 'O') {
                     url = "{% url 'bom:part-revision-obsolete' part_id=part.id part_revision_id=part_revision.id %}";
-                    confirmText = "Are you sure you want to change this revision to Obsolete?\n\n";
+                    confirmText = "Are you sure you want to change this revision to Obsolete?\n\nThis can't be undone. Obsolete revisions can't be edited or moved back to Draft, In Review, or Released, except by an organization admin.\n\n";
                 }
                 if (!allowed) {
                     confirmText += "WARNING! Transition is not valid, but you have permissions to make the change anyways. Proceed with caution.\n\n";

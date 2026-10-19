@@ -143,7 +143,8 @@
                                 class="material-icons green-text text-lighten-1">edit</i>edit</a></li>
                         <li class="divider" tabindex="-1"></li>
                         <li><a class="red-text text-lighten-1"
-                               href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}"><i
+                               href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}"
+                               onclick="return confirm('Are you sure you want to delete {{ manufacturer_part.manufacturer_part_number|escapejs }}?\n\nIts vendor parts will also be permanently deleted.')"><i
                                 class="material-icons red-text text-lighten-1">delete_forever</i>delete</a></li>
                     </ul>
                 </div>
@@ -202,7 +203,7 @@
                         <td class="text-normal">{% if seller_part.ncnr %}Yes{% else %}No{% endif %}</td>
                         <td class="text-normal">{% if perms.bom.manage_sourcing %}
                             <a href="{% url 'bom:seller-part-edit' seller_part_id=seller_part.id %}">edit</a> |
-                            <a href="{% url 'bom:seller-part-delete' seller_part_id=seller_part.id %}">delete</a>
+                            <a href="{% url 'bom:seller-part-delete' seller_part_id=seller_part.id %}" onclick="return confirm('Are you sure you want to delete this vendor part?')">delete</a>
                         {% endif %}</td>
                     </tr>
                 {% empty %}
