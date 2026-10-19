@@ -68,12 +68,16 @@ def create_root(user):
     return organization.google_drive_parent
 
 
+def _part_folder_name(part):
+    return ' '.join(filter(None, [part.full_part_number(), part.description()]))
+
+
 def create_part_folder(user, part):
     service = get_service(user)
     print("got service")
     organization = user.bom_profile().organization
     file_metadata = {
-        'name': part.full_part_number() + ' ' + part.latest().description,
+        'name': _part_folder_name(part),
         'mimeType': 'application/vnd.google-apps.folder',
         'parents': [organization.google_drive_parent],
     }
@@ -235,8 +239,7 @@ def update_folder_name(request, part_id):
             create_root(user)
 
         if part.google_drive_parent:
-            new_filename = part.full_part_number() + ' ' + part.latest().description
-            service.files().update(fileId=part.google_drive_parent, body={'name': new_filename}).execute()
+            service.files().update(fileId=part.google_drive_parent, body={'name': _part_folder_name(part)}).execute()
     except HttpError as e:
         if _is_insufficient_scope(e):
             return _reconnect_drive_redirect(request)
