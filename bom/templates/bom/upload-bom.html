@@ -12,8 +12,11 @@
         {% if profile.role == 'A' %}
 
             <p>Upload a CSV to populate or update a Bill of Materials. Parts and revisions are created if they don't
-                exist, or updated if they do. Immutable revisions (Released / Obsolete) are skipped. Rows with errors
-                are skipped and the rest continue to import.</p>
+                exist, or updated if they do. Immutable revisions (Released / Obsolete) are skipped. You'll see a
+                preview of every change, and nothing is saved until you confirm it.</p>
+            <p>When a sub-assembly has rows beneath it in the file, its BOM is set to match those rows: subparts are
+                added, quantities are updated, and subparts not in the file are removed. A sub-assembly listed without
+                rows beneath it is left as it is.</p>
             <p>In addition to <a href="{% url 'bom:upload-parts' %}">uploading parts</a>, uploading a <b>bill of
                 materials</b>: associates parts to create assemblies, and adds quantities to specify how many parts are
                 in an assembly.</p>
@@ -100,11 +103,16 @@
                         </div>
                             <p style="font-size: 0.85rem; margin-top: -8px; color: #666;">
                                 Optional. Attach all rows as direct children of this assembly. Omit when the CSV
-                                includes a <code>level</code> column.
+                                includes a <code>level</code> column. <b>Add to BOM</b> keeps its existing subparts and
+                                adds to their quantities; <b>Replace BOM</b> sets its BOM to match the file.
                             {% if parent_part %}
                                 <br><a href="{% url 'bom:part-info' part_id=parent_part.id %}">Go
                                 to {{ parent_part_number }}</a>
                             {% endif %}
+                            </p>
+                            <p style="margin: 8px 0 0;">
+                                <label style="margin-right: 16px;"><input name="mode" type="radio" value="add" checked/><span>Add to BOM</span></label>
+                                <label><input name="mode" type="radio" value="replace"/><span>Replace BOM</span></label>
                             </p>
                             <div style="margin-top: 8px;">
                                 <input class="green lighten-1 btn" type="submit" value="Upload"/>

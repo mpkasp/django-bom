@@ -1,6 +1,8 @@
+import base64
 import csv
 import logging
 import operator
+import uuid
 from functools import reduce
 from json import dumps
 from types import SimpleNamespace
@@ -11,7 +13,9 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import NON_FIELD_ERRORS, ImproperlyConfigured, ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.db import transaction
 from django.db.models import Count, ProtectedError, Q, Subquery
 from django.db.models.aggregates import Max
 from django.http import HttpResponse, HttpResponseRedirect
@@ -19,6 +23,7 @@ from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.encoding import smart_str
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.html import format_html, format_html_join
 from django.utils.text import smart_split
 from django.views.decorators.http import require_POST
@@ -1045,6 +1050,9 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
     return response
 
 
+PENDING_BOM_UPLOAD_SESSION_KEY = 'pending_bom_upload'
+
+
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.CREATE_PART)
 def upload_bom(request):
@@ -1056,13 +1064,13 @@ def upload_bom(request):
     if request.method == 'POST' and 'file' in request.FILES and request.FILES['file'] is not None:
         upload_bom_form = UploadBOMForm(request.POST, organization=organization)
         if upload_bom_form.is_valid():
-            bom_csv_form = BOMCSVForm(request.POST, request.FILES, parent_part=upload_bom_form.parent_part, organization=organization)
-            add_csv_upload_messages(request, bom_csv_form, 'BOM row', 'BOM rows')
-        else:
-            add_form_error_messages(request, upload_bom_form)
+            return _preview_bom_upload(request, organization, request.FILES['file'].read(),
+                                       upload_bom_form.parent_part, request.POST.get('mode'),
+                                       return_url=reverse('bom:upload-bom'))
+        add_form_error_messages(request, upload_bom_form)
     else:
         upload_bom_form = UploadBOMForm(organization=organization, initial={'organization': organization})
-        bom_csv_form = BOMCSVForm()
+    bom_csv_form = BOMCSVForm()
 
     return TemplateResponse(request, 'bom/upload-bom.html', locals())
 
@@ -1080,14 +1088,104 @@ def part_upload_bom(request, part_id):
         messages.error(request, "No part found with given part_id {}.".format(part_id))
         return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
-    if request.method == 'POST' and request.FILES.get('file') is not None:
-        bom_csv_form = BOMCSVForm(request.POST, request.FILES, parent_part=parent_part, organization=organization)
-        add_csv_upload_messages(request, bom_csv_form, 'BOM row', 'BOM rows')
-    else:
-        upload_bom_form = UploadBOMForm(initial={'organization': organization})
-        bom_csv_form = BOMCSVForm()
+    return_url = request.META.get('HTTP_REFERER')
+    if not url_has_allowed_host_and_scheme(return_url, allowed_hosts={request.get_host()}):
+        return_url = reverse('bom:part-info', kwargs={'part_id': part_id})
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')), locals())
+    if request.method == 'POST' and request.FILES.get('file') is not None:
+        return _preview_bom_upload(request, organization, request.FILES['file'].read(), parent_part,
+                                   request.POST.get('mode'), return_url=return_url)
+
+    return HttpResponseRedirect(return_url)
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.CREATE_PART)
+@require_POST
+def upload_bom_confirm(request):
+    organization = request.user.bom_profile().organization
+    pending_upload = request.session.get(PENDING_BOM_UPLOAD_SESSION_KEY)
+    if not pending_upload or pending_upload['token'] != request.POST.get('token'):
+        messages.error(request, "This upload preview has expired. Please upload the file again.")
+        return HttpResponseRedirect(reverse('bom:upload-bom'))
+
+    del request.session[PENDING_BOM_UPLOAD_SESSION_KEY]
+    return_url = pending_upload['return_url']
+    if 'cancel' in request.POST:
+        messages.info(request, "Upload canceled. Nothing was changed.")
+        return HttpResponseRedirect(return_url)
+
+    parent_part = None
+    if pending_upload['parent_part_id'] is not None:
+        parent_part = Part.objects.filter(id=pending_upload['parent_part_id'], organization=organization).first()
+        if parent_part is None:
+            messages.error(request, "The part this upload was for no longer exists.")
+            return HttpResponseRedirect(reverse('bom:upload-bom'))
+
+    csv_bytes = base64.b64decode(pending_upload['csv'])
+    bom_csv_form, committed = _run_bom_upload(organization, csv_bytes, parent_part, pending_upload['mode'],
+                                              expected_changes_digest=pending_upload['changes_digest'])
+    if not committed:
+        return _render_bom_upload_preview(
+            request, bom_csv_form, csv_bytes, parent_part, pending_upload['mode'], return_url,
+            notice="The BOM changed after your preview, so nothing was saved. Review the updated changes below.")
+
+    add_csv_upload_messages(request, bom_csv_form, 'BOM row', 'BOM rows')
+    return HttpResponseRedirect(return_url)
+
+
+def _run_bom_upload(organization, csv_bytes, parent_part, mode, expected_changes_digest=None):
+    """Runs a BOM upload in one transaction and keeps it only when it matches the changes the user confirmed."""
+    upload = SimpleUploadedFile('bom.csv', csv_bytes, content_type='text/csv')
+    bom_csv_form = BOMCSVForm({'mode': mode}, {'file': upload}, parent_part=parent_part, organization=organization)
+    with transaction.atomic():
+        bom_csv_form.is_valid()
+        committed = (expected_changes_digest is not None and not bom_csv_form.errors
+                     and bom_csv_form.changes_digest() == expected_changes_digest)
+        if not committed:
+            transaction.set_rollback(True)
+    return bom_csv_form, committed
+
+
+def _preview_bom_upload(request, organization, csv_bytes, parent_part, mode, return_url):
+    bom_csv_form, _ = _run_bom_upload(organization, csv_bytes, parent_part, mode)
+    return _render_bom_upload_preview(request, bom_csv_form, csv_bytes, parent_part, mode, return_url)
+
+
+def _render_bom_upload_preview(request, bom_csv_form, csv_bytes, parent_part, mode, return_url, notice=None):
+    errors = [str(error) for field_errors in bom_csv_form.errors.values() for error in field_errors]
+    token = None
+    if errors:
+        request.session.pop(PENDING_BOM_UPLOAD_SESSION_KEY, None)
+    else:
+        token = uuid.uuid4().hex
+        request.session[PENDING_BOM_UPLOAD_SESSION_KEY] = {
+            'token': token,
+            'csv': base64.b64encode(csv_bytes).decode('ascii'),
+            'parent_part_id': parent_part.id if parent_part else None,
+            'mode': mode,
+            'changes_digest': bom_csv_form.changes_digest(),
+            'return_url': return_url,
+        }
+
+    changes = bom_csv_form.changes()
+    context = {
+        'title': 'Review BOM Upload',
+        'profile': request.user.bom_profile(),
+        'parent_part': parent_part,
+        'adds_to_parent_part': bom_csv_form.adds_to_parent_part if hasattr(bom_csv_form, 'cleaned_data') else True,
+        'row_count': len(getattr(bom_csv_form, 'successes', [])),
+        'parts_created': [c for c in changes['parts'] if c['kind'] == 'part_created'],
+        'revisions_created': [c for c in changes['parts'] if c['kind'] == 'revision_created'],
+        'manufacturers_created': changes['manufacturers_created'],
+        'assembly_changes': changes['assemblies'],
+        'errors': errors,
+        'warnings': getattr(bom_csv_form, 'warnings', []),
+        'notice': notice,
+        'token': token,
+        'return_url': return_url,
+    }
+    return TemplateResponse(request, 'bom/upload-bom-preview.html', context)
 
 
 @login_required(login_url=BOM_LOGIN_URL)
