@@ -10,6 +10,10 @@ from bom.helpers import create_a_fake_organization, create_some_fake_parts
 from bom.mcp.asgi import build_application
 from bom.models import APIToken, Part, PartRevision, Seller
 
+def deny_everything(organization, user, scopes):
+    return 'Upgrade to Pro.'
+
+
 MCP_HEADERS = {'Accept': 'application/json, text/event-stream', 'Content-Type': 'application/json'}
 
 
@@ -140,7 +144,7 @@ class MCPServerTest(TransactionTestCase):
         self.assertIn('permission', error)
 
     def test_host_access_check_can_deny_writes(self):
-        config = dict(settings.BOM_CONFIG_DEFAULT, mcp_access_check=lambda organization, user, scopes: 'Upgrade to Pro.')
+        config = dict(settings.BOM_CONFIG_DEFAULT, mcp_access_check='bom.test_mcp.deny_everything')
         with override_settings(BOM_CONFIG=config):
             _, error = self.mcp(self.write_plaintext).call('create_part', description='x', part_class_code='500')
         self.assertIn('Upgrade to Pro.', error)

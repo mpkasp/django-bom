@@ -196,8 +196,8 @@ Connect a client with the token in the `Authorization` header, e.g.:
 ```
 claude mcp add --transport http indabom http://localhost:8000/mcp --header "Authorization: Bearer <token>"
 ```
-Hosts can gate access (e.g. by subscription) with `BOM_CONFIG['mcp_access_check']`, a callable
-`(organization, user, scopes) -> error message or None` that runs before every write.
+Hosts can gate access (e.g. by subscription) with `BOM_CONFIG['mcp_access_check']`, a callable or its dotted
+path, `(organization, user, scopes) -> error message or None`, that runs before every write.
 
 ## Contributing
 

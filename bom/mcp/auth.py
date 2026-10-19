@@ -4,6 +4,7 @@ import logging
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.db import close_old_connections
+from django.utils.module_loading import import_string
 from mcp.server.mcpserver.exceptions import ToolError
 from starlette.datastructures import Headers
 
@@ -91,5 +92,9 @@ class Actor:
 
 
 def _access_check():
-    """Host-provided gate, e.g. a subscription check; django-bom itself never gates MCP access."""
-    return settings.BOM_CONFIG.get('mcp_access_check') or (lambda organization, user, scopes: None)
+    """Host-provided gate, e.g. a subscription check, as a callable or its dotted path (settings load before
+    models, so hosts usually give the path). django-bom itself never gates MCP access."""
+    check = settings.BOM_CONFIG.get('mcp_access_check')
+    if isinstance(check, str):
+        check = import_string(check)
+    return check or (lambda organization, user, scopes: None)
