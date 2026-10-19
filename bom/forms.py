@@ -1297,6 +1297,7 @@ class BOMCSVForm(BaseCSVForm):
         self.uploaded_lines_by_parent_id = defaultdict(dict)  # {(part revision id, do_not_load): Subpart}
         self.line_state_before_upload = {}  # Subpart id -> (count, reference)
         self.parent_ids_with_skipped_rows = set()
+        self.immutable_parent_ids = set()
         self.created_part_revision_ids = set()
 
         self.part_changes = {}
@@ -1332,7 +1333,11 @@ class BOMCSVForm(BaseCSVForm):
             self.last_level = level
 
         parent_part_revision = self._advance_part_revision_tree(level, row_count)
-        part_revision = self._process_subpart_row(part_dict, row_count, csv_headers, parent_part_revision)
+        if parent_part_revision is not None and parent_part_revision.is_immutable():
+            self._warn_about_immutable_parent(parent_part_revision, row_count)
+            part_revision = None
+        else:
+            part_revision = self._process_subpart_row(part_dict, row_count, csv_headers, parent_part_revision)
         if part_revision is None and parent_part_revision is not None:
             self.parent_ids_with_skipped_rows.add(parent_part_revision.id)
 
@@ -1378,10 +1383,19 @@ class BOMCSVForm(BaseCSVForm):
             raise ValidationError(f'Row {row_count} - level: Invalid assembly level.', code='invalid')
 
         parent_part_revision = self.part_revision_tree[-1] if self.part_revision_tree else None
-        if parent_part_revision is not None and parent_part_revision.assembly is None:
+        if parent_part_revision is not None and parent_part_revision.assembly is None \
+                and not parent_part_revision.is_immutable():
             parent_part_revision.assembly = Assembly.objects.create()
             parent_part_revision.save()
         return parent_part_revision
+
+    def _warn_about_immutable_parent(self, parent_part_revision, row_count):
+        if parent_part_revision.id in self.immutable_parent_ids:
+            return
+        self.immutable_parent_ids.add(parent_part_revision.id)
+        self.warnings.append(
+            f"Row {row_count}: Skipped the rows beneath {parent_part_revision.part.full_part_number()} because its "
+            f"revision is {parent_part_revision.get_configuration_display()}, so its BOM can't be changed.")
 
     def _process_subpart_row(self, part_dict, row_count, csv_headers, parent_part_revision):
         dnp = csv_headers.get_val_from_row(part_dict, 'dnp')
@@ -1443,9 +1457,11 @@ class BOMCSVForm(BaseCSVForm):
             existing_part_revision = PartRevision.objects.filter(part=existing_part,
                                                                  revision=part_dict['revision']).first()
 
-        if existing_part_revision and existing_part_revision.is_immutable():
-            self.warnings.append(f"Row {row_count}: Skipped {part_number} because the existing revision is immutable.")
+        if existing_part_revision and existing_part_revision.is_obsolete():
+            self.warnings.append(f"Row {row_count}: Skipped {part_number} because the existing revision is Obsolete.")
             return None
+        # A Released part can still be used in a BOM; only its own part, revision and manufacturer data are locked.
+        updates_part = existing_part_revision is None or not existing_part_revision.is_immutable()
 
         if existing_part_revision and parent_part_revision:  # Check for infinite recursion
             contains_parent = False
@@ -1475,26 +1491,27 @@ class BOMCSVForm(BaseCSVForm):
         # Now validate & save PartClass, Part, PartRevision, Subpart
         # Preserve the existing name when the CSV row has no part_class column or an empty value;
         # otherwise BOMCSVForm would overwrite the stored name with an empty string.
-        part_class_name = part_dict.get('part_class') or (existing_part_class.name if existing_part_class else None)
-        part_class_dict = {'code': part_dict['number_class'], 'name': part_class_name}
-        part_class_form = PartClassForm(part_class_dict, instance=existing_part_class, ignore_unique_constraint=True,
-                                        organization=self.organization)
-        if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT and not part_class_form.is_valid():
-            add_nonfield_error_from_existing(part_class_form, self, f'Row {row_count} - ')
-            return None
+        if updates_part:
+            part_class_name = part_dict.get('part_class') or (existing_part_class.name if existing_part_class else None)
+            part_class_dict = {'code': part_dict['number_class'], 'name': part_class_name}
+            part_class_form = PartClassForm(part_class_dict, instance=existing_part_class,
+                                            ignore_unique_constraint=True, organization=self.organization)
+            if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT and not part_class_form.is_valid():
+                add_nonfield_error_from_existing(part_class_form, self, f'Row {row_count} - ')
+                return None
 
-        PartForm = part_form_from_organization(self.organization)
-        part_form = PartForm(part_dict, instance=existing_part, ignore_part_class=True, ignore_unique_constraint=True,
-                             organization=self.organization)
-        if not part_form.is_valid():
-            add_nonfield_error_from_existing(part_form, self, f'Row {row_count} - ')
-            return None
+            PartForm = part_form_from_organization(self.organization)
+            part_form = PartForm(part_dict, instance=existing_part, ignore_part_class=True,
+                                 ignore_unique_constraint=True, organization=self.organization)
+            if not part_form.is_valid():
+                add_nonfield_error_from_existing(part_form, self, f'Row {row_count} - ')
+                return None
 
-        part_revision_form = PartRevisionForm(part_dict, instance=existing_part_revision,
-                                              organization=self.organization)
-        if not part_revision_form.is_valid():
-            add_nonfield_error_from_existing(part_revision_form, self, f'Row {row_count} - ')
-            return None
+            part_revision_form = PartRevisionForm(part_dict, instance=existing_part_revision,
+                                                  organization=self.organization)
+            if not part_revision_form.is_valid():
+                add_nonfield_error_from_existing(part_revision_form, self, f'Row {row_count} - ')
+                return None
 
         subpart_form = SubpartForm(part_dict, instance=line_to_update, ignore_part_revision=True,
                                    organization=self.organization)
@@ -1512,9 +1529,6 @@ class BOMCSVForm(BaseCSVForm):
                 f"Row {row_count}: Skipped {part_number} because a parent row above it was not uploaded.")
             return None
 
-        part_class = part_class_form.save(commit=False)
-        part = part_form.save(commit=False)
-        part_revision = part_revision_form.save(commit=False)
         subpart = subpart_form.save(commit=False)
 
         reference_list = listify_string(reference) if reference else []
@@ -1522,15 +1536,21 @@ class BOMCSVForm(BaseCSVForm):
             self.warnings.append(
                 f"Row {row_count}: Duplicate reference designators '{reference}' for subpart.")
 
-        if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
-            part_class.save()
-            part.number_class = part_class
+        if updates_part:
+            part_class = part_class_form.save(commit=False)
+            part = part_form.save(commit=False)
+            part_revision = part_revision_form.save(commit=False)
+            if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+                part_class.save()
+                part.number_class = part_class
 
-        part.organization = self.organization
-        part.save()
-        part_revision.part = part
-        part_revision.save()
-        self._record_part_change(part_revision, existing_part, existing_part_revision)
+            part.organization = self.organization
+            part.save()
+            part_revision.part = part
+            part_revision.save()
+            self._record_part_change(part_revision, existing_part, existing_part_revision)
+        else:
+            part_revision = existing_part_revision
 
         if parent_part_revision:
             line_key = (part_revision.id, subpart.do_not_load)
@@ -1552,7 +1572,7 @@ class BOMCSVForm(BaseCSVForm):
         self.successes.append(info_msg + ".")
 
         # Now validate & save optional fields - Manufacturer, ManufacturerPart, SellerParts
-        if manufacturer_name:
+        if manufacturer_name and updates_part:
             existing_manufacturer = Manufacturer.objects.filter(name=manufacturer_name,
                                                                 organization=self.organization).first()
             manufacturer_form = ManufacturerForm(

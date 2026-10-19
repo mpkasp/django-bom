@@ -716,6 +716,46 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(self._line_counts(drive), {wire: 15, cable: 1})
         self.assertTrue(any('because some of its rows were skipped' in warning for warning in form.warnings), form.warnings)
 
+    def test_upload_bom_adds_released_parts_without_changing_them(self):
+        panel, drive, wire, cable = self._create_parts(4)
+        url = reverse('bom:upload-bom')
+        self._upload_bom(url, {'file': self._bom_upload_file((0, panel, 1), (1, drive, 1), (2, cable, 1))})
+        for part in (drive, wire):
+            part_revision = part.latest()
+            part_revision.configuration = constants.CONFIGURATION_TYPE_RELEASED
+            part_revision.save()
+        wire_description = wire.latest().description
+
+        header = 'level,part_number,quantity,description,manufacturer_name,manufacturer_part_number'
+        response = self._upload_bom(url, {'file': self._bom_upload_file(
+            (0, panel, 1, '', '', ''), (1, drive, 2, '', '', ''), (2, wire, 5, '', '', ''),
+            (1, wire, 3, 'Changed description', 'NewCo', 'NEWCO-1'), header=header)})
+
+        self.assertEqual(self._line_counts(panel), {drive: 2, wire: 3})
+        self.assertEqual(self._line_counts(drive), {cable: 1})
+        self.assertEqual(wire.latest().description, wire_description)
+        self.assertFalse(Manufacturer.objects.filter(name='NewCo', organization=self.organization).exists())
+        self.assertIn(f'Skipped the rows beneath {drive.full_part_number()} because its revision is Released',
+                      self._upload_feedback(response))
+
+        self._upload_bom(url, {'file': self._bom_upload_file((0, panel, 1), (1, wire, 4))})
+        self.assertEqual(self._line_counts(panel), {wire: 4})
+
+    def test_upload_bom_skips_obsolete_parts(self):
+        drive, wire, cable = self._create_parts(3)
+        url = reverse('bom:part-upload-bom', kwargs={'part_id': drive.id})
+        self._upload_bom(url, {'file': self._bom_upload_file((wire, 1), header='part_number,quantity')})
+        wire_revision = wire.latest()
+        wire_revision.configuration = constants.CONFIGURATION_TYPE_OBSOLETE
+        wire_revision.save()
+
+        preview = self.client.post(url, {'file': self._bom_upload_file((wire, 5), (cable, 1), header='part_number,quantity'),
+                                         'mode': 'replace'})
+        self.assertIn(f'Skipped {wire.full_part_number()} because the existing revision is Obsolete',
+                      self._upload_feedback(preview))
+        self.client.post(reverse('bom:upload-bom-confirm'), {'token': preview.context['token']})
+        self.assertEqual(self._line_counts(drive), {wire: 1, cable: 1})
+
     def test_upload_bom_with_properties(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
