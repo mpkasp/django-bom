@@ -2541,6 +2541,15 @@ class TestGoogleDriveScope(TestCase):
         err = self._http_error(404, [{'reason': 'notFound'}])
         self.assertFalse(_is_insufficient_scope(err))
 
+    def test_part_folder_name_tolerates_missing_description(self):
+        from bom.third_party_apis.google_drive import _part_folder_name
+        part = create_some_fake_parts(organization=self.organization)[0]
+        part.revisions().update(description=None)
+        self.assertEqual(_part_folder_name(part), part.full_part_number())
+
+        part.revisions().delete()
+        self.assertEqual(_part_folder_name(part), part.full_part_number())
+
 
 @override_settings(BOM_SOURCING_ENCRYPTION_KEYS=[FERNET_KEY])
 class TestSourcingSettings(TestCase):
