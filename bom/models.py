@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
+import hashlib
 import logging
+import secrets
 from decimal import Decimal, InvalidOperation
 
 from django.apps import apps
@@ -1153,3 +1155,78 @@ class SellerPart(models.Model, AsDictModel):
 
 
 User.add_to_class('bom_profile', _user_meta)
+
+
+class APIToken(models.Model):
+    """A bearer token that lets an API or MCP client act as a user within one organization.
+
+    The plaintext is shown once at creation and only its SHA-256 hash is stored. ``scopes`` narrows
+    what the token may do on top of the user's role; it never widens it.
+    """
+    SCOPE_READ = 'read'
+    SCOPE_WRITE = 'write'
+    SCOPES = ((SCOPE_READ, 'Read'), (SCOPE_WRITE, 'Write'))
+    PLAINTEXT_PREFIX = 'ibom_'
+    PREFIX_LEN = 8
+
+    organization = models.ForeignKey(settings.BOM_ORGANIZATION_MODEL, on_delete=models.CASCADE, related_name='api_tokens')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bom_api_tokens')
+    name = models.CharField(max_length=128)
+    prefix = models.CharField(max_length=PREFIX_LEN, db_index=True)
+    hashed_key = models.CharField(max_length=64, unique=True)
+    scopes = models.CharField(max_length=64, default=SCOPE_READ)  # comma-separated
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @staticmethod
+    def hash_plaintext(plaintext):
+        return hashlib.sha256(plaintext.encode()).hexdigest()
+
+    @classmethod
+    def issue(cls, user, organization, name, scopes=(SCOPE_READ,), expires_at=None):
+        """Create a token and return ``(token, plaintext)``; the plaintext is not recoverable afterwards."""
+        plaintext = cls.PLAINTEXT_PREFIX + secrets.token_urlsafe(32)
+        token = cls.objects.create(
+            user=user, organization=organization, name=name,
+            prefix=plaintext[len(cls.PLAINTEXT_PREFIX):len(cls.PLAINTEXT_PREFIX) + cls.PREFIX_LEN],
+            hashed_key=cls.hash_plaintext(plaintext),
+            scopes=','.join(scopes), expires_at=expires_at,
+        )
+        return token, plaintext
+
+    @classmethod
+    def authenticate(cls, plaintext):
+        """The active token matching ``plaintext``, or ``None``. Records the use."""
+        if not plaintext or not plaintext.startswith(cls.PLAINTEXT_PREFIX):
+            return None
+        try:
+            token = cls.objects.select_related('user', 'organization').get(hashed_key=cls.hash_plaintext(plaintext))
+        except cls.DoesNotExist:
+            return None
+        if not token.is_active():
+            return None
+        cls.objects.filter(pk=token.pk).update(last_used_at=timezone.now())
+        return token
+
+    def is_active(self):
+        if self.revoked_at is not None:
+            return False
+        return self.expires_at is None or self.expires_at > timezone.now()
+
+    def scope_list(self):
+        return [scope for scope in self.scopes.split(',') if scope]
+
+    def has_scope(self, scope):
+        return scope in self.scope_list()
+
+    def revoke(self):
+        self.revoked_at = timezone.now()
+        self.save(update_fields=['revoked_at'])
+
+    def __str__(self):
+        return f"{self.name} ({self.PLAINTEXT_PREFIX}{self.prefix}…)"
