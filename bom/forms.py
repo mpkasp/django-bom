@@ -1,6 +1,9 @@
 import codecs
 import csv
+import hashlib
+import json
 import logging
+from collections import defaultdict
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
@@ -131,6 +134,9 @@ class BaseCSVForm(OrganizationFormMixin, forms.Form):
         """Subclasses implement specific row logic here."""
         raise NotImplementedError
 
+    def finish_rows(self):
+        """Runs once after every row has been processed without a stopping error."""
+
     def clean(self):
         cleaned_data = super().clean()
         file = self.cleaned_data.get('file')
@@ -179,6 +185,8 @@ class BaseCSVForm(OrganizationFormMixin, forms.Form):
                         row_data[hdr] = row[idx]
 
                 self.process_row(row_data, row_count, csv_headers)
+
+            self.finish_rows()
 
         except UnicodeDecodeError as e:
             self.add_error(None, forms.ValidationError(
@@ -1257,6 +1265,19 @@ class PartCSVForm(BaseCSVForm):
 
 
 class BOMCSVForm(BaseCSVForm):
+    """Uploads an indented BOM.
+
+    A parent with child rows in the file gets exactly those children: lines are added, quantities and
+    references are set, and lines missing from the file are removed. A parent without child rows is
+    left as it is. In add mode the parent part being uploaded into keeps its existing lines and adds
+    to them instead. Rows for the same part under the same parent are combined.
+    """
+    MODE_ADD = 'add'
+    MODE_REPLACE = 'replace'
+    LINE_CHANGE_ORDER = ('removed', 'updated', 'added')
+
+    mode = forms.ChoiceField(choices=((MODE_ADD, 'Add to BOM'), (MODE_REPLACE, 'Replace BOM')), required=False)
+
     def __init__(self, *args, **kwargs):
         self.parent_part = kwargs.pop('parent_part', None)
         super().__init__(*args, **kwargs)
@@ -1264,6 +1285,37 @@ class BOMCSVForm(BaseCSVForm):
         self.part_revision_tree = [self.parent_part_revision] if self.parent_part_revision else []
         self.last_level = None
         self.last_part_revision = self.parent_part_revision
+
+        # Each run of child rows under a parent row is a block. An indented export repeats a sub-assembly's
+        # children everywhere it is used, so only the first block for a parent is written.
+        self.block_tree = [0] if self.parent_part_revision else []
+        self.next_block_id = 1
+        self.first_block_by_parent_id = {}
+        self.counts_by_block = defaultdict(lambda: defaultdict(float))
+
+        self.parents_by_id = {}
+        self.uploaded_lines_by_parent_id = defaultdict(dict)  # {(part revision id, do_not_load): Subpart}
+        self.line_state_before_upload = {}  # Subpart id -> (count, reference)
+        self.parent_ids_with_skipped_rows = set()
+        self.created_part_revision_ids = set()
+
+        self.part_changes = {}
+        self.manufacturers_created = []
+        self.assembly_changes = []
+
+    @property
+    def adds_to_parent_part(self):
+        return self.cleaned_data.get('mode', self.MODE_ADD) != self.MODE_REPLACE
+
+    def changes(self):
+        return {
+            'parts': list(self.part_changes.values()),
+            'manufacturers_created': self.manufacturers_created,
+            'assemblies': self.assembly_changes,
+        }
+
+    def changes_digest(self):
+        return hashlib.sha256(json.dumps(self.changes(), sort_keys=True, default=str).encode()).hexdigest()
 
     def get_csv_headers_handler(self):
         return self.organization.bom_indented_csv_headers()
@@ -1281,6 +1333,8 @@ class BOMCSVForm(BaseCSVForm):
 
         parent_part_revision = self._advance_part_revision_tree(level, row_count)
         part_revision = self._process_subpart_row(part_dict, row_count, csv_headers, parent_part_revision)
+        if part_revision is None and parent_part_revision is not None:
+            self.parent_ids_with_skipped_rows.add(parent_part_revision.id)
 
         # Always record the outcome (None when skipped) so the next row's level tracking
         # and parent lookup stay consistent. Recording None for a skipped row is what lets
@@ -1309,8 +1363,11 @@ class BOMCSVForm(BaseCSVForm):
         level_change = level - self.last_level
         if level_change == 1:  # Level decreases, must only decrease by 1
             self.part_revision_tree.append(self.last_part_revision)
+            self.block_tree.append(self.next_block_id)
+            self.next_block_id += 1
         elif level_change <= -1:  # Level increases, going up in assembly; intentionally empty tree if level change is very negative
             self.part_revision_tree = self.part_revision_tree[:level_change]
+            self.block_tree = self.block_tree[:level_change]
         elif level_change == 0:
             pass
         elif level - self.last_level > 1:
@@ -1401,15 +1458,19 @@ class BOMCSVForm(BaseCSVForm):
                     f"Row {row_count} - Uploaded part {part_number} contains parent part in its assembly. Cannot add {part_number} as it would cause infinite recursion. Uploading of this subpart skipped.",
                     code='invalid')
 
-        existing_subpart = None
-        existing_subpart_count = 0
-        existing_subpart_references = None
-        if existing_part_revision and parent_part_revision:
-            existing_subpart = parent_part_revision.assembly.subparts.all().filter(part_revision=existing_part_revision,
-                                                                                   do_not_load=part_dict[
-                                                                                       'do_not_load']).first()
-            existing_subpart_count = existing_subpart.count if existing_subpart else 0
-            existing_subpart_references = existing_subpart.reference if existing_subpart else None
+        block_id = None
+        is_repeated_block = False
+        line_to_update = None
+        adds_to_line = False
+        if parent_part_revision:
+            self.parents_by_id[parent_part_revision.id] = parent_part_revision
+            block_id = self.block_tree[-1]
+            is_repeated_block = self.first_block_by_parent_id.setdefault(parent_part_revision.id, block_id) != block_id
+            if existing_part_revision and not is_repeated_block:
+                line_to_update, adds_to_line = self._line_to_update(
+                    parent_part_revision, (existing_part_revision.id, part_dict['do_not_load']))
+        line_count_before_row = line_to_update.count if line_to_update else 0
+        line_reference_before_row = line_to_update.reference if line_to_update else None
 
         # Now validate & save PartClass, Part, PartRevision, Subpart
         # Preserve the existing name when the CSV row has no part_class column or an empty value;
@@ -1435,7 +1496,7 @@ class BOMCSVForm(BaseCSVForm):
             add_nonfield_error_from_existing(part_revision_form, self, f'Row {row_count} - ')
             return None
 
-        subpart_form = SubpartForm(part_dict, instance=existing_subpart, ignore_part_revision=True,
+        subpart_form = SubpartForm(part_dict, instance=line_to_update, ignore_part_revision=True,
                                    organization=self.organization)
         if not subpart_form.is_valid():
             add_nonfield_error_from_existing(subpart_form, self, f'Row {row_count} - ')
@@ -1469,12 +1530,19 @@ class BOMCSVForm(BaseCSVForm):
         part.save()
         part_revision.part = part
         part_revision.save()
+        self._record_part_change(part_revision, existing_part, existing_part_revision)
+
         if parent_part_revision:
-            subpart.count += existing_subpart_count  # append or create
-            subpart.reference = existing_subpart_references + ', ' + subpart.reference if existing_subpart_references else subpart.reference
+            line_key = (part_revision.id, subpart.do_not_load)
+            self.counts_by_block[(parent_part_revision.id, block_id)][line_key] += subpart_form.cleaned_data['count']
+        if parent_part_revision and not is_repeated_block:
+            if adds_to_line:
+                subpart.count += line_count_before_row
+                subpart.reference = line_reference_before_row + ', ' + subpart.reference if line_reference_before_row else subpart.reference
             subpart.part_revision = part_revision
             subpart.save()
             AssemblySubparts.objects.get_or_create(assembly=parent_part_revision.assembly, subpart=subpart)
+            self.uploaded_lines_by_parent_id[parent_part_revision.id][line_key] = subpart
 
         info_msg = f"Row {row_count}: Added subpart {part_number}"
         if reference:
@@ -1492,6 +1560,8 @@ class BOMCSVForm(BaseCSVForm):
                 instance=existing_manufacturer, organization=self.organization)
             if not manufacturer_form.is_valid():
                 add_nonfield_error_from_existing(manufacturer_form, self, f'Row {row_count} - ')
+            if existing_manufacturer is None and manufacturer_name not in self.manufacturers_created:
+                self.manufacturers_created.append(manufacturer_name)
 
             manufacturer = manufacturer_form.save(commit=False)
 
@@ -1515,6 +1585,94 @@ class BOMCSVForm(BaseCSVForm):
             part.save()
 
         return part_revision
+
+    def _line_to_update(self, parent_part_revision, line_key):
+        """The parent's line this row writes to, and whether the row's quantity adds to it."""
+        uploaded_line = self.uploaded_lines_by_parent_id.get(parent_part_revision.id, {}).get(line_key)
+        if uploaded_line is not None:
+            return uploaded_line, True
+
+        part_revision_id, do_not_load = line_key
+        existing_line = parent_part_revision.assembly.subparts.filter(
+            part_revision_id=part_revision_id, do_not_load=do_not_load).first()
+        if existing_line is not None:
+            self.line_state_before_upload[existing_line.id] = (existing_line.count, existing_line.reference)
+        adds_to_existing_line = parent_part_revision == self.parent_part_revision and self.adds_to_parent_part
+        return existing_line, adds_to_existing_line
+
+    def _record_part_change(self, part_revision, existing_part, existing_part_revision):
+        if existing_part_revision is not None or part_revision.id in self.part_changes:
+            return
+        self.part_changes[part_revision.id] = {
+            'kind': 'part_created' if existing_part is None else 'revision_created',
+            'part_number': part_revision.part.full_part_number(),
+            'revision': part_revision.revision,
+            'synopsis': part_revision.displayable_synopsis,
+        }
+        self.created_part_revision_ids.add(part_revision.id)
+
+    def finish_rows(self):
+        self._warn_about_conflicting_repeated_blocks()
+        for parent_id, uploaded_lines in self.uploaded_lines_by_parent_id.items():
+            parent_part_revision = self.parents_by_id[parent_id]
+            line_changes = []
+            for line in uploaded_lines.values():
+                state_before_upload = self.line_state_before_upload.get(line.id)
+                if state_before_upload is None:
+                    line_changes.append(self._line_change('added', line, None, line.count, None, line.reference))
+                elif state_before_upload != (line.count, line.reference):
+                    old_count, old_reference = state_before_upload
+                    line_changes.append(self._line_change('updated', line, old_count, line.count, old_reference, line.reference))
+
+            syncs = not (parent_part_revision == self.parent_part_revision and self.adds_to_parent_part)
+            if syncs and parent_id in self.parent_ids_with_skipped_rows:
+                self.warnings.append(
+                    f"Kept the lines of {parent_part_revision.part.full_part_number()} that are not in the file, "
+                    f"because some of its rows were skipped.")
+            elif syncs:
+                uploaded_line_ids = [line.id for line in uploaded_lines.values()]
+                lines_to_remove = parent_part_revision.assembly.subparts.exclude(id__in=uploaded_line_ids) \
+                    .select_related('part_revision__part')
+                for line in lines_to_remove:
+                    line_changes.append(self._line_change('removed', line, line.count, None, line.reference, None))
+                    line.delete()
+
+            if line_changes:
+                line_changes.sort(key=lambda line_change: self.LINE_CHANGE_ORDER.index(line_change['change']))
+                self.assembly_changes.append({
+                    'part_id': parent_part_revision.part_id,
+                    'part_number': parent_part_revision.part.full_part_number(),
+                    'revision': parent_part_revision.revision,
+                    'synopsis': parent_part_revision.displayable_synopsis,
+                    'is_new': parent_id in self.created_part_revision_ids,
+                    'used_in_count': parent_part_revision.where_used().count(),
+                    'lines': line_changes,
+                })
+
+    def _warn_about_conflicting_repeated_blocks(self):
+        conflicting_parent_ids = []
+        for (parent_id, block_id), counts in self.counts_by_block.items():
+            first_block_counts = self.counts_by_block.get((parent_id, self.first_block_by_parent_id[parent_id]))
+            if counts != first_block_counts and parent_id not in conflicting_parent_ids:
+                conflicting_parent_ids.append(parent_id)
+        for parent_id in conflicting_parent_ids:
+            self.warnings.append(
+                f"{self.parents_by_id[parent_id].part.full_part_number()} is listed more than once with different "
+                f"subparts. Only its first listing was used.")
+
+    @staticmethod
+    def _line_change(change, line, old_count, new_count, old_reference, new_reference):
+        return {
+            'change': change,
+            'part_number': line.part_revision.part.full_part_number(),
+            'revision': line.part_revision.revision,
+            'synopsis': line.part_revision.displayable_synopsis,
+            'do_not_load': line.do_not_load,
+            'old_count': old_count,
+            'new_count': new_count,
+            'old_reference': old_reference,
+            'new_reference': new_reference,
+        }
 
 
 class UploadBOMForm(OrganizationFormMixin, forms.Form):

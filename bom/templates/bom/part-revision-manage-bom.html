@@ -44,6 +44,8 @@
             <p>Additional fields include 'reference' or 'designator' to add a reference field to the subpart;
                'do_not_load' if you don't want the part loaded into the assembly that contains it; 'dnp' if
                 you don't want to upload the part to IndaBOM.</p>
+            <p><b>Add to BOM</b> keeps the existing subparts and adds to their quantities. <b>Replace BOM</b> sets this
+                BOM to match the file. You'll see a preview of every change before anything is saved.</p>
             <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="row">
@@ -61,6 +63,11 @@
                         <input class="green lighten-1 btn" type="submit" value="Upload"/>
                     </div>
                 </div>
+                <p style="margin: 8px 0 0;">
+                    <label style="margin-right: 16px;"><input name="mode" type="radio" value="add" checked/><span>Add to BOM</span></label>
+                    <label><input name="mode" type="radio" value="replace"/><span>Replace BOM</span></label>
+                </p>
+
             </form>
             <div class="row">
                 <div class="col s6">

@@ -55,6 +55,7 @@ bom_patterns = [
     path('upload-parts-help/', views.upload_parts_help, name='upload-parts-help'),
     path('upload-parts-template/', views.upload_parts_template, name='upload-parts-template'),
     path('upload-bom/', views.upload_bom, name='upload-bom'),
+    path('upload-bom/confirm/', views.upload_bom_confirm, name='upload-bom-confirm'),
     path('part/<int:part_id>/', views.part_info, name='part-info'),
     path('part/<int:part_id>/export/', views.part_export_bom, name='part-export-bom'),
     path('part/<int:part_id>/export-sourcing/', views.part_export_bom, name='part-export-bom-sourcing', kwargs={'sourcing': True}),

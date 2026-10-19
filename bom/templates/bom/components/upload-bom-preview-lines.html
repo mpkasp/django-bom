@@ -1,0 +1,30 @@
+<table class="striped">
+    <thead>
+    <tr>
+        <th>Part</th>
+        <th>Synopsis</th>
+        <th>Qty</th>
+        <th>Reference</th>
+        <th>Do not load</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for line in lines %}
+        <tr>
+            <td>{{ line.part_number }} Rev {{ line.revision }}</td>
+            <td>{{ line.synopsis }}</td>
+            <td>
+                {% if line.change == 'updated' %}{{ line.old_count|floatformat:"-3" }} &rarr; {{ line.new_count|floatformat:"-3" }}
+                {% elif line.change == 'removed' %}{{ line.old_count|floatformat:"-3" }}
+                {% else %}{{ line.new_count|floatformat:"-3" }}{% endif %}
+            </td>
+            <td>
+                {% if line.change == 'updated' and line.old_reference != line.new_reference %}{{ line.old_reference|default:"–" }} &rarr; {{ line.new_reference|default:"–" }}
+                {% elif line.change == 'removed' %}{{ line.old_reference }}
+                {% else %}{{ line.new_reference }}{% endif %}
+            </td>
+            <td>{{ line.do_not_load|yesno:"Yes," }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
