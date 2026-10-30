@@ -8,7 +8,7 @@ from django.urls import reverse
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from requests import HTTPError
+from social_core.exceptions import AuthException
 from social_django.models import UserSocialAuth
 from social_django.utils import load_strategy
 
@@ -173,7 +173,7 @@ def get_or_create_and_open_folder(request, part_id):
     organization = user.bom_profile().organization
     try:
         service = get_service(user)
-    except HTTPError as e:
+    except AuthException:
         return _reconnect_drive_redirect(request)
 
     try:
@@ -231,7 +231,7 @@ def update_folder_name(request, part_id):
     organization = user.bom_profile().organization
     try:
         service = get_service(user)
-    except HTTPError as e:
+    except AuthException:
         return _reconnect_drive_redirect(request)
 
     try:
