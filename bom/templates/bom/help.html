@@ -352,7 +352,7 @@
 
                 <div class="section">
                     <h3 id="uploading-parts">Uploading Parts</h3>
-                    <p>Upload a CSV to create multiple parts at once from the <strong>Upload → Upload Parts</strong>
+                    <p>Upload a CSV to create or update parts in bulk from the <strong>Upload → Upload Parts</strong>
                         menu, or from the <strong>+</strong> button on the Home page.</p>
                     <p>See the <a href="{% url 'bom:upload-parts-help' %}" target="_blank">Parts CSV Reference <i
                             class="material-icons" style="font-size:1em;vertical-align:middle;">open_in_new</i></a> for
@@ -363,7 +363,8 @@
                         </li>
                         <li>Manufacturer and seller data can be included in the same file.</li>
                         <li>Custom property values are included using <code>property_&lt;code&gt;</code> columns.</li>
-                        <li>Rows with errors are skipped; valid rows in the same file are still imported.</li>
+                        <li>A row that names an existing part number or manufacturer part number updates that part.</li>
+                        <li>You review every change before it is saved; a row with an error blocks the import.</li>
                     </ul>
                     <p>
                         <a href="{% url 'bom:upload-parts-template' %}">Download a template CSV</a> set up for your

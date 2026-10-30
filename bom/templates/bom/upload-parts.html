@@ -11,8 +11,9 @@
 {% block content %}
     <div class="container-app">
         {% if profile.role == 'A' %}
-            <p>Upload a CSV to create multiple parts at once. Each row becomes one part; rows with errors are skipped
-                and the rest continue to import.</p>
+            <p>Upload a CSV to create or update parts in bulk. A row that names an existing part (by part number,
+                or by manufacturer part number) updates it; any other row creates a part. Blank cells leave values
+                alone, and you review every change before it is saved.</p>
             <p>If you also want to associate parts to create assemblies and add quantities to specify how many parts
                 are in an assembly, instead <a href="{% url 'bom:upload-bom' %}">upload a bill of materials</a>.</p>
 
@@ -44,11 +45,12 @@
                         {% endif %}
                         <tr>
                             <td><code>revision</code></td>
-                            <td>Up to 4 characters</td>
+                            <td>Up to 4 characters. Required to create a part; for an existing part it picks the
+                                revision to update (the latest when left out)</td>
                         </tr>
                         <tr>
                             <td><code>description</code></td>
-                            <td>Up to 255 characters</td>
+                            <td>Up to 255 characters. Blank keeps an existing description</td>
                         </tr>
                         </tbody>
                         <thead>

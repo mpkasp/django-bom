@@ -38,6 +38,7 @@ from .helpers import (
     create_some_fake_part_classes,
     create_some_fake_part_revision_property_definitions,
     create_some_fake_parts,
+    create_some_fake_unit_definitions,
     create_user_and_organization,
 )
 from .services.imports import detect_import_kind, read_csv_header_names, run_import
@@ -220,12 +221,12 @@ class TestBOM(TransactionTestCase):
         self.profile.save()
         self.client.login(username='kasper', password='ghostpassword')
 
-    def _upload_bom(self, url, data, **kwargs):
-        """Posts a BOM upload and confirms its preview, returning the preview itself when it can't be confirmed."""
+    def _import_file(self, url, data, **kwargs):
+        """Posts an import and confirms its preview, returning the preview itself when it can't be confirmed."""
         preview = self.client.post(url, data)
         if preview.status_code != 200 or not preview.context.get('token'):
             return preview
-        return self.client.post(reverse('bom:upload-bom-confirm'), {'token': preview.context['token']}, follow=True)
+        return self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']}, follow=True)
 
     @staticmethod
     def _upload_feedback(response):
@@ -383,7 +384,7 @@ class TestBOM(TransactionTestCase):
 
         test_file = 'test_bom.csv' if self.organization.number_variation_len > 0 else 'test_bom_6_no_variations.csv'
         with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         messages = list(response.context.get('messages'))
@@ -409,7 +410,7 @@ class TestBOM(TransactionTestCase):
 
         bom_part_count_before_upload = len(p1.latest().indented().parts)
         with open(f'{TEST_FILES_DIR}/test_bom_2.csv') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         message_text = self._upload_feedback(response)
@@ -426,7 +427,7 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         with open(f'{TEST_FILES_DIR}/test_bom_7_properties.csv') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv},
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv},
                                         follow=True)
         self.assertEqual(response.status_code, 200)
 
@@ -445,7 +446,7 @@ class TestBOM(TransactionTestCase):
         # Test OK upload
         test_file = 'test_full_bom.csv' if self.organization.number_variation_len > 0 else 'test_full_bom_no_variations.csv'
         with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
-            response = self._upload_bom(reverse('bom:upload-bom'), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:upload-bom'), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
@@ -493,7 +494,7 @@ class TestBOM(TransactionTestCase):
         test_file = 'test_full_bom.csv' if self.organization.number_variation_len > 0 else 'test_full_bom_no_variations.csv'
         p4_rev = create_a_fake_part_revision(p4, create_a_fake_assembly())
         with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
-            response = self._upload_bom(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p4.full_part_number()}, follow=True)
+            response = self._import_file(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p4.full_part_number()}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         messages = list(response.context.get('messages'))
@@ -507,7 +508,7 @@ class TestBOM(TransactionTestCase):
         # Test errors get thrown
         test_file = 'test_full_bom_with_errors.csv' if self.organization.number_variation_len > 0 else 'test_full_bom_no_variations_with_errors.csv'
         with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
-            response = self._upload_bom(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p3.full_part_number()}, follow=True)
+            response = self._import_file(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p3.full_part_number()}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         message_texts = self._upload_feedback(response)
@@ -533,7 +534,7 @@ class TestBOM(TransactionTestCase):
         # Test infinite recursion error gets thrown
         test_file = 'test_full_bom_with_errors_infinite_recursion.csv' if self.organization.number_variation_len > 0 else 'test_full_bom_no_variations_with_errors_infinite_recursion.csv'
         with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
-            response = self._upload_bom(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p3.full_part_number()}, follow=True)
+            response = self._import_file(reverse('bom:upload-bom'), {'file': test_csv, 'parent_part_number': p3.full_part_number()}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         errors = response.context['errors']
@@ -631,15 +632,15 @@ class TestBOM(TransactionTestCase):
         url = reverse('bom:upload-bom')
 
         for _ in range(2):
-            self._upload_bom(url, {'file': self._bom_upload_file((0, panel, 1), (1, drive, 1), (2, wire, 15), (2, cable, 1))})
+            self._import_file(url, {'file': self._bom_upload_file((0, panel, 1), (1, drive, 1), (2, wire, 15), (2, cable, 1))})
             self.assertEqual(self._line_counts(drive), {wire: 15, cable: 1})
             self.assertEqual(self._line_counts(panel), {drive: 1})
 
-        self._upload_bom(url, {'file': self._bom_upload_file((0, panel, 1), (1, drive, 1), (2, wire, 10))})
+        self._import_file(url, {'file': self._bom_upload_file((0, panel, 1), (1, drive, 1), (2, wire, 10))})
         self.assertEqual(self._line_counts(drive), {wire: 10})
 
         # A sub-assembly without rows beneath it is only referenced, so its BOM is left alone.
-        self._upload_bom(url, {'file': self._bom_upload_file((0, panel, 1), (1, drive, 2))})
+        self._import_file(url, {'file': self._bom_upload_file((0, panel, 1), (1, drive, 2))})
         self.assertEqual(self._line_counts(drive), {wire: 10})
         self.assertEqual(self._line_counts(panel), {drive: 2})
 
@@ -647,7 +648,7 @@ class TestBOM(TransactionTestCase):
         panel, drive, wire, cable = self._create_parts(4)
 
         # An indented export repeats a sub-assembly's subparts under each place it is used.
-        response = self._upload_bom(reverse('bom:upload-bom'), {'file': self._bom_upload_file(
+        response = self._import_file(reverse('bom:upload-bom'), {'file': self._bom_upload_file(
             (0, panel, 1), (1, drive, 1), (2, wire, 15), (2, cable, 1), (2, cable, 1),
             (1, drive, 1), (2, wire, 15), (2, cable, 2))})
         self.assertEqual(self._line_counts(drive), {wire: 15, cable: 2})
@@ -664,16 +665,16 @@ class TestBOM(TransactionTestCase):
         url = reverse('bom:part-upload-bom', kwargs={'part_id': drive.id})
 
         for _ in range(2):
-            self._upload_bom(url, {'file': self._bom_upload_file((wire, 1), header='part_number,quantity')})
+            self._import_file(url, {'file': self._bom_upload_file((wire, 1), header='part_number,quantity')})
         self.assertEqual(self._line_counts(drive), {wire: 2})
 
-        self._upload_bom(url, {'file': self._bom_upload_file((cable, 1), header='part_number,quantity'), 'mode': 'replace'})
+        self._import_file(url, {'file': self._bom_upload_file((cable, 1), header='part_number,quantity'), 'mode': 'replace'})
         self.assertEqual(self._line_counts(drive), {cable: 1})
 
     def test_upload_bom_preview_saves_nothing_until_confirmed(self):
         drive, wire, cable = self._create_parts(3)
         url = reverse('bom:part-upload-bom', kwargs={'part_id': drive.id})
-        self._upload_bom(url, {'file': self._bom_upload_file((wire, 15), header='part_number,quantity')})
+        self._import_file(url, {'file': self._bom_upload_file((wire, 15), header='part_number,quantity')})
 
         preview = self.client.post(url, {'file': self._bom_upload_file((cable, 3), header='part_number,quantity'), 'mode': 'replace'})
         self.assertEqual(self._line_counts(drive), {wire: 15})
@@ -690,7 +691,7 @@ class TestBOM(TransactionTestCase):
     def test_upload_bom_confirm_rejects_a_stale_preview(self):
         drive, wire = self._create_parts(2)
         url = reverse('bom:part-upload-bom', kwargs={'part_id': drive.id})
-        self._upload_bom(url, {'file': self._bom_upload_file((wire, 1), header='part_number,quantity')})
+        self._import_file(url, {'file': self._bom_upload_file((wire, 1), header='part_number,quantity')})
 
         preview = self.client.post(url, {'file': self._bom_upload_file((wire, 5), header='part_number,quantity'), 'mode': 'replace'})
         wire_line = drive.latest().assembly.subparts.get()
@@ -811,7 +812,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual((price.unit_cost.amount, price.nre_cost.amount, price.seller_part_number, price.minimum_pack_quantity, price.lead_time_days),
                          (Decimal('2.00'), Decimal('5.00'), 'SPN-1', 10, 14))
 
-        self._upload_bom(url, {'file': self._import_prices_file(
+        self._import_file(url, {'file': self._import_prices_file(
             (part, 'Mouser', '1.50', '100', 'SPN-100'), header='part_number,seller,unit_cost,minimum_order_quantity,seller_part_number')})
         prices = SellerPart.objects.filter(manufacturer_part=manufacturer_part).order_by('minimum_order_quantity')
         self.assertEqual([(p.minimum_order_quantity, p.unit_cost.amount, p.seller_part_number, p.lead_time_days) for p in prices],
@@ -830,7 +831,7 @@ class TestBOM(TransactionTestCase):
         self.assertIn('Row 2: No vendor given', ' '.join(preview.context['errors']))
         self.assertFalse(SellerPart.objects.filter(seller__organization=self.organization).exists())
 
-        response = self._upload_bom(url, {'file': self._import_prices_file((part, '0.75'), header='part_number,unit_cost'),
+        response = self._import_file(url, {'file': self._import_prices_file((part, '0.75'), header='part_number,unit_cost'),
                                           'default_seller': 'Arrow'})
         self.assertIn('Imported 1 row: 1 price created, 0 updated, 0 unchanged.', self._upload_feedback(response))
         price = SellerPart.objects.get(manufacturer_part__part=part)
@@ -891,9 +892,140 @@ class TestBOM(TransactionTestCase):
         for row in rows[1:]:
             Part.parse_part_number(row[0], self.organization)
 
+    def test_import_parts_updates_existing_parts_by_part_number_and_manufacturer_part_number(self):
+        by_number, by_mpn = self._create_parts(2)
+        PartRevision.objects.create(part=by_number, revision='2')
+        self._create_manufacturer_part(by_mpn, 'MPN-B')
+        url = reverse('bom:upload-parts')
+
+        preview = self.client.post(url, {'file': self._bom_upload_file(
+            (by_number, '', 'First'), ('', 'MPN-B', 'Second'), header='part_number,manufacturer_part_number,description')})
+        self.assertEqual(preview.context['errors'], [])
+        self.assertEqual(preview.context['changes']['created'], [])
+        self.assertEqual([(row['identifier'], row['fields']) for row in preview.context['changes']['updated']],
+                         [(by_number.full_part_number(), {'description': ('', 'First')}),
+                          (by_mpn.full_part_number(), {'description': ('', 'Second')})])
+        self.assertIn('2 rows: 0 parts created, 2 updated, 0 unchanged.', preview.content.decode())
+        self.assertEqual([revision.description for revision in by_number.revisions().order_by('revision')], ['', ''])
+
+        response = self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']}, follow=True)
+        self.assertIn('Imported 2 rows: 0 parts created, 2 updated, 0 unchanged.', self._upload_feedback(response))
+        # Without a revision column the latest revision is the one updated.
+        self.assertEqual([revision.description for revision in by_number.revisions().order_by('revision')], ['', 'First'])
+        self.assertEqual(by_mpn.latest().description, 'Second')
+        self.assertEqual(Part.objects.filter(organization=self.organization).count(), 2)
+
+        response = self._import_file(url, {'file': self._bom_upload_file(
+            (by_mpn, 'Samsung', 'MPN-C'), header='part_number,manufacturer_name,manufacturer_part_number')})
+        self.assertIn(f'{by_mpn.full_part_number()} already had a manufacturer part', self._upload_feedback(response))
+        by_mpn.refresh_from_db()
+        self.assertEqual(by_mpn.primary_manufacturer_part.manufacturer_part_number, 'MPN-B')
+        self.assertEqual(sorted(by_mpn.manufacturer_parts().values_list('manufacturer_part_number', flat=True)), ['MPN-B', 'MPN-C'])
+
+    def test_import_parts_updates_the_named_revision_or_creates_it(self):
+        part, = self._create_parts(1)
+        PartRevision.objects.create(part=part, revision='2', description='Second')
+        url = reverse('bom:upload-parts')
+
+        preview = self.client.post(url, {'file': self._bom_upload_file(
+            (part, '1', 'First'), (part, '3', 'Third'), header='part_number,revision,description')})
+        self.assertEqual(preview.context['errors'], [])
+        self.assertEqual([row['fields'] for row in preview.context['changes']['updated']],
+                         [{'description': ('', 'First')}, {'revision': (None, '3'), 'description': (None, 'Third')}])
+        self.assertEqual(part.revisions().count(), 2)
+
+        self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
+        self.assertEqual({revision.revision: revision.description for revision in part.revisions()},
+                         {'1': 'First', '2': 'Second', '3': 'Third'})
+        self.assertEqual(part.revisions().get(revision='3').assembly.subparts.count(), 0)
+
+    def test_import_parts_keeps_released_revision_fields_but_updates_its_vendor_price(self):
+        part, = self._create_parts(1)
+        manufacturer_part = self._create_manufacturer_part(part, 'MPN-1')
+        seller = Seller.objects.create(name='Mouser', organization=self.organization)
+        price = create_a_fake_seller_part(seller, manufacturer_part, 1, 1, Decimal('1.00'), None, Decimal('0'))
+        revision = part.latest()
+        revision.description = 'Released widget'
+        revision.configuration = constants.CONFIGURATION_TYPE_RELEASED
+        revision.save()
+        url = reverse('bom:upload-parts')
+
+        preview = self.client.post(url, {'file': self._bom_upload_file(
+            (part, 'Renamed', 'Mouser', '2.00'), header='part_number,description,seller,unit_cost')})
+        self.assertEqual(preview.context['errors'], [])
+        self.assertEqual(preview.context['warnings'],
+                         [f'Row 2: {part.full_part_number()} revision 1 is Released; description left unchanged. '
+                          'Create a new revision to change them.'])
+        self.assertEqual([row['fields'] for row in preview.context['changes']['updated']],
+                         [{'Mouser MOQ 1 unit_cost': (Decimal('1.00'), Decimal('2.00'))}])
+
+        self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
+        price.refresh_from_db()
+        revision.refresh_from_db()
+        self.assertEqual((price.unit_cost.amount, revision.description), (Decimal('2.00'), 'Released widget'))
+
+    def test_import_parts_upserts_vendor_prices_and_leaves_blank_cells_alone(self):
+        part, = self._create_parts(1)
+        revision = part.latest()
+        revision.description = 'Keep me'
+        revision.save()
+        url = reverse('bom:upload-parts')
+        header = 'part_number,description,manufacturer_name,manufacturer_part_number,seller,seller_part_number,unit_cost,minimum_order_quantity,lead_time_days'
+        row = (part, '', 'Murata', 'MPN-1', 'Digi-Key', 'DK-1', '$0.50', '100', '7')
+
+        preview = self.client.post(url, {'file': self._bom_upload_file(row, header=header)})
+        self.assertEqual(preview.context['errors'], [])
+        self.assertEqual(preview.context['changes']['sellers_created'], ['Digi-Key'])
+        self.assertEqual(preview.context['changes']['manufacturer_parts_created'], [f'{part.full_part_number()}: Murata MPN-1'])
+        self.assertEqual(list(preview.context['changes']['updated'][0]['fields']),
+                         ['manufacturer_part', 'Digi-Key MOQ 100 unit_cost', 'Digi-Key MOQ 100 lead_time_days',
+                          'Digi-Key MOQ 100 seller_part_number'])
+        self.assertFalse(ManufacturerPart.objects.filter(part=part).exists())
+        self.assertFalse(Seller.objects.filter(organization=self.organization).exists())
+
+        response = self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']}, follow=True)
+        self.assertIn('Imported 1 row: 0 parts created, 1 updated, 0 unchanged.', self._upload_feedback(response))
+        part.refresh_from_db()
+        self.assertEqual((part.latest().description, part.primary_manufacturer_part.manufacturer_part_number), ('Keep me', 'MPN-1'))
+        price = SellerPart.objects.get(manufacturer_part__part=part)
+        self.assertEqual((price.seller.name, price.seller_part_number, price.unit_cost.amount, price.minimum_order_quantity, price.lead_time_days),
+                         ('Digi-Key', 'DK-1', Decimal('0.50'), 100, 7))
+
+        preview = self.client.post(url, {'file': self._bom_upload_file(row, header=header)})
+        self.assertEqual(preview.context['changes'],
+                         {'created': [], 'updated': [], 'unchanged': 1, 'sellers_created': [], 'manufacturer_parts_created': []})
+
+    def test_export_part_list_round_trips_as_an_unchanged_import(self):
+        _, voltage, _, _, _ = create_some_fake_part_revision_property_definitions(self.organization, some_required=False)
+        volts = create_some_fake_unit_definitions(self.organization)[0]
+        first, second = self._create_parts(2)
+        if first.number_class is not None:
+            first.number_class.property_definitions.add(voltage)
+        self._create_manufacturer_part(first, 'MPN-1')
+        revision = first.latest()
+        revision.description = 'Widget, 3.3V'
+        revision.save()
+        PartRevisionProperty.objects.create(part_revision=revision, property_definition=voltage, value_raw='3.30', unit_definition=volts)
+
+        exported = self.client.get(reverse('bom:export-part-list')).content
+        header = exported.decode().splitlines()[0].split(',')
+        self.assertIn('property_voltage_unit', header)
+        preview = self.client.post(reverse('bom:upload-parts'),
+                                   {'file': SimpleUploadedFile('parts.csv', exported, content_type='text/csv')})
+        self.assertEqual(preview.context['errors'], [])
+        self.assertEqual(preview.context['warnings'], [])
+        self.assertEqual(preview.context['changes'],
+                         {'created': [], 'updated': [], 'unchanged': 2, 'sellers_created': [], 'manufacturer_parts_created': []})
+
+        response = self._import_file(reverse('bom:upload-parts'),
+                                     {'file': SimpleUploadedFile('parts.csv', exported.replace(b'3.30', b'5'), content_type='text/csv')})
+        self.assertIn('Imported 2 rows: 0 parts created, 1 updated, 1 unchanged.', self._upload_feedback(response))
+        self.assertEqual(revision.properties.get(property_definition=voltage).value_raw, '5')
+        self.assertEqual(Part.objects.filter(organization=self.organization).count(), 2)
+
     def test_upload_bom_keeps_missing_lines_when_a_row_is_skipped(self):
         drive, wire, cable = self._create_parts(3)
-        self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': drive.id}),
+        self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': drive.id}),
                          {'file': self._bom_upload_file((wire, 15), header='part_number,quantity')})
 
         uploaded = self._bom_upload_file((cable, '', 1), ('', 'NONEXISTENT-MPN', 1),
@@ -907,7 +1039,7 @@ class TestBOM(TransactionTestCase):
     def test_upload_bom_adds_released_parts_without_changing_them(self):
         panel, drive, wire, cable = self._create_parts(4)
         url = reverse('bom:upload-bom')
-        self._upload_bom(url, {'file': self._bom_upload_file((0, panel, 1), (1, drive, 1), (2, cable, 1))})
+        self._import_file(url, {'file': self._bom_upload_file((0, panel, 1), (1, drive, 1), (2, cable, 1))})
         for part in (drive, wire):
             part_revision = part.latest()
             part_revision.configuration = constants.CONFIGURATION_TYPE_RELEASED
@@ -915,7 +1047,7 @@ class TestBOM(TransactionTestCase):
         wire_description = wire.latest().description
 
         header = 'level,part_number,quantity,description,manufacturer_name,manufacturer_part_number'
-        response = self._upload_bom(url, {'file': self._bom_upload_file(
+        response = self._import_file(url, {'file': self._bom_upload_file(
             (0, panel, 1, '', '', ''), (1, drive, 2, '', '', ''), (2, wire, 5, '', '', ''),
             (1, wire, 3, 'Changed description', 'NewCo', 'NEWCO-1'), header=header)})
 
@@ -926,13 +1058,13 @@ class TestBOM(TransactionTestCase):
         self.assertIn(f'Skipped the rows beneath {drive.full_part_number()} because its revision is Released',
                       self._upload_feedback(response))
 
-        self._upload_bom(url, {'file': self._bom_upload_file((0, panel, 1), (1, wire, 4))})
+        self._import_file(url, {'file': self._bom_upload_file((0, panel, 1), (1, wire, 4))})
         self.assertEqual(self._line_counts(panel), {wire: 4})
 
     def test_upload_bom_skips_obsolete_parts(self):
         drive, wire, cable = self._create_parts(3)
         url = reverse('bom:part-upload-bom', kwargs={'part_id': drive.id})
-        self._upload_bom(url, {'file': self._bom_upload_file((wire, 1), header='part_number,quantity')})
+        self._import_file(url, {'file': self._bom_upload_file((wire, 1), header='part_number,quantity')})
         wire_revision = wire.latest()
         wire_revision.configuration = constants.CONFIGURATION_TYPE_OBSOLETE
         wire_revision.save()
@@ -950,14 +1082,14 @@ class TestBOM(TransactionTestCase):
         # Test OK upload
         test_file = 'test_full_bom.csv'
         with open(f'{TEST_FILES_DIR}/{test_file}') as test_csv:
-            response = self._upload_bom(reverse('bom:upload-bom'), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:upload-bom'), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
     def test_part_upload_bom_corner_cases(self):
         create_some_fake_part_revision_property_definitions(self.organization, False)
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         with open(f'{TEST_FILES_DIR}/test_bom_3_recursion.csv') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         errors = response.context['errors']
@@ -965,7 +1097,7 @@ class TestBOM(TransactionTestCase):
         self.assertIn("recursion", errors[0])
 
         with open(f'{TEST_FILES_DIR}/test_bom_4_no_part_rev.csv') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': p1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         messages = list(response.context.get('messages'))
@@ -1436,7 +1568,7 @@ class TestBOM(TransactionTestCase):
 
         # Should pass
         with open(f'{TEST_FILES_DIR}/test_new_parts.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:upload-parts'), {'file': test_csv})
         messages = list(response.context.get('messages'))
         for msg in messages:
             self.assertEqual(msg.tags, 'info')
@@ -1449,36 +1581,32 @@ class TestBOM(TransactionTestCase):
 
         # Should fail because class doesn't exist
         with open(f'{TEST_FILES_DIR}/test_new_parts_2.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
-        found_error = False
-        for m in response.wsgi_request._messages:
-            if "Part class 216 in row 2" in str(m) and "Uploading of this part skipped." in str(m):
-                found_error = True
-        self.assertTrue(found_error)
+            response = self._import_file(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertIsNone(response.context['token'])
+        self.assertIn("Row 2: Part class 216 doesn't exist", self._upload_feedback(response))
 
-        # Part should be skipped because it already exists
+        # A row naming an existing part (here by manufacturer part GhostBuster2000) updates it instead of being skipped.
         with open(f'{TEST_FILES_DIR}/test_new_parts_3.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
-        found_error = False
-        for m in response.wsgi_request._messages:
-            if "Part already exists for manufacturer part GhostBuster2000 in row 2. Uploading of this part skipped." in str(m):
-                found_error = True
-        self.assertTrue(found_error)
+            response = self._import_file(reverse('bom:upload-parts'), {'file': test_csv})
+        feedback = self._upload_feedback(response)
+        self.assertNotIn('already exists', feedback)
+        self.assertIn("Row 3: Part class 503 doesn't exist", feedback)
+        self.assertEqual(response.context['changes']['unchanged'], 1)
+        self.assertEqual(Part.objects.all().count(), 4)
 
     def test_upload_parts_template_imports_cleanly(self):
         self.organization.create_starter_part_classes()
         template = self.client.get(reverse('bom:upload-parts-template'))
         upload = SimpleUploadedFile('template.csv', template.content, content_type='text/csv')
 
-        response = self.client.post(reverse('bom:upload-parts'), {'file': upload}, follow=True)
+        response = self._import_file(reverse('bom:upload-parts'), {'file': upload})
         self.assertEqual([message.tags for message in response.context['messages']], ['info'])
         self.assertTrue(Part.objects.filter(organization=self.organization).exists())
 
     def _upload_parts_with_revisions(self, revisions):
-        """Upload one part per revision, numbered to suit this organization's scheme, and return the messages."""
-        self.organization.create_starter_part_classes()
+        """Imports one part per revision, numbered to suit this organization's scheme; returns the preview or the confirmed page."""
+        if not PartClass.objects.filter(organization=self.organization).exists():
+            self.organization.create_starter_part_classes()
         if self.organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
             number_header = 'part_class'
             numbers = [PartClass.objects.filter(organization=self.organization).first().code] * len(revisions)
@@ -1491,22 +1619,27 @@ class TestBOM(TransactionTestCase):
         for i, (number, revision) in enumerate(zip(numbers, revisions)):
             writer.writerow([number, f'Part {i}', revision])
         upload = SimpleUploadedFile('parts.csv', csv_text.getvalue().encode(), content_type='text/csv')
-
-        response = self.client.post(reverse('bom:upload-parts'), {'file': upload}, follow=True)
-        return list(response.context['messages'])
+        return self._import_file(reverse('bom:upload-parts'), {'file': upload})
 
     def test_upload_parts_summarizes_and_reports_imports_alongside_errors(self):
-        messages = self._upload_parts_with_revisions(['A'] * 12 + ['TOOLONG'] * 12)
-        self.assertEqual([message.tags for message in messages], ['info', 'error'])
-        self.assertEqual(messages[0].message, 'Imported 12 parts.')
-        self.assertIn('12 errors, showing the first 10', messages[1].message)
+        # A row error blocks the whole import: the preview lists every error and nothing is saved.
+        preview = self._upload_parts_with_revisions(['A'] * 12 + ['TOOLONG'] * 12)
+        self.assertIsNone(preview.context['token'])
+        self.assertEqual(len(preview.context['errors']), 12)
+        self.assertEqual(Part.objects.filter(organization=self.organization).count(), 0)
+
+        response = self._upload_parts_with_revisions(['A'] * 12)
+        messages = list(response.context['messages'])
+        self.assertEqual([message.tags for message in messages], ['info'])
+        self.assertEqual(messages[0].message, 'Imported 12 rows: 12 parts created, 0 updated, 0 unchanged.')
         self.assertEqual(Part.objects.filter(organization=self.organization).count(), 12)
 
     def test_upload_parts_summary_for_a_single_row(self):
-        messages = self._upload_parts_with_revisions(['A', 'TOOLONG'])
-        self.assertEqual(messages[0].message, 'Imported 1 part.')
-        self.assertTrue(messages[1].message.startswith('Revision TOOLONG in row 3'))
-        self.assertNotIn('<ul', messages[1].message)
+        preview = self._upload_parts_with_revisions(['A', 'TOOLONG'])
+        self.assertEqual(preview.context['errors'], ['Row 3: Revision TOOLONG is more than the maximum 4 characters.'])
+
+        response = self._upload_parts_with_revisions(['A'])
+        self.assertEqual(list(response.context['messages'])[0].message, 'Imported 1 row: 1 part created, 0 updated, 0 unchanged.')
 
     def test_upload_parts_without_a_file(self):
         response = self.client.post(reverse('bom:upload-parts'))
@@ -1518,20 +1651,19 @@ class TestBOM(TransactionTestCase):
 
         # Should break with data error
         with open(f'{TEST_FILES_DIR}/test_new_parts_broken.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
-        errors = [msg for msg in response.context.get('messages') if msg.tags == 'error']
+            response = self._import_file(reverse('bom:upload-parts'), {'file': test_csv})
+        errors = response.context['errors']
 
         self.assertEqual(len(errors), 1)
-        self.assertIn('Error on Row 2, property_sheen: Ensure this value has at most 255 characters (it has 483)',
-                      errors[0].message)
+        self.assertIn('Row 2: property_sheen: Ensure this value has at most 255 characters (it has 483)', errors[0])
 
     def test_upload_part_with_sellers(self):
         create_some_fake_part_classes(self.organization)
         # Should pass
         initial_parts_count = Part.objects.all().count()
         with open('bom/test_files/test_new_parts_sellers.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
+            response = self._import_file(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertEqual(response.status_code, 200)
 
         parts_count = Part.objects.all().count()
         self.assertEqual(parts_count - initial_parts_count, 4)
@@ -1565,8 +1697,8 @@ class TestBOM(TransactionTestCase):
 
         f = io.BytesIO(csv_content.encode())
         f.name = "costs.csv"
-        response = self.client.post(reverse("bom:upload-parts"), {"file": f})
-        self.assertEqual(response.status_code, 302)
+        response = self._import_file(reverse("bom:upload-parts"), {"file": f})
+        self.assertEqual(response.status_code, 200)
 
         # The currency-formatted costs imported into a real SellerPart with the right amounts.
         seller_part = SellerPart.objects.get(manufacturer_part__manufacturer_part_number="MPN-COST-1")
@@ -1611,8 +1743,8 @@ class TestBOM(TransactionTestCase):
             with self.subTest(label=label):
                 f = io.BytesIO(csv_content.encode())
                 f.name = 'test.csv'
-                response = self.client.post(reverse('bom:upload-parts'), {'file': f})
-                self.assertEqual(response.status_code, 302, label)
+                response = self._import_file(reverse('bom:upload-parts'), {'file': f})
+                self.assertEqual(response.status_code, 200, label)
 
                 blank_manufacturers = Manufacturer.objects.filter(name='')
                 self.assertEqual(blank_manufacturers.count(), 0, f"{label}: blank-named Manufacturer was created")
@@ -1652,7 +1784,7 @@ class TestBOM(TransactionTestCase):
             with self.subTest(label=label):
                 f = io.BytesIO(csv_content.encode())
                 f.name = 'test.csv'
-                response = self._upload_bom(reverse('bom:upload-bom'), {'file': f})
+                response = self._import_file(reverse('bom:upload-bom'), {'file': f})
                 self.assertEqual(response.status_code, 200, label)
 
                 messages_list = list(response.context['messages']) if response.context and 'messages' in response.context else []
@@ -1702,7 +1834,7 @@ class TestBOM(TransactionTestCase):
 
                 f = io.BytesIO(csv_content.encode())
                 f.name = 'test.csv'
-                response = self._upload_bom(reverse('bom:upload-bom'), {'file': f})
+                response = self._import_file(reverse('bom:upload-bom'), {'file': f})
                 self.assertEqual(response.status_code, 200, label)
 
                 pc.refresh_from_db()
@@ -1769,7 +1901,7 @@ class TestBOM(TransactionTestCase):
 
         # Upload parts
         with open(f'{TEST_FILES_DIR}/test_new_parts_4.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:upload-parts'), {'file': test_csv})
         messages = list(response.context.get('messages'))
         for msg in messages:
             self.assertEqual(msg.tags, 'info')
@@ -1784,7 +1916,7 @@ class TestBOM(TransactionTestCase):
         pcba = Part.objects.filter(number_class=pcba_class, number_item='00003', number_variation='0A').first()
 
         with open(f'{TEST_FILES_DIR}/test_bom_652-00003-0A.csv') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         messages = list(response.context.get('messages'))
@@ -1800,7 +1932,7 @@ class TestBOM(TransactionTestCase):
         pcba = Part.objects.filter(number_class=pcba_class, number_item='00004', number_variation='0A').first()
 
         with open(f'{TEST_FILES_DIR}/test_bom_652-00004-0A.csv') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         messages = list(response.context.get('messages'))
@@ -2251,7 +2383,7 @@ class TestBOMIntelligent(TestBOM):
         pr6 = create_a_fake_part_revision(part=p5, assembly=assy)
 
         with open(f'{TEST_FILES_DIR}/test_bom.csv') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': p2.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         messages = list(response.context.get('messages'))
@@ -2277,20 +2409,17 @@ class TestBOMIntelligent(TestBOM):
         # part_count = Part.objects.all().count()
         # Should pass
         with open(f'{TEST_FILES_DIR}/test_new_parts_5_intelligent.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
+            response = self._import_file(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertEqual(response.status_code, 200)
         new_part_count = Part.objects.all().count()
         self.assertEqual(new_part_count, 4)
 
-        # Part should be skipped because it already exists
+        # Importing the same file again updates the existing parts (here: nothing changed) instead of reporting them as already existing.
         with open(f'{TEST_FILES_DIR}/test_new_parts_5_intelligent.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
-        found_error = False
-        for m in response.wsgi_request._messages:
-            if "already exists" in str(m):
-                found_error = True
-        self.assertTrue(found_error)
+            preview = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertNotIn('already exists', self._upload_feedback(preview))
+        self.assertEqual((preview.context['changes']['created'], preview.context['changes']['unchanged']), ([], 4))
+        self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
 
         # Only one part should exist
         self.assertEqual(Part.objects.filter(number_item='C0402X5R10V001').count(), 1)
@@ -2298,7 +2427,7 @@ class TestBOMIntelligent(TestBOM):
         # Uploading this BOM should work, and multiple parts should not be created
         p = Part.objects.first()
         with open(f'{TEST_FILES_DIR}/test_bom_5_intelligent.csv') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': p.id}), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': p.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         messages = list(response.context.get('messages'))
@@ -2309,8 +2438,8 @@ class TestBOMIntelligent(TestBOM):
         # Should pass
         initial_parts_count = Part.objects.all().count()
         with open('bom/test_files/test_new_parts_sellers_intelligent.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv})
-        self.assertEqual(response.status_code, 302)
+            response = self._import_file(reverse('bom:upload-parts'), {'file': test_csv})
+        self.assertEqual(response.status_code, 200)
 
         parts_count = Part.objects.all().count()
         self.assertEqual(parts_count - initial_parts_count, 4)
@@ -2329,7 +2458,7 @@ class TestBOMIntelligent(TestBOM):
         self.organization.save()
 
         with open(f'{TEST_FILES_DIR}/test_new_parts_5_intelligent.csv') as test_csv:
-            response = self.client.post(reverse('bom:upload-parts'), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:upload-parts'), {'file': test_csv})
         messages = list(response.context.get('messages'))
         for msg in messages:
             self.assertEqual(msg.tags, 'info')
@@ -2341,7 +2470,7 @@ class TestBOMIntelligent(TestBOM):
         pcba = Part.objects.get(number_item='DYSON-123')
 
         with open(f'{TEST_FILES_DIR}/test_bom_5_intelligent.csv') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': pcba.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         messages = list(response.context.get('messages'))
@@ -2357,7 +2486,7 @@ class TestBOMIntelligent(TestBOM):
 
         pt1, pt2, pt3, pt4 = create_some_fake_parts(self.organization)
         with open(f'{TEST_FILES_DIR}/test_bom_5_intelligent_no_reference.csv') as test_csv:
-            response = self._upload_bom(reverse('bom:part-upload-bom', kwargs={'part_id': pt1.id}), {'file': test_csv}, follow=True)
+            response = self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': pt1.id}), {'file': test_csv}, follow=True)
         self.assertEqual(response.status_code, 200)
         subparts = pt1.latest().assembly.subparts.all().order_by('id')
         self.assertNotEqual(subparts[0].count, 0)

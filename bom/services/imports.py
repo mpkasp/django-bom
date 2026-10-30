@@ -5,11 +5,11 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import transaction
 
 from bom.csv_headers import BOMIndentedCSVHeaders, SellerPartCSVHeaders
-from bom.forms import BOMCSVForm, VendorPricesImportForm, open_csv_reader
+from bom.forms import BOMCSVForm, PartsImportForm, VendorPricesImportForm, open_csv_reader
 from bom.models import Part
 
-IMPORT_FORMS = {'bom': BOMCSVForm, 'prices': VendorPricesImportForm}
-IMPORT_LABELS = {'bom': 'BOM', 'prices': 'vendor prices'}
+IMPORT_FORMS = {'bom': BOMCSVForm, 'parts': PartsImportForm, 'prices': VendorPricesImportForm}
+IMPORT_LABELS = {'bom': 'BOM', 'parts': 'parts', 'prices': 'vendor prices'}
 
 
 def run_import(organization, kind, csv_bytes, options, expected_changes_digest=None):

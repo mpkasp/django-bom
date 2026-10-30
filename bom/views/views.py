@@ -49,7 +49,6 @@ from bom.forms import (
     PartClassCSVForm,
     PartClassForm,
     PartClassSelectionForm,
-    PartCSVForm,
     PartImageForm,
     PartInfoForm,
     PartRevisionForm,
@@ -1189,8 +1188,8 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
     }
     if kind == 'bom':
         context.update(_bom_preview_context(import_form))
-    elif kind == 'prices':
-        context['preview_component'] = 'bom/components/import-preview-prices.html'
+    else:
+        context['preview_component'] = 'bom/components/import-preview-sourcing.html'
     return TemplateResponse(request, 'bom/import-preview.html', context)
 
 
@@ -1223,13 +1222,10 @@ def upload_parts(request):
     title = 'Upload Parts'
 
     if request.method == 'POST' and request.FILES.get('file') is not None:
-        form = PartCSVForm(request.POST, request.FILES, organization=organization)
-        add_csv_upload_messages(request, form, 'part', 'parts')
-    else:
-        form = FileForm()
-        return TemplateResponse(request, 'bom/upload-parts.html', locals())
-
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
+        return _preview_import(request, organization, 'parts', request.FILES['file'].read(), {},
+                               return_url=reverse('bom:upload-parts'))
+    form = FileForm()
+    return TemplateResponse(request, 'bom/upload-parts.html', locals())
 
 
 @login_required(login_url=BOM_LOGIN_URL)

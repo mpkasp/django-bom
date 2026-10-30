@@ -12,9 +12,10 @@
     <div class="container" style="max-width: 900px;">
 
         <h1>Uploading Parts via CSV</h1>
-        <p>Upload a CSV file to create multiple parts at once. Each row becomes one part. The first row must contain
-            column headers — unrecognized headers are rejected. Rows with errors are skipped; valid rows in the same
-            file are still imported.</p>
+        <p>Upload a CSV file to create or update parts in bulk. A row that names an existing part (by part number,
+            or by manufacturer part number) updates it; any other row creates a part. Blank cells and missing columns
+            leave existing values alone. The first row must contain column headers — unrecognized columns are ignored.
+            You review every change before it is saved, and a row with an error blocks the whole import.</p>
 
         {% if organization.number_scheme == 'S' %}
             <div class="card-panel blue-grey lighten-5">
@@ -47,8 +48,8 @@
                             Provide <strong>one or both</strong>.<br>
                             <code>part_class</code> — the class code (e.g. <code>500</code>); the system auto-assigns an
                             item number.<br>
-                            <code>part_number</code> — a full part number in <code>CCC-NNNN-VV</code> format; must not
-                            already exist.
+                            <code>part_number</code> — a full part number in <code>CCC-NNNN-VV</code> format; an
+                            existing number updates that part.
                             If both are given, <code>part_number</code> takes precedence.
                         </td>
                     </tr>
@@ -56,13 +57,15 @@
                     <tr>
                         <td><code>part_number</code></td>
                         <td><code>part number</code>, <code>part no</code></td>
-                        <td>Required. Must be unique — parts with a duplicate number are skipped.</td>
+                        <td>Required to create a part. An existing number updates that part.</td>
                     </tr>
                 {% endif %}
                 <tr>
                     <td><code>revision</code></td>
                     <td><code>rev</code>, <code>part_revision</code></td>
-                    <td>Up to 4 characters. Cannot be a negative integer.</td>
+                    <td>Up to 4 characters. Required to create a part. For an existing part it picks the revision
+                        to update: the latest when the column is left out, a new revision when the value is unknown.
+                        Released and Obsolete revisions keep their description and properties.</td>
                 </tr>
                 <tr>
                     <td><code>description</code></td>
@@ -95,7 +98,8 @@
                 <tr>
                     <td><code>manufacturer_part_number</code></td>
                     <td><code>mpn</code>, <code>mfg_part_number</code></td>
-                    <td>Skipped if a matching manufacturer + MPN pair already exists.</td>
+                    <td>Also identifies an existing part when <code>part_number</code> is blank. A new pair is added
+                        to the part; the primary manufacturer part is never changed.</td>
                 </tr>
                 </tbody>
             </table>
@@ -103,8 +107,8 @@
 
         {# ------------------------------------------------------------------ #}
         <h2 class="section">Optional: Seller / Sourcing</h2>
-        <p>Seller data requires the manufacturer columns above. <code>seller</code>, <code>unit_cost</code>, and <code>nre_cost</code>
-            must all be present to create a seller record.</p>
+        <p>Seller data requires a manufacturer part. Each row creates or updates one vendor price, identified by vendor
+            and minimum order quantity; <code>unit_cost</code> is required to create one.</p>
 
         <div class="responsive-table-wrapper">
             <table class="striped">
@@ -191,7 +195,7 @@
 
         <div class="card-panel" style="margin-top: 24px;">
             <strong>Tip:</strong> Export your existing parts list from the Home page and open it in a spreadsheet. The
-            exported file uses exactly the right column names and is a ready-made template for adding new parts.
+            exported file uses exactly the right column names; edit it and upload it to update your parts.
         </div>
 
         <br>
