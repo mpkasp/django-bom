@@ -141,7 +141,7 @@ deleted except BOM lines you replace. Every import is previewed first and saved 
 | Bill of materials | `part_number` or `manufacturer_part_number` per line, nested by `level` | parts and revisions; syncs each listed sub-assembly's lines | indented BOM export |
 
 The Import page detects the type from the file's columns or lets you pick one; `/import/?type=parts|prices|bom`
-preselects it. The former `upload-parts/`, `upload-bom/`, `upload-parts-help/` and `import/prices/` URLs redirect there.
+preselects it. The former `upload-parts/`, `upload-bom/` and `upload-parts-help/` URLs redirect there.
 
 ## Integrations
 ### Mouser Integration

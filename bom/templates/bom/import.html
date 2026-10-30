@@ -12,7 +12,7 @@
         .import-page details { margin: 16px 0; }
         .import-page summary { cursor: pointer; font-weight: 500; font-size: 1.1rem; }
         .import-page table { font-size: 0.9rem; }
-        .import-page .hint { font-size: 0.85rem; color: #666; margin: 0 0 8px; }
+        .import-page .hint { font-size: 0.85rem; margin: 0 0 8px; }
     </style>
     <div class="container-app import-page">
         <p>Any file IndaBOM exports can be edited and imported back. Rows that match existing records update the
@@ -39,7 +39,7 @@
                             <div class="row" style="margin-bottom: 0;">
                                 {{ upload_bom_form.parent_part_number|materializecss:'s12' }}
                             </div>
-                            <p class="hint" style="margin-top: -8px;">
+                            <p class="hint grey-text text-darken-1" style="margin-top: -8px;">
                                 Optional. Attach all rows as direct children of this assembly. Omit when the CSV includes
                                 a <code>level</code> column. <b>Add to BOM</b> keeps its existing subparts and adds to
                                 their quantities; <b>Replace BOM</b> sets its BOM to match the file.
@@ -58,7 +58,7 @@
                                     {% for name in seller_names %}<option value="{{ name }}">{% endfor %}
                                 </datalist>
                             </div>
-                            <p class="hint" style="margin-top: -8px;">
+                            <p class="hint grey-text text-darken-1" style="margin-top: -8px;">
                                 Optional. Used for rows without a <code>seller</code> value; created if it doesn't exist yet.
                             </p>
                         </div>

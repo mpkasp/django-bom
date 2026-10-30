@@ -2,4 +2,4 @@
     {% if adds_to_parent_part %}Adding to{% else %}Replacing{% endif %} the BOM of
     <a href="{% url 'bom:part-info' part_id=parent_part.id %}">{{ parent_part.full_part_number }}</a>.
 {% endif %}
-{% if not assembly_changes %}This upload doesn't change any BOMs.{% endif %}
+{% if not assembly_changes %}These rows match what's already in IndaBOM, so confirming changes nothing.{% endif %}

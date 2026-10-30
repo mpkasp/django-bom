@@ -8,6 +8,7 @@ from unittest import skip
 from unittest.mock import patch
 
 from cryptography.fernet import Fernet, MultiFernet
+from djmoney.money import Money
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ImproperlyConfigured
@@ -683,8 +684,8 @@ class TestBOM(TransactionTestCase):
         self.assertEqual([(line['change'], line['part_number']) for line in assembly_change['lines']],
                          [('removed', wire.full_part_number()), ('added', cable.full_part_number())])
 
-        self.client.post(reverse('bom:upload-bom-confirm'), {'token': preview.context['token'], 'cancel': 'Cancel'})
-        response = self.client.post(reverse('bom:upload-bom-confirm'), {'token': preview.context['token']}, follow=True)
+        self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token'], 'cancel': 'Cancel'})
+        response = self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']}, follow=True)
         self.assertIn('This upload preview has expired', self._upload_feedback(response))
         self.assertEqual(self._line_counts(drive), {wire: 15})
 
@@ -698,11 +699,11 @@ class TestBOM(TransactionTestCase):
         wire_line.count = 7
         wire_line.save()
 
-        response = self.client.post(reverse('bom:upload-bom-confirm'), {'token': preview.context['token']})
+        response = self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
         self.assertIn('The BOM changed after your preview', response.context['notice'])
         self.assertEqual(self._line_counts(drive), {wire: 7})
 
-        self.client.post(reverse('bom:upload-bom-confirm'), {'token': response.context['token']})
+        self.client.post(reverse('bom:import-confirm'), {'token': response.context['token']})
         self.assertEqual(self._line_counts(drive), {wire: 5})
 
     def test_upload_bom_preview_notes_ignored_vendor_price_columns(self):
@@ -716,7 +717,7 @@ class TestBOM(TransactionTestCase):
         preview = self.client.post(url, {'file': self._bom_upload_file((wire, 1, 'Digi-Key', '1.25'),
                                                                        header='part_number,quantity,seller,unit_cost')})
         self.assertIn(vendor_notice, preview.content.decode())
-        self.client.post(reverse('bom:upload-bom-confirm'), {'token': preview.context['token']})
+        self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
         self.assertEqual(self._line_counts(drive), {wire: 1})
         self.assertFalse(SellerPart.objects.filter(seller__organization=self.organization).exists())
 
@@ -738,7 +739,7 @@ class TestBOM(TransactionTestCase):
             (by_number, 'MPN-A', 'Mouser', '1.25', ''), ('', 'MPN-B', 'Mouser', '2.50', '10'),
             header='part_number,manufacturer_part_number,seller,unit_cost,minimum_order_quantity')}
 
-        preview = self.client.post(reverse('bom:import-prices'), upload)
+        preview = self.client.post(reverse('bom:import'), {'type': 'prices', **upload})
         self.assertEqual(preview.status_code, 200)
         self.assertEqual(preview.context['errors'], [])
         changes = preview.context['changes']
@@ -771,9 +772,9 @@ class TestBOM(TransactionTestCase):
         self._create_manufacturer_part(second_twin, 'MPN-TWIN', 'Samsung')
         unknown_part_number = removed.full_part_number()
         removed.delete()
-        url = reverse('bom:import-prices')
+        url = reverse('bom:import')
 
-        preview = self.client.post(url, {'file': self._import_prices_file(
+        preview = self.client.post(url, {'type': 'prices', 'file': self._import_prices_file(
             (known, '', 'Mouser', '1.00'), (unknown_part_number, '', 'Mouser', '1.00'),
             ('', 'MPN-TWIN', 'Mouser', '1.00'), ('', 'MPN-MISSING', 'Mouser', '1.00'),
             header='part_number,manufacturer_part_number,seller,unit_cost')})
@@ -786,7 +787,7 @@ class TestBOM(TransactionTestCase):
         self.assertFalse(Seller.objects.filter(organization=self.organization).exists())
         self.assertEqual(Part.objects.filter(organization=self.organization).count(), 3)
 
-        preview = self.client.post(url, {'file': self._import_prices_file(
+        preview = self.client.post(url, {'type': 'prices', 'file': self._import_prices_file(
             ('', 'MPN-TWIN', 'Samsung', 'Mouser', '1.00'),
             header='part_number,manufacturer_part_number,manufacturer_name,seller,unit_cost')})
         self.assertEqual([row['identifier'] for row in preview.context['changes']['created']],
@@ -799,9 +800,9 @@ class TestBOM(TransactionTestCase):
         price = create_a_fake_seller_part(seller, manufacturer_part, 1, 10, Decimal('1.00'), 14, Decimal('5.00'))
         price.seller_part_number = 'SPN-1'
         price.save()
-        url = reverse('bom:import-prices')
+        url = reverse('bom:import')
 
-        preview = self.client.post(url, {'file': self._import_prices_file(
+        preview = self.client.post(url, {'type': 'prices', 'file': self._import_prices_file(
             (part, 'mouser', '$2.00', '', ''), header='part_number,seller,unit_cost,seller_part_number,nre_cost')})
         updated = preview.context['changes']['updated']
         self.assertEqual([(row['identifier'], list(row['fields'])) for row in updated],
@@ -812,32 +813,32 @@ class TestBOM(TransactionTestCase):
         self.assertEqual((price.unit_cost.amount, price.nre_cost.amount, price.seller_part_number, price.minimum_pack_quantity, price.lead_time_days),
                          (Decimal('2.00'), Decimal('5.00'), 'SPN-1', 10, 14))
 
-        self._import_file(url, {'file': self._import_prices_file(
+        self._import_file(url, {'type': 'prices', 'file': self._import_prices_file(
             (part, 'Mouser', '1.50', '100', 'SPN-100'), header='part_number,seller,unit_cost,minimum_order_quantity,seller_part_number')})
         prices = SellerPart.objects.filter(manufacturer_part=manufacturer_part).order_by('minimum_order_quantity')
         self.assertEqual([(p.minimum_order_quantity, p.unit_cost.amount, p.seller_part_number, p.lead_time_days) for p in prices],
                          [(1, Decimal('2.00'), 'SPN-1', 14), (100, Decimal('1.50'), 'SPN-100', None)])
 
-        preview = self.client.post(url, {'file': self._import_prices_file((part, 'Mouser', '2.00'))})
+        preview = self.client.post(url, {'type': 'prices', 'file': self._import_prices_file((part, 'Mouser', '2.00'))})
         self.assertEqual(preview.context['changes'],
                          {'created': [], 'updated': [], 'unchanged': 1, 'sellers_created': [], 'manufacturer_parts_created': []})
 
     def test_import_prices_uses_the_default_seller_when_the_file_has_no_seller_column(self):
         part, bare = self._create_parts(2)
         self._create_manufacturer_part(part, 'MPN-1')
-        url = reverse('bom:import-prices')
+        url = reverse('bom:import')
 
-        preview = self.client.post(url, {'file': self._import_prices_file((part, '0.75'), header='part_number,unit_cost')})
+        preview = self.client.post(url, {'type': 'prices', 'file': self._import_prices_file((part, '0.75'), header='part_number,unit_cost')})
         self.assertIn('Row 2: No vendor given', ' '.join(preview.context['errors']))
         self.assertFalse(SellerPart.objects.filter(seller__organization=self.organization).exists())
 
-        response = self._import_file(url, {'file': self._import_prices_file((part, '0.75'), header='part_number,unit_cost'),
+        response = self._import_file(url, {'type': 'prices', 'file': self._import_prices_file((part, '0.75'), header='part_number,unit_cost'),
                                           'default_seller': 'Arrow'})
         self.assertIn('Imported 1 row: 1 price created, 0 updated, 0 unchanged.', self._upload_feedback(response))
         price = SellerPart.objects.get(manufacturer_part__part=part)
         self.assertEqual((price.seller.name, price.unit_cost.amount, price.minimum_order_quantity), ('Arrow', Decimal('0.75'), 1))
 
-        preview = self.client.post(url, {'file': self._import_prices_file((bare, '0.75'), header='part_number,unit_cost'),
+        preview = self.client.post(url, {'type': 'prices', 'file': self._import_prices_file((bare, '0.75'), header='part_number,unit_cost'),
                                          'default_seller': 'Arrow'})
         self.assertIn('has no manufacturer part', ' '.join(preview.context['errors']))
         self.assertEqual(SellerPart.objects.filter(seller__organization=self.organization).count(), 1)
@@ -876,8 +877,8 @@ class TestBOM(TransactionTestCase):
         self.assertTrue(committed)
         self.assertEqual(SellerPart.objects.filter(seller__organization=self.organization).count(), 3)
 
-        preview = self.client.post(reverse('bom:import-prices'),
-                                   {'file': SimpleUploadedFile('prices.csv', response.content, content_type='text/csv')})
+        preview = self.client.post(reverse('bom:import'),
+                                   {'type': 'prices', 'file': SimpleUploadedFile('prices.csv', response.content, content_type='text/csv')})
         self.assertIn('3 rows: 0 prices created, 0 updated, 3 unchanged.', preview.content.decode())
 
         template_rows = list(csv.reader(io.StringIO(self.client.get(reverse('bom:import-template-prices')).content.decode())))
@@ -919,7 +920,7 @@ class TestBOM(TransactionTestCase):
     def test_old_upload_urls_redirect_to_the_import_page(self):
         import_url = reverse('bom:import')
         for url_name, target in (('upload-parts', f'{import_url}?type=parts'), ('upload-bom', f'{import_url}?type=bom'),
-                                 ('import-prices', f'{import_url}?type=prices'), ('upload-parts-help', f'{import_url}#parts-columns')):
+                                 ('upload-parts-help', f'{import_url}#parts-columns')):
             response = self.client.get(reverse(f'bom:{url_name}'))
             self.assertEqual((response.status_code, response['Location']), (301, target), url_name)
 
@@ -1039,13 +1040,31 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(preview.context['changes'],
                          {'created': [], 'updated': [], 'unchanged': 1, 'sellers_created': [], 'manufacturer_parts_created': []})
 
+    def test_vendor_prices_import_matches_parts_numbered_before_the_current_format(self):
+        if self.organization.number_scheme != constants.NUMBER_SCHEME_SEMI_INTELLIGENT or not self.organization.number_variation_len:
+            self.skipTest('Only semi-intelligent numbers with a variation can predate the format.')
+        part, = self._create_parts(1)
+        Part.objects.filter(id=part.id).update(number_variation='1')  # shorter than the organization's variation length
+        part.refresh_from_db()
+        self._create_manufacturer_part(part, 'MPN-LEGACY')
+
+        preview = self.client.post(reverse('bom:import'), {
+            'type': 'prices', 'file': self._import_prices_file((part.full_part_number(), 'Mouser', '2.50'))})
+
+        self.assertEqual(preview.context['errors'], [])
+        self.assertEqual([row['identifier'] for row in preview.context['changes']['created']],
+                         [f'{part.full_part_number()} · Mouser · MOQ 1'])
+
     def test_export_part_list_round_trips_as_an_unchanged_import(self):
         _, voltage, _, _, _ = create_some_fake_part_revision_property_definitions(self.organization, some_required=False)
         volts = create_some_fake_unit_definitions(self.organization)[0]
         first, second = self._create_parts(2)
         if first.number_class is not None:
             first.number_class.property_definitions.add(voltage)
-        self._create_manufacturer_part(first, 'MPN-1')
+        manufacturer_part = self._create_manufacturer_part(first, 'MPN-1')
+        seller = Seller.objects.create(organization=self.organization, name='Arrow')
+        SellerPart.objects.create(manufacturer_part=manufacturer_part, seller=seller, unit_cost=Money('1.25', 'USD'),
+                                  nre_cost=Money(0, 'USD'), minimum_order_quantity=10)
         revision = first.latest()
         revision.description = 'Widget, 3.3V'
         revision.save()
@@ -1054,6 +1073,7 @@ class TestBOM(TransactionTestCase):
         exported = self.client.get(reverse('bom:export-part-list')).content
         header = exported.decode().splitlines()[0].split(',')
         self.assertIn('property_voltage_unit', header)
+        self.assertIn('Arrow', exported.decode())
         preview = self.client.post(reverse('bom:upload-parts'),
                                    {'file': SimpleUploadedFile('parts.csv', exported, content_type='text/csv')})
         self.assertEqual(preview.context['errors'], [])
@@ -1117,7 +1137,7 @@ class TestBOM(TransactionTestCase):
                                          'mode': 'replace'})
         self.assertIn(f'Skipped {wire.full_part_number()} because the existing revision is Obsolete',
                       self._upload_feedback(preview))
-        self.client.post(reverse('bom:upload-bom-confirm'), {'token': preview.context['token']})
+        self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
         self.assertEqual(self._line_counts(drive), {wire: 1, cable: 1})
 
     def test_upload_bom_with_properties(self):
@@ -1921,6 +1941,19 @@ class TestBOM(TransactionTestCase):
         messages = list(response.context.get('messages'))
         for msg in messages:
             self.assertTrue('None on row' not in str(msg.message))
+
+    def test_upload_part_classes_caps_the_error_message(self):
+        if self.organization.number_scheme != constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            self.skipTest('Part classes are only uploaded for the semi-intelligent scheme.')
+        csv_content = 'name,code,comment\n' + ''.join(f'Class {index},,\n' for index in range(12))
+        upload = SimpleUploadedFile('classes.csv', csv_content.encode('utf-8'), content_type='text/csv')
+
+        response = self.client.post(reverse('bom:settings'), {'file': upload, 'submit-part-class-upload': ''})
+
+        error_messages = [str(message.message) for message in response.context['messages'] if message.tags == 'error']
+        self.assertEqual(len(error_messages), 1)
+        self.assertIn('12 errors, showing the first 10', error_messages[0])
+        self.assertIn('Missing code', error_messages[0])
 
     def test_upload_part_classes_sample(self):
         # Should pass

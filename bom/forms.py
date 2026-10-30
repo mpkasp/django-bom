@@ -1154,7 +1154,10 @@ class SourcingImportMixin:
             try:
                 return Part.from_part_number(part_number, self.organization)
             except AttributeError as error:
-                raise ValueError(f"Part number {part_number} is not valid: {error}")
+                legacy_part = self._find_part_with_legacy_number(part_number)
+                if legacy_part is None:
+                    raise ValueError(f"Part number {part_number} is not valid: {error}")
+                return legacy_part
             except Part.DoesNotExist:
                 return None
         if not manufacturer_part_number:
@@ -1168,6 +1171,14 @@ class SourcingImportMixin:
             raise ValueError(f"Manufacturer part number {manufacturer_part_number} matches {len(part_ids)} parts; "
                              "add a part_number column to say which one.")
         return Part.objects.get(id=part_ids.pop()) if part_ids else None
+
+    def _find_part_with_legacy_number(self, part_number):
+        # Parts numbered before an organization changed its number format still appear in its exports.
+        number_class, number_item, number_variation = Part.parse_partial_part_number(
+            part_number, self.organization, validate=False)
+        return Part.objects.filter(
+            organization=self.organization, number_class__code=number_class, number_item=number_item,
+            number_variation=number_variation or None).first()
 
     def _find_part(self, part_number, manufacturer_part_number, manufacturer_name):
         if not part_number and not manufacturer_part_number:
@@ -1258,9 +1269,14 @@ class SourcingImportMixin:
     @staticmethod
     def _parse_cost(raw, name):
         try:
-            return Decimal(sanitize_cost(raw))
+            return SourcingImportMixin._plain_decimal(Decimal(sanitize_cost(raw)))
         except InvalidOperation:
             raise ValueError(f"{name} '{raw}' is not a number.")
+
+    @staticmethod
+    def _plain_decimal(value):
+        """3.3300 reads as 3.33 and 100.00 as 100 in the preview, instead of a false precision change."""
+        return value.quantize(Decimal(1)) if value == value.to_integral_value() else value.normalize()
 
     @staticmethod
     def _parse_quantity(raw, name):
@@ -1273,7 +1289,7 @@ class SourcingImportMixin:
     @staticmethod
     def _comparable(value):
         if isinstance(value, Money):
-            return value.amount
+            return SourcingImportMixin._plain_decimal(value.amount)
         return value if value is not None else ''
 
 

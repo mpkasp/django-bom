@@ -295,48 +295,7 @@ def home(request):
     if 'download' in request.GET:
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="indabom_parts_search.csv"'
-        csv_headers = organization.part_list_csv_headers()
-        seller_csv_headers = SellerPartCSVHeaders()
-        writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
-        writer.writeheader()
-        for part_rev in part_revs:
-            if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
-                row = {
-                    csv_headers.get_default('part_number'): part_rev.part.full_part_number(),
-                    csv_headers.get_default('part_category'): part_rev.part.number_class.name,
-                    csv_headers.get_default('part_revision'): part_rev.revision,
-                    csv_headers.get_default('part_manufacturer'): part_rev.part.primary_manufacturer_part.manufacturer.name if part_rev.part.primary_manufacturer_part is not None and
-                                                                                                      part_rev.part.primary_manufacturer_part.manufacturer is not None else '',
-                    csv_headers.get_default('part_manufacturer_part_number'): part_rev.part.primary_manufacturer_part.manufacturer_part_number if part_rev.part.primary_manufacturer_part is not None else '',
-                }
-                for field_name in csv_headers.get_default_all():
-                    if field_name not in csv_headers.get_defaults_list(['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer', 'part_manufacturer_part_number', ]
-                                                                       + seller_csv_headers.get_default_all()):
-                        attr = part_rev.get_field_value(field_name)
-                        row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
-            else:
-                row = {
-                    csv_headers.get_default('part_number'): part_rev.part.full_part_number(),
-                    csv_headers.get_default('part_revision'): part_rev.revision,
-                    csv_headers.get_default('part_manufacturer'): part_rev.part.primary_manufacturer_part.manufacturer.name if part_rev.part.primary_manufacturer_part is not None and
-                                                                                                      part_rev.part.primary_manufacturer_part.manufacturer is not None else '',
-                    csv_headers.get_default('part_manufacturer_part_number'): part_rev.part.primary_manufacturer_part.manufacturer_part_number if part_rev.part.primary_manufacturer_part is not None else '',
-                }
-                for field_name in csv_headers.get_default_all():
-                    if field_name not in csv_headers.get_defaults_list(['part_number', 'part_synopsis', 'part_revision', 'part_manufacturer', 'part_manufacturer_part_number', ]
-                                                                       + seller_csv_headers.get_default_all()):
-                        attr = part_rev.get_field_value(field_name)
-                        row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
-
-            sellerparts = part_rev.part.seller_parts()
-            if len(sellerparts) > 0:
-                for sellerpart in part_rev.part.seller_parts():
-                    for field_name in seller_csv_headers.get_default_all():
-                        attr = getattr(sellerpart, field_name)
-                        row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
-                    writer.writerow({k: smart_str(v) for k, v in row.items()})
-            else:
-                writer.writerow({k: smart_str(v) for k, v in row.items()})
+        write_parts_csv(response, organization, part_revs)
         return response
 
     page_size = settings.BOM_CONFIG.get('admin_dashboard', {}).get('page_size', 25)
@@ -1313,43 +1272,59 @@ def _example_part_numbers(organization):
 
 @login_required(login_url=BOM_LOGIN_URL)
 def export_part_list(request):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
+    organization = request.user.bom_profile().organization
 
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="indabom_parts.csv"'
 
-    parts = Part.objects.filter(
-        organization=organization).order_by(
-        'number_class__code',
-        'number_item',
-        'number_variation')
+    parts = Part.objects.filter(organization=organization).order_by('number_class__code', 'number_item', 'number_variation')
+    part_revisions = []
+    for part in parts:
+        latest_revision = part.latest()
+        if latest_revision is None:
+            messages.warning(request, "No change history for part: {}. Can't export.".format(part.full_part_number()))
+        else:
+            part_revisions.append(latest_revision)
+    write_parts_csv(response, organization, part_revisions)
+    return response
 
+
+def write_parts_csv(response, organization, part_revisions):
+    """Writes the parts list in the shape the parts import reads back: one row per vendor price, or one row when a part has none."""
     csv_headers = organization.part_list_csv_headers()
+    seller_csv_headers = SellerPartCSVHeaders()
+    part_columns = ['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer',
+                    'part_manufacturer_part_number'] + seller_csv_headers.get_default_all()
+    property_columns = [name for name in csv_headers.get_default_all()
+                        if name not in csv_headers.get_defaults_list(part_columns)]
+
     writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
     writer.writeheader()
-    for item in parts:
-        try:
-            latest_rev = item.latest()
-            row = {
-                csv_headers.get_default('part_number'): item.full_part_number(),
-                csv_headers.get_default('part_revision'): latest_rev.revision if latest_rev else '',
-                csv_headers.get_default('part_manufacturer'): item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
-                csv_headers.get_default('part_manufacturer_part_number'): item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
-            }
-            for field_name in csv_headers.get_default_all():
-                if field_name not in csv_headers.get_defaults_list(
-                        ['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer',
-                         'part_manufacturer_part_number', ]):
-                    attr = latest_rev.get_field_value(field_name) if latest_rev else None
-                    row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
-            writer.writerow({k: smart_str(v) for k, v in row.items()})
+    for part_revision in part_revisions:
+        part = part_revision.part
+        primary_manufacturer_part = part.primary_manufacturer_part
+        row = {
+            csv_headers.get_default('part_number'): part.full_part_number(),
+            csv_headers.get_default('part_revision'): part_revision.revision,
+            csv_headers.get_default('part_manufacturer'): primary_manufacturer_part.manufacturer.name
+            if primary_manufacturer_part is not None and primary_manufacturer_part.manufacturer is not None else '',
+            csv_headers.get_default('part_manufacturer_part_number'): primary_manufacturer_part.manufacturer_part_number
+            if primary_manufacturer_part is not None else '',
+        }
+        if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            row[csv_headers.get_default('part_category')] = part.number_class.name
+        for name in property_columns:
+            value = part_revision.get_field_value(name)
+            row[csv_headers.get_default(name)] = value if value is not None else ''
 
-        except AttributeError as e:
-            messages.warning(request, "No change history for part: {}. Can't export.".format(item.full_part_number()))
-
-    return response
+        seller_parts = part.seller_parts()
+        if not seller_parts:
+            writer.writerow({key: smart_str(value) for key, value in row.items()})
+        for seller_part in seller_parts:
+            for name in seller_csv_headers.get_default_all():
+                value = getattr(seller_part, name)
+                row[csv_headers.get_default(name)] = value if value is not None else ''
+            writer.writerow({key: smart_str(value) for key, value in row.items()})
 
 
 @login_required(login_url=BOM_LOGIN_URL)

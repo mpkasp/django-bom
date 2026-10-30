@@ -59,9 +59,7 @@ bom_patterns = [
     # Former per-type upload pages; kept so bookmarks and in-flight uploads still work.
     path('upload-parts/', views.import_redirect, name='upload-parts', kwargs={'kind': 'parts'}),
     path('upload-bom/', views.import_redirect, name='upload-bom', kwargs={'kind': 'bom'}),
-    path('upload-bom/confirm/', views.import_confirm, name='upload-bom-confirm'),
     path('upload-parts-help/', views.import_redirect, name='upload-parts-help', kwargs={'anchor': '#parts-columns'}),
-    path('import/prices/', views.import_redirect, name='import-prices', kwargs={'kind': 'prices'}),
     path('part/<int:part_id>/', views.part_info, name='part-info'),
     path('part/<int:part_id>/export/', views.part_export_bom, name='part-export-bom'),
     path('part/<int:part_id>/export-sourcing/', views.part_export_bom, name='part-export-bom-sourcing', kwargs={'sourcing': True}),

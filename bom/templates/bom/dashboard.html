@@ -75,7 +75,7 @@
                     {% endif %}
                 </div>
                 <div class="col s6 right-align">
-                    <a class="btn-flat waves-effect waves-green tooltipped" data-position="bottom" data-tooltip="Download every part as CSV." href="{% url 'bom:export-part-list' %}">Export parts</a>
+                    <a class="btn-flat waves-effect waves-green tooltipped" data-position="bottom" data-tooltip="Download the parts listed below as CSV." href="{% url 'bom:home' %}?download=1{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">Export parts</a>
                     <a class="btn-flat waves-effect waves-green tooltipped" data-position="bottom" data-tooltip="Download every vendor price as CSV." href="{% url 'bom:export-vendor-prices' %}">Export vendor prices</a>
                     <div class="grey-text" style="font-size: 0.8rem;">Edit and <a href="{% url 'bom:import' %}">import</a> either file to update.</div>
                 </div>
