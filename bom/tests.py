@@ -2646,6 +2646,46 @@ class TestGoogleDriveScope(TestCase):
             google_drive.initialize_parent(backend, self.user, {'scope': f'email {self.DRIVE_SCOPE}'})
         self.assertTrue(mock_create.called)
 
+    def test_initialize_parent_keeps_existing_root(self):
+        # Every later sign-in carries the Drive scope too, so an existing root must not be replaced.
+        from bom.third_party_apis import google_drive
+        self.organization.google_drive_parent = 'existing-root'
+        self.organization.save()
+        backend = type('B', (), {'name': 'google-oauth2'})()
+        with patch.object(google_drive, 'create_root') as mock_create:
+            google_drive.initialize_parent(backend, self.user, {'scope': f'email {self.DRIVE_SCOPE}'})
+        self.assertFalse(mock_create.called)
+
+    def _open_part_folder(self, trashed):
+        from unittest.mock import MagicMock
+        from bom.third_party_apis import google_drive
+        self._connect({'scopes': [self.DRIVE_SCOPE]})
+        self.client.force_login(self.user)
+        self.organization.google_drive_parent = 'root-id'
+        self.organization.save()
+        part = create_some_fake_parts(organization=self.organization)[0]
+        part.google_drive_parent = 'part-id'
+        part.save()
+        service = MagicMock()
+        service.files.return_value.get.return_value.execute.return_value = {'trashed': trashed}
+        with patch.object(google_drive, 'get_service', return_value=service), \
+                patch.object(google_drive, 'create_root') as mock_create_root, \
+                patch.object(google_drive, 'create_part_folder') as mock_create_part_folder:
+            response = self.client.get(reverse('google-drive:add-folder', kwargs={'part_id': part.id}))
+        self.assertRedirects(response, 'https://drive.google.com/drive/folders/part-id', fetch_redirect_response=False)
+        return mock_create_root, mock_create_part_folder
+
+    def test_open_part_folder_recreates_trashed_folders(self):
+        # Drive still returns trashed folders from files.get, so new part folders would land in the trash.
+        mock_create_root, mock_create_part_folder = self._open_part_folder(trashed=True)
+        self.assertTrue(mock_create_root.called)
+        self.assertTrue(mock_create_part_folder.called)
+
+    def test_open_part_folder_reuses_existing_folders(self):
+        mock_create_root, mock_create_part_folder = self._open_part_folder(trashed=False)
+        self.assertFalse(mock_create_root.called)
+        self.assertFalse(mock_create_part_folder.called)
+
     def test_initialize_parent_drive_error_keeps_sign_in(self):
         from django.contrib.messages import get_messages
         from django.contrib.messages.storage.fallback import FallbackStorage
