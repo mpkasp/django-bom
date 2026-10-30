@@ -1,0 +1,88 @@
+{% extends 'bom/bom-base.html' %}
+
+{% block head-title %}{{ title }}{% endblock %}
+
+{% block bom-menu %}{% endblock %}
+
+{% block content %}
+    <style>
+        .import-preview details { margin: 8px 0; }
+        .import-preview summary { cursor: pointer; font-weight: 500; }
+        .import-preview table { font-size: 0.9rem; }
+        .import-preview .assembly-change { margin-top: 24px; }
+    </style>
+    <div class="container-app import-preview">
+        {% if notice %}
+            <div class="card-panel orange lighten-4">{{ notice }}</div>
+        {% endif %}
+
+        {% if errors %}
+            <div class="card-panel red lighten-4">
+                <p><b>Fix these rows and upload the file again.</b> Nothing has been saved.</p>
+                <ul class="browser-default">
+                    {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+            </div>
+        {% else %}
+            <p>
+                {{ row_count }} row{{ row_count|pluralize }} ready to import.
+                {% if preview_summary_component %}{% include preview_summary_component %}{% endif %}
+                Nothing is saved until you confirm.
+            </p>
+        {% endif %}
+
+        {% if warnings %}
+            <div class="card-panel amber lighten-4">
+                <ul class="browser-default" style="margin: 0;">
+                    {% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <form action="{% url 'bom:import-confirm' %}" method="post">
+            {% csrf_token %}
+            {% if token %}
+                <input type="hidden" name="token" value="{{ token }}">
+                <input class="green lighten-1 btn" type="submit" name="confirm" value="Confirm import"/>
+                <input class="btn-flat grey-text" type="submit" name="cancel" value="Cancel"/>
+            {% else %}
+                <a href="{{ return_url }}" class="btn-flat grey-text">Back</a>
+            {% endif %}
+        </form>
+
+        {% if preview_component %}{% include preview_component %}{% endif %}
+
+        {% if changes.created %}
+            <h6 style="margin-top: 32px;">{{ changes.created|length }} row{{ changes.created|length|pluralize }} created</h6>
+            <ul class="browser-default">
+                {% for row in changes.created %}<li>{{ row.identifier }}</li>{% endfor %}
+            </ul>
+        {% endif %}
+        {% if changes.updated %}
+            <h6 style="margin-top: 32px;">{{ changes.updated|length }} row{{ changes.updated|length|pluralize }} updated</h6>
+            <table class="striped">
+                <thead>
+                <tr>
+                    <th>Row</th>
+                    <th>Field</th>
+                    <th>Change</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in changes.updated %}
+                    {% for field_name, values in row.fields.items %}
+                        <tr>
+                            <td>{% if forloop.first %}{{ row.identifier }}{% endif %}</td>
+                            <td>{{ field_name }}</td>
+                            <td>{{ values.0|default:"–" }} &rarr; {{ values.1|default:"–" }}</td>
+                        </tr>
+                    {% endfor %}
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+        {% if changes.unchanged %}
+            <p class="grey-text">{{ changes.unchanged }} row{{ changes.unchanged|pluralize }} unchanged.</p>
+        {% endif %}
+    </div>
+{% endblock %}

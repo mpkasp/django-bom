@@ -40,6 +40,7 @@ from .helpers import (
     create_some_fake_parts,
     create_user_and_organization,
 )
+from .services.imports import detect_import_kind, read_csv_header_names
 from .models import (
     Manufacturer,
     ManufacturerPart,
@@ -702,6 +703,21 @@ class TestBOM(TransactionTestCase):
 
         self.client.post(reverse('bom:upload-bom-confirm'), {'token': response.context['token']})
         self.assertEqual(self._line_counts(drive), {wire: 5})
+
+    def test_upload_bom_preview_notes_ignored_vendor_price_columns(self):
+        drive, wire = self._create_parts(2)
+        url = reverse('bom:part-upload-bom', kwargs={'part_id': drive.id})
+        vendor_notice = 'Vendor price columns are ignored in a BOM import; use a vendor prices import.'
+
+        preview = self.client.post(url, {'file': self._bom_upload_file((wire, 1), header='part_number,quantity')})
+        self.assertNotIn(vendor_notice, preview.content.decode())
+
+        preview = self.client.post(url, {'file': self._bom_upload_file((wire, 1, 'Digi-Key', '1.25'),
+                                                                       header='part_number,quantity,seller,unit_cost')})
+        self.assertIn(vendor_notice, preview.content.decode())
+        self.client.post(reverse('bom:upload-bom-confirm'), {'token': preview.context['token']})
+        self.assertEqual(self._line_counts(drive), {wire: 1})
+        self.assertFalse(SellerPart.objects.filter(seller__organization=self.organization).exists())
 
     def test_upload_bom_keeps_missing_lines_when_a_row_is_skipped(self):
         drive, wire, cable = self._create_parts(3)
@@ -2212,6 +2228,20 @@ class TestBOMNoVariation(TestBOM):
 
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
+class TestImportServices(TestCase):
+    def test_detect_import_kind(self):
+        self.assertEqual(detect_import_kind(['level', 'part_number', 'qty']), 'bom')
+        self.assertEqual(detect_import_kind(['part_number', 'count', 'seller', 'unit_cost']), 'bom')
+        self.assertEqual(detect_import_kind(['part_number', 'seller', 'unit_cost']), 'prices')
+        self.assertEqual(detect_import_kind(['manufacturer_part_number', 'part_cost']), 'prices')
+        self.assertEqual(detect_import_kind(['part_number', 'revision', 'description']), 'parts')
+        self.assertEqual(detect_import_kind([]), 'parts')
+
+    def test_read_csv_header_names(self):
+        self.assertEqual(read_csv_header_names('\ufeffPart Number,Quantity\n1,2\n'.encode('utf-8')), ['part number', 'quantity'])
+        self.assertEqual(read_csv_header_names(b''), [])
+
+
 class TestForms(TestCase):
     def setUp(self):
         self.client = Client()

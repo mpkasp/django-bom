@@ -27,6 +27,7 @@ from .constants import (
 from .csv_headers import (
     CSVHeaderError,
     PartClassesCSVHeaders,
+    SellerPartCSVHeaders,
 )
 from .form_fields import AutocompleteTextInput
 from .models import (
@@ -118,9 +119,51 @@ class OrganizationModelForm(OrganizationFormMixin, PlaceholderMixin, forms.Model
         abstract = True
 
 
+def open_csv_reader(file):
+    """Sniffs the dialect of a binary CSV file and returns a reader positioned after its lower-cased header row."""
+    dialect = csv.Sniffer().sniff(file.readline().decode('utf-8'))
+    file.seek(0)
+    reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
+    header_names = [name.lower() for name in next(reader)]
+    if header_names and "\ufeff" in header_names[0]:
+        file.seek(0)
+        reader = csv.reader(codecs.iterdecode(file, 'utf-8-sig'), dialect)
+        header_names = [name.lower() for name in next(reader)]
+    return reader, header_names
+
+
 class BaseCSVForm(OrganizationFormMixin, forms.Form):
-    """Abstract Base Class for CSV Import Forms to DRY up file handling."""
+    """Abstract Base Class for CSV Import Forms to DRY up file handling.
+
+    Rows are written to the database while the form cleans; callers wrap the form in a transaction to
+    preview without saving. Every import form reports its outcome through successes, warnings and changes().
+    """
     file = forms.FileField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.successes = []
+        self.warnings = []
+        self.column_names = []
+        self.row_changes = {'created': [], 'updated': []}
+        self.unchanged_count = 0
+
+    def record_row_change(self, change, identifier, fields=None):
+        """Records what an import did to one row; fields maps a field name to its (old, new) values."""
+        if change == 'unchanged':
+            self.unchanged_count += 1
+        else:
+            self.row_changes[change].append({'identifier': identifier, 'fields': fields or {}})
+
+    def changes(self):
+        return {
+            'created': self.row_changes['created'],
+            'updated': self.row_changes['updated'],
+            'unchanged': self.unchanged_count,
+        }
+
+    def changes_digest(self):
+        return hashlib.sha256(json.dumps(self.changes(), sort_keys=True, default=str).encode()).hexdigest()
 
     def get_csv_headers_handler(self):
         """Subclasses must return the CSV headers handler instance."""
@@ -140,26 +183,12 @@ class BaseCSVForm(OrganizationFormMixin, forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         file = self.cleaned_data.get('file')
-        self.successes = []
-        self.warnings = []
 
         if not file:
             return cleaned_data
 
         try:
-            # Decode and Sniff
-            csvline_decoded = file.readline().decode('utf-8')
-            dialect = csv.Sniffer().sniff(csvline_decoded)
-            file.open()
-
-            # handle BOM
-            reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
-            headers = [h.lower() for h in next(reader)]
-
-            if headers and "\ufeff" in headers[0]:
-                file.seek(0)
-                reader = csv.reader(codecs.iterdecode(file, 'utf-8-sig'), dialect)
-                headers = [h.lower() for h in next(reader)]
+            reader, headers = open_csv_reader(file)
 
             # Header Validation
             csv_headers = self.get_csv_headers_handler()
@@ -174,6 +203,7 @@ class BaseCSVForm(OrganizationFormMixin, forms.Form):
                 headers = csv_headers.get_defaults_list(headers)
             except CSVHeaderError as e:
                 raise ValidationError(f"{e}. Uploading stopped.", code='invalid')
+            self.column_names = headers
 
             # Row Processing
             row_count = 1
@@ -1315,8 +1345,10 @@ class BOMCSVForm(BaseCSVForm):
             'assemblies': self.assembly_changes,
         }
 
-    def changes_digest(self):
-        return hashlib.sha256(json.dumps(self.changes(), sort_keys=True, default=str).encode()).hexdigest()
+    @property
+    def ignores_vendor_price_columns(self):
+        vendor_price_columns = SellerPartCSVHeaders().get_default_all()
+        return any(name in vendor_price_columns for name in self.column_names)
 
     def get_csv_headers_handler(self):
         return self.organization.bom_indented_csv_headers()

@@ -1,0 +1,59 @@
+{% if ignores_vendor_price_columns %}
+    <p class="grey-text">Vendor price columns are ignored in a BOM import; use a vendor prices import.</p>
+{% endif %}
+
+{% for assembly in assembly_changes %}
+    <div class="assembly-change">
+        <h6>
+            <a href="{% url 'bom:part-info' part_id=assembly.part_id %}">{{ assembly.part_number }}</a>
+            Rev {{ assembly.revision }} &middot; {{ assembly.synopsis }}
+        </h6>
+        {% if assembly.is_new %}
+            <p class="grey-text">New assembly.</p>
+        {% elif assembly.used_in_count > 1 %}
+            <p class="orange-text text-darken-3">Used in {{ assembly.used_in_count }} assemblies. These changes apply to all of them.</p>
+        {% endif %}
+        {% regroup assembly.lines by change as lines_by_change %}
+        {% for group in lines_by_change %}
+            {% if group.grouper == 'added' %}
+                <details>
+                    <summary class="green-text">{{ group.list|length }} line{{ group.list|length|pluralize }} added</summary>
+                    {% include 'bom/components/import-preview-bom-lines.html' with lines=group.list %}
+                </details>
+            {% else %}
+                <p class="{% if group.grouper == 'removed' %}red-text{% else %}orange-text text-darken-3{% endif %}" style="margin-bottom: 0;">
+                    {{ group.list|length }} line{{ group.list|length|pluralize }} {{ group.grouper }}
+                </p>
+                {% include 'bom/components/import-preview-bom-lines.html' with lines=group.list %}
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endfor %}
+
+{% if parts_created or revisions_created or manufacturers_created %}
+    <h6 style="margin-top: 32px;">Parts</h6>
+{% endif %}
+{% if parts_created %}
+    <details>
+        <summary>{{ parts_created|length }} new part{{ parts_created|length|pluralize }}</summary>
+        <ul class="browser-default">
+            {% for part in parts_created %}<li>{{ part.part_number }} Rev {{ part.revision }} &middot; {{ part.synopsis }}</li>{% endfor %}
+        </ul>
+    </details>
+{% endif %}
+{% if revisions_created %}
+    <details>
+        <summary>{{ revisions_created|length }} new revision{{ revisions_created|length|pluralize }}</summary>
+        <ul class="browser-default">
+            {% for part in revisions_created %}<li>{{ part.part_number }} Rev {{ part.revision }} &middot; {{ part.synopsis }}</li>{% endfor %}
+        </ul>
+    </details>
+{% endif %}
+{% if manufacturers_created %}
+    <details>
+        <summary>{{ manufacturers_created|length }} new manufacturer{{ manufacturers_created|length|pluralize }}</summary>
+        <ul class="browser-default">
+            {% for name in manufacturers_created %}<li>{{ name }}</li>{% endfor %}
+        </ul>
+    </details>
+{% endif %}

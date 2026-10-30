@@ -13,9 +13,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import NON_FIELD_ERRORS, ImproperlyConfigured, ValidationError
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db import transaction
 from django.db.models import Count, ProtectedError, Q, Subquery
 from django.db.models.aggregates import Max
 from django.http import HttpResponse, HttpResponseRedirect
@@ -87,6 +85,7 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
+from bom.services.imports import IMPORT_LABELS, run_import
 from bom.third_party_apis.base_api import BaseApiError
 from bom.third_party_apis.google_drive import has_drive_scope
 from bom.third_party_apis.sourcing import PROBE_CANDIDATE_LIMIT, build_provider, provider_credential_schema, provider_is_configured
@@ -1050,7 +1049,7 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
     return response
 
 
-PENDING_BOM_UPLOAD_SESSION_KEY = 'pending_bom_upload'
+PENDING_IMPORT_SESSION_KEY = 'pending_import'
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1064,9 +1063,9 @@ def upload_bom(request):
     if request.method == 'POST' and 'file' in request.FILES and request.FILES['file'] is not None:
         upload_bom_form = UploadBOMForm(request.POST, organization=organization)
         if upload_bom_form.is_valid():
-            return _preview_bom_upload(request, organization, request.FILES['file'].read(),
-                                       upload_bom_form.parent_part, request.POST.get('mode'),
-                                       return_url=reverse('bom:upload-bom'))
+            return _preview_import(request, organization, 'bom', request.FILES['file'].read(),
+                                   _bom_import_options(request, upload_bom_form.parent_part),
+                                   return_url=reverse('bom:upload-bom'))
         add_form_error_messages(request, upload_bom_form)
     else:
         upload_bom_form = UploadBOMForm(organization=organization, initial={'organization': organization})
@@ -1093,99 +1092,101 @@ def part_upload_bom(request, part_id):
         return_url = reverse('bom:part-info', kwargs={'part_id': part_id})
 
     if request.method == 'POST' and request.FILES.get('file') is not None:
-        return _preview_bom_upload(request, organization, request.FILES['file'].read(), parent_part,
-                                   request.POST.get('mode'), return_url=return_url)
+        return _preview_import(request, organization, 'bom', request.FILES['file'].read(),
+                               _bom_import_options(request, parent_part), return_url=return_url)
 
     return HttpResponseRedirect(return_url)
+
+
+def _bom_import_options(request, parent_part):
+    return {'mode': request.POST.get('mode'), 'parent_part_id': parent_part.id if parent_part else None}
 
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.CREATE_PART)
 @require_POST
-def upload_bom_confirm(request):
+def import_confirm(request):
     organization = request.user.bom_profile().organization
-    pending_upload = request.session.get(PENDING_BOM_UPLOAD_SESSION_KEY)
-    if not pending_upload or pending_upload['token'] != request.POST.get('token'):
+    pending_import = request.session.get(PENDING_IMPORT_SESSION_KEY)
+    if not pending_import or pending_import['token'] != request.POST.get('token'):
         messages.error(request, "This upload preview has expired. Please upload the file again.")
         return HttpResponseRedirect(reverse('bom:upload-bom'))
 
-    del request.session[PENDING_BOM_UPLOAD_SESSION_KEY]
-    return_url = pending_upload['return_url']
+    del request.session[PENDING_IMPORT_SESSION_KEY]
+    return_url = pending_import['return_url']
     if 'cancel' in request.POST:
         messages.info(request, "Upload canceled. Nothing was changed.")
         return HttpResponseRedirect(return_url)
 
-    parent_part = None
-    if pending_upload['parent_part_id'] is not None:
-        parent_part = Part.objects.filter(id=pending_upload['parent_part_id'], organization=organization).first()
-        if parent_part is None:
-            messages.error(request, "The part this upload was for no longer exists.")
-            return HttpResponseRedirect(reverse('bom:upload-bom'))
-
-    csv_bytes = base64.b64decode(pending_upload['csv'])
-    bom_csv_form, committed = _run_bom_upload(organization, csv_bytes, parent_part, pending_upload['mode'],
-                                              expected_changes_digest=pending_upload['changes_digest'])
+    kind = pending_import['kind']
+    csv_bytes = base64.b64decode(pending_import['csv'])
+    try:
+        import_form, committed = run_import(organization, kind, csv_bytes, pending_import['options'],
+                                            expected_changes_digest=pending_import['changes_digest'])
+    except Part.DoesNotExist:
+        messages.error(request, "The part this upload was for no longer exists.")
+        return HttpResponseRedirect(reverse('bom:upload-bom'))
     if not committed:
-        return _render_bom_upload_preview(
-            request, bom_csv_form, csv_bytes, parent_part, pending_upload['mode'], return_url,
-            notice="The BOM changed after your preview, so nothing was saved. Review the updated changes below.")
+        return _render_import_preview(
+            request, import_form, kind, csv_bytes, pending_import['options'], return_url,
+            notice=f"The {IMPORT_LABELS[kind]} changed after your preview, so nothing was saved. "
+                   f"Review the updated changes below.")
 
-    add_csv_upload_messages(request, bom_csv_form, 'BOM row', 'BOM rows')
+    add_csv_upload_messages(request, import_form, f'{IMPORT_LABELS[kind]} row', f'{IMPORT_LABELS[kind]} rows')
     return HttpResponseRedirect(return_url)
 
 
-def _run_bom_upload(organization, csv_bytes, parent_part, mode, expected_changes_digest=None):
-    """Runs a BOM upload in one transaction and keeps it only when it matches the changes the user confirmed."""
-    upload = SimpleUploadedFile('bom.csv', csv_bytes, content_type='text/csv')
-    bom_csv_form = BOMCSVForm({'mode': mode}, {'file': upload}, parent_part=parent_part, organization=organization)
-    with transaction.atomic():
-        bom_csv_form.is_valid()
-        committed = (expected_changes_digest is not None and not bom_csv_form.errors
-                     and bom_csv_form.changes_digest() == expected_changes_digest)
-        if not committed:
-            transaction.set_rollback(True)
-    return bom_csv_form, committed
+def _preview_import(request, organization, kind, csv_bytes, options, return_url):
+    import_form, _ = run_import(organization, kind, csv_bytes, options)
+    return _render_import_preview(request, import_form, kind, csv_bytes, options, return_url)
 
 
-def _preview_bom_upload(request, organization, csv_bytes, parent_part, mode, return_url):
-    bom_csv_form, _ = _run_bom_upload(organization, csv_bytes, parent_part, mode)
-    return _render_bom_upload_preview(request, bom_csv_form, csv_bytes, parent_part, mode, return_url)
-
-
-def _render_bom_upload_preview(request, bom_csv_form, csv_bytes, parent_part, mode, return_url, notice=None):
-    errors = [str(error) for field_errors in bom_csv_form.errors.values() for error in field_errors]
+def _render_import_preview(request, import_form, kind, csv_bytes, options, return_url, notice=None):
+    errors = [str(error) for field_errors in import_form.errors.values() for error in field_errors]
     token = None
     if errors:
-        request.session.pop(PENDING_BOM_UPLOAD_SESSION_KEY, None)
+        request.session.pop(PENDING_IMPORT_SESSION_KEY, None)
     else:
         token = uuid.uuid4().hex
-        request.session[PENDING_BOM_UPLOAD_SESSION_KEY] = {
+        request.session[PENDING_IMPORT_SESSION_KEY] = {
             'token': token,
+            'kind': kind,
             'csv': base64.b64encode(csv_bytes).decode('ascii'),
-            'parent_part_id': parent_part.id if parent_part else None,
-            'mode': mode,
-            'changes_digest': bom_csv_form.changes_digest(),
+            'options': options,
+            'changes_digest': import_form.changes_digest(),
             'return_url': return_url,
         }
 
-    changes = bom_csv_form.changes()
     context = {
-        'title': 'Review BOM Upload',
+        'title': 'Review import',
         'profile': request.user.bom_profile(),
-        'parent_part': parent_part,
-        'adds_to_parent_part': bom_csv_form.adds_to_parent_part if hasattr(bom_csv_form, 'cleaned_data') else True,
-        'row_count': len(getattr(bom_csv_form, 'successes', [])),
-        'parts_created': [c for c in changes['parts'] if c['kind'] == 'part_created'],
-        'revisions_created': [c for c in changes['parts'] if c['kind'] == 'revision_created'],
-        'manufacturers_created': changes['manufacturers_created'],
-        'assembly_changes': changes['assemblies'],
+        'kind': kind,
+        'row_count': len(import_form.successes),
+        'changes': import_form.changes(),
         'errors': errors,
-        'warnings': getattr(bom_csv_form, 'warnings', []),
+        'warnings': import_form.warnings,
         'notice': notice,
         'token': token,
         'return_url': return_url,
     }
-    return TemplateResponse(request, 'bom/upload-bom-preview.html', context)
+    if kind == 'bom':
+        context.update(_bom_preview_context(import_form))
+    return TemplateResponse(request, 'bom/import-preview.html', context)
+
+
+def _bom_preview_context(bom_csv_form):
+    changes = bom_csv_form.changes()
+    return {
+        'preview_summary_component': 'bom/components/import-preview-bom-summary.html',
+        'preview_component': 'bom/components/import-preview-bom.html',
+        'parent_part': bom_csv_form.parent_part,
+        'adds_to_parent_part': bom_csv_form.adds_to_parent_part,
+        'ignores_vendor_price_columns': bom_csv_form.ignores_vendor_price_columns,
+        'parts_created': [c for c in changes['parts'] if c['kind'] == 'part_created'],
+        'revisions_created': [c for c in changes['parts'] if c['kind'] == 'revision_created'],
+        'manufacturers_created': changes['manufacturers_created'],
+        'assembly_changes': changes['assemblies'],
+    }
 
 
 @login_required(login_url=BOM_LOGIN_URL)
