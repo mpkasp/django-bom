@@ -68,6 +68,15 @@ def create_root(user):
     return organization.google_drive_parent
 
 
+def _folder_exists(service, folder_id):
+    # files.get still returns trashed folders, so check the flag rather than relying on an error.
+    try:
+        folder = service.files().get(fileId=folder_id, fields='trashed').execute()
+    except HttpError:
+        return False
+    return not folder.get('trashed', False)
+
+
 def _part_folder_name(part):
     return ' '.join(filter(None, [part.full_part_number(), part.description()]))
 
@@ -110,8 +119,11 @@ def initialize_parent(backend, user, response, *args, **kwargs):
     # Only provision the org's Drive root when Drive access was actually granted -- a plain
     # Google login (identity only) must not touch Drive.
     if backend.name == 'google-oauth2' and GOOGLE_DRIVE_SCOPE in _granted_scopes(response):
-        # Only the owner can create the root folder
-        if user.bom_profile().organization.owner == user:
+        organization = user.bom_profile().organization
+        # Only the owner can create the root folder. Every later Google sign-in also carries the Drive
+        # scope (include_granted_scopes), so creating it unconditionally would leave a new root each time.
+        # A stored root that has since gone missing is recreated when a part's folder is opened.
+        if organization.owner == user and not organization.google_drive_parent:
             try:
                 create_root(user)
             except HttpError:
@@ -171,11 +183,8 @@ def get_or_create_and_open_folder(request, part_id):
             else:
                 messages.error(request,
                                "There's no root Google Drive directory and you're not the owner. Contact your organization owner to set up Google Drive")
-        elif user == organization.owner:
-            try:
-                service.files().get(fileId=organization.google_drive_parent).execute()
-            except HttpError:
-                create_root(user)
+        elif user == organization.owner and not _folder_exists(service, organization.google_drive_parent):
+            create_root(user)
     except HttpError as e:
         if _is_insufficient_scope(e):
             return _reconnect_drive_redirect(request)
@@ -188,18 +197,15 @@ def get_or_create_and_open_folder(request, part_id):
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
     if part.google_drive_parent:
-        try:
-            service.files().get(fileId=part.google_drive_parent).execute()
-        except HttpError:
-            if user == organization.owner:
-                # if they aren't the owner, let's just try to go to the folder...
-                try:
-                    create_part_folder(user, part)
-                except HttpError as e:
-                    if _is_insufficient_scope(e):
-                        return _reconnect_drive_redirect(request)
-                    messages.error(request, "Error: {}".format(e))
-                    return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
+        # if they aren't the owner, let's just try to go to the folder...
+        if user == organization.owner and not _folder_exists(service, part.google_drive_parent):
+            try:
+                create_part_folder(user, part)
+            except HttpError as e:
+                if _is_insufficient_scope(e):
+                    return _reconnect_drive_redirect(request)
+                messages.error(request, "Error: {}".format(e))
+                return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
     # TODO: Check if the folder name exists already before creating it ?
     else:
         try:
