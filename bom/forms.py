@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 from collections import defaultdict
+from decimal import Decimal, InvalidOperation
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
@@ -14,6 +15,7 @@ from django.db.models import OuterRef, Subquery
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
 from djmoney.forms.widgets import MoneyWidget
+from djmoney.money import Money
 
 from bom.permissions import BomPerms
 from .constants import (
@@ -27,6 +29,8 @@ from .constants import (
 from .csv_headers import (
     CSVHeaderError,
     PartClassesCSVHeaders,
+    SellerPartCSVHeaders,
+    VendorPricesCSVHeaders,
 )
 from .form_fields import AutocompleteTextInput
 from .models import (
@@ -118,9 +122,55 @@ class OrganizationModelForm(OrganizationFormMixin, PlaceholderMixin, forms.Model
         abstract = True
 
 
+def open_csv_reader(file):
+    """Sniffs the dialect of a binary CSV file and returns a reader positioned after its lower-cased header row."""
+    dialect = csv.Sniffer().sniff(file.readline().decode('utf-8'))
+    file.seek(0)
+    reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
+    header_names = [name.lower() for name in next(reader)]
+    if header_names and "\ufeff" in header_names[0]:
+        file.seek(0)
+        reader = csv.reader(codecs.iterdecode(file, 'utf-8-sig'), dialect)
+        header_names = [name.lower() for name in next(reader)]
+    return reader, header_names
+
+
 class BaseCSVForm(OrganizationFormMixin, forms.Form):
-    """Abstract Base Class for CSV Import Forms to DRY up file handling."""
+    """Abstract Base Class for CSV Import Forms to DRY up file handling.
+
+    Rows are written to the database while the form cleans; callers wrap the form in a transaction to
+    preview without saving. Every import form reports its outcome through successes, warnings and changes().
+    """
     file = forms.FileField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.successes = []
+        self.warnings = []
+        self.column_names = []
+        self.row_changes = {'created': [], 'updated': []}
+        self.unchanged_count = 0
+
+    def record_row_change(self, change, identifier, fields=None):
+        """Records what an import did to one row; fields maps a field name to its (old, new) values."""
+        if change == 'unchanged':
+            self.unchanged_count += 1
+        else:
+            self.row_changes[change].append({'identifier': identifier, 'fields': fields or {}})
+
+    def changes(self):
+        return {
+            'created': self.row_changes['created'],
+            'updated': self.row_changes['updated'],
+            'unchanged': self.unchanged_count,
+        }
+
+    def changes_digest(self):
+        return hashlib.sha256(json.dumps(self.changes(), sort_keys=True, default=str).encode()).hexdigest()
+
+    def summary(self):
+        """A one-sentence account of the rows, or None to let the caller count them."""
+        return None
 
     def get_csv_headers_handler(self):
         """Subclasses must return the CSV headers handler instance."""
@@ -140,26 +190,12 @@ class BaseCSVForm(OrganizationFormMixin, forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         file = self.cleaned_data.get('file')
-        self.successes = []
-        self.warnings = []
 
         if not file:
             return cleaned_data
 
         try:
-            # Decode and Sniff
-            csvline_decoded = file.readline().decode('utf-8')
-            dialect = csv.Sniffer().sniff(csvline_decoded)
-            file.open()
-
-            # handle BOM
-            reader = csv.reader(codecs.iterdecode(file, 'utf-8'), dialect)
-            headers = [h.lower() for h in next(reader)]
-
-            if headers and "\ufeff" in headers[0]:
-                file.seek(0)
-                reader = csv.reader(codecs.iterdecode(file, 'utf-8-sig'), dialect)
-                headers = [h.lower() for h in next(reader)]
+            reader, headers = open_csv_reader(file)
 
             # Header Validation
             csv_headers = self.get_csv_headers_handler()
@@ -174,6 +210,7 @@ class BaseCSVForm(OrganizationFormMixin, forms.Form):
                 headers = csv_headers.get_defaults_list(headers)
             except CSVHeaderError as e:
                 raise ValidationError(f"{e}. Uploading stopped.", code='invalid')
+            self.column_names = headers
 
             # Row Processing
             row_count = 1
@@ -1091,177 +1128,372 @@ class PartClassCSVForm(BaseCSVForm):
             self.add_error(None, f"Row {row_count}: Part class {code} {name} already defined.")
 
 
-class PartCSVForm(BaseCSVForm):
+class SourcingImportMixin:
+    """Shared by the imports that look parts up by number or manufacturer part number and write their
+    manufacturer parts and vendor prices.
+
+    A vendor price is identified by (manufacturer part, vendor, minimum order quantity); a blank cell or
+    a missing column leaves the existing value alone, and nothing is ever deleted.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Pre-fetch valid units
-        self.valid_units = {u.symbol: u.id for u in UnitDefinition.objects.available_to(self.organization)}
+        self.sellers_created = []
+        self.manufacturer_parts_created = []
+
+    def changes(self):
+        return {
+            **super().changes(),
+            'sellers_created': self.sellers_created,
+            'manufacturer_parts_created': self.manufacturer_parts_created,
+        }
+
+    def _find_existing_part(self, part_number, manufacturer_part_number, manufacturer_name):
+        """The part a row names, or None when no such part exists yet; raises ValueError for an unusable identifier."""
+        if part_number:
+            try:
+                return Part.from_part_number(part_number, self.organization)
+            except AttributeError as error:
+                legacy_part = self._find_part_with_legacy_number(part_number)
+                if legacy_part is None:
+                    raise ValueError(f"Part number {part_number} is not valid: {error}")
+                return legacy_part
+            except Part.DoesNotExist:
+                return None
+        if not manufacturer_part_number:
+            return None
+        manufacturer_parts = ManufacturerPart.objects.filter(
+            part__organization=self.organization, manufacturer_part_number=manufacturer_part_number)
+        if manufacturer_name:
+            manufacturer_parts = manufacturer_parts.filter(manufacturer__name__iexact=manufacturer_name)
+        part_ids = set(manufacturer_parts.values_list('part_id', flat=True))
+        if len(part_ids) > 1:
+            raise ValueError(f"Manufacturer part number {manufacturer_part_number} matches {len(part_ids)} parts; "
+                             "add a part_number column to say which one.")
+        return Part.objects.get(id=part_ids.pop()) if part_ids else None
+
+    def _find_part_with_legacy_number(self, part_number):
+        # Parts numbered before an organization changed its number format still appear in its exports.
+        number_class, number_item, number_variation = Part.parse_partial_part_number(
+            part_number, self.organization, validate=False)
+        return Part.objects.filter(
+            organization=self.organization, number_class__code=number_class, number_item=number_item,
+            number_variation=number_variation or None).first()
+
+    def _find_part(self, part_number, manufacturer_part_number, manufacturer_name):
+        if not part_number and not manufacturer_part_number:
+            raise ValueError("A part_number or manufacturer_part_number is required.")
+        part = self._find_existing_part(part_number, manufacturer_part_number, manufacturer_name)
+        if part is None and part_number:
+            raise ValueError(f"No part found with part number {part_number}.")
+        if part is None:
+            raise ValueError(f"No part found with manufacturer part number {manufacturer_part_number}.")
+        return part
+
+    def _find_or_create_manufacturer_part(self, part, manufacturer_part_number, manufacturer_name):
+        """The part's manufacturer part for a row and whether it was created; the first one created becomes primary."""
+        manufacturer_parts = part.manufacturer_parts().order_by('id')
+        if not manufacturer_part_number:
+            manufacturer_part = part.primary_manufacturer_part or manufacturer_parts.first()
+            if manufacturer_part is None:
+                raise ValueError(f"{part.full_part_number()} has no manufacturer part; add a manufacturer_part_number "
+                                 "column or add a manufacturer part first.")
+            return manufacturer_part, False
+
+        manufacturer_parts = manufacturer_parts.filter(manufacturer_part_number=manufacturer_part_number)
+        if manufacturer_name:
+            manufacturer_parts = manufacturer_parts.filter(manufacturer__name__iexact=manufacturer_name)
+        manufacturer_part = manufacturer_parts.first()
+        if manufacturer_part is not None:
+            return manufacturer_part, False
+
+        manufacturer = None
+        if manufacturer_name:
+            manufacturer, _ = Manufacturer.objects.get_or_create(
+                name__iexact=manufacturer_name, organization=self.organization, defaults={'name': manufacturer_name})
+        manufacturer_part = ManufacturerPart.objects.create(
+            part=part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
+        if part.primary_manufacturer_part is None:
+            part.primary_manufacturer_part = manufacturer_part
+            part.save()
+        self.manufacturer_parts_created.append(
+            f"{part.full_part_number()}: {manufacturer_name + ' ' if manufacturer_name else ''}{manufacturer_part_number}")
+        return manufacturer_part, True
+
+    def _find_or_create_seller(self, seller_name):
+        if not seller_name:
+            raise ValueError("No vendor given; add a seller column or choose a default vendor.")
+        seller = Seller.objects.filter(organization=self.organization, name__iexact=seller_name).first()
+        if seller is None:
+            seller = Seller.objects.create(organization=self.organization, name=seller_name)
+            self.sellers_created.append(seller_name)
+        return seller
+
+    def _upsert_vendor_price(self, manufacturer_part, seller, minimum_order_quantity, provided_values):
+        """Creates or updates one vendor price; returns its identifier, the change made and the fields it changed."""
+        identifier = f"{manufacturer_part.part.full_part_number()} · {seller.name} · MOQ {minimum_order_quantity}"
+        seller_part = SellerPart.objects.filter(
+            manufacturer_part=manufacturer_part, seller=seller, minimum_order_quantity=minimum_order_quantity
+        ).order_by('id').first()
+        if seller_part is None:
+            if 'unit_cost' not in provided_values:
+                raise ValueError(f"unit_cost is required to create the vendor price {identifier}.")
+            seller_part = SellerPart(manufacturer_part=manufacturer_part, seller=seller,
+                                     minimum_order_quantity=minimum_order_quantity,
+                                     nre_cost=Money(0, self.organization.currency))
+            change = 'created'
+            changed_fields = {name: (None, value) for name, value in provided_values.items()}
+        else:
+            changed_fields = {name: (self._comparable(getattr(seller_part, name)), value)
+                              for name, value in provided_values.items()
+                              if self._comparable(getattr(seller_part, name)) != value}
+            change = 'updated' if changed_fields else 'unchanged'
+        if change != 'unchanged':
+            for name, value in provided_values.items():
+                setattr(seller_part, name, Money(value, self.organization.currency) if name in ('unit_cost', 'nre_cost') else value)
+            seller_part.save()
+        return identifier, change, changed_fields
+
+    def _parse_vendor_price_values(self, cell):
+        provided_values = {}
+        for name in ('unit_cost', 'nre_cost'):
+            if cell(name):
+                provided_values[name] = self._parse_cost(cell(name), name)
+        for name in ('minimum_pack_quantity', 'lead_time_days'):
+            if cell(name):
+                provided_values[name] = self._parse_quantity(cell(name), name)
+        if cell('seller_part_number'):
+            provided_values['seller_part_number'] = cell('seller_part_number')
+        return provided_values
+
+    @staticmethod
+    def _parse_cost(raw, name):
+        try:
+            return SourcingImportMixin._plain_decimal(Decimal(sanitize_cost(raw)))
+        except InvalidOperation:
+            raise ValueError(f"{name} '{raw}' is not a number.")
+
+    @staticmethod
+    def _plain_decimal(value):
+        """3.3300 reads as 3.33 and 100.00 as 100 in the preview, instead of a false precision change."""
+        return value.quantize(Decimal(1)) if value == value.to_integral_value() else value.normalize()
+
+    @staticmethod
+    def _parse_quantity(raw, name):
+        if not raw:
+            return None
+        if not raw.isdigit():
+            raise ValueError(f"{name} '{raw}' is not a whole number.")
+        return int(raw)
+
+    @staticmethod
+    def _comparable(value):
+        if isinstance(value, Money):
+            return SourcingImportMixin._plain_decimal(value.amount)
+        return value if value is not None else ''
+
+
+class PartsImportForm(SourcingImportMixin, BaseCSVForm):
+    """Creates the parts a file names that do not exist yet and updates the ones that do; it never deletes.
+
+    A row names its part by part_number, else by manufacturer_part_number. The revision column picks the
+    revision whose description and properties the row updates: the latest when the column is absent, a
+    new revision when the value is unknown. Immutable revisions keep their description and properties
+    (with a warning) while the part's manufacturer part and vendor price still update.
+    """
+    REVISION_FIELDS_LEFT_ALONE = ('revision', 'configuration')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.unit_ids_by_symbol = {unit.symbol: str(unit.id) for unit in UnitDefinition.objects.available_to(self.organization)}
+
+    def summary(self):
+        changes = self.changes()
+        row_count = len(self.successes)
+        created_count = len(changes['created'])
+        return (f"{row_count} row{'s' if row_count != 1 else ''}: "
+                f"{created_count} part{'s' if created_count != 1 else ''} created, "
+                f"{len(changes['updated'])} updated, {changes['unchanged']} unchanged.")
 
     def get_csv_headers_handler(self):
         return self.organization.part_list_csv_headers()
 
     def get_header_assertions(self):
-        return [
-            ('part_class', 'part_number', 'or'),
-            ('revision', 'in'),
-            ('value', 'value_units', 'and', 'description', 'or'),
-        ]
+        return []
 
     def process_row(self, row_data, row_count, csv_headers):
-        part_number = csv_headers.get_val_from_row(row_data, 'part_number')
-        part_class = csv_headers.get_val_from_row(row_data, 'part_class')
+        def cell(header_name):
+            return (csv_headers.get_val_from_row(row_data, header_name) or '').strip()
+
+        manufacturer_part_number = cell('manufacturer_part_number')
+        manufacturer_name = cell('manufacturer_name')
+        try:
+            part = self._find_existing_part(cell('part_number'), manufacturer_part_number, manufacturer_name)
+            if part is None:
+                part, changed_fields = self._create_part(cell)
+                change = 'created'
+            else:
+                changed_fields = self._update_revision(part, cell, row_count)
+                change = 'updated'
+            if manufacturer_name and manufacturer_part_number:
+                changed_fields.update(self._attach_manufacturer_part(part, manufacturer_part_number, manufacturer_name, row_count))
+            if cell('seller'):
+                changed_fields.update(self._upsert_row_vendor_price(part, cell, manufacturer_part_number, manufacturer_name))
+        except ValueError as error:
+            self.add_error(None, f"Row {row_count}: {error}")
+            return
+        if change == 'updated' and not changed_fields:
+            change = 'unchanged'
+        self.record_row_change(change, part.full_part_number(), changed_fields)
+        self.successes.append(f"Row {row_count}: Part {part.full_part_number()} {change}.")
+
+    def _create_part(self, cell):
+        """Creates the part a row describes, numbering it from its part class when it has no part_number."""
+        part_number = cell('part_number')
+        part_class = None
         number_item = None
         number_variation = None
-        revision = csv_headers.get_val_from_row(row_data, 'revision')
-        mpn = csv_headers.get_val_from_row(row_data, 'mpn')
-        mfg_name = csv_headers.get_val_from_row(row_data, 'mfg_name')
-        description = csv_headers.get_val_from_row(row_data, 'description')
-        seller_name = csv_headers.get_val_from_row(row_data, 'seller')
-        seller_part_number = csv_headers.get_val_from_row(row_data, 'seller_part_number')
-        # Costs may arrive with currency symbols and thousands separators (e.g. an exported
-        # "A$1,190.00"); normalize to a plain decimal string that MoneyField can parse.
-        unit_cost = sanitize_cost(csv_headers.get_val_from_row(row_data, 'unit_cost'))
-        nre_cost = sanitize_cost(csv_headers.get_val_from_row(row_data, 'part_nre_cost'))
-        moq = csv_headers.get_val_from_row(row_data, 'moq')
-        mpq = csv_headers.get_val_from_row(row_data, 'minimum_pack_quantity')
-
-        # Check part number for uniqueness. If part number not specified
-        # then Part.save() will create one.
         if part_number:
+            number_class, number_item, number_variation = Part.parse_part_number(part_number, self.organization)
             if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
-                try:
-                    (number_class, number_item, number_variation) = Part.parse_part_number(part_number,
-                                                                                           self.organization)
-                    part_class = PartClass.objects.get(code=number_class, organization=self.organization)
-                    Part.objects.get(number_class=part_class, number_item=number_item,
-                                     number_variation=number_variation, organization=self.organization)
-                    self.add_error(None,
-                                   "Part number {0} in row {1} already exists. Uploading of this part skipped.".format(
-                                       part_number, row_count))
-                    return
-                except AttributeError as e:
-                    self.add_error(None, str(e) + " on row {}. Creation of this part skipped.".format(row_count))
-                    return
-                except PartClass.DoesNotExist:
-                    self.add_error(None,
-                                   "No part class found for part number {0} in row {1}. Creation of this part skipped.".format(
-                                       part_number, row_count))
-                    return
-                except Part.DoesNotExist:
-                    pass
-            else:
-                try:
-                    number_item = part_number
-                    Part.objects.get(number_class=None, number_item=number_item, number_variation=None,
-                                     organization=self.organization)
-                    self.add_error(None,
-                                   f"Part number {part_number} in row {row_count} already exists. Uploading of this part skipped.")
-                    return
-                except Part.DoesNotExist:
-                    pass
-        elif part_class:
-            try:
-                part_class = PartClass.objects.get(code=row_data[csv_headers.get_default('part_class')],
-                                                   organization=self.organization)
-            except PartClass.DoesNotExist:
-                self.add_error(None,
-                               "Part class {0} in row {1} doesn't exist. Create part class on Settings > IndaBOM and try again."
-                               "Uploading of this part skipped.".format(
-                                   row_data[csv_headers.get_default('part_class')], row_count))
-                return
+                part_class = PartClass.objects.filter(code=number_class, organization=self.organization).first()
+                if part_class is None:
+                    raise ValueError(f"No part class {number_class} exists for part number {part_number}. "
+                                     "Create it on Settings > IndaBOM and try again.")
+        elif cell('part_class'):
+            part_class = PartClass.objects.filter(code=cell('part_class'), organization=self.organization).first()
+            if part_class is None:
+                raise ValueError(f"Part class {cell('part_class')} doesn't exist. Create it on Settings > IndaBOM and try again.")
+        elif self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
+            raise ValueError("A part_class or part_number is required to create a part.")
         else:
-            if self.organization.number_scheme == NUMBER_SCHEME_SEMI_INTELLIGENT:
-                self.add_error(None,
-                               "In row {} need to specify a part_class or part_number. Uploading of this part skipped.".format(
-                                   row_count))
-            else:
-                self.add_error(None, "In row {} need to specify a part_number. Uploading of this part skipped.".format(
-                    row_count))
-            return
+            raise ValueError("A part_number is required to create a part.")
 
+        revision = cell('revision')
         if not revision:
-            self.add_error(None, f"Missing revision in row {row_count}. Uploading of this part skipped.")
-            return
-        elif len(revision) > 4:
-            self.add_error(None, "Revision {0} in row {1} is more than the maximum 4 characters. "
-                                 "Uploading of this part skipped.".format(
-                row_data[csv_headers.get_default('revision')], row_count))
-            return
-        elif revision.isdigit() and int(revision) < 0:
-            self.add_error(None, "Revision {0} in row {1} cannot be a negative number. "
-                                 "Uploading of this part skipped.".format(
-                row_data[csv_headers.get_default('revision')], row_count))
-            return
+            raise ValueError("A revision is required to create a part.")
+        self._check_revision(revision)
 
-        if mpn and mfg_name:
-            manufacturer_part = ManufacturerPart.objects.filter(manufacturer_part_number=mpn,
-                                                                manufacturer__name=mfg_name,
-                                                                manufacturer__organization=self.organization)
-            if manufacturer_part.count() > 0:
-                self.add_error(None, f"Part already exists for manufacturer part {mpn} in row {row_count}. "
-                                     "Uploading of this part skipped.")
-                return
-
-        skip = False
-        row_data['revision'] = revision
-        row_data['description'] = description
-
-        if self.organization.number_scheme == NUMBER_SCHEME_INTELLIGENT and number_item is None:
-            self.add_error(None,
-                           "Can't upload a part without a number_item header for part in row {}. Uploading of this part skipped.".format(
-                               row_count))
-            skip = True
-
-        if skip:
-            return
-
-        PartForm = part_form_from_organization(self.organization)
         part = Part(number_class=part_class, number_item=number_item, number_variation=number_variation,
                     organization=self.organization)
         part_dict = model_to_dict(part)
         part_dict.update({'number_class': str(part.number_class)})
-        pf = PartForm(data=part_dict, organization=self.organization)
-        prf = PartRevisionForm(data=row_data, part_class=part_class, organization=self.organization)
+        part_form = part_form_from_organization(self.organization)(data=part_dict, organization=self.organization)
+        provided_values = self._provided_revision_values(cell, PartRevisionForm(part_class=part_class, organization=self.organization))
+        part_revision_form = PartRevisionForm(data={'revision': revision, **provided_values}, part_class=part_class,
+                                              organization=self.organization)
+        self._validate_row_form(part_form)
+        self._validate_row_form(part_revision_form)
 
-        if pf.is_valid() and prf.is_valid():
-            part = pf.save(commit=False)
-            part.organization = self.organization
-            part.save()
-            part_revision = prf.save(commit=False)
-            part_revision.part = part
-            part_revision.save()
+        part = part_form.save(commit=False)
+        part.organization = self.organization
+        part.save()
+        self._save_new_revision(part_revision_form, part)
+        return part, {name: (None, value) for name, value in part_revision_form.cleaned_data.items() if name in provided_values}
 
-            if mfg_name and mpn:
-                mfg, created = Manufacturer.objects.get_or_create(name__iexact=mfg_name, organization=self.organization,
-                                                                  defaults={'name': mfg_name})
-                manufacturer_part, created = ManufacturerPart.objects.get_or_create(part=part,
-                                                                                    manufacturer_part_number=mpn,
-                                                                                    manufacturer=mfg)
-                if part.primary_manufacturer_part is None and manufacturer_part is not None:
-                    part.primary_manufacturer_part = manufacturer_part
-                    part.save()
+    def _update_revision(self, part, cell, row_count):
+        """Applies a row's description and property cells to the revision it names; returns the fields changed."""
+        revision = cell('revision')
+        part_revision = part.revisions().filter(revision=revision).first() if revision else part.latest()
+        if part_revision is None and not revision:
+            raise ValueError(f"{part.full_part_number()} has no revision yet; add a revision column.")
+        template_form = PartRevisionForm(instance=part_revision, part_class=part.number_class, organization=self.organization)
+        provided_values = self._provided_revision_values(cell, template_form)
 
-                if seller_name and unit_cost and nre_cost:
-                    seller, created = Seller.objects.get_or_create(name__iexact=seller_name,
-                                                                   organization=self.organization,
-                                                                   defaults={'name': seller_name})
-                    seller_part, created = SellerPart.objects.get_or_create(manufacturer_part=manufacturer_part,
-                                                                            seller=seller,
-                                                                            seller_part_number=seller_part_number,
-                                                                            unit_cost=unit_cost, nre_cost=nre_cost,
-                                                                            minimum_order_quantity=moq or 1,
-                                                                            minimum_pack_quantity=mpq or 1)
+        if part_revision is None:
+            self._check_revision(revision)
+            part_revision_form = PartRevisionForm(data={'revision': revision, **provided_values},
+                                                  part_class=part.number_class, organization=self.organization)
+            self._validate_row_form(part_revision_form)
+            self._save_new_revision(part_revision_form, part)
+            return {'revision': (None, revision),
+                    **{name: (None, value) for name, value in part_revision_form.cleaned_data.items() if name in provided_values}}
 
-            self.successes.append("Part {0} on row {1} created.".format(part.full_part_number(), row_count))
-        else:
-            for k, error in prf.errors.items():
-                for idx, msg in enumerate(error):
-                    error[idx] = f"Error on Row {row_count}, {k}: " + msg
-                self.errors.update({k: error})
-            for k, error in pf.errors.items():
-                for idx, msg in enumerate(error):
-                    error[idx] = f"Error on Row {row_count}, {k}: " + msg
-                self.errors.update({k: error})
+        current_values = {name: template_form.initial.get(name, field.initial) for name, field in template_form.fields.items()}
+        if part_revision.is_immutable():
+            changed_names = [name for name, value in provided_values.items()
+                             if self._value_changed(template_form.fields[name], current_values[name], value)]
+            if changed_names:
+                self.warnings.append(
+                    f"Row {row_count}: {part.full_part_number()} revision {part_revision.revision} is "
+                    f"{part_revision.get_configuration_display()}; {', '.join(changed_names)} left unchanged. "
+                    "Create a new revision to change them.")
+            return {}
+
+        part_revision_form = PartRevisionForm({**current_values, **provided_values}, instance=part_revision,
+                                              part_class=part.number_class, organization=self.organization)
+        self._validate_row_form(part_revision_form)
+        changed_fields = {}
+        for name in provided_values:
+            field = part_revision_form.fields[name]
+            new_value = part_revision_form.cleaned_data[name]
+            if self._value_changed(field, current_values[name], new_value):
+                changed_fields[name] = (self._display_value(field, current_values[name]), new_value)
+        if changed_fields:
+            part_revision_form.save()
+        return changed_fields
+
+    def _attach_manufacturer_part(self, part, manufacturer_part_number, manufacturer_name, row_count):
+        had_manufacturer_parts = part.manufacturer_parts().exists()
+        _, created = self._find_or_create_manufacturer_part(part, manufacturer_part_number, manufacturer_name)
+        if not created:
+            return {}
+        if had_manufacturer_parts:
+            self.warnings.append(f"Row {row_count}: {part.full_part_number()} already had a manufacturer part, so "
+                                 f"{manufacturer_name} {manufacturer_part_number} was added without becoming the primary one.")
+        return {'manufacturer_part': (None, f"{manufacturer_name} {manufacturer_part_number}")}
+
+    def _upsert_row_vendor_price(self, part, cell, manufacturer_part_number, manufacturer_name):
+        # A manufacturer part is only attached from a row that names both the manufacturer and its part number.
+        manufacturer_part, _ = self._find_or_create_manufacturer_part(
+            part, manufacturer_part_number if manufacturer_name else '', manufacturer_name)
+        seller = self._find_or_create_seller(cell('seller'))
+        minimum_order_quantity = self._parse_quantity(cell('minimum_order_quantity'), 'minimum_order_quantity') or 1
+        _, _, changed_fields = self._upsert_vendor_price(manufacturer_part, seller, minimum_order_quantity,
+                                                         self._parse_vendor_price_values(cell))
+        return {f"{seller.name} MOQ {minimum_order_quantity} {name}": values for name, values in changed_fields.items()}
+
+    def _provided_revision_values(self, cell, part_revision_form):
+        """The revision fields a row fills in, keyed by form field name; units arrive as symbols and leave as ids."""
+        unit_field_names = {definition.form_unit_field_name for definition in part_revision_form.property_definitions
+                            if definition.quantity_of_measure}
+        provided_values = {}
+        for name in part_revision_form.fields:
+            value = cell(name)
+            if value and name not in self.REVISION_FIELDS_LEFT_ALONE:
+                provided_values[name] = self.unit_ids_by_symbol.get(value, value) if name in unit_field_names else value
+        return provided_values
+
+    @staticmethod
+    def _save_new_revision(part_revision_form, part):
+        part_revision = part_revision_form.save(commit=False)
+        part_revision.part = part
+        part_revision.save()
+        part_revision_form.save_properties()
+
+    @staticmethod
+    def _check_revision(revision):
+        if len(revision) > 4:
+            raise ValueError(f"Revision {revision} is more than the maximum 4 characters.")
+
+    @staticmethod
+    def _validate_row_form(form):
+        if not form.is_valid():
+            raise ValueError('; '.join(f"{field}: {message}" for field, errors in form.errors.as_data().items()
+                                       for error in errors for message in error.messages))
+
+    @classmethod
+    def _value_changed(cls, field, current_value, new_value):
+        return cls._display_value(field, current_value) != (new_value if new_value is not None else '')
+
+    @staticmethod
+    def _display_value(field, raw_value):
+        """A stored value as the form field reads it, so '0.010' and '0.01' compare equal for a decimal property."""
+        try:
+            value = field.to_python(raw_value)
+        except ValidationError:
+            value = raw_value
+        return value if value is not None else ''
 
 
 class BOMCSVForm(BaseCSVForm):
@@ -1315,8 +1547,10 @@ class BOMCSVForm(BaseCSVForm):
             'assemblies': self.assembly_changes,
         }
 
-    def changes_digest(self):
-        return hashlib.sha256(json.dumps(self.changes(), sort_keys=True, default=str).encode()).hexdigest()
+    @property
+    def ignores_vendor_price_columns(self):
+        vendor_price_columns = SellerPartCSVHeaders().get_default_all()
+        return any(name in vendor_price_columns for name in self.column_names)
 
     def get_csv_headers_handler(self):
         return self.organization.bom_indented_csv_headers()
@@ -1693,6 +1927,43 @@ class BOMCSVForm(BaseCSVForm):
             'old_reference': old_reference,
             'new_reference': new_reference,
         }
+
+
+class VendorPricesImportForm(SourcingImportMixin, BaseCSVForm):
+    """Creates and updates vendor prices for parts that already exist; it never creates parts or deletes prices."""
+    default_seller = forms.CharField(required=False)
+
+    def summary(self):
+        changes = self.changes()
+        row_count = len(self.successes)
+        created_count = len(changes['created'])
+        return (f"{row_count} row{'s' if row_count != 1 else ''}: "
+                f"{created_count} price{'s' if created_count != 1 else ''} created, "
+                f"{len(changes['updated'])} updated, {changes['unchanged']} unchanged.")
+
+    def get_csv_headers_handler(self):
+        return VendorPricesCSVHeaders()
+
+    def get_header_assertions(self):
+        return [('part_number', 'manufacturer_part_number', 'or')]
+
+    def process_row(self, row_data, row_count, csv_headers):
+        def cell(header_name):
+            return (csv_headers.get_val_from_row(row_data, header_name) or '').strip()
+
+        try:
+            part = self._find_part(cell('part_number'), cell('manufacturer_part_number'), cell('manufacturer_name'))
+            manufacturer_part, _ = self._find_or_create_manufacturer_part(
+                part, cell('manufacturer_part_number'), cell('manufacturer_name'))
+            seller = self._find_or_create_seller(cell('seller') or self.cleaned_data.get('default_seller', ''))
+            minimum_order_quantity = self._parse_quantity(cell('minimum_order_quantity'), 'minimum_order_quantity') or 1
+            identifier, change, changed_fields = self._upsert_vendor_price(
+                manufacturer_part, seller, minimum_order_quantity, self._parse_vendor_price_values(cell))
+        except ValueError as error:
+            self.add_error(None, f"Row {row_count}: {error}")
+            return
+        self.record_row_change(change, identifier, changed_fields)
+        self.successes.append(f"Row {row_count}: Vendor price {identifier} {change}.")
 
 
 class UploadBOMForm(OrganizationFormMixin, forms.Form):

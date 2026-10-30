@@ -29,12 +29,12 @@
                             </ul>
                         </li>
                         <li>
-                            Create or upload your parts. Use the <strong>Upload</strong> menu at the top of the page, or
-                            click the <strong>+</strong> button on the Home page.
+                            Create or import your parts. Use the <strong>Import / Export</strong> menu at the top of
+                            the page, or click the <strong>+</strong> button on the Home page.
                         </li>
                         <li>
                             Build BOMs for assemblies. From a part's info page, go to the <strong>Bill of
-                            Materials</strong> tab and add subparts, or upload a BOM CSV.
+                            Materials</strong> tab and add subparts, or import a BOM CSV.
                         </li>
                     </ol>
                 </div>
@@ -136,7 +136,7 @@
                 <div class="section">
                     <h3>Creating &amp; Editing Parts</h3>
                     <p>Parts can be created individually via the Create Part form (the <strong>+</strong> button on the
-                        Home page) or in bulk via CSV upload (see <a href="#uploading-parts">Uploading Parts</a>).</p>
+                        Home page) or in bulk via CSV import (see <a href="#uploading-parts">Importing Parts</a>).</p>
                     <p>Each part has a <strong>primary manufacturer part</strong>, which is used for cost estimation and
                         live sourcing lookups. Additional manufacturer parts can be attached under the Sourcing tab.</p>
                 </div>
@@ -277,13 +277,13 @@
                 <div class="section">
                     <h3>Editing a BOM</h3>
                     <p>From the Part Info page, go to the <strong>Bill of Materials</strong> tab and click <strong>Manage
-                        → Edit BOM</strong>. You can add subparts one at a time using the form, or upload a BOM CSV.
+                        → Edit BOM</strong>. You can add subparts one at a time using the form, or import a BOM CSV.
                         BOMs can only be edited when the revision is in <strong>Draft</strong> state.</p>
                     <p>Only parts already in your IndaBOM database can be added as subparts.</p>
                 </div>
 
                 <div class="section">
-                    <h3>Downloading a BOM</h3>
+                    <h3 id="downloading-a-bom">Downloading a BOM</h3>
                     <p>BOM exports are available from the Part Info page under the <strong>Manage</strong> menu, and
                         from the Home / Search Results pages via the per-part dropdown. Export options include:</p>
                     <ul class="browser-default">
@@ -347,48 +347,49 @@
 
                 {# ============================================================ #}
                 <div class="section">
-                    <h2>Uploading &amp; Exporting Data</h2>
+                    <h2 id="importing">Importing &amp; Exporting Data</h2>
+                    <p>Any file IndaBOM exports can be edited and imported back from the
+                        <a href="{% url 'bom:import' %}">Import</a> page (<strong>Import / Export → Import</strong> on
+                        the Home page, or the upload button next to <strong>+</strong>). Rows that match existing
+                        records update the fields they provide; blank cells leave values alone; nothing is deleted
+                        except BOM lines you replace. Every import shows a preview of its changes, and nothing is saved
+                        until you confirm. A row with an error blocks the whole import.</p>
+                    <p>The Import page detects the type from the file's columns, or you can pick one. Its
+                        <strong>File formats</strong> section lists every column, with template downloads.</p>
                 </div>
 
                 <div class="section">
-                    <h3 id="uploading-parts">Uploading Parts</h3>
-                    <p>Upload a CSV to create multiple parts at once from the <strong>Upload → Upload Parts</strong>
-                        menu, or from the <strong>+</strong> button on the Home page.</p>
-                    <p>See the <a href="{% url 'bom:upload-parts-help' %}" target="_blank">Parts CSV Reference <i
-                            class="material-icons" style="font-size:1em;vertical-align:middle;">open_in_new</i></a> for
-                        full column documentation. Key points:</p>
-                    <ul class="browser-default">
-                        <li>Required: part identifier (<code>part_class</code> or <code>part_number</code>), <code>revision</code>,
-                            and <code>description</code>.
-                        </li>
-                        <li>Manufacturer and seller data can be included in the same file.</li>
-                        <li>Custom property values are included using <code>property_&lt;code&gt;</code> columns.</li>
-                        <li>Rows with errors are skipped; valid rows in the same file are still imported.</li>
-                    </ul>
-                    <p>
-                        <a href="{% url 'bom:upload-parts-template' %}">Download a template CSV</a> set up for your
-                        organization's numbering and part classes.
-                    </p>
+                    <h3 id="uploading-parts">Importing Parts</h3>
+                    <p>One row per part, identified by <code>part_number</code> or, when that is blank, by
+                        <code>manufacturer_part_number</code>. Known parts are updated and unknown rows create parts.
+                        Manufacturer, vendor price and <code>property_&lt;code&gt;</code> columns can be included in
+                        the same file.</p>
                 </div>
 
                 <div class="section">
-                    <h3>Uploading a BOM</h3>
-                    <p>Upload a BOM CSV from <strong>Upload → Upload BOM</strong>, or from the Edit BOM page for a
-                        specific assembly. The upload creates parts and revisions that don't exist and updates those
-                        that do. Immutable revisions (In Review, Released, Obsolete) are skipped.</p>
+                    <h3>Importing Vendor Prices</h3>
+                    <p>One row per price break, identified by manufacturer part, vendor and minimum order quantity.
+                        Matching prices are updated, other rows add a price break, and parts are never created. Rows
+                        without a <code>seller</code> use the default vendor chosen on the Import page.</p>
+                </div>
+
+                <div class="section">
+                    <h3>Importing a BOM</h3>
+                    <p>Import an indented BOM from the Import page, or from the Edit BOM page for a specific assembly.
+                        Parts and revisions that don't exist are created and those that do are updated; Released
+                        revisions are added as they are and Obsolete revisions are skipped. A sub-assembly with rows
+                        beneath it in the file gets exactly those lines; one listed without rows is left alone.</p>
                     <p>Required columns: <code>part_number</code> or <code>manufacturer_part_number</code>; <code>quantity</code>;
                         and <code>level</code> (nesting depth, unless a parent part is specified in the form).</p>
-                    <p>
-                        <a href="{% static 'bom/doc/test_full_bom.csv' %}">Sample semi-intelligent BOM CSV</a> &nbsp;|&nbsp;
-                        <a href="{% static 'bom/doc/test_bom_5_intelligent.csv' %}">Sample intelligent BOM CSV</a>
-                    </p>
                 </div>
 
                 <div class="section">
-                    <h3>Exporting the Parts List</h3>
-                    <p>Download your full parts list as a CSV from the Home page using the <strong>Export</strong>
-                        button. The exported file uses the same column names as the upload format, making it a
-                        ready-made template for adding or editing parts in bulk.</p>
+                    <h3>Exporting</h3>
+                    <p><strong>Export parts</strong> on the Home page downloads your full parts list, one row per part
+                        with its primary manufacturer part and a vendor price. <strong>Export vendor prices</strong>
+                        downloads every price break with plain decimal costs. Both use the import column names, so
+                        edit the file and import it to update in bulk. BOM exports (see
+                        <a href="#downloading-a-bom">Downloading a BOM</a>) import the same way.</p>
                 </div>
 
                 <div class="divider"></div>

@@ -16,6 +16,7 @@ If you already have a django project, you can skip to [Add Django Bom To Your Ap
    * [Add Django Bom To Your App](#add-django-bom-to-your-app)
    * [Start From Scratch: Use as standalone Django project](#start-from-scratch-use-as-a-standalone-django-project)
    * [Customize Base Template](#customize-base-template)
+   * [Importing and exporting](#importing-and-exporting)
    * [Integrations](#integrations)
    * [Contributing](#contributing)
    * [Installation pitfalls](#installation-pitfalls)
@@ -127,6 +128,20 @@ BOM_CONFIG = {
 ```
 
 where `base.html` is your base template.
+
+## Importing and exporting
+Every export is a valid import: edit a CSV that BOM gave you and upload it on the **Import** page (`/import/`).
+Rows that match existing records update the fields they provide, blank cells leave values alone, and nothing is
+deleted except BOM lines you replace. Every import is previewed first and saved only when you confirm it.
+
+| Type | Row identity | Creates | Export |
+|---|---|---|---|
+| Parts | `part_number`, else `manufacturer_part_number` | parts, revisions, manufacturer parts, one vendor price per row | Export parts |
+| Vendor prices | manufacturer part + `seller` + `minimum_order_quantity` | price breaks and vendors, never parts | Export vendor prices |
+| Bill of materials | `part_number` or `manufacturer_part_number` per line, nested by `level` | parts and revisions; syncs each listed sub-assembly's lines | indented BOM export |
+
+The Import page detects the type from the file's columns or lets you pick one; `/import/?type=parts|prices|bom`
+preselects it. The former `upload-parts/`, `upload-bom/` and `upload-parts-help/` URLs redirect there.
 
 ## Integrations
 ### Mouser Integration

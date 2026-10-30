@@ -1,5 +1,6 @@
 import base64
 import csv
+import itertools
 import logging
 import operator
 import uuid
@@ -13,12 +14,10 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import NON_FIELD_ERRORS, ImproperlyConfigured, ValidationError
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db import transaction
 from django.db.models import Count, ProtectedError, Q, Subquery
 from django.db.models.aggregates import Max
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponsePermanentRedirect, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -35,11 +34,11 @@ from bom.csv_headers import (
     ManufacturerPartCSVHeaders,
     PartClassesCSVHeaders,
     SellerPartCSVHeaders,
+    VendorPricesCSVHeaders,
 )
 from bom.decorators import bom_permission_required
 from bom.forms import (
     AddSubpartForm,
-    BOMCSVForm,
     FileForm,
     ManufacturerForm,
     ManufacturerPartForm,
@@ -49,7 +48,6 @@ from bom.forms import (
     PartClassCSVForm,
     PartClassForm,
     PartClassSelectionForm,
-    PartCSVForm,
     PartImageForm,
     PartInfoForm,
     PartRevisionForm,
@@ -87,6 +85,7 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
+from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from bom.third_party_apis.base_api import BaseApiError
 from bom.third_party_apis.google_drive import has_drive_scope
 from bom.third_party_apis.sourcing import PROBE_CANDIDATE_LIMIT, build_provider, provider_credential_schema, provider_is_configured
@@ -128,7 +127,10 @@ def add_csv_upload_messages(request, csv_form, singular_noun, plural_noun):
     # Reading errors runs the import, which is also what fills in successes and warnings.
     errors = [str(error) for field_errors in csv_form.errors.values() for error in field_errors]
     successes = getattr(csv_form, 'successes', [])
-    if successes:
+    summary = csv_form.summary()
+    if summary:
+        messages.info(request, f"Imported {summary}")
+    elif successes:
         noun = singular_noun if len(successes) == 1 else plural_noun
         messages.info(request, f"Imported {len(successes):,} {noun}.")
     _add_capped_message(request, messages.ERROR, errors, 'error')
@@ -293,48 +295,7 @@ def home(request):
     if 'download' in request.GET:
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="indabom_parts_search.csv"'
-        csv_headers = organization.part_list_csv_headers()
-        seller_csv_headers = SellerPartCSVHeaders()
-        writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
-        writer.writeheader()
-        for part_rev in part_revs:
-            if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
-                row = {
-                    csv_headers.get_default('part_number'): part_rev.part.full_part_number(),
-                    csv_headers.get_default('part_category'): part_rev.part.number_class.name,
-                    csv_headers.get_default('part_revision'): part_rev.revision,
-                    csv_headers.get_default('part_manufacturer'): part_rev.part.primary_manufacturer_part.manufacturer.name if part_rev.part.primary_manufacturer_part is not None and
-                                                                                                      part_rev.part.primary_manufacturer_part.manufacturer is not None else '',
-                    csv_headers.get_default('part_manufacturer_part_number'): part_rev.part.primary_manufacturer_part.manufacturer_part_number if part_rev.part.primary_manufacturer_part is not None else '',
-                }
-                for field_name in csv_headers.get_default_all():
-                    if field_name not in csv_headers.get_defaults_list(['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer', 'part_manufacturer_part_number', ]
-                                                                       + seller_csv_headers.get_default_all()):
-                        attr = part_rev.get_field_value(field_name)
-                        row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
-            else:
-                row = {
-                    csv_headers.get_default('part_number'): part_rev.part.full_part_number(),
-                    csv_headers.get_default('part_revision'): part_rev.revision,
-                    csv_headers.get_default('part_manufacturer'): part_rev.part.primary_manufacturer_part.manufacturer.name if part_rev.part.primary_manufacturer_part is not None and
-                                                                                                      part_rev.part.primary_manufacturer_part.manufacturer is not None else '',
-                    csv_headers.get_default('part_manufacturer_part_number'): part_rev.part.primary_manufacturer_part.manufacturer_part_number if part_rev.part.primary_manufacturer_part is not None else '',
-                }
-                for field_name in csv_headers.get_default_all():
-                    if field_name not in csv_headers.get_defaults_list(['part_number', 'part_synopsis', 'part_revision', 'part_manufacturer', 'part_manufacturer_part_number', ]
-                                                                       + seller_csv_headers.get_default_all()):
-                        attr = part_rev.get_field_value(field_name)
-                        row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
-
-            sellerparts = part_rev.part.seller_parts()
-            if len(sellerparts) > 0:
-                for sellerpart in part_rev.part.seller_parts():
-                    for field_name in seller_csv_headers.get_default_all():
-                        attr = getattr(sellerpart, field_name)
-                        row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
-                    writer.writerow({k: smart_str(v) for k, v in row.items()})
-            else:
-                writer.writerow({k: smart_str(v) for k, v in row.items()})
+        write_parts_csv(response, organization, part_revs)
         return response
 
     page_size = settings.BOM_CONFIG.get('admin_dashboard', {}).get('page_size', 25)
@@ -1050,29 +1011,57 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
     return response
 
 
-PENDING_BOM_UPLOAD_SESSION_KEY = 'pending_bom_upload'
+PENDING_IMPORT_SESSION_KEY = 'pending_import'
+
+
+IMPORT_TYPE_CHOICES = [('detect', 'Detect from columns')] + list(IMPORT_TYPE_NAMES.items())
 
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.CREATE_PART)
-def upload_bom(request):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-    title = 'Upload Bill of Materials'
+def import_data(request, kind=None):
+    organization = request.user.bom_profile().organization
+    selected_type = kind or request.POST.get('type') or request.GET.get('type')
+    if selected_type not in IMPORT_FORMS:
+        selected_type = 'detect'
+    upload_bom_form = UploadBOMForm(organization=organization)
 
-    if request.method == 'POST' and 'file' in request.FILES and request.FILES['file'] is not None:
-        upload_bom_form = UploadBOMForm(request.POST, organization=organization)
-        if upload_bom_form.is_valid():
-            return _preview_bom_upload(request, organization, request.FILES['file'].read(),
-                                       upload_bom_form.parent_part, request.POST.get('mode'),
-                                       return_url=reverse('bom:upload-bom'))
-        add_form_error_messages(request, upload_bom_form)
-    else:
-        upload_bom_form = UploadBOMForm(organization=organization, initial={'organization': organization})
-    bom_csv_form = BOMCSVForm()
+    if request.method == 'POST':
+        if request.FILES.get('file') is None:
+            messages.error(request, "Choose a CSV file to import.")
+        else:
+            csv_bytes = request.FILES['file'].read()
+            kind = selected_type if selected_type in IMPORT_FORMS else detect_import_kind(read_csv_header_names(csv_bytes))
+            options = {}
+            if kind == 'bom':
+                upload_bom_form = UploadBOMForm(request.POST, organization=organization)
+                options = _bom_import_options(request, upload_bom_form.parent_part) if upload_bom_form.is_valid() else None
+            elif kind == 'prices':
+                options = {'default_seller': request.POST.get('default_seller', '')}
+            if options is not None:
+                return _preview_import(request, organization, kind, csv_bytes, options, return_url=_import_url(kind))
+            add_form_error_messages(request, upload_bom_form)
 
-    return TemplateResponse(request, 'bom/upload-bom.html', locals())
+    return TemplateResponse(request, 'bom/import.html', {
+        'title': 'Import',
+        'profile': request.user.bom_profile(),
+        'organization': organization,
+        'import_type_choices': IMPORT_TYPE_CHOICES,
+        'selected_type': selected_type,
+        'upload_bom_form': upload_bom_form,
+        'seller_names': Seller.objects.filter(organization=organization).order_by('name').values_list('name', flat=True),
+    })
+
+
+def import_redirect(request, kind=None, anchor=''):
+    """The old per-type upload URLs: bookmarks land on the Import page, and a file posted to them still imports."""
+    if request.method == 'POST' and kind:
+        return import_data(request, kind=kind)
+    return HttpResponsePermanentRedirect(_import_url(kind) + anchor)
+
+
+def _import_url(kind=None):
+    return reverse('bom:import') + (f'?type={kind}' if kind else '')
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1093,122 +1082,104 @@ def part_upload_bom(request, part_id):
         return_url = reverse('bom:part-info', kwargs={'part_id': part_id})
 
     if request.method == 'POST' and request.FILES.get('file') is not None:
-        return _preview_bom_upload(request, organization, request.FILES['file'].read(), parent_part,
-                                   request.POST.get('mode'), return_url=return_url)
+        return _preview_import(request, organization, 'bom', request.FILES['file'].read(),
+                               _bom_import_options(request, parent_part), return_url=return_url)
 
     return HttpResponseRedirect(return_url)
+
+
+def _bom_import_options(request, parent_part):
+    return {'mode': request.POST.get('mode'), 'parent_part_id': parent_part.id if parent_part else None}
 
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.CREATE_PART)
 @require_POST
-def upload_bom_confirm(request):
+def import_confirm(request):
     organization = request.user.bom_profile().organization
-    pending_upload = request.session.get(PENDING_BOM_UPLOAD_SESSION_KEY)
-    if not pending_upload or pending_upload['token'] != request.POST.get('token'):
+    pending_import = request.session.get(PENDING_IMPORT_SESSION_KEY)
+    if not pending_import or pending_import['token'] != request.POST.get('token'):
         messages.error(request, "This upload preview has expired. Please upload the file again.")
-        return HttpResponseRedirect(reverse('bom:upload-bom'))
+        return HttpResponseRedirect(reverse('bom:import'))
 
-    del request.session[PENDING_BOM_UPLOAD_SESSION_KEY]
-    return_url = pending_upload['return_url']
+    del request.session[PENDING_IMPORT_SESSION_KEY]
+    return_url = pending_import['return_url']
     if 'cancel' in request.POST:
         messages.info(request, "Upload canceled. Nothing was changed.")
         return HttpResponseRedirect(return_url)
 
-    parent_part = None
-    if pending_upload['parent_part_id'] is not None:
-        parent_part = Part.objects.filter(id=pending_upload['parent_part_id'], organization=organization).first()
-        if parent_part is None:
-            messages.error(request, "The part this upload was for no longer exists.")
-            return HttpResponseRedirect(reverse('bom:upload-bom'))
-
-    csv_bytes = base64.b64decode(pending_upload['csv'])
-    bom_csv_form, committed = _run_bom_upload(organization, csv_bytes, parent_part, pending_upload['mode'],
-                                              expected_changes_digest=pending_upload['changes_digest'])
+    kind = pending_import['kind']
+    csv_bytes = base64.b64decode(pending_import['csv'])
+    try:
+        import_form, committed = run_import(organization, kind, csv_bytes, pending_import['options'],
+                                            expected_changes_digest=pending_import['changes_digest'])
+    except Part.DoesNotExist:
+        messages.error(request, "The part this upload was for no longer exists.")
+        return HttpResponseRedirect(reverse('bom:import'))
     if not committed:
-        return _render_bom_upload_preview(
-            request, bom_csv_form, csv_bytes, parent_part, pending_upload['mode'], return_url,
-            notice="The BOM changed after your preview, so nothing was saved. Review the updated changes below.")
+        return _render_import_preview(
+            request, import_form, kind, csv_bytes, pending_import['options'], return_url,
+            notice=f"The {IMPORT_LABELS[kind]} changed after your preview, so nothing was saved. "
+                   f"Review the updated changes below.")
 
-    add_csv_upload_messages(request, bom_csv_form, 'BOM row', 'BOM rows')
+    add_csv_upload_messages(request, import_form, f'{IMPORT_LABELS[kind]} row', f'{IMPORT_LABELS[kind]} rows')
     return HttpResponseRedirect(return_url)
 
 
-def _run_bom_upload(organization, csv_bytes, parent_part, mode, expected_changes_digest=None):
-    """Runs a BOM upload in one transaction and keeps it only when it matches the changes the user confirmed."""
-    upload = SimpleUploadedFile('bom.csv', csv_bytes, content_type='text/csv')
-    bom_csv_form = BOMCSVForm({'mode': mode}, {'file': upload}, parent_part=parent_part, organization=organization)
-    with transaction.atomic():
-        bom_csv_form.is_valid()
-        committed = (expected_changes_digest is not None and not bom_csv_form.errors
-                     and bom_csv_form.changes_digest() == expected_changes_digest)
-        if not committed:
-            transaction.set_rollback(True)
-    return bom_csv_form, committed
+def _preview_import(request, organization, kind, csv_bytes, options, return_url):
+    import_form, _ = run_import(organization, kind, csv_bytes, options)
+    return _render_import_preview(request, import_form, kind, csv_bytes, options, return_url)
 
 
-def _preview_bom_upload(request, organization, csv_bytes, parent_part, mode, return_url):
-    bom_csv_form, _ = _run_bom_upload(organization, csv_bytes, parent_part, mode)
-    return _render_bom_upload_preview(request, bom_csv_form, csv_bytes, parent_part, mode, return_url)
-
-
-def _render_bom_upload_preview(request, bom_csv_form, csv_bytes, parent_part, mode, return_url, notice=None):
-    errors = [str(error) for field_errors in bom_csv_form.errors.values() for error in field_errors]
+def _render_import_preview(request, import_form, kind, csv_bytes, options, return_url, notice=None):
+    errors = [str(error) for field_errors in import_form.errors.values() for error in field_errors]
     token = None
     if errors:
-        request.session.pop(PENDING_BOM_UPLOAD_SESSION_KEY, None)
+        request.session.pop(PENDING_IMPORT_SESSION_KEY, None)
     else:
         token = uuid.uuid4().hex
-        request.session[PENDING_BOM_UPLOAD_SESSION_KEY] = {
+        request.session[PENDING_IMPORT_SESSION_KEY] = {
             'token': token,
+            'kind': kind,
             'csv': base64.b64encode(csv_bytes).decode('ascii'),
-            'parent_part_id': parent_part.id if parent_part else None,
-            'mode': mode,
-            'changes_digest': bom_csv_form.changes_digest(),
+            'options': options,
+            'changes_digest': import_form.changes_digest(),
             'return_url': return_url,
         }
 
-    changes = bom_csv_form.changes()
     context = {
-        'title': 'Review BOM Upload',
+        'title': f'Review import: {IMPORT_TYPE_NAMES[kind]}',
         'profile': request.user.bom_profile(),
-        'parent_part': parent_part,
-        'adds_to_parent_part': bom_csv_form.adds_to_parent_part if hasattr(bom_csv_form, 'cleaned_data') else True,
-        'row_count': len(getattr(bom_csv_form, 'successes', [])),
-        'parts_created': [c for c in changes['parts'] if c['kind'] == 'part_created'],
-        'revisions_created': [c for c in changes['parts'] if c['kind'] == 'revision_created'],
-        'manufacturers_created': changes['manufacturers_created'],
-        'assembly_changes': changes['assemblies'],
+        'kind': kind,
+        'row_count': len(import_form.successes),
+        'summary': import_form.summary(),
+        'changes': import_form.changes(),
         'errors': errors,
-        'warnings': getattr(bom_csv_form, 'warnings', []),
+        'warnings': import_form.warnings,
         'notice': notice,
         'token': token,
         'return_url': return_url,
     }
-    return TemplateResponse(request, 'bom/upload-bom-preview.html', context)
-
-
-@login_required(login_url=BOM_LOGIN_URL)
-def upload_parts_help(request):
-    return TemplateResponse(request, 'bom/upload-parts-help.html', locals())
-
-
-@login_required(login_url=BOM_LOGIN_URL)
-@bom_permission_required(BomPerms.CREATE_PART)
-def upload_parts(request):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-    title = 'Upload Parts'
-
-    if request.method == 'POST' and request.FILES.get('file') is not None:
-        form = PartCSVForm(request.POST, request.FILES, organization=organization)
-        add_csv_upload_messages(request, form, 'part', 'parts')
+    if kind == 'bom':
+        context.update(_bom_preview_context(import_form))
     else:
-        form = FileForm()
-        return TemplateResponse(request, 'bom/upload-parts.html', locals())
+        context['preview_component'] = 'bom/components/import-preview-sourcing.html'
+    return TemplateResponse(request, 'bom/import-preview.html', context)
 
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('bom:home')))
+
+def _bom_preview_context(bom_csv_form):
+    changes = bom_csv_form.changes()
+    return {
+        'preview_summary_component': 'bom/components/import-preview-bom-summary.html',
+        'preview_component': 'bom/components/import-preview-bom.html',
+        'parent_part': bom_csv_form.parent_part,
+        'adds_to_parent_part': bom_csv_form.adds_to_parent_part,
+        'ignores_vendor_price_columns': bom_csv_form.ignores_vendor_price_columns,
+        'parts_created': [c for c in changes['parts'] if c['kind'] == 'part_created'],
+        'revisions_created': [c for c in changes['parts'] if c['kind'] == 'revision_created'],
+        'manufacturers_created': changes['manufacturers_created'],
+        'assembly_changes': changes['assemblies'],
+    }
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1234,45 +1205,126 @@ def upload_parts_template(request):
     return response
 
 
+def _vendor_price_rows(organization):
+    """One row per vendor price, in the vendor prices import columns, ordered by part number, vendor and MOQ."""
+    seller_parts = SellerPart.objects.filter(manufacturer_part__part__organization=organization).select_related(
+        'seller', 'manufacturer_part__manufacturer', 'manufacturer_part__part__number_class',
+        'manufacturer_part__part__organization').order_by(
+        'manufacturer_part__part__number_class__code', 'manufacturer_part__part__number_item',
+        'manufacturer_part__part__number_variation', 'seller__name', 'minimum_order_quantity')
+    for seller_part in seller_parts:
+        exported = seller_part.as_dict_for_export()
+        yield {
+            'part_number': seller_part.manufacturer_part.part.full_part_number(),
+            'manufacturer_name': exported['manufacturer_name'],
+            'manufacturer_part_number': exported['manufacturer_part_number'],
+            'seller': exported['seller'],
+            'seller_part_number': exported['seller_part_number'] or '',
+            'unit_cost': exported['unit_cost'],
+            'minimum_order_quantity': exported['minimum_order_quantity'],
+            'nre_cost': exported['nre_cost'],
+            'minimum_pack_quantity': seller_part.minimum_pack_quantity,
+            'lead_time_days': seller_part.lead_time_days if seller_part.lead_time_days is not None else '',
+        }
+
+
+def _vendor_prices_csv_response(filename):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    writer = csv.DictWriter(response, fieldnames=VendorPricesCSVHeaders().get_default_all())
+    writer.writeheader()
+    return response, writer
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def export_vendor_prices(request):
+    organization = request.user.bom_profile().organization
+    response, writer = _vendor_prices_csv_response('indabom_vendor_prices.csv')
+    writer.writerows(_vendor_price_rows(organization))
+    return response
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.CREATE_PART)
+def import_template_prices(request):
+    """A vendor prices CSV with two example rows: this organization's own prices when it has any."""
+    organization = request.user.bom_profile().organization
+    response, writer = _vendor_prices_csv_response('indabom_vendor_prices_template.csv')
+    example_rows = list(itertools.islice(_vendor_price_rows(organization), 2))
+    if not example_rows:
+        part_numbers = _example_part_numbers(organization)
+        example_rows = [
+            dict(zip(writer.fieldnames, [part_numbers[0], 'Murata', 'GRM155R71C104KA88D', 'Digi-Key', '490-1234-1-ND', '0.0125', '1', '0', '1', '14'])),
+            dict(zip(writer.fieldnames, [part_numbers[1], 'Yageo', 'RC0402FR-0710KL', 'Mouser', '603-RC0402FR-0710KL', '0.0041', '1000', '0', '1000', '21'])),
+        ]
+    writer.writerows(example_rows)
+    return response
+
+
+def _example_part_numbers(organization):
+    if organization.number_scheme != constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+        return ['C0402X7R100NF', 'R0402-10K']
+    part_class = PartClass.objects.filter(organization=organization).order_by('code').first()
+    class_code = part_class.code if part_class else '2' * organization.number_class_code_len
+    variation = '-' + '1'.zfill(organization.number_variation_len) if organization.number_variation_len else ''
+    return [f"{class_code}-{str(item).zfill(organization.number_item_len)}{variation}" for item in (1, 2)]
+
+
 @login_required(login_url=BOM_LOGIN_URL)
 def export_part_list(request):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
+    organization = request.user.bom_profile().organization
 
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="indabom_parts.csv"'
 
-    parts = Part.objects.filter(
-        organization=organization).order_by(
-        'number_class__code',
-        'number_item',
-        'number_variation')
+    parts = Part.objects.filter(organization=organization).order_by('number_class__code', 'number_item', 'number_variation')
+    part_revisions = []
+    for part in parts:
+        latest_revision = part.latest()
+        if latest_revision is None:
+            messages.warning(request, "No change history for part: {}. Can't export.".format(part.full_part_number()))
+        else:
+            part_revisions.append(latest_revision)
+    write_parts_csv(response, organization, part_revisions)
+    return response
 
+
+def write_parts_csv(response, organization, part_revisions):
+    """Writes the parts list in the shape the parts import reads back: one row per vendor price, or one row when a part has none."""
     csv_headers = organization.part_list_csv_headers()
+    seller_csv_headers = SellerPartCSVHeaders()
+    part_columns = ['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer',
+                    'part_manufacturer_part_number'] + seller_csv_headers.get_default_all()
+    property_columns = [name for name in csv_headers.get_default_all()
+                        if name not in csv_headers.get_defaults_list(part_columns)]
+
     writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
     writer.writeheader()
-    for item in parts:
-        try:
-            latest_rev = item.latest()
-            row = {
-                csv_headers.get_default('part_number'): item.full_part_number(),
-                csv_headers.get_default('part_revision'): latest_rev.revision if latest_rev else '',
-                csv_headers.get_default('part_manufacturer'): item.primary_manufacturer_part.manufacturer.name if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
-                csv_headers.get_default('part_manufacturer_part_number'): item.primary_manufacturer_part.manufacturer_part_number if item.primary_manufacturer_part is not None and item.primary_manufacturer_part.manufacturer is not None else '',
-            }
-            for field_name in csv_headers.get_default_all():
-                if field_name not in csv_headers.get_defaults_list(
-                        ['part_number', 'part_category', 'part_synopsis', 'part_revision', 'part_manufacturer',
-                         'part_manufacturer_part_number', ]):
-                    attr = latest_rev.get_field_value(field_name) if latest_rev else None
-                    row.update({csv_headers.get_default(field_name): attr if attr is not None else ''})
-            writer.writerow({k: smart_str(v) for k, v in row.items()})
+    for part_revision in part_revisions:
+        part = part_revision.part
+        primary_manufacturer_part = part.primary_manufacturer_part
+        row = {
+            csv_headers.get_default('part_number'): part.full_part_number(),
+            csv_headers.get_default('part_revision'): part_revision.revision,
+            csv_headers.get_default('part_manufacturer'): primary_manufacturer_part.manufacturer.name
+            if primary_manufacturer_part is not None and primary_manufacturer_part.manufacturer is not None else '',
+            csv_headers.get_default('part_manufacturer_part_number'): primary_manufacturer_part.manufacturer_part_number
+            if primary_manufacturer_part is not None else '',
+        }
+        if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+            row[csv_headers.get_default('part_category')] = part.number_class.name
+        for name in property_columns:
+            value = part_revision.get_field_value(name)
+            row[csv_headers.get_default(name)] = value if value is not None else ''
 
-        except AttributeError as e:
-            messages.warning(request, "No change history for part: {}. Can't export.".format(item.full_part_number()))
-
-    return response
+        seller_parts = part.seller_parts()
+        if not seller_parts:
+            writer.writerow({key: smart_str(value) for key, value in row.items()})
+        for seller_part in seller_parts:
+            for name in seller_csv_headers.get_default_all():
+                value = getattr(seller_part, name)
+                row[csv_headers.get_default(name)] = value if value is not None else ''
+            writer.writerow({key: smart_str(value) for key, value in row.items()})
 
 
 @login_required(login_url=BOM_LOGIN_URL)

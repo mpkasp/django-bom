@@ -1,13 +1,16 @@
 {% if profile.role == 'A' %}
     <li>
         <!-- Dropdown Trigger -->
-        <a class="dropdown-trigger" href='#' data-target='upload-lists-menu{{ upload_id }}'>Upload<i class="material-icons right">arrow_drop_down</i></a>
+        <a class="dropdown-trigger" href='#' data-target='upload-lists-menu{{ upload_id }}'>Import / Export<i class="material-icons right">arrow_drop_down</i></a>
         <ul id='upload-lists-menu{{ upload_id }}' class='dropdown-content'>
-            <li><a class="green-text text-lighten-1" href="{% url 'bom:upload-parts' %}">
-                <i class="material-icons green-text text-lighten-1">cloud_upload</i>Upload Parts CSV</a>
+            <li><a class="green-text text-lighten-1" href="{% url 'bom:import' %}">
+                <i class="material-icons green-text text-lighten-1">cloud_upload</i>Import</a>
             </li>
-            <li><a class="green-text text-lighten-1" href="{% url 'bom:upload-bom' %}">
-                <i class="material-icons green-text text-lighten-1">cloud_upload</i>Upload BOM CSV</a>
+            <li><a class="green-text text-lighten-1" href="{% url 'bom:export-part-list' %}">
+                <i class="material-icons green-text text-lighten-1">cloud_download</i>Export parts</a>
+            </li>
+            <li><a class="green-text text-lighten-1" href="{% url 'bom:export-vendor-prices' %}">
+                <i class="material-icons green-text text-lighten-1">cloud_download</i>Export vendor prices</a>
             </li>
         </ul>
         <!-- End dropdown structure -->

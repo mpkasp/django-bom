@@ -1,0 +1,306 @@
+{% extends 'bom/bom-base.html' %}
+
+{% load static %}
+{% load materializecss %}
+
+{% block head-title %}{{ title }}{% endblock %}
+
+{% block bom-menu %}{% endblock %}
+
+{% block content %}
+    <style>
+        .import-page details { margin: 16px 0; }
+        .import-page summary { cursor: pointer; font-weight: 500; font-size: 1.1rem; }
+        .import-page table { font-size: 0.9rem; }
+        .import-page .hint { font-size: 0.85rem; margin: 0 0 8px; }
+    </style>
+    <div class="container-app import-page">
+        <p>Any file IndaBOM exports can be edited and imported back. Rows that match existing records update the
+            fields they provide; blank cells leave values alone; nothing is deleted except BOM lines you replace.
+            You'll see every change before anything is saved.</p>
+
+        {% include 'bom/starter-part-classes-prompt.html' %}
+
+        <div class="row" style="margin-bottom: 0;">
+            <div class="col s12 m8 l6">
+                <div class="card-panel">
+                    <form action="{% url 'bom:import' %}" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <p style="margin-top: 0;">
+                            {% for value, name in import_type_choices %}
+                                <label style="margin-right: 16px;">
+                                    <input name="type" type="radio" value="{{ value }}" {% if value == selected_type %}checked{% endif %}/>
+                                    <span>{{ name }}</span>
+                                </label>
+                            {% endfor %}
+                        </p>
+
+                        <div class="import-options" data-type="bom" {% if selected_type != 'bom' %}hidden{% endif %}>
+                            <div class="row" style="margin-bottom: 0;">
+                                {{ upload_bom_form.parent_part_number|materializecss:'s12' }}
+                            </div>
+                            <p class="hint grey-text text-darken-1" style="margin-top: -8px;">
+                                Optional. Attach all rows as direct children of this assembly. Omit when the CSV includes
+                                a <code>level</code> column. <b>Add to BOM</b> keeps its existing subparts and adds to
+                                their quantities; <b>Replace BOM</b> sets its BOM to match the file.
+                            </p>
+                            <p style="margin: 0 0 8px;">
+                                <label style="margin-right: 16px;"><input name="mode" type="radio" value="add" checked/><span>Add to BOM</span></label>
+                                <label><input name="mode" type="radio" value="replace"/><span>Replace BOM</span></label>
+                            </p>
+                        </div>
+
+                        <div class="import-options" data-type="prices" {% if selected_type != 'prices' %}hidden{% endif %}>
+                            <div class="input-field">
+                                <input id="default_seller" name="default_seller" type="text" list="seller-names" autocomplete="off">
+                                <label for="default_seller">Default vendor</label>
+                                <datalist id="seller-names">
+                                    {% for name in seller_names %}<option value="{{ name }}">{% endfor %}
+                                </datalist>
+                            </div>
+                            <p class="hint grey-text text-darken-1" style="margin-top: -8px;">
+                                Optional. Used for rows without a <code>seller</code> value; created if it doesn't exist yet.
+                            </p>
+                        </div>
+
+                        <div class="file-field input-field">
+                            <div class="green lighten-1 btn">
+                                <span>Choose file</span>
+                                <input name="file" type="file" accept=".csv,text/csv" required>
+                            </div>
+                            <div class="file-path-wrapper">
+                                <input class="file-path validate" type="text" placeholder="Select a CSV file…">
+                            </div>
+                        </div>
+                        <div style="margin-top: 8px;">
+                            <input class="green lighten-1 btn" type="submit" value="Preview import"/>
+                            <a href="{% url 'bom:home' %}" class="btn-flat grey-text" style="margin-left: 8px;">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <h5 id="help">File formats</h5>
+        <p>The first row holds column names; they are case-insensitive and unrecognized columns are ignored. Each
+            type's columns are below, and an export from IndaBOM already uses them.</p>
+
+        <details id="parts-columns" {% if selected_type == 'parts' %}open{% endif %}>
+            <summary>Parts</summary>
+            <p>Each row is one part. A row that names an existing part (by part number, or by manufacturer part number)
+                updates it; any other row creates a part. Part classes are never changed by an import.
+                <a href="{% url 'bom:upload-parts-template' %}">Download a template CSV</a> set up for your
+                organization's numbering{% if organization.number_scheme == 'S' %} and part classes{% endif %}, or
+                edit an <a href="{% url 'bom:export-part-list' %}">export of your parts list</a>.</p>
+            <div class="responsive-table-wrapper">
+                <table class="striped">
+                    <thead>
+                    <tr>
+                        <th style="width:22%">Column</th>
+                        <th style="width:18%">Accepted names</th>
+                        <th>Notes</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% if organization.number_scheme == 'S' %}
+                        <tr>
+                            <td><code>part_class</code> <em>or</em> <code>part_number</code></td>
+                            <td><code>class</code>, <code>part_category</code></td>
+                            <td>Provide one or both. <code>part_class</code> is the class code (e.g. <code>500</code>)
+                                and IndaBOM assigns the next item number. <code>part_number</code> is a full number
+                                like <code>{{ organization.example_part_number }}</code>; an existing number updates
+                                that part. When both are given, <code>part_number</code> wins.</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td><code>part_number</code></td>
+                            <td><code>part number</code>, <code>part no</code></td>
+                            <td>Any unique number, e.g. <code>{{ organization.example_part_number }}</code>. An
+                                existing number updates that part.</td>
+                        </tr>
+                    {% endif %}
+                    <tr>
+                        <td><code>revision</code></td>
+                        <td><code>rev</code>, <code>part_revision</code></td>
+                        <td>Up to 4 characters. Required to create a part. For an existing part it picks the revision
+                            to update: the latest when the column is left out, a new revision when the value is
+                            unknown. Released and Obsolete revisions keep their description and properties.</td>
+                    </tr>
+                    <tr>
+                        <td><code>description</code></td>
+                        <td><code>desc</code></td>
+                        <td>Up to 255 characters. Required to create a part; blank keeps an existing description.</td>
+                    </tr>
+                    <tr>
+                        <td><code>manufacturer_name</code><br><code>manufacturer_part_number</code></td>
+                        <td><code>manufacturer</code>, <code>mfg</code><br><code>mpn</code>, <code>mfg_part_number</code></td>
+                        <td>Include both to attach a manufacturer part; the manufacturer is created if unknown.
+                            <code>manufacturer_part_number</code> also identifies an existing part when
+                            <code>part_number</code> is blank. A new pair is added to the part; the primary
+                            manufacturer part is never changed.</td>
+                    </tr>
+                    <tr>
+                        <td><code>seller</code>, <code>unit_cost</code>, <code>nre_cost</code>, …</td>
+                        <td></td>
+                        <td>One vendor price per row, using the vendor prices columns below. Requires a manufacturer
+                            part; <code>unit_cost</code> is required to create a price.</td>
+                    </tr>
+                    <tr>
+                        <td><code>property_&lt;code&gt;</code></td>
+                        <td>the property's name</td>
+                        <td>Custom properties defined in <a href="{% url 'bom:settings' 'indabom' %}">Settings →
+                            IndaBOM</a>. <code>property_&lt;code&gt;_units</code> holds the unit symbol (e.g.
+                            <code>mV</code>) for a property with a quantity of measure.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </details>
+
+        <details id="prices-columns" {% if selected_type == 'prices' %}open{% endif %}>
+            <summary>Vendor prices</summary>
+            <p>Each row is one price break, identified by manufacturer part, vendor and minimum order quantity. A
+                matching price is updated, any other row creates one, and parts are never created.
+                <a href="{% url 'bom:import-template-prices' %}">Download a template CSV</a>, or edit an
+                <a href="{% url 'bom:export-vendor-prices' %}">export of your vendor prices</a>.</p>
+            <div class="responsive-table-wrapper">
+                <table class="striped">
+                    <thead>
+                    <tr>
+                        <th style="width:22%">Column</th>
+                        <th style="width:18%">Accepted names</th>
+                        <th>Notes</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>part_number</code> <em>or</em><br><code>manufacturer_part_number</code></td>
+                        <td><code>part number</code><br><code>mpn</code>, <code>mfg_part_number</code></td>
+                        <td>Identifies an existing part. With <code>manufacturer_name</code> the pair identifies the
+                            manufacturer part; a part without one gets it created.</td>
+                    </tr>
+                    <tr>
+                        <td><code>seller</code></td>
+                        <td><code>part_seller</code></td>
+                        <td>Vendor name, created if unknown. Rows without one use the default vendor chosen above.</td>
+                    </tr>
+                    <tr>
+                        <td><code>unit_cost</code></td>
+                        <td><code>part_cost</code></td>
+                        <td>Cost per unit in your organization's currency. Currency symbols and thousands separators
+                            are accepted. Required to create a price.</td>
+                    </tr>
+                    <tr>
+                        <td><code>minimum_order_quantity</code></td>
+                        <td><code>moq</code></td>
+                        <td>Part of the price's identity; blank means 1.</td>
+                    </tr>
+                    <tr>
+                        <td><code>nre_cost</code></td>
+                        <td><code>nre</code></td>
+                        <td>Non-recurring engineering cost.</td>
+                    </tr>
+                    <tr>
+                        <td><code>seller_part_number</code></td>
+                        <td><code>seller_pn</code>, <code>spn</code></td>
+                        <td>The vendor's own catalog number.</td>
+                    </tr>
+                    <tr>
+                        <td><code>minimum_pack_quantity</code></td>
+                        <td><code>mpq</code></td>
+                        <td>Pack or reel size.</td>
+                    </tr>
+                    <tr>
+                        <td><code>lead_time_days</code></td>
+                        <td><code>lead_time</code>, <code>lt</code></td>
+                        <td>Lead time in days.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </details>
+
+        <details id="bom-columns" {% if selected_type == 'bom' %}open{% endif %}>
+            <summary>Bill of materials</summary>
+            <p>Each row is one BOM line. Parts and revisions are created if they don't exist, or updated if they do.
+                Released revisions are added as they are and Obsolete revisions are skipped. When a sub-assembly has
+                rows beneath it in the file, its BOM is set to match those rows; a sub-assembly listed without rows
+                beneath it is left alone. Vendor price columns are ignored.
+                {% if organization.number_scheme == 'S' %}
+                    <a href="{% static 'bom/doc/test_full_bom.csv' %}">Download a sample CSV</a>
+                {% else %}
+                    <a href="{% static 'bom/doc/test_bom_5_intelligent.csv' %}">Download a sample CSV</a>
+                {% endif %}
+                or edit an indented BOM export.</p>
+            <div class="responsive-table-wrapper">
+                <table class="striped">
+                    <thead>
+                    <tr>
+                        <th style="width:22%">Column</th>
+                        <th style="width:18%">Accepted names</th>
+                        <th>Notes</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>part_number</code> <em>or</em><br><code>manufacturer_part_number</code></td>
+                        <td><code>part number</code><br><code>mpn</code>, <code>mfg_part_number</code></td>
+                        <td>Identifies the subpart. The part must already exist when using
+                            <code>manufacturer_part_number</code>.</td>
+                    </tr>
+                    <tr>
+                        <td><code>quantity</code></td>
+                        <td><code>count</code>, <code>qty</code></td>
+                        <td>Defaults to 1 if empty.</td>
+                    </tr>
+                    <tr>
+                        <td><code>level</code></td>
+                        <td></td>
+                        <td>Nesting depth (1 = direct child). Required unless a <strong>Parent part number</strong>
+                            is given above, in which case all rows are treated as level 1.</td>
+                    </tr>
+                    <tr>
+                        <td><code>reference</code></td>
+                        <td><code>designator</code></td>
+                        <td>Comma-separated list (e.g. <code>R1, R2</code>). Count must match quantity.</td>
+                    </tr>
+                    <tr>
+                        <td><code>do_not_load</code></td>
+                        <td><code>dnl</code>, <code>dnp</code></td>
+                        <td>Mark as Do Not Load. Values: <code>y</code>, <code>x</code>, <code>yes</code>,
+                            <code>true</code>.</td>
+                    </tr>
+                    <tr>
+                        <td><code>revision</code></td>
+                        <td><code>rev</code></td>
+                        <td>Target revision. Defaults to <code>1</code> if omitted.</td>
+                    </tr>
+                    <tr>
+                        <td><code>description</code></td>
+                        <td><code>desc</code></td>
+                        <td>Part description, up to 255 characters.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    </div>
+{% endblock %}
+
+{% block bom-script %}
+    <script>
+        function showImportOptions() {
+            var selectedType = document.querySelector('input[name="type"]:checked').value;
+            document.querySelectorAll('.import-options').forEach(function (options) {
+                options.hidden = options.dataset.type !== selectedType;
+            });
+        }
+        document.querySelectorAll('input[name="type"]').forEach(function (radio) {
+            radio.addEventListener('change', showImportOptions);
+        });
+        var linkedColumns = location.hash && document.getElementById(location.hash.slice(1));
+        if (linkedColumns && linkedColumns.tagName === 'DETAILS') {
+            linkedColumns.open = true;
+        }
+    </script>
+{% endblock %}
