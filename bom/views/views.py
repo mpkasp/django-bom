@@ -17,7 +17,7 @@ from django.core.exceptions import NON_FIELD_ERRORS, ImproperlyConfigured, Valid
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count, ProtectedError, Q, Subquery
 from django.db.models.aggregates import Max
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponsePermanentRedirect, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -39,7 +39,6 @@ from bom.csv_headers import (
 from bom.decorators import bom_permission_required
 from bom.forms import (
     AddSubpartForm,
-    BOMCSVForm,
     FileForm,
     ManufacturerForm,
     ManufacturerPartForm,
@@ -86,7 +85,7 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
-from bom.services.imports import IMPORT_LABELS, run_import
+from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from bom.third_party_apis.base_api import BaseApiError
 from bom.third_party_apis.google_drive import has_drive_scope
 from bom.third_party_apis.sourcing import PROBE_CANDIDATE_LIMIT, build_provider, provider_credential_schema, provider_is_configured
@@ -1056,26 +1055,54 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
 PENDING_IMPORT_SESSION_KEY = 'pending_import'
 
 
+IMPORT_TYPE_CHOICES = [('detect', 'Detect from columns')] + list(IMPORT_TYPE_NAMES.items())
+
+
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.CREATE_PART)
-def upload_bom(request):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-    title = 'Upload Bill of Materials'
+def import_data(request, kind=None):
+    organization = request.user.bom_profile().organization
+    selected_type = kind or request.POST.get('type') or request.GET.get('type')
+    if selected_type not in IMPORT_FORMS:
+        selected_type = 'detect'
+    upload_bom_form = UploadBOMForm(organization=organization)
 
-    if request.method == 'POST' and 'file' in request.FILES and request.FILES['file'] is not None:
-        upload_bom_form = UploadBOMForm(request.POST, organization=organization)
-        if upload_bom_form.is_valid():
-            return _preview_import(request, organization, 'bom', request.FILES['file'].read(),
-                                   _bom_import_options(request, upload_bom_form.parent_part),
-                                   return_url=reverse('bom:upload-bom'))
-        add_form_error_messages(request, upload_bom_form)
-    else:
-        upload_bom_form = UploadBOMForm(organization=organization, initial={'organization': organization})
-    bom_csv_form = BOMCSVForm()
+    if request.method == 'POST':
+        if request.FILES.get('file') is None:
+            messages.error(request, "Choose a CSV file to import.")
+        else:
+            csv_bytes = request.FILES['file'].read()
+            kind = selected_type if selected_type in IMPORT_FORMS else detect_import_kind(read_csv_header_names(csv_bytes))
+            options = {}
+            if kind == 'bom':
+                upload_bom_form = UploadBOMForm(request.POST, organization=organization)
+                options = _bom_import_options(request, upload_bom_form.parent_part) if upload_bom_form.is_valid() else None
+            elif kind == 'prices':
+                options = {'default_seller': request.POST.get('default_seller', '')}
+            if options is not None:
+                return _preview_import(request, organization, kind, csv_bytes, options, return_url=_import_url(kind))
+            add_form_error_messages(request, upload_bom_form)
 
-    return TemplateResponse(request, 'bom/upload-bom.html', locals())
+    return TemplateResponse(request, 'bom/import.html', {
+        'title': 'Import',
+        'profile': request.user.bom_profile(),
+        'organization': organization,
+        'import_type_choices': IMPORT_TYPE_CHOICES,
+        'selected_type': selected_type,
+        'upload_bom_form': upload_bom_form,
+        'seller_names': Seller.objects.filter(organization=organization).order_by('name').values_list('name', flat=True),
+    })
+
+
+def import_redirect(request, kind=None, anchor=''):
+    """The old per-type upload URLs: bookmarks land on the Import page, and a file posted to them still imports."""
+    if request.method == 'POST' and kind:
+        return import_data(request, kind=kind)
+    return HttpResponsePermanentRedirect(_import_url(kind) + anchor)
+
+
+def _import_url(kind=None):
+    return reverse('bom:import') + (f'?type={kind}' if kind else '')
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1107,18 +1134,6 @@ def _bom_import_options(request, parent_part):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@bom_permission_required(BomPerms.MANAGE_SOURCING)
-@require_POST
-def import_prices(request):
-    organization = request.user.bom_profile().organization
-    if request.FILES.get('file') is None:
-        messages.error(request, "Choose a vendor prices CSV file to import.")
-        return HttpResponseRedirect(reverse('bom:home'))
-    return _preview_import(request, organization, 'prices', request.FILES['file'].read(),
-                           {'default_seller': request.POST.get('default_seller', '')}, return_url=reverse('bom:home'))
-
-
-@login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.CREATE_PART)
 @require_POST
 def import_confirm(request):
@@ -1126,7 +1141,7 @@ def import_confirm(request):
     pending_import = request.session.get(PENDING_IMPORT_SESSION_KEY)
     if not pending_import or pending_import['token'] != request.POST.get('token'):
         messages.error(request, "This upload preview has expired. Please upload the file again.")
-        return HttpResponseRedirect(reverse('bom:upload-bom'))
+        return HttpResponseRedirect(reverse('bom:import'))
 
     del request.session[PENDING_IMPORT_SESSION_KEY]
     return_url = pending_import['return_url']
@@ -1141,7 +1156,7 @@ def import_confirm(request):
                                             expected_changes_digest=pending_import['changes_digest'])
     except Part.DoesNotExist:
         messages.error(request, "The part this upload was for no longer exists.")
-        return HttpResponseRedirect(reverse('bom:upload-bom'))
+        return HttpResponseRedirect(reverse('bom:import'))
     if not committed:
         return _render_import_preview(
             request, import_form, kind, csv_bytes, pending_import['options'], return_url,
@@ -1174,7 +1189,7 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
         }
 
     context = {
-        'title': 'Review import',
+        'title': f'Review import: {IMPORT_TYPE_NAMES[kind]}',
         'profile': request.user.bom_profile(),
         'kind': kind,
         'row_count': len(import_form.successes),
@@ -1206,26 +1221,6 @@ def _bom_preview_context(bom_csv_form):
         'manufacturers_created': changes['manufacturers_created'],
         'assembly_changes': changes['assemblies'],
     }
-
-
-@login_required(login_url=BOM_LOGIN_URL)
-def upload_parts_help(request):
-    return TemplateResponse(request, 'bom/upload-parts-help.html', locals())
-
-
-@login_required(login_url=BOM_LOGIN_URL)
-@bom_permission_required(BomPerms.CREATE_PART)
-def upload_parts(request):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-    title = 'Upload Parts'
-
-    if request.method == 'POST' and request.FILES.get('file') is not None:
-        return _preview_import(request, organization, 'parts', request.FILES['file'].read(), {},
-                               return_url=reverse('bom:upload-parts'))
-    form = FileForm()
-    return TemplateResponse(request, 'bom/upload-parts.html', locals())
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1291,7 +1286,7 @@ def export_vendor_prices(request):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
-@bom_permission_required(BomPerms.MANAGE_SOURCING)
+@bom_permission_required(BomPerms.CREATE_PART)
 def import_template_prices(request):
     """A vendor prices CSV with two example rows: this organization's own prices when it has any."""
     organization = request.user.bom_profile().organization

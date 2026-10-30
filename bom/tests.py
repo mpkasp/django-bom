@@ -41,7 +41,7 @@ from .helpers import (
     create_some_fake_unit_definitions,
     create_user_and_organization,
 )
-from .services.imports import detect_import_kind, read_csv_header_names, run_import
+from .services.imports import IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from .models import (
     Manufacturer,
     ManufacturerPart,
@@ -142,13 +142,13 @@ class TestBomAuth(TransactionTestCase):
         self._create_semi_intelligent_organization()
         PartClass.objects.all().delete()  # An organization created before starter part classes existed.
 
-        response = self.client.get(reverse('bom:upload-parts'))
+        response = self.client.get(reverse('bom:import'))
         self.assertContains(response, 'Add starter part classes')
 
         self.client.post(reverse('bom:part-class-create-starter'))
         self.assertEqual(PartClass.objects.count(), len(constants.STARTER_PART_CLASSES))
 
-        response = self.client.get(reverse('bom:upload-parts'))
+        response = self.client.get(reverse('bom:import'))
         self.assertNotContains(response, 'Add starter part classes')
 
     def test_create_starter_part_classes_requires_manage_schema(self):
@@ -440,7 +440,7 @@ class TestBOM(TransactionTestCase):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 
         # Test OK page visit
-        response = self.client.get(reverse('bom:upload-bom'))
+        response = self.client.get(reverse('bom:import'))
         self.assertEqual(response.status_code, 200)
 
         # Test OK upload
@@ -882,6 +882,50 @@ class TestBOM(TransactionTestCase):
 
         template_rows = list(csv.reader(io.StringIO(self.client.get(reverse('bom:import-template-prices')).content.decode())))
         self.assertEqual(template_rows, rows[:3])
+
+    def test_import_page_offers_every_type_and_preselects_from_the_query_string(self):
+        response = self.client.get(reverse('bom:import'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([name for _, name in response.context['import_type_choices']],
+                         ['Detect from columns', 'Parts', 'Vendor prices', 'Bill of materials'])
+        self.assertEqual(response.context['selected_type'], 'detect')
+        for import_type in ('parts', 'prices', 'bom'):
+            response = self.client.get(reverse('bom:import'), {'type': import_type})
+            self.assertEqual(response.context['selected_type'], import_type)
+            self.assertContains(response, f'value="{import_type}" checked')
+        self.assertEqual(self.client.get(reverse('bom:import'), {'type': 'unknown'}).context['selected_type'], 'detect')
+
+    def test_import_page_detects_the_type_from_the_file_columns(self):
+        drive, wire = self._create_parts(2)
+        self._create_manufacturer_part(wire, 'MPN-W')
+        create_a_fake_seller_part(Seller.objects.create(name='Mouser', organization=self.organization), wire.primary_manufacturer_part, 1, 1, Decimal('0.5'), 7, Decimal('0'))
+        exports = {
+            'parts': self.client.get(reverse('bom:export-part-list')).content,
+            'prices': self.client.get(reverse('bom:export-vendor-prices')).content,
+            'bom': self._bom_upload_file((0, drive, 1), (1, wire, 2)).read(),
+        }
+        for kind, csv_bytes in exports.items():
+            preview = self.client.post(reverse('bom:import'), {'type': 'detect', 'file': SimpleUploadedFile(f'{kind}.csv', csv_bytes, content_type='text/csv')})
+            self.assertEqual((preview.context['kind'], preview.context['errors']), (kind, []), kind)
+            self.assertEqual(preview.context['title'], f'Review import: {IMPORT_TYPE_NAMES[kind]}')
+            self.assertEqual(preview.context['return_url'], f"{reverse('bom:import')}?type={kind}")
+
+    def test_import_page_without_a_file_shows_the_page_again(self):
+        response = self.client.post(reverse('bom:import'), {'type': 'prices'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['selected_type'], 'prices')
+        self.assertIn('Choose a CSV file to import.', self._upload_feedback(response))
+
+    def test_old_upload_urls_redirect_to_the_import_page(self):
+        import_url = reverse('bom:import')
+        for url_name, target in (('upload-parts', f'{import_url}?type=parts'), ('upload-bom', f'{import_url}?type=bom'),
+                                 ('import-prices', f'{import_url}?type=prices'), ('upload-parts-help', f'{import_url}#parts-columns')):
+            response = self.client.get(reverse(f'bom:{url_name}'))
+            self.assertEqual((response.status_code, response['Location']), (301, target), url_name)
+
+    def test_import_confirm_with_an_expired_token_redirects_to_the_import_page(self):
+        response = self.client.post(reverse('bom:import-confirm'), {'token': 'expired'})
+        self.assertRedirects(response, reverse('bom:import'))
 
     def test_import_template_prices_uses_placeholders_when_the_organization_has_no_prices(self):
         create_some_fake_part_classes(self.organization)
@@ -2536,6 +2580,9 @@ class TestImportServices(TestCase):
         self.assertEqual(detect_import_kind(['part_number', 'seller', 'unit_cost']), 'prices')
         self.assertEqual(detect_import_kind(['manufacturer_part_number', 'part_cost']), 'prices')
         self.assertEqual(detect_import_kind(['part_number', 'revision', 'description']), 'parts')
+        self.assertEqual(detect_import_kind(['part_class', 'description', 'manufacturer_name', 'manufacturer_part_number', 'seller', 'unit_cost']), 'parts')
+        self.assertEqual(detect_import_kind(['part_number', 'property_voltage', 'unit_cost']), 'parts')
+        self.assertEqual(detect_import_kind(['part_number', 'manufacturer_part_number']), 'parts')
         self.assertEqual(detect_import_kind([]), 'parts')
 
     def test_read_csv_header_names(self):

@@ -4,12 +4,13 @@ import io
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import transaction
 
-from bom.csv_headers import BOMIndentedCSVHeaders, SellerPartCSVHeaders
+from bom.csv_headers import BOMIndentedCSVHeaders, PartsListCSVHeadersSemiIntelligent, SellerPartCSVHeaders
 from bom.forms import BOMCSVForm, PartsImportForm, VendorPricesImportForm, open_csv_reader
 from bom.models import Part
 
 IMPORT_FORMS = {'bom': BOMCSVForm, 'parts': PartsImportForm, 'prices': VendorPricesImportForm}
 IMPORT_LABELS = {'bom': 'BOM', 'parts': 'parts', 'prices': 'vendor prices'}
+IMPORT_TYPE_NAMES = {'parts': 'Parts', 'prices': 'Vendor prices', 'bom': 'Bill of materials'}
 
 
 def run_import(organization, kind, csv_bytes, options, expected_changes_digest=None):
@@ -51,10 +52,19 @@ def read_csv_header_names(csv_bytes):
 
 
 def detect_import_kind(header_names):
+    """The import type a file's columns ask for, when the user hasn't chosen one.
+
+    Part-level columns win over price columns because the parts-list export carries both.
+    """
     bom_headers = BOMIndentedCSVHeaders()
-    if bom_headers.count_matches(header_names, 'level') or bom_headers.count_matches(header_names, 'quantity'):
+    if any(bom_headers.count_matches(header_names, name) for name in ('level', 'quantity')):
         return 'bom'
+    parts_headers = PartsListCSVHeadersSemiIntelligent()
+    if any(parts_headers.count_matches(header_names, name) for name in ('description', 'revision', 'part_class')):
+        return 'parts'
+    if any(name.startswith('property_') for name in header_names):
+        return 'parts'
     seller_part_headers = SellerPartCSVHeaders()
-    if seller_part_headers.count_matches(header_names, 'unit_cost') or seller_part_headers.count_matches(header_names, 'seller'):
+    if any(seller_part_headers.count_matches(header_names, name) for name in ('unit_cost', 'seller')):
         return 'prices'
     return 'parts'
