@@ -40,7 +40,7 @@ from .helpers import (
     create_some_fake_parts,
     create_user_and_organization,
 )
-from .services.imports import detect_import_kind, read_csv_header_names
+from .services.imports import detect_import_kind, read_csv_header_names, run_import
 from .models import (
     Manufacturer,
     ManufacturerPart,
@@ -718,6 +718,178 @@ class TestBOM(TransactionTestCase):
         self.client.post(reverse('bom:upload-bom-confirm'), {'token': preview.context['token']})
         self.assertEqual(self._line_counts(drive), {wire: 1})
         self.assertFalse(SellerPart.objects.filter(seller__organization=self.organization).exists())
+
+    def _import_prices_file(self, *rows, header='part_number,seller,unit_cost'):
+        return self._bom_upload_file(*rows, header=header)
+
+    def _create_manufacturer_part(self, part, manufacturer_part_number, manufacturer_name='Murata'):
+        manufacturer, _ = Manufacturer.objects.get_or_create(name=manufacturer_name, organization=self.organization)
+        manufacturer_part = ManufacturerPart.objects.create(part=part, manufacturer_part_number=manufacturer_part_number,
+                                                            manufacturer=manufacturer)
+        part.primary_manufacturer_part = manufacturer_part
+        part.save()
+        return manufacturer_part
+
+    def test_import_prices_creates_prices_for_existing_parts(self):
+        by_number, by_mpn = self._create_parts(2)
+        self._create_manufacturer_part(by_mpn, 'MPN-B')
+        upload = {'file': self._import_prices_file(
+            (by_number, 'MPN-A', 'Mouser', '1.25', ''), ('', 'MPN-B', 'Mouser', '2.50', '10'),
+            header='part_number,manufacturer_part_number,seller,unit_cost,minimum_order_quantity')}
+
+        preview = self.client.post(reverse('bom:import-prices'), upload)
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.context['errors'], [])
+        changes = preview.context['changes']
+        self.assertEqual([row['identifier'] for row in changes['created']],
+                         [f'{by_number.full_part_number()} · Mouser · MOQ 1', f'{by_mpn.full_part_number()} · Mouser · MOQ 10'])
+        self.assertEqual(changes['updated'], [])
+        self.assertEqual(changes['sellers_created'], ['Mouser'])
+        self.assertEqual(changes['manufacturer_parts_created'], [f'{by_number.full_part_number()}: MPN-A'])
+        self.assertIn('2 rows: 2 prices created, 0 updated, 0 unchanged.', preview.content.decode())
+        self.assertFalse(SellerPart.objects.filter(seller__organization=self.organization).exists())
+        self.assertFalse(Seller.objects.filter(organization=self.organization).exists())
+        self.assertFalse(ManufacturerPart.objects.filter(part=by_number).exists())
+
+        response = self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']}, follow=True)
+        self.assertIn('Imported 2 rows: 2 prices created, 0 updated, 0 unchanged.', self._upload_feedback(response))
+        by_number.refresh_from_db()
+        self.assertEqual(by_number.primary_manufacturer_part.manufacturer_part_number, 'MPN-A')
+        first = SellerPart.objects.get(manufacturer_part__part=by_number)
+        self.assertEqual((first.seller.name, first.minimum_order_quantity, first.unit_cost.amount, str(first.unit_cost.currency)),
+                         ('Mouser', 1, Decimal('1.25'), self.organization.currency))
+        second = SellerPart.objects.get(manufacturer_part__part=by_mpn)
+        self.assertEqual((second.minimum_order_quantity, second.unit_cost.amount, second.nre_cost.amount, second.data_source),
+                         (10, Decimal('2.50'), Decimal('0'), None))
+        self.assertEqual(Seller.objects.filter(organization=self.organization).count(), 1)
+
+    def test_import_prices_rejects_unknown_and_ambiguous_parts_without_saving(self):
+        known, first_twin, second_twin, removed = self._create_parts(4)
+        self._create_manufacturer_part(known, 'MPN-K')
+        self._create_manufacturer_part(first_twin, 'MPN-TWIN', 'Murata')
+        self._create_manufacturer_part(second_twin, 'MPN-TWIN', 'Samsung')
+        unknown_part_number = removed.full_part_number()
+        removed.delete()
+        url = reverse('bom:import-prices')
+
+        preview = self.client.post(url, {'file': self._import_prices_file(
+            (known, '', 'Mouser', '1.00'), (unknown_part_number, '', 'Mouser', '1.00'),
+            ('', 'MPN-TWIN', 'Mouser', '1.00'), ('', 'MPN-MISSING', 'Mouser', '1.00'),
+            header='part_number,manufacturer_part_number,seller,unit_cost')})
+        self.assertIsNone(preview.context['token'])
+        errors = ' '.join(preview.context['errors'])
+        self.assertIn(f'Row 3: No part found with part number {unknown_part_number}.', errors)
+        self.assertIn('Row 4: Manufacturer part number MPN-TWIN matches 2 parts', errors)
+        self.assertIn('Row 5: No part found with manufacturer part number MPN-MISSING.', errors)
+        self.assertFalse(SellerPart.objects.filter(seller__organization=self.organization).exists())
+        self.assertFalse(Seller.objects.filter(organization=self.organization).exists())
+        self.assertEqual(Part.objects.filter(organization=self.organization).count(), 3)
+
+        preview = self.client.post(url, {'file': self._import_prices_file(
+            ('', 'MPN-TWIN', 'Samsung', 'Mouser', '1.00'),
+            header='part_number,manufacturer_part_number,manufacturer_name,seller,unit_cost')})
+        self.assertEqual([row['identifier'] for row in preview.context['changes']['created']],
+                         [f'{second_twin.full_part_number()} · Mouser · MOQ 1'])
+
+    def test_import_prices_updates_only_the_provided_fields(self):
+        part, = self._create_parts(1)
+        manufacturer_part = self._create_manufacturer_part(part, 'MPN-1')
+        seller = Seller.objects.create(name='Mouser', organization=self.organization)
+        price = create_a_fake_seller_part(seller, manufacturer_part, 1, 10, Decimal('1.00'), 14, Decimal('5.00'))
+        price.seller_part_number = 'SPN-1'
+        price.save()
+        url = reverse('bom:import-prices')
+
+        preview = self.client.post(url, {'file': self._import_prices_file(
+            (part, 'mouser', '$2.00', '', ''), header='part_number,seller,unit_cost,seller_part_number,nre_cost')})
+        updated = preview.context['changes']['updated']
+        self.assertEqual([(row['identifier'], list(row['fields'])) for row in updated],
+                         [(f'{part.full_part_number()} · Mouser · MOQ 1', ['unit_cost'])])
+        self.assertEqual(preview.context['changes']['sellers_created'], [])
+        self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
+        price.refresh_from_db()
+        self.assertEqual((price.unit_cost.amount, price.nre_cost.amount, price.seller_part_number, price.minimum_pack_quantity, price.lead_time_days),
+                         (Decimal('2.00'), Decimal('5.00'), 'SPN-1', 10, 14))
+
+        self._upload_bom(url, {'file': self._import_prices_file(
+            (part, 'Mouser', '1.50', '100', 'SPN-100'), header='part_number,seller,unit_cost,minimum_order_quantity,seller_part_number')})
+        prices = SellerPart.objects.filter(manufacturer_part=manufacturer_part).order_by('minimum_order_quantity')
+        self.assertEqual([(p.minimum_order_quantity, p.unit_cost.amount, p.seller_part_number, p.lead_time_days) for p in prices],
+                         [(1, Decimal('2.00'), 'SPN-1', 14), (100, Decimal('1.50'), 'SPN-100', None)])
+
+        preview = self.client.post(url, {'file': self._import_prices_file((part, 'Mouser', '2.00'))})
+        self.assertEqual(preview.context['changes'],
+                         {'created': [], 'updated': [], 'unchanged': 1, 'sellers_created': [], 'manufacturer_parts_created': []})
+
+    def test_import_prices_uses_the_default_seller_when_the_file_has_no_seller_column(self):
+        part, bare = self._create_parts(2)
+        self._create_manufacturer_part(part, 'MPN-1')
+        url = reverse('bom:import-prices')
+
+        preview = self.client.post(url, {'file': self._import_prices_file((part, '0.75'), header='part_number,unit_cost')})
+        self.assertIn('Row 2: No vendor given', ' '.join(preview.context['errors']))
+        self.assertFalse(SellerPart.objects.filter(seller__organization=self.organization).exists())
+
+        response = self._upload_bom(url, {'file': self._import_prices_file((part, '0.75'), header='part_number,unit_cost'),
+                                          'default_seller': 'Arrow'})
+        self.assertIn('Imported 1 row: 1 price created, 0 updated, 0 unchanged.', self._upload_feedback(response))
+        price = SellerPart.objects.get(manufacturer_part__part=part)
+        self.assertEqual((price.seller.name, price.unit_cost.amount, price.minimum_order_quantity), ('Arrow', Decimal('0.75'), 1))
+
+        preview = self.client.post(url, {'file': self._import_prices_file((bare, '0.75'), header='part_number,unit_cost'),
+                                         'default_seller': 'Arrow'})
+        self.assertIn('has no manufacturer part', ' '.join(preview.context['errors']))
+        self.assertEqual(SellerPart.objects.filter(seller__organization=self.organization).count(), 1)
+
+    def test_export_vendor_prices_round_trips_as_an_unchanged_import(self):
+        first, second = self._create_parts(2)
+        mouser = Seller.objects.create(name='Mouser', organization=self.organization)
+        digikey = Seller.objects.create(name='Digi-Key', organization=self.organization)
+        first_manufacturer_part = self._create_manufacturer_part(first, 'MPN-1')
+        second_manufacturer_part = self._create_manufacturer_part(second, 'MPN-2', 'Samsung')
+        create_a_fake_seller_part(mouser, first_manufacturer_part, 100, 10, Decimal('1190'), 14, Decimal('0'))
+        create_a_fake_seller_part(mouser, first_manufacturer_part, 1, 1, Decimal('1500.5'), None, Decimal('25'))
+        create_a_fake_seller_part(digikey, second_manufacturer_part, 1, 1, Decimal('0.0125'), 7, Decimal('0'))
+
+        response = self.client.get(reverse('bom:export-vendor-prices'))
+        self.assertEqual(response.status_code, 200)
+        exported = response.content.decode()
+        rows = list(csv.reader(io.StringIO(exported)))
+        self.assertEqual(rows[0], ['part_number', 'manufacturer_name', 'manufacturer_part_number', 'seller', 'seller_part_number',
+                                   'unit_cost', 'minimum_order_quantity', 'nre_cost', 'minimum_pack_quantity', 'lead_time_days'])
+        self.assertEqual([row[:4] + row[6:7] for row in rows[1:]],
+                         [[first.full_part_number(), 'Murata', 'MPN-1', 'Mouser', '1'],
+                          [first.full_part_number(), 'Murata', 'MPN-1', 'Mouser', '100'],
+                          [second.full_part_number(), 'Samsung', 'MPN-2', 'Digi-Key', '1']])
+        self.assertNotIn('$', exported)
+        self.assertEqual((Decimal(rows[2][5]), Decimal(rows[2][7]), rows[2][8], rows[2][9], rows[1][9]), (Decimal('1190'), Decimal('0'), '10', '14', ''))
+        self.assertEqual(detect_import_kind(read_csv_header_names(response.content)), 'prices')
+
+        import_form, committed = run_import(self.organization, 'prices', response.content, {'default_seller': ''})
+        self.assertFalse(committed)
+        self.assertEqual(import_form.errors, {})
+        self.assertEqual(import_form.changes(),
+                         {'created': [], 'updated': [], 'unchanged': 3, 'sellers_created': [], 'manufacturer_parts_created': []})
+        import_form, committed = run_import(self.organization, 'prices', response.content, {'default_seller': ''},
+                                            expected_changes_digest=import_form.changes_digest())
+        self.assertTrue(committed)
+        self.assertEqual(SellerPart.objects.filter(seller__organization=self.organization).count(), 3)
+
+        preview = self.client.post(reverse('bom:import-prices'),
+                                   {'file': SimpleUploadedFile('prices.csv', response.content, content_type='text/csv')})
+        self.assertIn('3 rows: 0 prices created, 0 updated, 3 unchanged.', preview.content.decode())
+
+        template_rows = list(csv.reader(io.StringIO(self.client.get(reverse('bom:import-template-prices')).content.decode())))
+        self.assertEqual(template_rows, rows[:3])
+
+    def test_import_template_prices_uses_placeholders_when_the_organization_has_no_prices(self):
+        create_some_fake_part_classes(self.organization)
+        rows = list(csv.reader(io.StringIO(self.client.get(reverse('bom:import-template-prices')).content.decode())))
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[0][0], 'part_number')
+        self.assertEqual(rows[1][3:7], ['Digi-Key', '490-1234-1-ND', '0.0125', '1'])
+        for row in rows[1:]:
+            Part.parse_part_number(row[0], self.organization)
 
     def test_upload_bom_keeps_missing_lines_when_a_row_is_skipped(self):
         drive, wire, cable = self._create_parts(3)

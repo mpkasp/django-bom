@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 from collections import defaultdict
+from decimal import Decimal, InvalidOperation
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
@@ -14,6 +15,7 @@ from django.db.models import OuterRef, Subquery
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext_lazy as _
 from djmoney.forms.widgets import MoneyWidget
+from djmoney.money import Money
 
 from bom.permissions import BomPerms
 from .constants import (
@@ -28,6 +30,7 @@ from .csv_headers import (
     CSVHeaderError,
     PartClassesCSVHeaders,
     SellerPartCSVHeaders,
+    VendorPricesCSVHeaders,
 )
 from .form_fields import AutocompleteTextInput
 from .models import (
@@ -164,6 +167,10 @@ class BaseCSVForm(OrganizationFormMixin, forms.Form):
 
     def changes_digest(self):
         return hashlib.sha256(json.dumps(self.changes(), sort_keys=True, default=str).encode()).hexdigest()
+
+    def summary(self):
+        """A one-sentence account of the rows, or None to let the caller count them."""
+        return None
 
     def get_csv_headers_handler(self):
         """Subclasses must return the CSV headers handler instance."""
@@ -1725,6 +1732,172 @@ class BOMCSVForm(BaseCSVForm):
             'old_reference': old_reference,
             'new_reference': new_reference,
         }
+
+
+class VendorPricesImportForm(BaseCSVForm):
+    """Creates and updates vendor prices for parts that already exist; it never creates parts or deletes prices.
+
+    A price is identified by (manufacturer part, vendor, minimum order quantity). A blank cell or a
+    missing column leaves the existing value alone.
+    """
+    default_seller = forms.CharField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sellers_created = []
+        self.manufacturer_parts_created = []
+
+    def changes(self):
+        return {
+            **super().changes(),
+            'sellers_created': self.sellers_created,
+            'manufacturer_parts_created': self.manufacturer_parts_created,
+        }
+
+    def summary(self):
+        changes = self.changes()
+        row_count = len(self.successes)
+        created_count = len(changes['created'])
+        return (f"{row_count} row{'s' if row_count != 1 else ''}: "
+                f"{created_count} price{'s' if created_count != 1 else ''} created, "
+                f"{len(changes['updated'])} updated, {changes['unchanged']} unchanged.")
+
+    def get_csv_headers_handler(self):
+        return VendorPricesCSVHeaders()
+
+    def get_header_assertions(self):
+        return [('part_number', 'manufacturer_part_number', 'or')]
+
+    def process_row(self, row_data, row_count, csv_headers):
+        def cell(header_name):
+            return (csv_headers.get_val_from_row(row_data, header_name) or '').strip()
+
+        try:
+            part = self._find_part(cell('part_number'), cell('manufacturer_part_number'), cell('manufacturer_name'))
+            manufacturer_part = self._find_or_create_manufacturer_part(
+                part, cell('manufacturer_part_number'), cell('manufacturer_name'))
+            seller = self._find_or_create_seller(cell('seller') or self.cleaned_data.get('default_seller', ''))
+            minimum_order_quantity = self._parse_quantity(cell('minimum_order_quantity'), 'minimum_order_quantity') or 1
+            provided_values = self._parse_provided_values(cell)
+        except ValueError as error:
+            self.add_error(None, f"Row {row_count}: {error}")
+            return
+
+        identifier = f"{part.full_part_number()} · {seller.name} · MOQ {minimum_order_quantity}"
+        seller_part = SellerPart.objects.filter(
+            manufacturer_part=manufacturer_part, seller=seller, minimum_order_quantity=minimum_order_quantity
+        ).order_by('id').first()
+        if seller_part is None:
+            if 'unit_cost' not in provided_values:
+                self.add_error(None, f"Row {row_count}: unit_cost is required to create the vendor price {identifier}.")
+                return
+            seller_part = SellerPart(manufacturer_part=manufacturer_part, seller=seller,
+                                     minimum_order_quantity=minimum_order_quantity,
+                                     nre_cost=Money(0, self.organization.currency))
+            change = 'created'
+            changed_fields = {name: (None, value) for name, value in provided_values.items()}
+        else:
+            changed_fields = {name: (self._comparable(getattr(seller_part, name)), value)
+                              for name, value in provided_values.items()
+                              if self._comparable(getattr(seller_part, name)) != value}
+            change = 'updated' if changed_fields else 'unchanged'
+        if change != 'unchanged':
+            for name, value in provided_values.items():
+                setattr(seller_part, name, Money(value, self.organization.currency) if name in ('unit_cost', 'nre_cost') else value)
+            seller_part.save()
+        self.record_row_change(change, identifier, changed_fields)
+        self.successes.append(f"Row {row_count}: Vendor price {identifier} {change}.")
+
+    def _find_part(self, part_number, manufacturer_part_number, manufacturer_name):
+        if part_number:
+            try:
+                return Part.from_part_number(part_number, self.organization)
+            except (AttributeError, Part.DoesNotExist):
+                raise ValueError(f"No part found with part number {part_number}.")
+        if not manufacturer_part_number:
+            raise ValueError("A part_number or manufacturer_part_number is required.")
+        manufacturer_parts = ManufacturerPart.objects.filter(
+            part__organization=self.organization, manufacturer_part_number=manufacturer_part_number)
+        if manufacturer_name:
+            manufacturer_parts = manufacturer_parts.filter(manufacturer__name__iexact=manufacturer_name)
+        part_ids = set(manufacturer_parts.values_list('part_id', flat=True))
+        if not part_ids:
+            raise ValueError(f"No part found with manufacturer part number {manufacturer_part_number}.")
+        if len(part_ids) > 1:
+            raise ValueError(f"Manufacturer part number {manufacturer_part_number} matches {len(part_ids)} parts; "
+                             "add a part_number column to say which one.")
+        return Part.objects.get(id=part_ids.pop())
+
+    def _find_or_create_manufacturer_part(self, part, manufacturer_part_number, manufacturer_name):
+        manufacturer_parts = part.manufacturer_parts().order_by('id')
+        if not manufacturer_part_number:
+            manufacturer_part = part.primary_manufacturer_part or manufacturer_parts.first()
+            if manufacturer_part is None:
+                raise ValueError(f"{part.full_part_number()} has no manufacturer part; add a manufacturer_part_number "
+                                 "column or add a manufacturer part first.")
+            return manufacturer_part
+
+        manufacturer_parts = manufacturer_parts.filter(manufacturer_part_number=manufacturer_part_number)
+        if manufacturer_name:
+            manufacturer_parts = manufacturer_parts.filter(manufacturer__name__iexact=manufacturer_name)
+        manufacturer_part = manufacturer_parts.first()
+        if manufacturer_part is not None:
+            return manufacturer_part
+
+        manufacturer = None
+        if manufacturer_name:
+            manufacturer, _ = Manufacturer.objects.get_or_create(
+                name__iexact=manufacturer_name, organization=self.organization, defaults={'name': manufacturer_name})
+        manufacturer_part = ManufacturerPart.objects.create(
+            part=part, manufacturer_part_number=manufacturer_part_number, manufacturer=manufacturer)
+        if part.primary_manufacturer_part is None:
+            part.primary_manufacturer_part = manufacturer_part
+            part.save()
+        self.manufacturer_parts_created.append(
+            f"{part.full_part_number()}: {manufacturer_name + ' ' if manufacturer_name else ''}{manufacturer_part_number}")
+        return manufacturer_part
+
+    def _find_or_create_seller(self, seller_name):
+        if not seller_name:
+            raise ValueError("No vendor given; add a seller column or choose a default vendor.")
+        seller = Seller.objects.filter(organization=self.organization, name__iexact=seller_name).first()
+        if seller is None:
+            seller = Seller.objects.create(organization=self.organization, name=seller_name)
+            self.sellers_created.append(seller_name)
+        return seller
+
+    def _parse_provided_values(self, cell):
+        provided_values = {}
+        for name in ('unit_cost', 'nre_cost'):
+            if cell(name):
+                provided_values[name] = self._parse_cost(cell(name), name)
+        for name in ('minimum_pack_quantity', 'lead_time_days'):
+            if cell(name):
+                provided_values[name] = self._parse_quantity(cell(name), name)
+        if cell('seller_part_number'):
+            provided_values['seller_part_number'] = cell('seller_part_number')
+        return provided_values
+
+    @staticmethod
+    def _parse_cost(raw, name):
+        try:
+            return Decimal(sanitize_cost(raw))
+        except InvalidOperation:
+            raise ValueError(f"{name} '{raw}' is not a number.")
+
+    @staticmethod
+    def _parse_quantity(raw, name):
+        if not raw:
+            return None
+        if not raw.isdigit():
+            raise ValueError(f"{name} '{raw}' is not a whole number.")
+        return int(raw)
+
+    @staticmethod
+    def _comparable(value):
+        if isinstance(value, Money):
+            return value.amount
+        return value if value is not None else ''
 
 
 class UploadBOMForm(OrganizationFormMixin, forms.Form):

@@ -1,0 +1,6 @@
+{% if changes.sellers_created %}
+    <p>New vendor{{ changes.sellers_created|length|pluralize }}: {{ changes.sellers_created|join:", " }}</p>
+{% endif %}
+{% if changes.manufacturer_parts_created %}
+    <p>New manufacturer part{{ changes.manufacturer_parts_created|length|pluralize }}: {{ changes.manufacturer_parts_created|join:"; " }}</p>
+{% endif %}

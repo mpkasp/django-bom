@@ -41,6 +41,7 @@ bom_patterns = [
     path('vendor-part/<int:seller_part_id>/delete/', views.seller_part_delete, name='seller-part-delete'),
 
     path('export/', views.export_part_list, name='export-part-list'),
+    path('export/vendor-prices/', views.export_vendor_prices, name='export-vendor-prices'),
     path('user-meta/<int:user_meta_id>/edit/', views.user_meta_edit, name='user-meta-edit'),
     path('part-class/<int:part_class_id>/edit/', views.part_class_edit, name='part-class-edit'),
     path('part-class/create-starter/', views.part_class_create_starter, name='part-class-create-starter'),
@@ -57,6 +58,8 @@ bom_patterns = [
     path('upload-bom/', views.upload_bom, name='upload-bom'),
     path('upload-bom/confirm/', views.import_confirm, name='upload-bom-confirm'),
     path('import/confirm/', views.import_confirm, name='import-confirm'),
+    path('import/prices/', views.import_prices, name='import-prices'),
+    path('import/template/prices/', views.import_template_prices, name='import-template-prices'),
     path('part/<int:part_id>/', views.part_info, name='part-info'),
     path('part/<int:part_id>/export/', views.part_export_bom, name='part-export-bom'),
     path('part/<int:part_id>/export-sourcing/', views.part_export_bom, name='part-export-bom-sourcing', kwargs={'sourcing': True}),

@@ -75,6 +75,7 @@
                     {% endif %}
                 </div>
                 <div class="col s6 right-align">
+                    <a class="btn-flat waves-effect waves-green tooltipped" data-position="bottom" data-tooltip="Download every vendor price as CSV. Edit and import the file to update prices." href="{% url 'bom:export-vendor-prices' %}">Export vendor prices</a>
                     <a class="button waves-effect waves-green btn-flat btn-icon-round tooltipped" data-position="bottom" data-tooltip="Download results as CSV." href="{% url 'bom:home' %}?download=1"><i
                             class="material-icons">file_download</i></a>
                 </div>

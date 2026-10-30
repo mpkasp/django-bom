@@ -188,6 +188,14 @@ class SellerPartCSVHeaders(CSVHeaders):
     ]
 
 
+class VendorPricesCSVHeaders(CSVHeaders):
+    all_headers_defns = [
+        CSVHeader('part_number', name_options=['part number', 'part no', ]),
+        CSVHeader('manufacturer_name', name_options=['mfg_name', 'manufacturer_name', 'part_manufacturer', 'mfg', 'manufacturer', 'manufacturer name', ]),
+        CSVHeader('manufacturer_part_number', name_options=['mpn', 'mfg_part_number', 'part_manufacturer_part_number', 'mfg part number', 'manufacturer part number']),
+    ] + SellerPartCSVHeaders.all_headers_defns
+
+
 class PartClassesCSVHeaders(CSVHeaders):
     all_headers_defns = [
         CSVHeader('code'),

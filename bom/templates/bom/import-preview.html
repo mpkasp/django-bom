@@ -25,7 +25,7 @@
             </div>
         {% else %}
             <p>
-                {{ row_count }} row{{ row_count|pluralize }} ready to import.
+                {% if summary %}{{ summary }}{% else %}{{ row_count }} row{{ row_count|pluralize }} ready to import.{% endif %}
                 {% if preview_summary_component %}{% include preview_summary_component %}{% endif %}
                 Nothing is saved until you confirm.
             </p>

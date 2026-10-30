@@ -1,5 +1,6 @@
 import base64
 import csv
+import itertools
 import logging
 import operator
 import uuid
@@ -33,6 +34,7 @@ from bom.csv_headers import (
     ManufacturerPartCSVHeaders,
     PartClassesCSVHeaders,
     SellerPartCSVHeaders,
+    VendorPricesCSVHeaders,
 )
 from bom.decorators import bom_permission_required
 from bom.forms import (
@@ -127,7 +129,10 @@ def add_csv_upload_messages(request, csv_form, singular_noun, plural_noun):
     # Reading errors runs the import, which is also what fills in successes and warnings.
     errors = [str(error) for field_errors in csv_form.errors.values() for error in field_errors]
     successes = getattr(csv_form, 'successes', [])
-    if successes:
+    summary = csv_form.summary()
+    if summary:
+        messages.info(request, f"Imported {summary}")
+    elif successes:
         noun = singular_noun if len(successes) == 1 else plural_noun
         messages.info(request, f"Imported {len(successes):,} {noun}.")
     _add_capped_message(request, messages.ERROR, errors, 'error')
@@ -1103,6 +1108,18 @@ def _bom_import_options(request, parent_part):
 
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
+@require_POST
+def import_prices(request):
+    organization = request.user.bom_profile().organization
+    if request.FILES.get('file') is None:
+        messages.error(request, "Choose a vendor prices CSV file to import.")
+        return HttpResponseRedirect(reverse('bom:home'))
+    return _preview_import(request, organization, 'prices', request.FILES['file'].read(),
+                           {'default_seller': request.POST.get('default_seller', '')}, return_url=reverse('bom:home'))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.CREATE_PART)
 @require_POST
 def import_confirm(request):
@@ -1162,6 +1179,7 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
         'profile': request.user.bom_profile(),
         'kind': kind,
         'row_count': len(import_form.successes),
+        'summary': import_form.summary(),
         'changes': import_form.changes(),
         'errors': errors,
         'warnings': import_form.warnings,
@@ -1171,6 +1189,8 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
     }
     if kind == 'bom':
         context.update(_bom_preview_context(import_form))
+    elif kind == 'prices':
+        context['preview_component'] = 'bom/components/import-preview-prices.html'
     return TemplateResponse(request, 'bom/import-preview.html', context)
 
 
@@ -1233,6 +1253,71 @@ def upload_parts_template(request):
         writer.writerow(['C0402X7R100NF', 'Capacitor 100nF 16V 0402 X7R', 'A', 'Murata', 'GRM155R71C104KA88D'])
         writer.writerow(['R0402-10K', 'Resistor 10k 0402 1%', 'A', 'Yageo', 'RC0402FR-0710KL'])
     return response
+
+
+def _vendor_price_rows(organization):
+    """One row per vendor price, in the vendor prices import columns, ordered by part number, vendor and MOQ."""
+    seller_parts = SellerPart.objects.filter(manufacturer_part__part__organization=organization).select_related(
+        'seller', 'manufacturer_part__manufacturer', 'manufacturer_part__part__number_class',
+        'manufacturer_part__part__organization').order_by(
+        'manufacturer_part__part__number_class__code', 'manufacturer_part__part__number_item',
+        'manufacturer_part__part__number_variation', 'seller__name', 'minimum_order_quantity')
+    for seller_part in seller_parts:
+        exported = seller_part.as_dict_for_export()
+        yield {
+            'part_number': seller_part.manufacturer_part.part.full_part_number(),
+            'manufacturer_name': exported['manufacturer_name'],
+            'manufacturer_part_number': exported['manufacturer_part_number'],
+            'seller': exported['seller'],
+            'seller_part_number': exported['seller_part_number'] or '',
+            'unit_cost': exported['unit_cost'],
+            'minimum_order_quantity': exported['minimum_order_quantity'],
+            'nre_cost': exported['nre_cost'],
+            'minimum_pack_quantity': seller_part.minimum_pack_quantity,
+            'lead_time_days': seller_part.lead_time_days if seller_part.lead_time_days is not None else '',
+        }
+
+
+def _vendor_prices_csv_response(filename):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    writer = csv.DictWriter(response, fieldnames=VendorPricesCSVHeaders().get_default_all())
+    writer.writeheader()
+    return response, writer
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def export_vendor_prices(request):
+    organization = request.user.bom_profile().organization
+    response, writer = _vendor_prices_csv_response('indabom_vendor_prices.csv')
+    writer.writerows(_vendor_price_rows(organization))
+    return response
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
+def import_template_prices(request):
+    """A vendor prices CSV with two example rows: this organization's own prices when it has any."""
+    organization = request.user.bom_profile().organization
+    response, writer = _vendor_prices_csv_response('indabom_vendor_prices_template.csv')
+    example_rows = list(itertools.islice(_vendor_price_rows(organization), 2))
+    if not example_rows:
+        part_numbers = _example_part_numbers(organization)
+        example_rows = [
+            dict(zip(writer.fieldnames, [part_numbers[0], 'Murata', 'GRM155R71C104KA88D', 'Digi-Key', '490-1234-1-ND', '0.0125', '1', '0', '1', '14'])),
+            dict(zip(writer.fieldnames, [part_numbers[1], 'Yageo', 'RC0402FR-0710KL', 'Mouser', '603-RC0402FR-0710KL', '0.0041', '1000', '0', '1000', '21'])),
+        ]
+    writer.writerows(example_rows)
+    return response
+
+
+def _example_part_numbers(organization):
+    if organization.number_scheme != constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+        return ['C0402X7R100NF', 'R0402-10K']
+    part_class = PartClass.objects.filter(organization=organization).order_by('code').first()
+    class_code = part_class.code if part_class else '2' * organization.number_class_code_len
+    variation = '-' + '1'.zfill(organization.number_variation_len) if organization.number_variation_len else ''
+    return [f"{class_code}-{str(item).zfill(organization.number_item_len)}{variation}" for item in (1, 2)]
 
 
 @login_required(login_url=BOM_LOGIN_URL)
