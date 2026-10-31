@@ -75,9 +75,24 @@
                     {% endif %}
                 </div>
                 <div class="col s6 right-align">
-                    <a class="btn-flat waves-effect waves-green tooltipped" data-position="bottom" data-tooltip="Download the parts listed below as CSV." href="{% url 'bom:home' %}?download=1{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">Export parts</a>
-                    <a class="btn-flat waves-effect waves-green tooltipped" data-position="bottom" data-tooltip="Download every vendor price as CSV." href="{% url 'bom:export-vendor-prices' %}">Export vendor prices</a>
-                    <div class="grey-text" style="font-size: 0.8rem;">Edit and <a href="{% url 'bom:import' %}">import</a> either file to update.</div>
+                    {% if perms.bom.create_part %}
+                        <a class="btn-flat waves-effect waves-green" href="{% url 'bom:import' %}"><i class="material-icons left">upload_file</i>Import</a>
+                    {% endif %}
+                    <a class="btn-flat waves-effect waves-green dropdown-trigger-export" href="#" data-target="export-menu"><i class="material-icons left">download</i>Export<i class="material-icons right">arrow_drop_down</i></a>
+                    <ul id="export-menu" class="dropdown-content export-menu">
+                        <li><a class="green-text text-lighten-1" href="{% url 'bom:home' %}?download=1{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">
+                            <i class="material-icons green-text text-lighten-1">table_view</i>{% if part_class or query %}Parts shown{% else %}All parts{% endif %} ({{ part_revs.paginator.count }})
+                            <small class="grey-text">{% if part_class or query %}Matches the current search and part class{% else %}Every part in your organization{% endif %}</small></a>
+                        </li>
+                        <li><a class="green-text text-lighten-1" href="{% url 'bom:export-vendor-prices' %}">
+                            <i class="material-icons green-text text-lighten-1">sell</i>All vendor prices
+                            <small class="grey-text">Every price break for every part</small></a>
+                        </li>
+                        {% if perms.bom.create_part %}
+                            <li class="divider" tabindex="-1"></li>
+                            <li class="export-menu-note grey-text">Edit either file and <a href="{% url 'bom:import' %}">import</a> it to update IndaBOM.</li>
+                        {% endif %}
+                    </ul>
                 </div>
             </div>
 
@@ -156,11 +171,11 @@
                                         <li class="divider" tabindex="-1"></li>
                                         <li><a class="green-text text-lighten-1"
                                                href="{% url 'bom:part-revision-export-bom' part_revision_id=part_rev.id %}"><i
-                                                class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (indented)</a>
+                                                class="material-icons green-text text-lighten-1">download</i>Export BOM (indented)</a>
                                         </li>
                                         <li><a class="green-text text-lighten-1"
                                                href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_rev.id %}"><i
-                                                class="material-icons green-text text-lighten-1">cloud_download</i>Download CSV (flat)</a>
+                                                class="material-icons green-text text-lighten-1">download</i>Export BOM (flat)</a>
                                         </li>
                                     </ul>
                                 </td>
@@ -241,6 +256,11 @@
                     coverTrigger: false
                 }
             );
+            $('.dropdown-trigger-export').dropdown({
+                constrainWidth: false,
+                alignment: 'right',
+                coverTrigger: false
+            });
 
             // For tooltips!
             $('.tooltipped').tooltip();

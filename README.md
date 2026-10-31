@@ -136,12 +136,12 @@ deleted except BOM lines you replace. Every import is previewed first and saved 
 
 | Type | Row identity | Creates | Export |
 |---|---|---|---|
-| Parts | `part_number`, else `manufacturer_part_number` | parts, revisions, manufacturer parts, one vendor price per row | Export parts |
-| Vendor prices | manufacturer part + `seller` + `minimum_order_quantity` | price breaks and vendors, never parts | Export vendor prices |
+| Parts | `part_number`, else `manufacturer_part_number` | parts, revisions, manufacturer parts, one vendor price per row | Export all parts |
+| Vendor prices | manufacturer part + `seller` + `minimum_order_quantity` | price breaks and vendors, never parts | Export all vendor prices |
 | Bill of materials | `part_number` or `manufacturer_part_number` per line, nested by `level` | parts and revisions; syncs each listed sub-assembly's lines | indented BOM export |
 
 The Import page detects the type from the file's columns or lets you pick one; `/import/?type=parts|prices|bom`
-preselects it. The former `upload-parts/`, `upload-bom/` and `upload-parts-help/` URLs redirect there.
+preselects it, and `&parent=<part number>` fills in the assembly a BOM import goes into. The former `upload-parts/`, `upload-bom/` and `upload-parts-help/` URLs redirect there.
 
 ## Integrations
 ### Mouser Integration

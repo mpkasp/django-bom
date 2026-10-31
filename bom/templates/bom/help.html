@@ -349,13 +349,13 @@
                 <div class="section">
                     <h2 id="importing">Importing &amp; Exporting Data</h2>
                     <p>Any file IndaBOM exports can be edited and imported back from the
-                        <a href="{% url 'bom:import' %}">Import</a> page (<strong>Import / Export → Import</strong> on
-                        the Home page, or the upload button next to <strong>+</strong>). Rows that match existing
+                        <a href="{% url 'bom:import' %}">Import</a> page (<strong>Import / Export → Import CSV…</strong>,
+                        <strong>Import</strong> above the parts list, or the upload button next to <strong>+</strong>). Rows that match existing
                         records update the fields they provide; blank cells leave values alone; nothing is deleted
-                        except BOM lines you replace. Every import shows a preview of its changes, and nothing is saved
-                        until you confirm. A row with an error blocks the whole import.</p>
-                    <p>The Import page detects the type from the file's columns, or you can pick one. Its
-                        <strong>File formats</strong> section lists every column, with template downloads.</p>
+                        except BOM lines you replace. Every import shows a review of its changes, and nothing is saved
+                        until you click <strong>Import</strong>. A row with an error blocks the whole import.</p>
+                    <p>The Import page detects the type from the file's columns, or you can pick one. It lists
+                        the columns for the chosen type, with links to an export or template to start from.</p>
                 </div>
 
                 <div class="section">
@@ -375,19 +375,21 @@
 
                 <div class="section">
                     <h3>Importing a BOM</h3>
-                    <p>Import an indented BOM from the Import page, or from the Edit BOM page for a specific assembly.
+                    <p>Import an indented BOM from the Import page, or choose <strong>Manage → Import BOM from CSV…</strong>
+                        on an assembly's BOM to import into that assembly.
                         Parts and revisions that don't exist are created and those that do are updated; Released
                         revisions are added as they are and Obsolete revisions are skipped. A sub-assembly with rows
                         beneath it in the file gets exactly those lines; one listed without rows is left alone.</p>
                     <p>Required columns: <code>part_number</code> or <code>manufacturer_part_number</code>; <code>quantity</code>;
-                        and <code>level</code> (nesting depth, unless a parent part is specified in the form).</p>
+                        and <code>level</code> (nesting depth, unless you fill in <strong>Add to assembly</strong>).</p>
                 </div>
 
                 <div class="section">
                     <h3>Exporting</h3>
-                    <p><strong>Export parts</strong> on the Home page downloads your full parts list, one row per part
-                        with its primary manufacturer part and a vendor price. <strong>Export vendor prices</strong>
-                        downloads every price break with plain decimal costs. Both use the import column names, so
+                    <p><strong>Export → Parts shown</strong> above the parts list downloads the parts matching your
+                        search, and <strong>Import / Export → Export all parts</strong> downloads the full list, one
+                        row per part with its primary manufacturer part and a vendor price. <strong>Export all vendor
+                        prices</strong> downloads every price break with plain decimal costs. Both use the import column names, so
                         edit the file and import it to update in bulk. BOM exports (see
                         <a href="#downloading-a-bom">Downloading a BOM</a>) import the same way.</p>
                 </div>

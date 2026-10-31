@@ -9,298 +9,311 @@
 
 {% block content %}
     <style>
-        .import-page details { margin: 16px 0; }
-        .import-page summary { cursor: pointer; font-weight: 500; font-size: 1.1rem; }
-        .import-page table { font-size: 0.9rem; }
-        .import-page .hint { font-size: 0.85rem; margin: 0 0 8px; }
+        .import-page { max-width: 720px; }
+        .import-page .import-label { font-size: 0.9rem; margin: 0 0 8px; opacity: 0.75; }
+        .import-page .hint { font-size: 0.85rem; margin: -8px 0 8px; opacity: 0.75; }
+        .import-rules { margin: 8px 0 24px; }
+        .import-rules .chip { background: rgba(128, 128, 128, 0.15); color: inherit; }
+        .import-rules .chip .material-icons { float: left; font-size: 16px; line-height: 32px; margin-right: 6px; color: #66bb6a; }
+        .import-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .import-kind { display: block; cursor: pointer; color: inherit; font-size: 1rem; }
+        .import-kind > div { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; height: 100%; padding: 12px 14px;
+            border: 1px solid rgba(128, 128, 128, 0.35); border-radius: 6px; }
+        .import-kind .material-icons { grid-row: span 2; opacity: 0.6; }
+        .import-kind b { font-weight: 500; }
+        .import-kind small { font-size: 0.8rem; opacity: 0.7; }
+        .import-kind input:checked + div { border-color: #66bb6a; box-shadow: inset 0 0 0 1px #66bb6a; background: rgba(102, 187, 106, 0.12); }
+        .import-kind input:checked + div .material-icons { color: #66bb6a; opacity: 1; }
+        .import-kind input:focus-visible + div { outline: 2px solid #29b6f6; outline-offset: 2px; }
+        .import-drop { position: relative; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 28px 16px;
+            border: 2px dashed rgba(128, 128, 128, 0.45); border-radius: 8px; color: inherit; font-size: 1rem; text-align: center; }
+        .import-drop input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        .import-drop .material-icons { font-size: 32px; color: #66bb6a; }
+        .import-drop.has-file { border-style: solid; border-color: #66bb6a; background: rgba(102, 187, 106, 0.12); }
+        .import-drop.is-dragging { border-color: #66bb6a; }
+        .import-options { margin-top: 20px; padding: 16px 16px 4px; border-radius: 6px; background: rgba(128, 128, 128, 0.08); }
+        .import-mode label { display: block; margin-bottom: 8px; }
+        .import-mode small { display: block; margin-left: 35px; opacity: 0.7; }
+        .import-actions { margin: 24px 0 12px; }
+        .import-starter { font-size: 0.9rem; opacity: 0.85; }
+        .import-starter .material-icons { font-size: 18px; vertical-align: -4px; margin-right: 4px; color: #66bb6a; }
+        .import-columns { margin: 24px 0; padding-top: 12px; border-top: 1px solid rgba(128, 128, 128, 0.3); }
+        .import-columns summary { cursor: pointer; font-weight: 500; font-size: 1.1rem; }
+        .import-columns table { font-size: 0.9rem; }
+        .import-columns td:first-child { width: 34%; }
+        .import-columns .aka { display: block; font-size: 0.8rem; opacity: 0.7; }
+        @media (max-width: 600px) { .import-kinds { grid-template-columns: 1fr; } }
     </style>
     <div class="container-app import-page">
-        <p>Any file IndaBOM exports can be edited and imported back. Rows that match existing records update the
-            fields they provide; blank cells leave values alone; nothing is deleted except BOM lines you replace.
-            You'll see every change before anything is saved.</p>
+        <p>Add or update parts, vendor prices or a BOM from a CSV. You'll review every change before anything is saved.</p>
+        <div class="import-rules">
+            <span class="chip"><i class="material-icons">sync</i>Matching rows update</span>
+            <span class="chip"><i class="material-icons">horizontal_rule</i>Blank cells are left alone</span>
+            <span class="chip"><i class="material-icons">shield</i>Nothing is deleted<span class="js-for-type" data-type="bom" {% if selected_type != 'bom' %}hidden{% endif %}>&nbsp;except BOM lines you replace</span></span>
+        </div>
 
         {% include 'bom/starter-part-classes-prompt.html' %}
 
-        <div class="row" style="margin-bottom: 0;">
-            <div class="col s12 m8 l6">
-                <div class="card-panel">
-                    <form action="{% url 'bom:import' %}" method="post" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        <p style="margin-top: 0;">
-                            {% for value, name in import_type_choices %}
-                                <label style="margin-right: 16px;">
-                                    <input name="type" type="radio" value="{{ value }}" {% if value == selected_type %}checked{% endif %}/>
-                                    <span>{{ name }}</span>
-                                </label>
-                            {% endfor %}
-                        </p>
+        <form action="{% url 'bom:import' %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <p class="import-label">What's in the file?</p>
+            <div class="import-kinds">
+                {% for value, name, description, icon in import_type_choices %}
+                    <label class="import-kind">
+                        <input name="type" type="radio" value="{{ value }}" {% if value == selected_type %}checked{% endif %}/>
+                        <div><i class="material-icons">{{ icon }}</i><b>{{ name }}</b><small>{{ description }}</small></div>
+                    </label>
+                {% endfor %}
+            </div>
 
-                        <div class="import-options" data-type="bom" {% if selected_type != 'bom' %}hidden{% endif %}>
-                            <div class="row" style="margin-bottom: 0;">
-                                {{ upload_bom_form.parent_part_number|materializecss:'s12' }}
-                            </div>
-                            <p class="hint grey-text text-darken-1" style="margin-top: -8px;">
-                                Optional. Attach all rows as direct children of this assembly. Omit when the CSV includes
-                                a <code>level</code> column. <b>Add to BOM</b> keeps its existing subparts and adds to
-                                their quantities; <b>Replace BOM</b> sets its BOM to match the file.
-                            </p>
-                            <p style="margin: 0 0 8px;">
-                                <label style="margin-right: 16px;"><input name="mode" type="radio" value="add" checked/><span>Add to BOM</span></label>
-                                <label><input name="mode" type="radio" value="replace"/><span>Replace BOM</span></label>
-                            </p>
-                        </div>
+            <label class="import-drop" id="import-drop">
+                <input name="file" type="file" accept=".csv,text/csv" required>
+                <i class="material-icons">upload_file</i>
+                <span id="import-drop-text"><b>Drop a CSV here</b> or click to choose a file</span>
+            </label>
 
-                        <div class="import-options" data-type="prices" {% if selected_type != 'prices' %}hidden{% endif %}>
-                            <div class="input-field">
-                                <input id="default_seller" name="default_seller" type="text" list="seller-names" autocomplete="off">
-                                <label for="default_seller">Default vendor</label>
-                                <datalist id="seller-names">
-                                    {% for name in seller_names %}<option value="{{ name }}">{% endfor %}
-                                </datalist>
-                            </div>
-                            <p class="hint grey-text text-darken-1" style="margin-top: -8px;">
-                                Optional. Used for rows without a <code>seller</code> value; created if it doesn't exist yet.
-                            </p>
-                        </div>
-
-                        <div class="file-field input-field">
-                            <div class="green lighten-1 btn">
-                                <span>Choose file</span>
-                                <input name="file" type="file" accept=".csv,text/csv" required>
-                            </div>
-                            <div class="file-path-wrapper">
-                                <input class="file-path validate" type="text" placeholder="Select a CSV file…">
-                            </div>
-                        </div>
-                        <div style="margin-top: 8px;">
-                            <input class="green lighten-1 btn" type="submit" value="Preview import"/>
-                            <a href="{% url 'bom:home' %}" class="btn-flat grey-text" style="margin-left: 8px;">Cancel</a>
-                        </div>
-                    </form>
+            <div class="import-options js-for-type" data-type="bom" {% if selected_type != 'bom' %}hidden{% endif %}>
+                <div class="row" style="margin-bottom: 0;">
+                    {{ upload_bom_form.parent_part_number|materializecss:'s12' }}
+                </div>
+                <p class="hint">Every row becomes a direct child of this assembly. Leave it empty when the file has a
+                    <code>level</code> column.</p>
+                <div class="import-mode" id="import-mode" {% if not upload_bom_form.parent_part_number.value %}hidden{% endif %}>
+                    <p class="import-label">If the assembly already has a BOM</p>
+                    <label><input name="mode" type="radio" value="add" checked/><span>Add to it</span>
+                        <small>Keep its lines and add to their quantities</small></label>
+                    <label><input name="mode" type="radio" value="replace"/><span>Replace it</span>
+                        <small>Make its BOM match this file</small></label>
                 </div>
             </div>
-        </div>
 
-        <h5 id="help">File formats</h5>
-        <p>The first row holds column names; they are case-insensitive and unrecognized columns are ignored. Each
-            type's columns are below, and an export from IndaBOM already uses them.</p>
+            <div class="import-options js-for-type" data-type="prices" {% if selected_type != 'prices' %}hidden{% endif %}>
+                <div class="input-field">
+                    <input id="default_seller" name="default_seller" type="text" list="seller-names" autocomplete="off">
+                    <label for="default_seller">Default vendor (optional)</label>
+                    <datalist id="seller-names">
+                        {% for name in seller_names %}<option value="{{ name }}">{% endfor %}
+                    </datalist>
+                </div>
+                <p class="hint">Used for rows without a <code>seller</code>. Created if it doesn't exist yet.</p>
+            </div>
 
-        <details id="parts-columns" {% if selected_type == 'parts' %}open{% endif %}>
-            <summary>Parts</summary>
+            <div class="import-actions">
+                <input class="green lighten-1 btn" type="submit" value="Review changes"/>
+                <a href="{% url 'bom:home' %}" class="btn-flat grey-text" style="margin-left: 8px;">Cancel</a>
+            </div>
+        </form>
+
+        <p class="import-starter js-for-type" data-type="detect" {% if selected_type != 'detect' %}hidden{% endif %}>
+            <i class="material-icons">lightbulb</i>Any file IndaBOM exports can be edited and imported back.
+        </p>
+        <p class="import-starter js-for-type" data-type="parts" {% if selected_type != 'parts' %}hidden{% endif %}>
+            <i class="material-icons">lightbulb</i>Start from a file: <a href="{% url 'bom:export-part-list' %}">export
+            your parts</a> or <a href="{% url 'bom:upload-parts-template' %}">download a template</a> set up for your
+            organization's numbering{% if organization.number_scheme == 'S' %} and part classes{% endif %}.
+        </p>
+        <p class="import-starter js-for-type" data-type="prices" {% if selected_type != 'prices' %}hidden{% endif %}>
+            <i class="material-icons">lightbulb</i>Start from a file: <a href="{% url 'bom:export-vendor-prices' %}">export
+            your vendor prices</a> or <a href="{% url 'bom:import-template-prices' %}">download a template</a>.
+        </p>
+        <p class="import-starter js-for-type" data-type="bom" {% if selected_type != 'bom' %}hidden{% endif %}>
+            <i class="material-icons">lightbulb</i>Start from a file: export an assembly's BOM from its
+            <b>Manage</b> menu, or
+            {% if organization.number_scheme == 'S' %}
+                <a href="{% static 'bom/doc/test_full_bom.csv' %}">download a sample</a>.
+            {% else %}
+                <a href="{% static 'bom/doc/test_bom_5_intelligent.csv' %}">download a sample</a>.
+            {% endif %}
+        </p>
+
+        <details class="import-columns js-for-type" id="parts-columns" data-type="parts" {% if selected_type != 'parts' %}hidden{% endif %}>
+            <summary>Columns for parts</summary>
             <p>Each row is one part. A row that names an existing part (by part number, or by manufacturer part number)
-                updates it; any other row creates a part. Part classes are never changed by an import.
-                <a href="{% url 'bom:upload-parts-template' %}">Download a template CSV</a> set up for your
-                organization's numbering{% if organization.number_scheme == 'S' %} and part classes{% endif %}, or
-                edit an <a href="{% url 'bom:export-part-list' %}">export of your parts list</a>.</p>
-            <div class="responsive-table-wrapper">
-                <table class="striped">
-                    <thead>
+                updates it; any other row creates a part. Part classes are never changed by an import. Column names are
+                case-insensitive and unrecognized columns are ignored.</p>
+            <table class="striped">
+                <tbody>
+                {% if organization.number_scheme == 'S' %}
                     <tr>
-                        <th style="width:22%">Column</th>
-                        <th style="width:18%">Accepted names</th>
-                        <th>Notes</th>
+                        <td><code>part_class</code> <em>or</em> <code>part_number</code>
+                            <span class="aka">also: class, part_category</span></td>
+                        <td>Provide one or both. <code>part_class</code> is the class code (e.g. <code>500</code>)
+                            and IndaBOM assigns the next item number. <code>part_number</code> is a full number
+                            like <code>{{ organization.example_part_number }}</code>; an existing number updates
+                            that part. When both are given, <code>part_number</code> wins.</td>
                     </tr>
-                    </thead>
-                    <tbody>
-                    {% if organization.number_scheme == 'S' %}
-                        <tr>
-                            <td><code>part_class</code> <em>or</em> <code>part_number</code></td>
-                            <td><code>class</code>, <code>part_category</code></td>
-                            <td>Provide one or both. <code>part_class</code> is the class code (e.g. <code>500</code>)
-                                and IndaBOM assigns the next item number. <code>part_number</code> is a full number
-                                like <code>{{ organization.example_part_number }}</code>; an existing number updates
-                                that part. When both are given, <code>part_number</code> wins.</td>
-                        </tr>
-                    {% else %}
-                        <tr>
-                            <td><code>part_number</code></td>
-                            <td><code>part number</code>, <code>part no</code></td>
-                            <td>Any unique number, e.g. <code>{{ organization.example_part_number }}</code>. An
-                                existing number updates that part.</td>
-                        </tr>
-                    {% endif %}
+                {% else %}
                     <tr>
-                        <td><code>revision</code></td>
-                        <td><code>rev</code>, <code>part_revision</code></td>
-                        <td>Up to 4 characters. Required to create a part. For an existing part it picks the revision
-                            to update: the latest when the column is left out, a new revision when the value is
-                            unknown. Released and Obsolete revisions keep their description and properties.</td>
+                        <td><code>part_number</code><span class="aka">also: part number, part no</span></td>
+                        <td>Any unique number, e.g. <code>{{ organization.example_part_number }}</code>. An
+                            existing number updates that part.</td>
                     </tr>
-                    <tr>
-                        <td><code>description</code></td>
-                        <td><code>desc</code></td>
-                        <td>Up to 255 characters. Required to create a part; blank keeps an existing description.</td>
-                    </tr>
-                    <tr>
-                        <td><code>manufacturer_name</code><br><code>manufacturer_part_number</code></td>
-                        <td><code>manufacturer</code>, <code>mfg</code><br><code>mpn</code>, <code>mfg_part_number</code></td>
-                        <td>Include both to attach a manufacturer part; the manufacturer is created if unknown.
-                            <code>manufacturer_part_number</code> also identifies an existing part when
-                            <code>part_number</code> is blank. A new pair is added to the part; the primary
-                            manufacturer part is never changed.</td>
-                    </tr>
-                    <tr>
-                        <td><code>seller</code>, <code>unit_cost</code>, <code>nre_cost</code>, …</td>
-                        <td></td>
-                        <td>One vendor price per row, using the vendor prices columns below. Requires a manufacturer
-                            part; <code>unit_cost</code> is required to create a price.</td>
-                    </tr>
-                    <tr>
-                        <td><code>property_&lt;code&gt;</code></td>
-                        <td>the property's name</td>
-                        <td>Custom properties defined in <a href="{% url 'bom:settings' 'indabom' %}">Settings →
-                            IndaBOM</a>. <code>property_&lt;code&gt;_units</code> holds the unit symbol (e.g.
-                            <code>mV</code>) for a property with a quantity of measure.</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
+                {% endif %}
+                <tr>
+                    <td><code>revision</code><span class="aka">also: rev, part_revision</span></td>
+                    <td>Up to 4 characters. Required to create a part. For an existing part it picks the revision
+                        to update: the latest when the column is left out, a new revision when the value is
+                        unknown. Released and Obsolete revisions keep their description and properties.</td>
+                </tr>
+                <tr>
+                    <td><code>description</code><span class="aka">also: desc</span></td>
+                    <td>Up to 255 characters. Required to create a part; blank keeps an existing description.</td>
+                </tr>
+                <tr>
+                    <td><code>manufacturer_name</code><br><code>manufacturer_part_number</code>
+                        <span class="aka">also: manufacturer, mfg, mpn, mfg_part_number</span></td>
+                    <td>Include both to attach a manufacturer part; the manufacturer is created if unknown.
+                        <code>manufacturer_part_number</code> also identifies an existing part when
+                        <code>part_number</code> is blank. A new pair is added to the part; the primary
+                        manufacturer part is never changed.</td>
+                </tr>
+                <tr>
+                    <td><code>seller</code>, <code>unit_cost</code>, <code>nre_cost</code>, …</td>
+                    <td>One vendor price per row, using the vendor prices columns. Requires a manufacturer
+                        part; <code>unit_cost</code> is required to create a price.</td>
+                </tr>
+                <tr>
+                    <td><code>property_&lt;code&gt;</code><span class="aka">also: the property's name</span></td>
+                    <td>Custom properties defined in <a href="{% url 'bom:settings' 'indabom' %}">Settings →
+                        IndaBOM</a>. <code>property_&lt;code&gt;_units</code> holds the unit symbol (e.g.
+                        <code>mV</code>) for a property with a quantity of measure.</td>
+                </tr>
+                </tbody>
+            </table>
         </details>
 
-        <details id="prices-columns" {% if selected_type == 'prices' %}open{% endif %}>
-            <summary>Vendor prices</summary>
+        <details class="import-columns js-for-type" id="prices-columns" data-type="prices" {% if selected_type != 'prices' %}hidden{% endif %}>
+            <summary>Columns for vendor prices</summary>
             <p>Each row is one price break, identified by manufacturer part, vendor and minimum order quantity. A
-                matching price is updated, any other row creates one, and parts are never created.
-                <a href="{% url 'bom:import-template-prices' %}">Download a template CSV</a>, or edit an
-                <a href="{% url 'bom:export-vendor-prices' %}">export of your vendor prices</a>.</p>
-            <div class="responsive-table-wrapper">
-                <table class="striped">
-                    <thead>
-                    <tr>
-                        <th style="width:22%">Column</th>
-                        <th style="width:18%">Accepted names</th>
-                        <th>Notes</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr>
-                        <td><code>part_number</code> <em>or</em><br><code>manufacturer_part_number</code></td>
-                        <td><code>part number</code><br><code>mpn</code>, <code>mfg_part_number</code></td>
-                        <td>Identifies an existing part. With <code>manufacturer_name</code> the pair identifies the
-                            manufacturer part; a part without one gets it created.</td>
-                    </tr>
-                    <tr>
-                        <td><code>seller</code></td>
-                        <td><code>part_seller</code></td>
-                        <td>Vendor name, created if unknown. Rows without one use the default vendor chosen above.</td>
-                    </tr>
-                    <tr>
-                        <td><code>unit_cost</code></td>
-                        <td><code>part_cost</code></td>
-                        <td>Cost per unit in your organization's currency. Currency symbols and thousands separators
-                            are accepted. Required to create a price.</td>
-                    </tr>
-                    <tr>
-                        <td><code>minimum_order_quantity</code></td>
-                        <td><code>moq</code></td>
-                        <td>Part of the price's identity; blank means 1.</td>
-                    </tr>
-                    <tr>
-                        <td><code>nre_cost</code></td>
-                        <td><code>nre</code></td>
-                        <td>Non-recurring engineering cost.</td>
-                    </tr>
-                    <tr>
-                        <td><code>seller_part_number</code></td>
-                        <td><code>seller_pn</code>, <code>spn</code></td>
-                        <td>The vendor's own catalog number.</td>
-                    </tr>
-                    <tr>
-                        <td><code>minimum_pack_quantity</code></td>
-                        <td><code>mpq</code></td>
-                        <td>Pack or reel size.</td>
-                    </tr>
-                    <tr>
-                        <td><code>lead_time_days</code></td>
-                        <td><code>lead_time</code>, <code>lt</code></td>
-                        <td>Lead time in days.</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
+                matching price is updated, any other row creates one, and parts are never created. Column names are
+                case-insensitive and unrecognized columns are ignored.</p>
+            <table class="striped">
+                <tbody>
+                <tr>
+                    <td><code>part_number</code> <em>or</em><br><code>manufacturer_part_number</code>
+                        <span class="aka">also: part number, mpn, mfg_part_number</span></td>
+                    <td>Identifies an existing part. With <code>manufacturer_name</code> the pair identifies the
+                        manufacturer part; a part without one gets it created.</td>
+                </tr>
+                <tr>
+                    <td><code>seller</code><span class="aka">also: part_seller</span></td>
+                    <td>Vendor name, created if unknown. Rows without one use the default vendor.</td>
+                </tr>
+                <tr>
+                    <td><code>unit_cost</code><span class="aka">also: part_cost</span></td>
+                    <td>Cost per unit in your organization's currency. Currency symbols and thousands separators
+                        are accepted. Required to create a price.</td>
+                </tr>
+                <tr>
+                    <td><code>minimum_order_quantity</code><span class="aka">also: moq</span></td>
+                    <td>Part of the price's identity; blank means 1.</td>
+                </tr>
+                <tr>
+                    <td><code>nre_cost</code><span class="aka">also: nre</span></td>
+                    <td>Non-recurring engineering cost.</td>
+                </tr>
+                <tr>
+                    <td><code>seller_part_number</code><span class="aka">also: seller_pn, spn</span></td>
+                    <td>The vendor's own catalog number.</td>
+                </tr>
+                <tr>
+                    <td><code>minimum_pack_quantity</code><span class="aka">also: mpq</span></td>
+                    <td>Pack or reel size.</td>
+                </tr>
+                <tr>
+                    <td><code>lead_time_days</code><span class="aka">also: lead_time, lt</span></td>
+                    <td>Lead time in days.</td>
+                </tr>
+                </tbody>
+            </table>
         </details>
 
-        <details id="bom-columns" {% if selected_type == 'bom' %}open{% endif %}>
-            <summary>Bill of materials</summary>
+        <details class="import-columns js-for-type" id="bom-columns" data-type="bom" {% if selected_type != 'bom' %}hidden{% endif %}>
+            <summary>Columns for a bill of materials</summary>
             <p>Each row is one BOM line. Parts and revisions are created if they don't exist, or updated if they do.
                 Released revisions are added as they are and Obsolete revisions are skipped. When a sub-assembly has
                 rows beneath it in the file, its BOM is set to match those rows; a sub-assembly listed without rows
-                beneath it is left alone. Vendor price columns are ignored.
-                {% if organization.number_scheme == 'S' %}
-                    <a href="{% static 'bom/doc/test_full_bom.csv' %}">Download a sample CSV</a>
-                {% else %}
-                    <a href="{% static 'bom/doc/test_bom_5_intelligent.csv' %}">Download a sample CSV</a>
-                {% endif %}
-                or edit an indented BOM export.</p>
-            <div class="responsive-table-wrapper">
-                <table class="striped">
-                    <thead>
-                    <tr>
-                        <th style="width:22%">Column</th>
-                        <th style="width:18%">Accepted names</th>
-                        <th>Notes</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr>
-                        <td><code>part_number</code> <em>or</em><br><code>manufacturer_part_number</code></td>
-                        <td><code>part number</code><br><code>mpn</code>, <code>mfg_part_number</code></td>
-                        <td>Identifies the subpart. The part must already exist when using
-                            <code>manufacturer_part_number</code>.</td>
-                    </tr>
-                    <tr>
-                        <td><code>quantity</code></td>
-                        <td><code>count</code>, <code>qty</code></td>
-                        <td>Defaults to 1 if empty.</td>
-                    </tr>
-                    <tr>
-                        <td><code>level</code></td>
-                        <td></td>
-                        <td>Nesting depth (1 = direct child). Required unless a <strong>Parent part number</strong>
-                            is given above, in which case all rows are treated as level 1.</td>
-                    </tr>
-                    <tr>
-                        <td><code>reference</code></td>
-                        <td><code>designator</code></td>
-                        <td>Comma-separated list (e.g. <code>R1, R2</code>). Count must match quantity.</td>
-                    </tr>
-                    <tr>
-                        <td><code>do_not_load</code></td>
-                        <td><code>dnl</code>, <code>dnp</code></td>
-                        <td>Mark as Do Not Load. Values: <code>y</code>, <code>x</code>, <code>yes</code>,
-                            <code>true</code>.</td>
-                    </tr>
-                    <tr>
-                        <td><code>revision</code></td>
-                        <td><code>rev</code></td>
-                        <td>Target revision. Defaults to <code>1</code> if omitted.</td>
-                    </tr>
-                    <tr>
-                        <td><code>description</code></td>
-                        <td><code>desc</code></td>
-                        <td>Part description, up to 255 characters.</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
+                beneath it is left alone. Vendor price columns are ignored.</p>
+            <table class="striped">
+                <tbody>
+                <tr>
+                    <td><code>part_number</code> <em>or</em><br><code>manufacturer_part_number</code>
+                        <span class="aka">also: part number, mpn, mfg_part_number</span></td>
+                    <td>Identifies the subpart. The part must already exist when using
+                        <code>manufacturer_part_number</code>.</td>
+                </tr>
+                <tr>
+                    <td><code>quantity</code><span class="aka">also: count, qty</span></td>
+                    <td>Defaults to 1 if empty.</td>
+                </tr>
+                <tr>
+                    <td><code>level</code></td>
+                    <td>Nesting depth (1 = direct child). Not needed when you fill in <strong>Add to
+                        assembly</strong>; every row is then a direct child.</td>
+                </tr>
+                <tr>
+                    <td><code>reference</code><span class="aka">also: designator</span></td>
+                    <td>Comma-separated list (e.g. <code>R1, R2</code>). Count must match quantity.</td>
+                </tr>
+                <tr>
+                    <td><code>do_not_load</code><span class="aka">also: dnl, dnp</span></td>
+                    <td>Mark as Do Not Load. Values: <code>y</code>, <code>x</code>, <code>yes</code>,
+                        <code>true</code>.</td>
+                </tr>
+                <tr>
+                    <td><code>revision</code><span class="aka">also: rev</span></td>
+                    <td>Target revision. Defaults to <code>1</code> if omitted.</td>
+                </tr>
+                <tr>
+                    <td><code>description</code><span class="aka">also: desc</span></td>
+                    <td>Part description, up to 255 characters.</td>
+                </tr>
+                </tbody>
+            </table>
         </details>
     </div>
 {% endblock %}
 
 {% block bom-script %}
     <script>
-        function showImportOptions() {
+        function showImportType() {
             var selectedType = document.querySelector('input[name="type"]:checked').value;
-            document.querySelectorAll('.import-options').forEach(function (options) {
-                options.hidden = options.dataset.type !== selectedType;
+            document.querySelectorAll('.js-for-type').forEach(function (element) {
+                element.hidden = element.dataset.type !== selectedType;
             });
         }
         document.querySelectorAll('input[name="type"]').forEach(function (radio) {
-            radio.addEventListener('change', showImportOptions);
+            radio.addEventListener('change', showImportType);
         });
+
         var linkedColumns = location.hash && document.getElementById(location.hash.slice(1));
         if (linkedColumns && linkedColumns.tagName === 'DETAILS') {
+            document.querySelector('input[name="type"][value="' + linkedColumns.dataset.type + '"]').checked = true;
+            showImportType();
             linkedColumns.open = true;
         }
+
+        var drop = document.getElementById('import-drop');
+        var fileInput = drop.querySelector('input[type=file]');
+        var dropText = document.getElementById('import-drop-text');
+        fileInput.addEventListener('change', function () {
+            var file = fileInput.files[0];
+            drop.classList.toggle('has-file', Boolean(file));
+            dropText.innerHTML = file ? '<b></b> &middot; click to choose another file' : '<b>Drop a CSV here</b> or click to choose a file';
+            if (file) {
+                dropText.querySelector('b').textContent = file.name;
+            }
+        });
+        ['dragenter', 'dragover'].forEach(function (eventName) {
+            fileInput.addEventListener(eventName, function () { drop.classList.add('is-dragging'); });
+        });
+        ['dragleave', 'drop'].forEach(function (eventName) {
+            fileInput.addEventListener(eventName, function () { drop.classList.remove('is-dragging'); });
+        });
+
+        var parentPartNumber = document.getElementById('id_parent_part_number');
+        parentPartNumber.addEventListener('input', function () {
+            document.getElementById('import-mode').hidden = !parentPartNumber.value.trim();
+        });
     </script>
 {% endblock %}

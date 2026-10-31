@@ -6,10 +6,27 @@
 
 {% block content %}
     <style>
+        .import-preview { max-width: 900px; }
         .import-preview details { margin: 8px 0; }
         .import-preview summary { cursor: pointer; font-weight: 500; }
         .import-preview table { font-size: 0.9rem; }
         .import-preview .assembly-change { margin-top: 24px; }
+        .import-counts { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+        .import-count { padding: 4px 12px; border-radius: 16px; background: rgba(128, 128, 128, 0.15); }
+        .import-count b { font-variant-numeric: tabular-nums; }
+        .import-count.new b { color: #66bb6a; }
+        .import-count.updated b { color: #29b6f6; }
+        .import-count.removed b { color: #ef5350; }
+        .import-count.warning { background: rgba(255, 179, 0, 0.2); }
+        .import-diff { margin-top: 16px; }
+        .import-diff td { vertical-align: top; font-variant-numeric: tabular-nums; }
+        .import-diff .old-value { text-decoration: line-through; opacity: 0.6; }
+        .import-diff .new-value { color: #66bb6a; font-weight: 500; }
+        .import-diff .new-tag { margin-left: 6px; padding: 1px 6px; border-radius: 3px; font-size: 0.7rem; text-transform: uppercase;
+            letter-spacing: 0.05em; color: #66bb6a; background: rgba(102, 187, 106, 0.15); }
+        .import-confirm-bar { position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;
+            gap: 8px; margin-top: 24px; padding: 12px 0; border-top: 1px solid rgba(128, 128, 128, 0.3); background: var(--color-background, #fff); }
+        .import-confirm-bar .note { margin-right: auto; opacity: 0.75; }
     </style>
     <div class="container-app import-preview">
         {% if notice %}
@@ -18,17 +35,24 @@
 
         {% if errors %}
             <div class="card-panel red lighten-4">
-                <p><b>Fix these rows and upload the file again.</b> Nothing has been saved.</p>
+                <p style="margin-top: 0;"><b>Fix {% if errors|length == 1 %}this problem{% else %}these {{ errors|length }} problems{% endif %} and import the file again.</b> Nothing has been saved.</p>
                 <ul class="browser-default">
                     {% for error in errors %}<li>{{ error }}</li>{% endfor %}
                 </ul>
             </div>
+            <a href="{{ return_url }}" class="green lighten-1 btn">Choose another file</a>
         {% else %}
-            <p>
-                {% if summary %}{{ summary }}{% else %}{{ row_count }} row{{ row_count|pluralize }} ready to import.{% endif %}
-                {% if preview_summary_component %}{% include preview_summary_component %}{% endif %}
-                Nothing is saved until you confirm.
-            </p>
+            <div class="import-counts">
+                {% for count in change_counts %}
+                    <span class="import-count {{ count.kind }}"><b>{{ count.number }}</b> {{ count.label }}</span>
+                {% empty %}
+                    <span class="import-count">No changes</span>
+                {% endfor %}
+                {% if warnings %}
+                    <span class="import-count warning"><b>{{ warnings|length }}</b> warning{{ warnings|length|pluralize }}</span>
+                {% endif %}
+            </div>
+            {% if preview_summary_component %}<p>{% include preview_summary_component %}</p>{% endif %}
         {% endif %}
 
         {% if warnings %}
@@ -39,50 +63,58 @@
             </div>
         {% endif %}
 
-        <form action="{% url 'bom:import-confirm' %}" method="post">
-            {% csrf_token %}
-            {% if token %}
-                <input type="hidden" name="token" value="{{ token }}">
-                <input class="green lighten-1 btn" type="submit" name="confirm" value="Confirm import"/>
-                <input class="btn-flat grey-text" type="submit" name="cancel" value="Cancel"/>
-            {% else %}
-                <a href="{{ return_url }}" class="btn-flat grey-text">Back</a>
-            {% endif %}
-        </form>
+        {% if not errors %}
+            {% if preview_component %}{% include preview_component %}{% endif %}
 
-        {% if preview_component %}{% include preview_component %}{% endif %}
-
-        {% if changes.created %}
-            <h6 style="margin-top: 32px;">{{ changes.created|length }} row{{ changes.created|length|pluralize }} created</h6>
-            <ul class="browser-default">
-                {% for row in changes.created %}<li>{{ row.identifier }}</li>{% endfor %}
-            </ul>
-        {% endif %}
-        {% if changes.updated %}
-            <h6 style="margin-top: 32px;">{{ changes.updated|length }} row{{ changes.updated|length|pluralize }} updated</h6>
-            <table class="striped">
-                <thead>
-                <tr>
-                    <th>Row</th>
-                    <th>Field</th>
-                    <th>Change</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for row in changes.updated %}
-                    {% for field_name, values in row.fields.items %}
-                        <tr>
-                            <td>{% if forloop.first %}{{ row.identifier }}{% endif %}</td>
-                            <td>{{ field_name }}</td>
-                            <td>{{ values.0|default:"–" }} &rarr; {{ values.1|default:"–" }}</td>
-                        </tr>
+            {% if changes.created or changes.updated %}
+                <table class="striped import-diff">
+                    <thead>
+                    <tr>
+                        <th>{% if kind == 'prices' %}Price{% else %}Part{% endif %}</th>
+                        <th>Field</th>
+                        <th>Change</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in changes.created %}
+                        {% for field_name, values in row.fields.items %}
+                            <tr>
+                                <td>{% if forloop.first %}{{ row.identifier }}<span class="new-tag">new</span>{% endif %}</td>
+                                <td>{{ field_name }}</td>
+                                <td class="new-value">{{ values.1|default:"–" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td>{{ row.identifier }}<span class="new-tag">new</span></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                        {% endfor %}
                     {% endfor %}
-                {% endfor %}
-                </tbody>
-            </table>
-        {% endif %}
-        {% if changes.unchanged %}
-            <p class="grey-text">{{ changes.unchanged }} row{{ changes.unchanged|pluralize }} unchanged.</p>
+                    {% for row in changes.updated %}
+                        {% for field_name, values in row.fields.items %}
+                            <tr>
+                                <td>{% if forloop.first %}{{ row.identifier }}{% endif %}</td>
+                                <td>{{ field_name }}</td>
+                                <td><span class="old-value">{{ values.0|default:"–" }}</span> &rarr; <span class="new-value">{{ values.1|default:"–" }}</span></td>
+                            </tr>
+                        {% endfor %}
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+            {% if changes.unchanged %}
+                <p class="grey-text">{{ changes.unchanged }} row{{ changes.unchanged|pluralize:" matches,s match" }} what's already in IndaBOM.</p>
+            {% endif %}
+
+            <form class="import-confirm-bar" action="{% url 'bom:import-confirm' %}" method="post">
+                {% csrf_token %}
+                <span class="note">Nothing is saved until you import.</span>
+                <input type="hidden" name="token" value="{{ token }}">
+                <input class="btn-flat grey-text" type="submit" name="cancel" value="Cancel"/>
+                <input class="green lighten-1 btn" type="submit" name="confirm"
+                       value="Import{% if change_count %} {{ change_count }} change{{ change_count|pluralize }}{% endif %}"/>
+            </form>
         {% endif %}
     </div>
 {% endblock %}
