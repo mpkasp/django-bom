@@ -42,7 +42,7 @@ from .helpers import (
     create_some_fake_unit_definitions,
     create_user_and_organization,
 )
-from .services.imports import IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
+from .services.imports import IMPORT_LABELS, detect_import_kind, read_csv_header_names, run_import
 from .models import (
     Manufacturer,
     ManufacturerPart,
@@ -683,10 +683,13 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(assembly_change['part_number'], drive.full_part_number())
         self.assertEqual([(line['change'], line['part_number']) for line in assembly_change['lines']],
                          [('removed', wire.full_part_number()), ('added', cable.full_part_number())])
+        self.assertEqual([(count['number'], count['label']) for count in preview.context['change_counts']],
+                         [(1, 'line added'), (1, 'line removed')])
+        self.assertContains(preview, 'value="Import 2 changes"')
 
         self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token'], 'cancel': 'Cancel'})
         response = self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']}, follow=True)
-        self.assertIn('This upload preview has expired', self._upload_feedback(response))
+        self.assertIn('This import preview has expired', self._upload_feedback(response))
         self.assertEqual(self._line_counts(drive), {wire: 15})
 
     def test_upload_bom_confirm_rejects_a_stale_preview(self):
@@ -748,7 +751,8 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(changes['updated'], [])
         self.assertEqual(changes['sellers_created'], ['Mouser'])
         self.assertEqual(changes['manufacturer_parts_created'], [f'{by_number.full_part_number()}: MPN-A'])
-        self.assertIn('2 rows: 2 prices created, 0 updated, 0 unchanged.', preview.content.decode())
+        self.assertEqual(preview.context['change_counts'], [{'number': 2, 'label': 'new', 'kind': 'new'}])
+        self.assertContains(preview, 'value="Import 2 changes"')
         self.assertFalse(SellerPart.objects.filter(seller__organization=self.organization).exists())
         self.assertFalse(Seller.objects.filter(organization=self.organization).exists())
         self.assertFalse(ManufacturerPart.objects.filter(part=by_number).exists())
@@ -879,7 +883,8 @@ class TestBOM(TransactionTestCase):
 
         preview = self.client.post(reverse('bom:import'),
                                    {'type': 'prices', 'file': SimpleUploadedFile('prices.csv', response.content, content_type='text/csv')})
-        self.assertIn('3 rows: 0 prices created, 0 updated, 3 unchanged.', preview.content.decode())
+        self.assertEqual(preview.context['change_counts'], [{'number': 3, 'label': 'unchanged', 'kind': 'unchanged'}])
+        self.assertContains(preview, '3 rows match what')
 
         template_rows = list(csv.reader(io.StringIO(self.client.get(reverse('bom:import-template-prices')).content.decode())))
         self.assertEqual(template_rows, rows[:3])
@@ -887,14 +892,20 @@ class TestBOM(TransactionTestCase):
     def test_import_page_offers_every_type_and_preselects_from_the_query_string(self):
         response = self.client.get(reverse('bom:import'))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([name for _, name in response.context['import_type_choices']],
-                         ['Detect from columns', 'Parts', 'Vendor prices', 'Bill of materials'])
+        self.assertEqual([choice[1] for choice in response.context['import_type_choices']],
+                         ['Detect automatically', 'Parts', 'Vendor prices', 'Bill of materials'])
         self.assertEqual(response.context['selected_type'], 'detect')
         for import_type in ('parts', 'prices', 'bom'):
             response = self.client.get(reverse('bom:import'), {'type': import_type})
             self.assertEqual(response.context['selected_type'], import_type)
             self.assertContains(response, f'value="{import_type}" checked')
         self.assertEqual(self.client.get(reverse('bom:import'), {'type': 'unknown'}).context['selected_type'], 'detect')
+
+    def test_import_page_fills_in_the_assembly_from_the_query_string(self):
+        response = self.client.get(reverse('bom:import'), {'type': 'bom', 'parent': '100-0001-00'})
+        self.assertContains(response, 'value="100-0001-00"')
+        self.assertNotContains(response, 'id="import-mode" hidden')
+        self.assertContains(self.client.get(reverse('bom:import'), {'type': 'bom'}), 'id="import-mode" hidden')
 
     def test_import_page_detects_the_type_from_the_file_columns(self):
         drive, wire = self._create_parts(2)
@@ -908,7 +919,7 @@ class TestBOM(TransactionTestCase):
         for kind, csv_bytes in exports.items():
             preview = self.client.post(reverse('bom:import'), {'type': 'detect', 'file': SimpleUploadedFile(f'{kind}.csv', csv_bytes, content_type='text/csv')})
             self.assertEqual((preview.context['kind'], preview.context['errors']), (kind, []), kind)
-            self.assertEqual(preview.context['title'], f'Review import: {IMPORT_TYPE_NAMES[kind]}')
+            self.assertEqual(preview.context['title'], f'Review {IMPORT_LABELS[kind]}')
             self.assertEqual(preview.context['return_url'], f"{reverse('bom:import')}?type={kind}")
 
     def test_import_page_without_a_file_shows_the_page_again(self):
@@ -950,7 +961,7 @@ class TestBOM(TransactionTestCase):
         self.assertEqual([(row['identifier'], row['fields']) for row in preview.context['changes']['updated']],
                          [(by_number.full_part_number(), {'description': ('', 'First')}),
                           (by_mpn.full_part_number(), {'description': ('', 'Second')})])
-        self.assertIn('2 rows: 0 parts created, 2 updated, 0 unchanged.', preview.content.decode())
+        self.assertEqual(preview.context['change_counts'], [{'number': 2, 'label': 'updated', 'kind': 'updated'}])
         self.assertEqual([revision.description for revision in by_number.revisions().order_by('revision')], ['', ''])
 
         response = self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']}, follow=True)

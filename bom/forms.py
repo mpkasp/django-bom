@@ -1967,7 +1967,7 @@ class VendorPricesImportForm(SourcingImportMixin, BaseCSVForm):
 
 
 class UploadBOMForm(OrganizationFormMixin, forms.Form):
-    parent_part_number = forms.CharField(required=False, label="Parent part number")
+    parent_part_number = forms.CharField(required=False, label="Add to assembly (optional)")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

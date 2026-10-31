@@ -1014,7 +1014,12 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
 PENDING_IMPORT_SESSION_KEY = 'pending_import'
 
 
-IMPORT_TYPE_CHOICES = [('detect', 'Detect from columns')] + list(IMPORT_TYPE_NAMES.items())
+IMPORT_TYPE_CHOICES = [
+    ('detect', 'Detect automatically', 'From the column headers', 'auto_awesome'),
+    ('parts', IMPORT_TYPE_NAMES['parts'], 'One row per part', 'memory'),
+    ('prices', IMPORT_TYPE_NAMES['prices'], 'One row per price break', 'sell'),
+    ('bom', IMPORT_TYPE_NAMES['bom'], 'One row per BOM line', 'account_tree'),
+]
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1024,7 +1029,7 @@ def import_data(request, kind=None):
     selected_type = kind or request.POST.get('type') or request.GET.get('type')
     if selected_type not in IMPORT_FORMS:
         selected_type = 'detect'
-    upload_bom_form = UploadBOMForm(organization=organization)
+    upload_bom_form = UploadBOMForm(initial={'parent_part_number': request.GET.get('parent', '')}, organization=organization)
 
     if request.method == 'POST':
         if request.FILES.get('file') is None:
@@ -1099,13 +1104,13 @@ def import_confirm(request):
     organization = request.user.bom_profile().organization
     pending_import = request.session.get(PENDING_IMPORT_SESSION_KEY)
     if not pending_import or pending_import['token'] != request.POST.get('token'):
-        messages.error(request, "This upload preview has expired. Please upload the file again.")
+        messages.error(request, "This import preview has expired. Choose the file again.")
         return HttpResponseRedirect(reverse('bom:import'))
 
     del request.session[PENDING_IMPORT_SESSION_KEY]
     return_url = pending_import['return_url']
     if 'cancel' in request.POST:
-        messages.info(request, "Upload canceled. Nothing was changed.")
+        messages.info(request, "Import canceled. Nothing was changed.")
         return HttpResponseRedirect(return_url)
 
     kind = pending_import['kind']
@@ -1147,13 +1152,12 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
             'return_url': return_url,
         }
 
+    changes = import_form.changes()
     context = {
-        'title': f'Review import: {IMPORT_TYPE_NAMES[kind]}',
+        'title': f'Review {IMPORT_LABELS[kind]}',
         'profile': request.user.bom_profile(),
         'kind': kind,
-        'row_count': len(import_form.successes),
-        'summary': import_form.summary(),
-        'changes': import_form.changes(),
+        'changes': changes,
         'errors': errors,
         'warnings': import_form.warnings,
         'notice': notice,
@@ -1164,21 +1168,40 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
         context.update(_bom_preview_context(import_form))
     else:
         context['preview_component'] = 'bom/components/import-preview-sourcing.html'
+        context['change_counts'] = _change_counts(
+            (len(changes['created']), ('new', 'new'), 'new'),
+            (len(changes['updated']), ('updated', 'updated'), 'updated'),
+            (changes['unchanged'], ('unchanged', 'unchanged'), 'unchanged'))
+    context['change_count'] = sum(count['number'] for count in context['change_counts'] if count['kind'] != 'unchanged')
     return TemplateResponse(request, 'bom/import-preview.html', context)
+
+
+def _change_counts(*counts):
+    """The non-zero counts shown at the top of an import preview, from (number, (singular, plural), kind)."""
+    return [{'number': number, 'label': labels[number != 1], 'kind': kind} for number, labels, kind in counts if number]
 
 
 def _bom_preview_context(bom_csv_form):
     changes = bom_csv_form.changes()
+    parts_created = [c for c in changes['parts'] if c['kind'] == 'part_created']
+    revisions_created = [c for c in changes['parts'] if c['kind'] == 'revision_created']
+    line_changes = [line['change'] for assembly in changes['assemblies'] for line in assembly['lines']]
     return {
         'preview_summary_component': 'bom/components/import-preview-bom-summary.html',
         'preview_component': 'bom/components/import-preview-bom.html',
         'parent_part': bom_csv_form.parent_part,
         'adds_to_parent_part': bom_csv_form.adds_to_parent_part,
         'ignores_vendor_price_columns': bom_csv_form.ignores_vendor_price_columns,
-        'parts_created': [c for c in changes['parts'] if c['kind'] == 'part_created'],
-        'revisions_created': [c for c in changes['parts'] if c['kind'] == 'revision_created'],
+        'parts_created': parts_created,
+        'revisions_created': revisions_created,
         'manufacturers_created': changes['manufacturers_created'],
         'assembly_changes': changes['assemblies'],
+        'change_counts': _change_counts(
+            (line_changes.count('added'), ('line added', 'lines added'), 'new'),
+            (line_changes.count('updated'), ('line changed', 'lines changed'), 'updated'),
+            (line_changes.count('removed'), ('line removed', 'lines removed'), 'removed'),
+            (len(parts_created), ('new part', 'new parts'), 'new'),
+            (len(revisions_created), ('new revision', 'new revisions'), 'new')),
     }
 
 

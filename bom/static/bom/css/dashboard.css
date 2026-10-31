@@ -1,3 +1,23 @@
+.export-menu small {
+    display: block;
+    margin-left: 48px;
+    font-size: 0.8rem;
+    line-height: 1.2rem;
+}
+
+.export-menu li.export-menu-note {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    line-height: 1.3rem;
+    min-height: 0;
+}
+
+.export-menu li.export-menu-note a {
+    display: inline;
+    padding: 0;
+    font-size: inherit;
+}
+
 @media print {
     #searchForm {
         display: none;
