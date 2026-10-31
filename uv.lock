@@ -328,7 +328,7 @@ wheels = [
 
 [[package]]
 name = "django-bom"
-version = "1.317"
+version = "1.318"
 source = { editable = "." }
 dependencies = [
     { name = "asgiref" },
