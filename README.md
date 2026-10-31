@@ -18,6 +18,7 @@ If you already have a django project, you can skip to [Add Django Bom To Your Ap
    * [Customize Base Template](#customize-base-template)
    * [Importing and exporting](#importing-and-exporting)
    * [Integrations](#integrations)
+   * [MCP Server](#mcp-server)
    * [Contributing](#contributing)
    * [Installation pitfalls](#installation-pitfalls)
    
@@ -174,6 +175,29 @@ Fixer.io is used to handle exchange rate calculations. This is helpful if you ma
 To set this up you just need to add your API key to local_settings.py as shown in the example.
 
 To update rates, migrate and run `python manage.py update_rates`. Some day we will need to add a (celerybeat?) task to update rates on a schedule. Explained more [here](https://github.com/django-money/django-money#working-with-exchange-rates).
+
+## MCP Server
+django-bom ships an [MCP](https://modelcontextprotocol.io) server so AI clients (Claude Code, Claude Desktop, Cursor, ...)
+can read and build BOMs in a user's organization. Design notes live in [docs/mcp-server-design.md](docs/mcp-server-design.md).
+
+Run it standalone with an ASGI server; Django is served alongside it:
+```
+uv run uvicorn bom.asgi:application
+```
+The server listens at `/mcp` (Streamable HTTP, stateless). In a host project, mount `bom.mcp.asgi.build_mcp_app()`
+and enter `bom.mcp.asgi.mcp_lifespan` from the host app's lifespan.
+
+Every request needs a bearer token. Issue one for a user (the plaintext is printed once):
+```
+uv run python manage.py create_api_token <username> --name "Claude Code" --scopes read,write
+```
+A token acts as that user in their organization: role permissions still apply, and a `read`-only token can never write.
+Connect a client with the token in the `Authorization` header, e.g.:
+```
+claude mcp add --transport http indabom http://localhost:8000/mcp --header "Authorization: Bearer <token>"
+```
+Hosts can gate access (e.g. by subscription) with `BOM_CONFIG['mcp_access_check']`, a callable or its dotted
+path, `(organization, user, scopes) -> error message or None`, that runs before every write.
 
 ## Contributing
 
