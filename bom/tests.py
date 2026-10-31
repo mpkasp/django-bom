@@ -3125,12 +3125,10 @@ class TestGoogleDriveScope(TestCase):
         self.assertTrue(response['Location'].startswith('https://accounts.google.com/'))
 
     def test_drive_token_error_redirects_to_connect_button(self):
-        from requests import HTTPError
-        from bom.third_party_apis import google_drive
-        self._connect({'scopes': [self.DRIVE_SCOPE]})
+        # An expired access token with no refresh token can't be renewed, so social-auth raises.
+        self._connect({'scopes': [self.DRIVE_SCOPE], 'access_token': 'expired', 'auth_time': 1_000_000_000, 'expires': 3600})
         self.client.force_login(self.user)
-        with patch.object(google_drive, 'get_service', side_effect=HTTPError()):
-            response = self.client.get(reverse('google-drive:add-folder', kwargs={'part_id': 1}))
+        response = self.client.get(reverse('google-drive:add-folder', kwargs={'part_id': 1}))
         self.assertRedirects(response, reverse('bom:settings', kwargs={'tab_anchor': 'organization'}),
                              fetch_redirect_response=False)
 
