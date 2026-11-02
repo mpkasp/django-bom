@@ -13,18 +13,17 @@
         {% elif assembly.used_in_count > 1 %}
             <p class="orange-text text-darken-3">Used in {{ assembly.used_in_count }} assemblies. These changes apply to all of them.</p>
         {% endif %}
-        {% regroup assembly.lines by change as lines_by_change %}
-        {% for group in lines_by_change %}
-            {% if group.grouper == 'added' %}
+        {% for group in assembly.line_groups %}
+            {% if group.change == 'added' %}
                 <details>
-                    <summary class="green-text">{{ group.list|length }} line{{ group.list|length|pluralize }} added</summary>
-                    {% include 'bom/components/import-preview-bom-lines.html' with lines=group.list %}
+                    <summary class="green-text">{{ group.items|length }} line{{ group.items|length|pluralize }} added</summary>
+                    {% include 'bom/changes/components/change-items.html' with items=group.items %}
                 </details>
             {% else %}
-                <p class="{% if group.grouper == 'removed' %}red-text{% else %}orange-text text-darken-3{% endif %}" style="margin-bottom: 0;">
-                    {{ group.list|length }} line{{ group.list|length|pluralize }} {{ group.grouper }}
+                <p class="{% if group.change == 'removed' %}red-text{% else %}orange-text text-darken-3{% endif %}" style="margin-bottom: 0;">
+                    {{ group.items|length }} line{{ group.items|length|pluralize }} {{ group.change }}
                 </p>
-                {% include 'bom/components/import-preview-bom-lines.html' with lines=group.list %}
+                {% include 'bom/changes/components/change-items.html' with items=group.items %}
             {% endif %}
         {% endfor %}
     </div>

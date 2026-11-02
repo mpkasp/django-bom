@@ -35,6 +35,8 @@ from bom.csv_headers import (
 from bom.decorators import bom_permission_required
 from bom.forms import (
     AddSubpartForm,
+    APITokenCreateForm,
+    ChangeSettingsForm,
     FileForm,
     ManufacturerForm,
     ManufacturerPartForm,
@@ -65,8 +67,11 @@ from bom.forms import (
     part_form_from_organization,
 )
 from bom.models import (
+    APIToken,
     Assembly,
     AssemblySubparts,
+    ChangeItem,
+    ChangeSettings,
     Manufacturer,
     ManufacturerPart,
     Part,
@@ -81,12 +86,16 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
+from bom.services.changes import changes_touching_part, proposals_for_revision, record_csv_import
+from bom.services.diffs import revision_diff
+from bom.services.flags import changes_review_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from bom.services.search import latest_part_revisions, search_parts
 from bom.third_party_apis.base_api import BaseApiError
 from bom.third_party_apis.google_drive import has_drive_scope
 from bom.third_party_apis.sourcing import PROBE_CANDIDATE_LIMIT, build_provider, provider_credential_schema, provider_is_configured
 from bom.utils import check_references_for_duplicates, listify_string, prep_for_sorting_nicely
+from bom.views.staging import active_change, stage
 
 logger = logging.getLogger(__name__)
 UserMeta = get_user_meta_model()
@@ -349,6 +358,8 @@ def bom_settings(request, tab_anchor=None):
     USER_TAB = 'user'
     ORGANIZATION_TAB = 'organization'
     INDABOM_TAB = 'indabom'
+    API_TAB = 'api'
+    new_api_token_plaintext = None
 
     if request.method == 'POST':
         part_class_action_ids = request.POST.getlist('actions')
@@ -474,6 +485,41 @@ def bom_settings(request, tab_anchor=None):
                 except BaseApiError as err:
                     messages.error(request, f"{provider_label} connection failed: {err}")
 
+        elif 'submit-create-token' in request.POST:
+            tab_anchor = API_TAB
+            api_token_form = APITokenCreateForm(request.POST)
+            if api_token_form.is_valid():
+                _, new_api_token_plaintext = APIToken.issue(
+                    user, organization, api_token_form.cleaned_data['name'], api_token_form.scopes(),
+                    api_token_form.expiry())
+            else:
+                add_form_error_messages(request, api_token_form)
+
+        elif 'submit-revoke-token' in request.POST:
+            tab_anchor = API_TAB
+            revocable_tokens = APIToken.objects.filter(organization=organization, revoked_at__isnull=True)
+            if not user_can_manage_members:
+                revocable_tokens = revocable_tokens.filter(user=user)
+            token_to_revoke = revocable_tokens.filter(id=request.POST.get('token_id') or 0).first()
+            if token_to_revoke is None:
+                messages.error(request, "No active token found to revoke.")
+            else:
+                token_to_revoke.revoke()
+                messages.info(request, f"Revoked token {token_to_revoke.name}.")
+
+        elif 'submit-protections' in request.POST:
+            tab_anchor = ORGANIZATION_TAB
+            if not user_can_manage_members:
+                messages.error(request, "You are not allowed to manage protections, contact your organization admin.")
+            else:
+                change_settings_form = ChangeSettingsForm(
+                    request.POST, instance=ChangeSettings.objects.get_or_create(organization=organization)[0])
+                if change_settings_form.is_valid():
+                    change_settings_form.save()
+                    messages.info(request, "Protections saved.")
+                else:
+                    add_form_error_messages(request, change_settings_form)
+
         elif 'submit-number-item-len' in request.POST:
             tab_anchor = INDABOM_TAB
             organization_number_len_form = OrganizationNumberLenForm(request.POST, instance=organization)
@@ -576,6 +622,17 @@ def bom_settings(request, tab_anchor=None):
     part_class_form = PartClassForm(organization=organization)
     part_class_form_action = reverse('bom:settings', kwargs={'tab_anchor': INDABOM_TAB})
     part_class_csv_form = PartClassCSVForm(organization=organization)
+
+    api_token_form = APITokenCreateForm()
+    api_tokens = APIToken.objects.filter(organization=organization).select_related('user')
+    if not user_can_manage_members:
+        api_tokens = api_tokens.filter(user=user)
+    api_tokens = api_tokens.filter(revoked_at__isnull=True)
+    if user_can_manage_members:
+        change_settings_form = ChangeSettingsForm(
+            instance=ChangeSettings.objects.filter(organization=organization).first()
+            or ChangeSettings(organization=organization))
+    show_protections = user_can_manage_members and changes_review_enabled(organization)
 
     return TemplateResponse(request, 'bom/settings.html', locals())
 
@@ -863,7 +920,26 @@ def part_info(request, part_id, part_revision_id=None):
 
     where_used_part = part.where_used_recursive()
     seller_parts = part.seller_parts()
+    review_enabled = changes_review_enabled(organization)
+    proposals = proposals_for_revision(part_revision) if part_revision is not None and review_enabled else None
+    part_changes = changes_touching_part(part) if review_enabled else None
     return TemplateResponse(request, 'bom/part-info.html', locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def part_diff(request, part_id, revision_a_id, revision_b_id):
+    organization = request.user.bom_profile().organization
+    part = get_object_or_404(Part, pk=part_id, organization=organization)
+    revision_a = get_object_or_404(PartRevision, pk=revision_a_id, part=part)
+    revision_b = get_object_or_404(PartRevision, pk=revision_b_id, part=part)
+    diff_items = [
+        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'],
+                      status_label='Differs')
+        for entry in revision_diff(revision_a, revision_b)]
+    return TemplateResponse(request, 'bom/part-diff.html', {
+        'title': f'{part.full_part_number()} rev {revision_a.revision} to rev {revision_b.revision}',
+        'profile': request.user.bom_profile(), 'part': part, 'revision_a': revision_a, 'revision_b': revision_b,
+        'items': _numbered(diff_items)})
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1055,6 +1131,10 @@ def import_confirm(request):
             notice=f"The {IMPORT_LABELS[kind]} changed after your preview, so nothing was saved. "
                    f"Review the updated changes below.")
 
+    counts = _import_change_counts(import_form, kind)
+    summary = ', '.join(f"{count['number']} {count['label']}" for count in counts) or 'no changes'
+    record_csv_import(organization, request.user, IMPORT_LABELS[kind], pending_import['changes_digest'],
+                      f"Imported {IMPORT_LABELS[kind]}: {summary}")
     add_csv_upload_messages(request, import_form, f'{IMPORT_LABELS[kind]} row', f'{IMPORT_LABELS[kind]} rows')
     return HttpResponseRedirect(return_url)
 
@@ -1096,17 +1176,63 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
         context.update(_bom_preview_context(import_form))
     else:
         context['preview_component'] = 'bom/components/import-preview-sourcing.html'
-        context['change_counts'] = _change_counts(
-            (len(changes['created']), ('new', 'new'), 'new'),
-            (len(changes['updated']), ('updated', 'updated'), 'updated'),
-            (changes['unchanged'], ('unchanged', 'unchanged'), 'unchanged'))
+        context['change_counts'] = _import_change_counts(import_form, kind)
+        context['row_items'] = _row_preview_items(changes)
     context['change_count'] = sum(count['number'] for count in context['change_counts'] if count['kind'] != 'unchanged')
     return TemplateResponse(request, 'bom/import-preview.html', context)
+
+
+def _preview_item(kind_label, summary, before=None, after=None, status_label='Will import'):
+    """An import preview entry in the shape of a ChangeItem, for the shared change-items component."""
+    return SimpleNamespace(kind='csv_import', get_kind_display=kind_label, summary=summary, before=before,
+                           payload=after or {}, status='accepted', get_status_display=status_label, result=None,
+                           reject_reason='')
+
+
+def _numbered(preview_items):
+    for position, preview_item in enumerate(preview_items, start=1):
+        preview_item.position = position
+    return preview_items
+
+
+def _row_preview_items(changes):
+    created = [_preview_item('New', row['identifier'], after={name: values[1] for name, values in row['fields'].items()})
+               for row in changes['created']]
+    updated = [_preview_item('Updated', row['identifier'], before={name: values[0] for name, values in row['fields'].items()},
+                             after={name: values[1] for name, values in row['fields'].items()})
+               for row in changes['updated']]
+    return _numbered(created + updated)
+
+
+def _line_preview_item(assembly, line):
+    summary = f"{line['part_number']} rev {line['revision']} in {assembly['part_number']} rev {assembly['revision']}"
+    before = {'count': line['old_count'], 'reference': line['old_reference']}
+    after = {'count': line['new_count'], 'reference': line['new_reference'], 'do_not_load': line['do_not_load']}
+    if line['change'] == 'added':
+        return _preview_item('Add line', summary, after=after)
+    if line['change'] == 'removed':
+        return _preview_item('Remove line', summary, before=before)
+    return _preview_item('Update line', summary, before=before, after=after)
+
+
+def _assembly_line_groups(assembly):
+    return [{'change': change, 'items': _numbered([_line_preview_item(assembly, line) for line in lines])}
+            for change, lines in itertools.groupby(assembly['lines'], key=lambda line: line['change'])]
 
 
 def _change_counts(*counts):
     """The non-zero counts shown at the top of an import preview, from (number, (singular, plural), kind)."""
     return [{'number': number, 'label': labels[number != 1], 'kind': kind} for number, labels, kind in counts if number]
+
+
+def _import_change_counts(import_form, kind):
+    if kind == 'bom':
+        return _bom_preview_context(import_form)['change_counts']
+    changes = import_form.changes()
+    return _change_counts(
+        (len(changes['created']), ('new', 'new'), 'new'),
+        (len(changes['updated']), ('updated', 'updated'), 'updated'),
+        (changes['unchanged'], ('unchanged', 'unchanged'), 'unchanged'))
 
 
 def _bom_preview_context(bom_csv_form):
@@ -1123,7 +1249,8 @@ def _bom_preview_context(bom_csv_form):
         'parts_created': parts_created,
         'revisions_created': revisions_created,
         'manufacturers_created': changes['manufacturers_created'],
-        'assembly_changes': changes['assemblies'],
+        'assembly_changes': [dict(assembly, line_groups=_assembly_line_groups(assembly))
+                             for assembly in changes['assemblies']],
         'change_counts': _change_counts(
             (line_changes.count('added'), ('line added', 'lines added'), 'new'),
             (line_changes.count('updated'), ('line changed', 'lines changed'), 'updated'),
@@ -1278,6 +1405,19 @@ def write_parts_csv(response, organization, part_revisions):
             writer.writerow({key: smart_str(value) for key, value in row.items()})
 
 
+def _staged_properties(part_revision_form):
+    properties, property_units = {}, {}
+    for definition in part_revision_form.property_definitions:
+        value = part_revision_form.cleaned_data.get(definition.form_field_name)
+        if value in (None, ''):
+            continue
+        properties[definition.code] = str(value)
+        unit_id = part_revision_form.cleaned_data.get(definition.form_unit_field_name)
+        if unit_id:
+            property_units[definition.code] = UnitDefinition.objects.get(id=unit_id).symbol
+    return {'properties': properties, 'property_units': property_units}
+
+
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.CREATE_PART)
 def create_part(request):
@@ -1301,7 +1441,25 @@ def create_part(request):
         if sourcing_attempted:
             is_valid = is_valid and manufacturer_part_form.is_valid()
 
-        if is_valid:
+        staging_change = active_change(request, organization)
+        if is_valid and staging_change:
+            payload = {
+                'description': part_revision_form.cleaned_data['description'],
+                'revision': part_revision_form.cleaned_data['revision'],
+                'number_item': part_form.cleaned_data.get('number_item'),
+                'number_variation': part_form.cleaned_data.get('number_variation'),
+            }
+            if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
+                payload['part_class_code'] = part_form.cleaned_data['number_class'].code
+            payload.update(_staged_properties(part_revision_form))
+            if sourcing_attempted:
+                manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
+                payload.update(manufacturer=getattr(manufacturer, 'name', manufacturer),
+                               manufacturer_part_number=manufacturer_part_form.cleaned_data['manufacturer_part_number'],
+                               link=manufacturer_part_form.cleaned_data['link'])
+            if stage(request, staging_change, ChangeItem.KIND_CREATE_PART, payload):
+                return HttpResponseRedirect(reverse('bom:change-review', kwargs={'number': staging_change.number}))
+        elif is_valid:
             new_part = part_form.save()
             new_rev = part_revision_form.save(commit=False)
             new_rev.part = new_part
@@ -1451,7 +1609,17 @@ def add_subpart(request, part_id, part_revision_id):
 
     if request.method == 'POST':
         add_subpart_form = AddSubpartForm(request.POST, organization=organization, part_revision_id=part_revision_id)
-        if add_subpart_form.is_valid():
+        staging_change = active_change(request, organization)
+        if add_subpart_form.is_valid() and staging_change:
+            stage(request, staging_change, ChangeItem.KIND_ADD_SUBPART, {
+                'assembly_part_number': part_revision.part.full_part_number(),
+                'assembly_revision': part_revision.revision,
+                'subpart_part_number': add_subpart_form.subpart_part.part.full_part_number(),
+                'count': add_subpart_form.cleaned_data['count'],
+                'reference': add_subpart_form.cleaned_data['reference'],
+                'do_not_load': add_subpart_form.cleaned_data['do_not_load'],
+            })
+        elif add_subpart_form.is_valid():
             subpart_part = add_subpart_form.subpart_part
             reference = add_subpart_form.cleaned_data['reference']
             dnl = add_subpart_form.cleaned_data['do_not_load']
@@ -1692,10 +1860,24 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
 
     if request.method == 'POST':
         form = SubpartForm(request.POST, instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
+        staging_change = active_change(request, organization)
         if form.is_valid():
             reference_list = listify_string(form.cleaned_data['reference'])
             count = form.cleaned_data['count']
-            form.save()
+            if staging_change:
+                parent_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+                staged = stage(request, staging_change, ChangeItem.KIND_UPDATE_SUBPART, {
+                    'assembly_part_number': parent_revision.part.full_part_number(),
+                    'assembly_revision': parent_revision.revision,
+                    'subpart_part_number': subpart.part_revision.part.full_part_number(),
+                    'count': count,
+                    'reference': form.cleaned_data['reference'],
+                    'do_not_load': form.cleaned_data['do_not_load'],
+                })
+                if not staged:
+                    return TemplateResponse(request, 'bom/bom-form.html', locals())
+            else:
+                form.save()
             return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
         else:
             return TemplateResponse(request, 'bom/bom-form.html', locals())
@@ -1756,7 +1938,18 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
 
     if request.method == 'POST':
         form = ManufacturerPartForm(request.POST, instance=instance, organization=organization)
-        if form.is_valid():
+        staging_change = None if manufacturer_part_id else active_change(request, organization)
+        if form.is_valid() and staging_change:
+            manufacturer = form.cleaned_data['manufacturer']
+            if stage(request, staging_change, ChangeItem.KIND_ADD_MANUFACTURER_PART, {
+                'part_number': part.full_part_number(),
+                'manufacturer': getattr(manufacturer, 'name', manufacturer),
+                'manufacturer_part_number': form.cleaned_data['manufacturer_part_number'],
+                'link': form.cleaned_data['link'],
+                'datasheet_url': form.cleaned_data['datasheet_url'],
+            }):
+                return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
+        elif form.is_valid():
             obj = form.save()
             if part.primary_manufacturer_part is None:
                 part.primary_manufacturer_part = obj
@@ -1802,7 +1995,25 @@ def seller_part_manage(request, manufacturer_part_id=None, seller_part_id=None):
 
     if request.method == 'POST':
         form = SellerPartForm(request.POST, instance=instance, organization=organization)
-        if form.is_valid():
+        staging_change = None if seller_part_id else active_change(request, organization)
+        if form.is_valid() and staging_change:
+            seller = form.cleaned_data['seller']
+            if stage(request, staging_change, ChangeItem.KIND_ADD_SELLER_PART, {
+                'manufacturer_part_id': mp.id,
+                'seller': getattr(seller, 'name', seller),
+                'unit_cost': str(form.cleaned_data['unit_cost'].amount),
+                'currency': str(form.cleaned_data['unit_cost'].currency),
+                'nre_cost': str(form.cleaned_data['nre_cost'].amount),
+                'seller_part_number': form.cleaned_data['seller_part_number'],
+                'minimum_order_quantity': form.cleaned_data['minimum_order_quantity'],
+                'minimum_pack_quantity': form.cleaned_data['minimum_pack_quantity'],
+                'lead_time_days': form.cleaned_data['lead_time_days'],
+                'link': form.cleaned_data['link'],
+                'ncnr': form.cleaned_data['ncnr'],
+            }):
+                return HttpResponseRedirect(
+                    reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing')
+        elif form.is_valid():
             form.save()
             messages.success(request, "Vendor sourcing updated.")
             return HttpResponseRedirect(

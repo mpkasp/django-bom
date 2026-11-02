@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 from collections import defaultdict
+from datetime import datetime, time
 from decimal import Decimal, InvalidOperation
 
 from django import forms
@@ -13,6 +14,7 @@ from django.core.validators import MaxLengthValidator, MinLengthValidator
 from django.db import IntegrityError
 from django.db.models import OuterRef, Subquery
 from django.forms.models import model_to_dict
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from djmoney.forms.widgets import MoneyWidget
 from djmoney.money import Money
@@ -34,8 +36,10 @@ from .csv_headers import (
 )
 from .form_fields import AutocompleteTextInput
 from .models import (
+    APIToken,
     Assembly,
     AssemblySubparts,
+    ChangeSettings,
     Manufacturer,
     ManufacturerPart,
     Part,
@@ -448,6 +452,32 @@ class OrganizationNumberLenForm(OrganizationBaseForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.get('instance')
         super().__init__(*args, **kwargs)
+
+
+class APITokenCreateForm(forms.Form):
+    name = forms.CharField(max_length=128)
+    level = forms.ChoiceField(choices=[(key, label) for key, label, _scopes in APIToken.LEVELS], initial='read')
+    expires_at = forms.DateField(required=False, label='Expires on', widget=forms.DateInput(attrs={'type': 'date'}))
+
+    def scopes(self):
+        return next(scopes for key, _label, scopes in APIToken.LEVELS if key == self.cleaned_data['level'])
+
+    def expiry(self):
+        expires_on = self.cleaned_data['expires_at']
+        if expires_on is None:
+            return None
+        return timezone.make_aware(datetime.combine(expires_on, time.max))
+
+
+class ChangeSettingsForm(forms.ModelForm):
+    class Meta:
+        model = ChangeSettings
+        fields = ['protect_primary_manufacturer_part', 'protect_cost_delta']
+        labels = {
+            'protect_primary_manufacturer_part': 'Protect the primary manufacturer part',
+            'protect_cost_delta': 'Protect cost increases above',
+        }
+        help_texts = {'protect_cost_delta': 'Per unit, in the organization currency. Leave blank to turn off.'}
 
 
 # ==========================================
@@ -1023,6 +1053,7 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.part_revision_id = kwargs.pop('part_revision_id', None)
+        self.allow_immutable = kwargs.pop('allow_immutable', False)
         super().__init__(*args, **kwargs)
 
         self.part_revision = PartRevision.objects.get(id=self.part_revision_id)
@@ -1082,7 +1113,7 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
         if len(refs) > 0 and len(refs) != count:
             raise ValidationError(f"Reference count ({len(refs)}) mismatch quantity ({count}).")
 
-        if self.part_revision.is_immutable():
+        if self.part_revision.is_immutable() and not self.allow_immutable:
             raise ValidationError(
                 f"Cannot add subparts to PartRevision {self.part_revision} in {self.part_revision.get_configuration_display()}. "
                 f"Create a new revision, or revert this revision to Draft to make changes."

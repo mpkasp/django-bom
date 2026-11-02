@@ -33,6 +33,9 @@
                 <a href="#units" class="collection-item" id="units-nav">
                     <i class="material-icons">straighten</i>Units & Quantities
                 </a>
+                <a href="#api" class="collection-item" id="api-nav">
+                    <i class="material-icons">vpn_key</i>API Tokens
+                </a>
                 {% if perms.bom.manage_schema %}
                 <a href="#part-number" class="collection-item" id="part-number-nav">
                     <i class="material-icons">format_list_numbered</i>Part Numbers
@@ -222,6 +225,30 @@
 
                 <div class="divider"></div>
 
+                {% if show_protections %}
+                    <div class="section">
+                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">verified_user</i>Protections</h4>
+                        <p>Protected changes need a second person to apply them. A change to a Released or In Review
+                            revision is an Engineering Change Order (ECO) and is always protected.</p>
+                        <form name="protections" action="{% url 'bom:settings' tab_anchor='organization' %}" method="post">
+                            {% csrf_token %}
+                            <p><label><input type="checkbox" checked disabled><span>Released and In Review revisions (always on)</span></label></p>
+                            <p><label>{{ change_settings_form.protect_primary_manufacturer_part }}<span>{{ change_settings_form.protect_primary_manufacturer_part.label }}</span></label></p>
+                            <div class="row">
+                                <div class="col s12 l4 input-field">
+                                    {{ change_settings_form.protect_cost_delta }}
+                                    <label for="{{ change_settings_form.protect_cost_delta.id_for_label }}" class="active">{{ change_settings_form.protect_cost_delta.label }}</label>
+                                    <span class="helper-text">{{ change_settings_form.protect_cost_delta.help_text }}</span>
+                                </div>
+                            </div>
+                            <div class="right-align">
+                                <button class="waves-effect waves-light btn btn-primary" type="submit" name="submit-protections">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="divider"></div>
+                {% endif %}
+
                 <div class="section">
                     <h4 class="section-title"><i class="material-icons red-text text-darken-1">exit_to_app</i>Leave Your
                         Organization</h4>
@@ -314,6 +341,69 @@
                 {% else %}
                     {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
                 {% endif %}
+            </div>
+
+            <div id="api" class="settings-section">
+                <div class="section">
+                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">vpn_key</i>API Tokens</h4>
+                    <p>Tokens let an MCP client or script act as you. <b>Read</b> tokens only look things up,
+                        <b>Write: propose</b> tokens stage changes for review, and <b>Write: apply</b> tokens can also
+                        apply them. A token never has more access than your role.</p>
+                    {% if new_api_token_plaintext %}
+                        <div class="card-panel green lighten-5">
+                            <p style="margin-top: 0;"><b>Copy your new token now. It will not be shown again.</b></p>
+                            <code style="word-break: break-all;">{{ new_api_token_plaintext }}</code>
+                        </div>
+                    {% endif %}
+                    <form name="create-token" action="{% url 'bom:settings' tab_anchor='api' %}" method="post">
+                        {% csrf_token %}
+                        <div class="row">
+                            {{ api_token_form.name|materializecss:'s12 l4' }}
+                            {{ api_token_form.level|materializecss:'s12 l3' }}
+                            {{ api_token_form.expires_at|materializecss:'s12 l3' }}
+                            <div class="col s12 l2 right-align">
+                                <button class="waves-effect waves-light btn btn-primary" type="submit" name="submit-create-token">Create</button>
+                            </div>
+                        </div>
+                    </form>
+                    <div class="responsive-table-wrapper">
+                        <table id="api-tokens-table" class="highlight part-list tight single-line">
+                            <thead>
+                            <tr>
+                                <th>Name</th>
+                                {% if user_can_manage_members %}<th>User</th>{% endif %}
+                                <th>Prefix</th>
+                                <th>Level</th>
+                                <th>Last used</th>
+                                <th>Expires</th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for api_token in api_tokens %}
+                                <tr>
+                                    <td class="text-normal">{{ api_token.name }}</td>
+                                    {% if user_can_manage_members %}<td class="text-normal">{{ api_token.user.username }}</td>{% endif %}
+                                    <td><code>{{ api_token.prefix }}</code></td>
+                                    <td class="text-normal">{{ api_token.level_display }}</td>
+                                    <td class="text-normal">{{ api_token.last_used_at|default:"Never" }}</td>
+                                    <td class="text-normal">{{ api_token.expires_at|default:"Never" }}</td>
+                                    <td class="text-normal">
+                                        <form action="{% url 'bom:settings' tab_anchor='api' %}" method="post"
+                                              onsubmit="return confirm('Revoke token {{ api_token.name|escapejs }}? Clients using it will stop working.');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="token_id" value="{{ api_token.id }}">
+                                            <button class="btn-flat red-text" type="submit" name="submit-revoke-token">Revoke</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="7" class="center-align grey-text">No active tokens.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <div id="part-classes" class="settings-section">

@@ -5,7 +5,7 @@ from django.urls import include, path
 from django.views.generic import TemplateView
 
 from bom.third_party_apis import google_drive
-from bom.views import json_views, views
+from bom.views import changes as change_views, json_views, views
 
 BOM_CONFIG = getattr(settings, 'BOM_CONFIG', {})
 standalone_mode = BOM_CONFIG.get('standalone_mode', True)
@@ -51,6 +51,18 @@ bom_patterns = [
     path('quantity-of-measure/add/', views.quantity_of_measure_edit, name='quantity-of-measure-add'),
     path('quantity-of-measure/<int:quantity_of_measure_id>/edit/', views.quantity_of_measure_edit, name='quantity-of-measure-edit'),
     path('quantity-of-measure/<int:quantity_of_measure_id>/delete/', views.quantity_of_measure_delete, name='quantity-of-measure-delete'),
+    path('changes/', change_views.change_list, name='change-list'),
+    path('changes/start/', change_views.change_start, name='change-start'),
+    path('changes/leave/', change_views.change_leave, name='change-leave'),
+    path('changes/<int:number>/', change_views.change_review, name='change-review'),
+    path('changes/<int:number>/submit/', change_views.change_submit, name='change-submit'),
+    path('changes/<int:number>/apply/', change_views.change_apply, name='change-apply'),
+    path('changes/<int:number>/reject/', change_views.change_reject, name='change-reject'),
+    path('changes/<int:number>/withdraw/', change_views.change_withdraw, name='change-withdraw'),
+    path('changes/<int:number>/rebase/', change_views.change_rebase, name='change-rebase'),
+    path('changes/<int:number>/revert/', change_views.change_revert, name='change-revert'),
+    path('changes/<int:number>/cascade/', change_views.change_cascade, name='change-cascade'),
+    path('changes/<int:number>/items/<int:item_id>/status/', change_views.change_item_status, name='change-item-status'),
     path('create-part/', views.create_part, name='create-part'),
     path('import/', views.import_data, name='import'),
     path('import/confirm/', views.import_confirm, name='import-confirm'),
@@ -71,6 +83,7 @@ bom_patterns = [
     path('part/<int:part_id>/image/delete/', views.part_image_delete, name='part-image-delete'),
     path('part/<int:part_id>/rev/new/', views.part_revision_new, name='part-revision-new'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/', views.part_info, name='part-info-history'),
+    path('part/<int:part_id>/diff/<int:revision_a_id>/<int:revision_b_id>/', views.part_diff, name='part-diff'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/edit/', views.part_revision_edit, name='part-revision-edit'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/delete/', views.part_revision_delete, name='part-revision-delete'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/release/', views.part_revision_release, name='part-revision-release'),

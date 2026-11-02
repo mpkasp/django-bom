@@ -2,7 +2,8 @@ from django.db import models
 
 from bom import constants
 from bom.forms import ManufacturerPartForm, PartRevisionForm, SellerPartForm, part_form_from_organization
-from bom.models import ManufacturerPart, Part, PartClass, PartRevision, PartRevisionPropertyDefinition, SellerPart, UnitDefinition
+from bom.models import (Assembly, AssemblySubparts, ManufacturerPart, Part, PartClass, PartRevision,
+                        PartRevisionProperty, PartRevisionPropertyDefinition, SellerPart, Subpart, UnitDefinition)
 from bom.services.errors import ServiceError
 
 
@@ -127,14 +128,11 @@ def seller_part_summary(seller_part):
     }
 
 
-def create_part(organization, description, part_class_code=None, number_item=None, number_variation=None,
-                revision='1', properties=None, property_units=None, manufacturer=None,
-                manufacturer_part_number=None, link=None):
-    """Create a part with its first revision, and optionally its primary manufacturer part.
-
-    Mirrors the create-part view: the part form assigns the number, the revision form validates the
-    description and properties, and the manufacturer part form is only bound when sourcing fields are given.
-    """
+def bind_create_part(organization, description, part_class_code=None, number_item=None, number_variation=None,
+                     revision='1', properties=None, property_units=None, manufacturer=None,
+                     manufacturer_part_number=None, link=None):
+    """The validated forms behind create_part, without saving anything. The manufacturer part form is None
+    unless sourcing fields were given."""
     PartForm = part_form_from_organization(organization)
     part_data = {'number_item': number_item or '', 'number_variation': number_variation or ''}
     part_class = None
@@ -151,14 +149,30 @@ def create_part(organization, description, part_class_code=None, number_item=Non
     manufacturer_part_form = ManufacturerPartForm(
         {'manufacturer': manufacturer or '', 'manufacturer_part_number': manufacturer_part_number or '',
          'link': link or ''},
-        organization=organization)
+        organization=organization) if sourcing_attempted else None
 
     errors = {}
-    for form in (part_form, part_revision_form) + ((manufacturer_part_form,) if sourcing_attempted else ()):
-        if not form.is_valid():
+    for form in (part_form, part_revision_form, manufacturer_part_form):
+        if form is not None and not form.is_valid():
             errors.update(ServiceError.from_form(form).field_errors)
     if errors:
         raise ServiceError('Could not create part.', errors)
+    return part_form, part_revision_form, manufacturer_part_form
+
+
+def create_part(organization, description, part_class_code=None, number_item=None, number_variation=None,
+                revision='1', properties=None, property_units=None, manufacturer=None,
+                manufacturer_part_number=None, link=None):
+    """Create a part with its first revision, and optionally its primary manufacturer part.
+
+    Mirrors the create-part view: the part form assigns the number, the revision form validates the
+    description and properties, and the manufacturer part form is only bound when sourcing fields are given.
+    """
+    part_form, part_revision_form, manufacturer_part_form = bind_create_part(
+        organization, description, part_class_code=part_class_code, number_item=number_item,
+        number_variation=number_variation, revision=revision, properties=properties,
+        property_units=property_units, manufacturer=manufacturer,
+        manufacturer_part_number=manufacturer_part_number, link=link)
 
     new_part = part_form.save()
     new_revision = part_revision_form.save(commit=False)
@@ -166,7 +180,7 @@ def create_part(organization, description, part_class_code=None, number_item=Non
     new_revision.save()
     part_revision_form.save_properties()
 
-    if sourcing_attempted:
+    if manufacturer_part_form is not None:
         manufacturer_part = manufacturer_part_form.save(commit=False)
         manufacturer_part.part = new_part
         manufacturer_part.save()
@@ -174,6 +188,30 @@ def create_part(organization, description, part_class_code=None, number_item=Non
         new_part.save()
 
     return new_revision
+
+
+def create_next_revision(source_revision):
+    """A new Draft revision of the part, numbered after its latest, copying the source's assembly and properties."""
+    part = source_revision.part
+    new_revision = PartRevision.objects.create(
+        part=part, revision=str(part.latest().next_revision()), description=source_revision.description,
+        assembly=Assembly.objects.create())
+    for subpart in source_revision.assembly.subparts.all() if source_revision.assembly else []:
+        copied = Subpart.objects.create(part_revision=subpart.part_revision, count=subpart.count,
+                                        reference=subpart.reference, do_not_load=subpart.do_not_load)
+        AssemblySubparts.objects.create(assembly=new_revision.assembly, subpart=copied)
+    for revision_property in source_revision.properties.all():
+        PartRevisionProperty.objects.create(
+            part_revision=new_revision, property_definition=revision_property.property_definition,
+            value_raw=revision_property.value_raw, unit_definition=revision_property.unit_definition)
+    new_revision.update_synopsis()
+    return new_revision
+
+
+def retarget_subparts(assembly_revision, from_revision, to_revision):
+    """Point the assembly's lines that use ``from_revision`` at ``to_revision``. Returns the number of lines moved."""
+    return Subpart.objects.filter(assemblysubparts__assembly=assembly_revision.assembly,
+                                  part_revision=from_revision).update(part_revision=to_revision)
 
 
 def _property_form_data(organization, part_class, properties, property_units):
@@ -209,15 +247,20 @@ def _property_form_data(organization, part_class, properties, property_units):
     return data
 
 
-def add_manufacturer_part(organization, part, manufacturer, manufacturer_part_number, link=None,
-                          datasheet_url=None):
+def bind_manufacturer_part(organization, part, manufacturer, manufacturer_part_number, link=None, datasheet_url=None):
     form = ManufacturerPartForm(
         {'manufacturer': manufacturer, 'manufacturer_part_number': manufacturer_part_number,
          'link': link or '', 'datasheet_url': datasheet_url or ''},
         instance=ManufacturerPart(part=part), organization=organization)
     if not form.is_valid():
         raise ServiceError('Could not add manufacturer part.', ServiceError.from_form(form).field_errors)
-    manufacturer_part = form.save()
+    return form
+
+
+def add_manufacturer_part(organization, part, manufacturer, manufacturer_part_number, link=None,
+                          datasheet_url=None):
+    manufacturer_part = bind_manufacturer_part(
+        organization, part, manufacturer, manufacturer_part_number, link, datasheet_url).save()
     if part.primary_manufacturer_part is None:
         part.primary_manufacturer_part = manufacturer_part
         part.save()
@@ -232,9 +275,9 @@ def manufacturer_part_for(organization, manufacturer_part_id):
         raise ServiceError(f"No manufacturer part with id {manufacturer_part_id} in {organization.name}.")
 
 
-def add_seller_part(organization, manufacturer_part, seller, unit_cost, currency=None, minimum_order_quantity=1,
-                    minimum_pack_quantity=1, lead_time_days=None, nre_cost=0, seller_part_number='', link=None,
-                    ncnr=False):
+def bind_seller_part(organization, manufacturer_part, seller, unit_cost, currency=None, minimum_order_quantity=1,
+                     minimum_pack_quantity=1, lead_time_days=None, nre_cost=0, seller_part_number='', link=None,
+                     ncnr=False):
     currency = currency or str(organization.currency)
     form = SellerPartForm(
         {
@@ -251,4 +294,8 @@ def add_seller_part(organization, manufacturer_part, seller, unit_cost, currency
         instance=SellerPart(manufacturer_part=manufacturer_part), organization=organization)
     if not form.is_valid():
         raise ServiceError('Could not add seller part.', ServiceError.from_form(form).field_errors)
-    return form.save()
+    return form
+
+
+def add_seller_part(organization, manufacturer_part, seller, unit_cost, **options):
+    return bind_seller_part(organization, manufacturer_part, seller, unit_cost, **options).save()

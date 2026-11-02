@@ -18,12 +18,6 @@
         .import-count.updated b { color: #29b6f6; }
         .import-count.removed b { color: #ef5350; }
         .import-count.warning { background: rgba(255, 179, 0, 0.2); }
-        .import-diff { margin-top: 16px; }
-        .import-diff td { vertical-align: top; font-variant-numeric: tabular-nums; }
-        .import-diff .old-value { text-decoration: line-through; opacity: 0.6; }
-        .import-diff .new-value { color: #66bb6a; font-weight: 500; }
-        .import-diff .new-tag { margin-left: 6px; padding: 1px 6px; border-radius: 3px; font-size: 0.7rem; text-transform: uppercase;
-            letter-spacing: 0.05em; color: #66bb6a; background: rgba(102, 187, 106, 0.15); }
         .import-confirm-bar { position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;
             gap: 8px; margin-top: 24px; padding: 12px 0; border-top: 1px solid rgba(128, 128, 128, 0.3); background: var(--color-background, #fff); }
         .import-confirm-bar .note { margin-right: auto; opacity: 0.75; }
@@ -66,42 +60,8 @@
         {% if not errors %}
             {% if preview_component %}{% include preview_component %}{% endif %}
 
-            {% if changes.created or changes.updated %}
-                <table class="striped import-diff">
-                    <thead>
-                    <tr>
-                        <th>{% if kind == 'prices' %}Price{% else %}Part{% endif %}</th>
-                        <th>Field</th>
-                        <th>Change</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for row in changes.created %}
-                        {% for field_name, values in row.fields.items %}
-                            <tr>
-                                <td>{% if forloop.first %}{{ row.identifier }}<span class="new-tag">new</span>{% endif %}</td>
-                                <td>{{ field_name }}</td>
-                                <td class="new-value">{{ values.1|default:"–" }}</td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td>{{ row.identifier }}<span class="new-tag">new</span></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                        {% endfor %}
-                    {% endfor %}
-                    {% for row in changes.updated %}
-                        {% for field_name, values in row.fields.items %}
-                            <tr>
-                                <td>{% if forloop.first %}{{ row.identifier }}{% endif %}</td>
-                                <td>{{ field_name }}</td>
-                                <td><span class="old-value">{{ values.0|default:"–" }}</span> &rarr; <span class="new-value">{{ values.1|default:"–" }}</span></td>
-                            </tr>
-                        {% endfor %}
-                    {% endfor %}
-                    </tbody>
-                </table>
+            {% if row_items %}
+                {% include 'bom/changes/components/change-items.html' with items=row_items %}
             {% endif %}
             {% if changes.unchanged %}
                 <p class="grey-text">{{ changes.unchanged }} row{{ changes.unchanged|pluralize:" matches,s match" }} what's already in IndaBOM.</p>

@@ -6,6 +6,9 @@ from django.contrib.auth.admin import UserAdmin
 from .models import (
     APIToken,
     Assembly,
+    Change,
+    ChangeItem,
+    ChangeSettings,
     Manufacturer,
     ManufacturerPart,
     Part,
@@ -219,3 +222,29 @@ class APITokenAdmin(admin.ModelAdmin):
 
 
 admin.site.register(APIToken, APITokenAdmin)
+
+
+class ChangeItemInline(admin.TabularInline):
+    model = ChangeItem
+    extra = 0
+    fields = ('position', 'kind', 'summary', 'status', 'reject_reason')
+    readonly_fields = ('position', 'kind', 'summary')
+    can_delete = False
+
+
+class ChangeAdmin(admin.ModelAdmin):
+    list_display = ('number', 'title', 'organization', 'status', 'author', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('title', 'author__username')
+    raw_id_fields = ('organization', 'author', 'api_token', 'resolved_by', 'protection_overridden_by')
+    inlines = [ChangeItemInline]
+
+
+class ChangeSettingsAdmin(admin.ModelAdmin):
+    list_display = ('organization', 'protect_primary_manufacturer_part', 'protect_cost_delta')
+    raw_id_fields = ('organization',)
+
+
+admin.site.register(Change, ChangeAdmin)
+admin.site.register(ChangeItem)
+admin.site.register(ChangeSettings, ChangeSettingsAdmin)

@@ -187,7 +187,8 @@ uv run uvicorn bom.asgi:application
 The server listens at `/mcp` (Streamable HTTP, stateless). In a host project, mount `bom.mcp.asgi.build_mcp_app()`
 and enter `bom.mcp.asgi.mcp_lifespan` from the host app's lifespan.
 
-Every request needs a bearer token. Issue one for a user (the plaintext is printed once):
+Every request needs a bearer token. Create one under Settings > API Tokens (the plaintext is shown once), or issue
+one for a user from the command line (the plaintext is printed once):
 ```
 uv run python manage.py create_api_token <username> --name "Claude Code" --scopes read,write
 ```
@@ -198,6 +199,33 @@ claude mcp add --transport http indabom http://localhost:8000/mcp --header "Auth
 ```
 Hosts can gate access (e.g. by subscription) with `BOM_CONFIG['mcp_access_check']`, a callable or its dotted
 path, `(organization, user, scopes) -> error message or None`, that runs before every write.
+
+### Changes and token levels
+Every MCP edit is a *Change*: a bundle of staged items reviewed at `/changes/` and applied together
+(design: [docs/changes-design.md](docs/changes-design.md)). Token scopes set the level: `read`; `read,write` can
+only stage and submit changes for review (propose); `read,write,apply` can also apply them
+(`create_api_token --scopes read,write,apply`). Write tools take an optional `change_id` to stage into a change from
+`start_change`; without it a propose-level token submits a one-item change request and an apply-level token applies
+it at once. Edits to Released or In Review revisions make the change an Engineering Change Order (ECO): applying it
+creates a new Draft revision of each edited part (copying its assembly and properties) for a person to release, and
+it requires a second person to apply, as do protections in `ChangeSettings` (including a cost-delta threshold). The
+review page shows validation, impact (assemblies that use the edited parts) and the unit-cost effect at 100 units,
+and can rebase a stale change or revert an applied one. Hosts can switch the feature with
+`BOM_CONFIG['changes_review_enabled']`, `BOM_CONFIG['mcp_apply_enabled']` and `BOM_CONFIG['eco_enabled']`
+(callables of the organization or dotted paths; all default on), and set `BOM_CONFIG['site_url']` so change URLs
+returned to MCP clients are absolute.
+
+People can stage their own edits too: **Start a change** on the Changes page opens a draft, and while it is active a
+banner shows "Editing in Change #N" and creating a part, adding or editing a BOM line, and adding manufacturer or
+vendor parts stage items instead of saving, ready to submit or apply from the review page. Admins set the
+protections (always on for Released and In Review revisions; optionally the primary manufacturer part and a
+cost-delta threshold) in Settings > Organization.
+
+After an applied Engineering Change Order, Draft parent assemblies are moved to the new revision automatically and
+the review page's **Cascade** panel offers a new Draft revision of each Released parent that still uses the old one.
+The part page has a **Changes** tab (the part's history: every submitted change that touches it, applied first) and a
+**Compare with...** select that opens `/part/<id>/diff/<rev_a>/<rev_b>/`, a diff of two revisions' fields,
+properties and BOM lines. `get_change` returns the change's impact (affected assemblies and cost delta).
 
 ## Contributing
 

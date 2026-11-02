@@ -69,6 +69,14 @@
 </ul>
 
 <main>
+    {% if active_change %}
+        <div class="card-panel teal lighten-5" style="margin: 0; padding: 8px 16px;">
+            Editing in Change #{{ active_change.number }} &middot; {{ active_change.title }} &middot;
+            <a href="{% url 'bom:change-review' number=active_change.number %}">Review</a> &middot;
+            <form method="post" action="{% url 'bom:change-leave' %}" style="display: inline;">{% csrf_token %}
+                <button type="submit" class="btn-flat" style="padding: 0 4px; height: auto; line-height: inherit; text-transform: none;">Leave</button></form>
+        </div>
+    {% endif %}
     {% block main %}
     {% endblock main %}
     {% if title %}
