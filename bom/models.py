@@ -1029,7 +1029,9 @@ class ManufacturerPart(models.Model, AsDictModel):
         super().clean()
 
         try:
-            if self.part.revisions().filter(configuration=CONFIGURATION_TYPE_RELEASED).exists():
+            # An Engineering Change Order is the sanctioned way to change a released part's sourcing.
+            if not getattr(self, 'allow_released', False) \
+                    and self.part.revisions().filter(configuration=CONFIGURATION_TYPE_RELEASED).exists():
                 raise ValidationError("Part has a released revision. Create a new revision to add manufacturers.")
         except ObjectDoesNotExist:
             pass
@@ -1275,6 +1277,9 @@ class Change(OrganizationScopedModel):
     protection_overridden_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                                  on_delete=models.SET_NULL, related_name='+')
     cascade = models.JSONField(null=True, blank=True)
+    is_direct_edit = models.BooleanField(default=False)
+    base_part_revision = models.ForeignKey('PartRevision', null=True, blank=True, on_delete=models.SET_NULL,
+                                           related_name='+')
 
     class Meta:
         unique_together = ('organization', 'number')
@@ -1308,6 +1313,12 @@ class ChangeItem(models.Model):
     KIND_ADD_MANUFACTURER_PART = 'add_manufacturer_part'
     KIND_ADD_SELLER_PART = 'add_seller_part'
     KIND_CSV_IMPORT = 'csv_import'
+    KIND_CREATE_PART_REVISION = 'create_part_revision'
+    KIND_UPDATE_PART = 'update_part'
+    KIND_UPDATE_MANUFACTURER_PART = 'update_manufacturer_part'
+    KIND_DELETE_MANUFACTURER_PART = 'delete_manufacturer_part'
+    KIND_UPDATE_SELLER_PART = 'update_seller_part'
+    KIND_DELETE_SELLER_PART = 'delete_seller_part'
     KINDS = (
         (KIND_CREATE_PART, 'Create part'),
         (KIND_UPDATE_PART_REVISION, 'Update part revision'),
@@ -1317,6 +1328,12 @@ class ChangeItem(models.Model):
         (KIND_ADD_MANUFACTURER_PART, 'Add manufacturer part'),
         (KIND_ADD_SELLER_PART, 'Add seller part'),
         (KIND_CSV_IMPORT, 'CSV import'),
+        (KIND_CREATE_PART_REVISION, 'Create part revision'),
+        (KIND_UPDATE_PART, 'Update part'),
+        (KIND_UPDATE_MANUFACTURER_PART, 'Update manufacturer part'),
+        (KIND_DELETE_MANUFACTURER_PART, 'Delete manufacturer part'),
+        (KIND_UPDATE_SELLER_PART, 'Update seller part'),
+        (KIND_DELETE_SELLER_PART, 'Delete seller part'),
     )
     STATUS_ACCEPTED = 'accepted'
     STATUS_REJECTED = 'rejected'

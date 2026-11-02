@@ -247,20 +247,21 @@ def _property_form_data(organization, part_class, properties, property_units):
     return data
 
 
-def bind_manufacturer_part(organization, part, manufacturer, manufacturer_part_number, link=None, datasheet_url=None):
+def bind_manufacturer_part(organization, part, manufacturer, manufacturer_part_number, link=None, datasheet_url=None,
+                           allow_released=False):
     form = ManufacturerPartForm(
         {'manufacturer': manufacturer, 'manufacturer_part_number': manufacturer_part_number,
          'link': link or '', 'datasheet_url': datasheet_url or ''},
-        instance=ManufacturerPart(part=part), organization=organization)
+        instance=ManufacturerPart(part=part), organization=organization, allow_released=allow_released)
     if not form.is_valid():
         raise ServiceError('Could not add manufacturer part.', ServiceError.from_form(form).field_errors)
     return form
 
 
 def add_manufacturer_part(organization, part, manufacturer, manufacturer_part_number, link=None,
-                          datasheet_url=None):
+                          datasheet_url=None, allow_released=False):
     manufacturer_part = bind_manufacturer_part(
-        organization, part, manufacturer, manufacturer_part_number, link, datasheet_url).save()
+        organization, part, manufacturer, manufacturer_part_number, link, datasheet_url, allow_released).save()
     if part.primary_manufacturer_part is None:
         part.primary_manufacturer_part = manufacturer_part
         part.save()
@@ -278,24 +279,110 @@ def manufacturer_part_for(organization, manufacturer_part_id):
 def bind_seller_part(organization, manufacturer_part, seller, unit_cost, currency=None, minimum_order_quantity=1,
                      minimum_pack_quantity=1, lead_time_days=None, nre_cost=0, seller_part_number='', link=None,
                      ncnr=False):
-    currency = currency or str(organization.currency)
+    values = {
+        'seller': seller, 'unit_cost': unit_cost, 'currency': currency or str(organization.currency),
+        'minimum_order_quantity': minimum_order_quantity, 'minimum_pack_quantity': minimum_pack_quantity,
+        'lead_time_days': lead_time_days, 'nre_cost': nre_cost, 'seller_part_number': seller_part_number or '',
+        'link': link or '', 'ncnr': ncnr}
+    return _bound_seller_part_form(organization, SellerPart(manufacturer_part=manufacturer_part), values,
+                                   'Could not add seller part.')
+
+
+def _bound_seller_part_form(organization, instance, values, error_message):
     form = SellerPartForm(
         {
-            'seller': seller,
-            'seller_part_number': seller_part_number or '',
-            'unit_cost_0': unit_cost, 'unit_cost_1': currency,
-            'nre_cost_0': nre_cost, 'nre_cost_1': currency,
-            'minimum_order_quantity': minimum_order_quantity,
-            'minimum_pack_quantity': minimum_pack_quantity,
-            'lead_time_days': lead_time_days,
-            'link': link or '',
-            'ncnr': ncnr,
+            'seller': values['seller'],
+            'seller_part_number': values['seller_part_number'],
+            'unit_cost_0': values['unit_cost'], 'unit_cost_1': values['currency'],
+            'nre_cost_0': values['nre_cost'], 'nre_cost_1': values['currency'],
+            'minimum_order_quantity': values['minimum_order_quantity'],
+            'minimum_pack_quantity': values['minimum_pack_quantity'],
+            'lead_time_days': values['lead_time_days'],
+            'link': values['link'],
+            'ncnr': values['ncnr'],
         },
-        instance=SellerPart(manufacturer_part=manufacturer_part), organization=organization)
+        instance=instance, organization=organization)
     if not form.is_valid():
-        raise ServiceError('Could not add seller part.', ServiceError.from_form(form).field_errors)
+        raise ServiceError(error_message, ServiceError.from_form(form).field_errors)
     return form
 
 
 def add_seller_part(organization, manufacturer_part, seller, unit_cost, **options):
     return bind_seller_part(organization, manufacturer_part, seller, unit_cost, **options).save()
+
+
+def bind_seller_part_update(organization, seller_part, **fields):
+    """Validate new values for a seller part without saving; fields that are not given keep their current values."""
+    values = {
+        'seller': seller_part.seller.name, 'seller_part_number': seller_part.seller_part_number or '',
+        'unit_cost': seller_part.unit_cost.amount, 'currency': str(seller_part.unit_cost.currency),
+        'nre_cost': seller_part.nre_cost.amount, 'minimum_order_quantity': seller_part.minimum_order_quantity,
+        'minimum_pack_quantity': seller_part.minimum_pack_quantity, 'lead_time_days': seller_part.lead_time_days,
+        'link': seller_part.link or '', 'ncnr': seller_part.ncnr}
+    values.update(fields)
+    return _bound_seller_part_form(organization, seller_part, values, 'Could not update seller part.')
+
+
+def seller_part_for(organization, seller_part_id):
+    try:
+        return SellerPart.objects.select_related('seller', 'manufacturer_part__part').get(
+            id=seller_part_id, manufacturer_part__part__organization=organization)
+    except SellerPart.DoesNotExist:
+        raise ServiceError(f"No seller part with id {seller_part_id} in {organization.name}.")
+
+
+def update_seller_part(organization, seller_part, **fields):
+    return bind_seller_part_update(organization, seller_part, **fields).save()
+
+
+def bind_manufacturer_part_update(organization, manufacturer_part, allow_released=False, **fields):
+    """Validate new values for a manufacturer part without saving; fields that are not given keep their current values."""
+    values = {
+        'manufacturer': manufacturer_part.manufacturer.name if manufacturer_part.manufacturer else '',
+        'manufacturer_part_number': manufacturer_part.manufacturer_part_number,
+        'link': manufacturer_part.link or '', 'datasheet_url': manufacturer_part.datasheet_url or '',
+        'sourcing_disable': manufacturer_part.sourcing_disable}
+    values.update(fields)
+    form = ManufacturerPartForm(values, instance=manufacturer_part, organization=organization,
+                                allow_released=allow_released)
+    if not form.is_valid():
+        raise ServiceError('Could not update manufacturer part.', ServiceError.from_form(form).field_errors)
+    return form
+
+
+def update_manufacturer_part(organization, manufacturer_part, allow_released=False, **fields):
+    return bind_manufacturer_part_update(organization, manufacturer_part, allow_released, **fields).save()
+
+
+def set_primary_manufacturer_part(part, manufacturer_part_id):
+    if manufacturer_part_id is None:
+        part.primary_manufacturer_part = None
+    else:
+        manufacturer_part = manufacturer_part_for(part.organization, manufacturer_part_id)
+        if manufacturer_part.part_id != part.id:
+            raise ServiceError(f"Manufacturer part {manufacturer_part_id} does not belong to {part.full_part_number()}.")
+        part.primary_manufacturer_part = manufacturer_part
+    part.save()
+    return part
+
+
+def bind_part_revision_update(organization, part_revision, description=None, properties=None, property_units=None):
+    """Validate new values for a revision without saving. Properties, when given, are the revision's full set:
+    the form removes any that are left out. Unset values keep the revision's current ones."""
+    if properties is None:
+        existing = part_revision.properties.select_related('property_definition', 'unit_definition')
+        properties = {prop.property_definition.code: prop.value_raw for prop in existing}
+        property_units = {prop.property_definition.code: prop.unit_definition.symbol
+                          for prop in existing if prop.unit_definition}
+    data = {'revision': part_revision.revision, 'configuration': part_revision.configuration,
+            'description': part_revision.description if description is None else description}
+    data.update(_property_form_data(organization, part_revision.part.number_class, properties, property_units))
+    form = PartRevisionForm(data, instance=part_revision, organization=organization, allow_immutable=True)
+    if not form.is_valid():
+        raise ServiceError('Could not update part revision.', ServiceError.from_form(form).field_errors)
+    return form
+
+
+def update_part_revision(organization, part_revision, description=None, properties=None, property_units=None):
+    bind_part_revision_update(organization, part_revision, description, properties, property_units).save()
+    return part_revision

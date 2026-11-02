@@ -504,7 +504,9 @@ class ManufacturerPartForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelF
         exclude = ['part', 'manufacturer', ]
 
     def __init__(self, *args, **kwargs):
+        allow_released = kwargs.pop('allow_released', False)
         super().__init__(*args, **kwargs)
+        self.instance.allow_released = allow_released
         self.fields['sourcing_disable'].initial = True
         self.fields['manufacturer'] = forms.CharField(
             required=False,  # clean method handles logic
@@ -865,6 +867,7 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
 
     def __init__(self, *args, **kwargs):
         self.part_class = kwargs.pop('part_class', None)
+        self.allow_immutable = kwargs.pop('allow_immutable', False)
         super().__init__(*args, **kwargs)
         self.fields['revision'].initial = 1
         self.fields['configuration'].required = False
@@ -883,7 +886,7 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
 
         self._init_dynamic_properties()
 
-        if self.instance.pk and self.instance.is_immutable():
+        if self.instance.pk and self.instance.is_immutable() and not self.allow_immutable:
             for field_name, field in self.fields.items():
                 field.disabled = True
                 state_name = self.instance.get_configuration_display()
@@ -1001,6 +1004,7 @@ class SubpartForm(OrganizationFormMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.part_id = kwargs.pop('part_id', None)
         self.ignore_part_revision = kwargs.pop('ignore_part_revision', False)
+        self.allow_immutable = kwargs.pop('allow_immutable', False)
         super().__init__(*args, **kwargs)
 
         if not self.part_id:
@@ -1016,7 +1020,7 @@ class SubpartForm(OrganizationFormMixin, forms.ModelForm):
             self.fields['part_revision'].required = False
 
         # Disable all fields if this subpart belongs to a Released PartRevision's assembly
-        if self.instance.pk:
+        if self.instance.pk and not self.allow_immutable:
             locked_parent = self.instance.get_parent_part_revisions().filter(
                 configuration__in=PartRevision.IMMUTABLE_STATES).first()
 

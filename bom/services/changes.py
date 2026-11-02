@@ -1,6 +1,8 @@
 """Change control: edits are staged as ChangeItems and reach the database only through ``apply_change``."""
 import hashlib
 import json
+import logging
+from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
@@ -16,26 +18,42 @@ from bom.models import (Change, ChangeItem, ChangeSettings, ManufacturerPart, Pa
 from bom.permissions import BomPerms
 from bom.services import boms, parts
 from bom.services.errors import ServiceError
-from bom.services.flags import eco_enabled
+from bom.services.flags import changes_review_enabled, eco_enabled
+
+logger = logging.getLogger(__name__)
 
 REF_PREFIX = '$ref:'
 DEFAULT_QUANTITY = 100
+DIRECT_EDIT_WINDOW = timedelta(minutes=60)
 SUBPART_KINDS = (ChangeItem.KIND_ADD_SUBPART, ChangeItem.KIND_UPDATE_SUBPART, ChangeItem.KIND_REMOVE_SUBPART)
+REVISION_KINDS = SUBPART_KINDS + (ChangeItem.KIND_UPDATE_PART_REVISION,)
 STAGEABLE_KINDS = (
     ChangeItem.KIND_CREATE_PART,
+    ChangeItem.KIND_UPDATE_PART,
+    ChangeItem.KIND_UPDATE_PART_REVISION,
     ChangeItem.KIND_ADD_SUBPART,
     ChangeItem.KIND_UPDATE_SUBPART,
     ChangeItem.KIND_REMOVE_SUBPART,
     ChangeItem.KIND_ADD_MANUFACTURER_PART,
+    ChangeItem.KIND_UPDATE_MANUFACTURER_PART,
+    ChangeItem.KIND_DELETE_MANUFACTURER_PART,
     ChangeItem.KIND_ADD_SELLER_PART,
+    ChangeItem.KIND_UPDATE_SELLER_PART,
+    ChangeItem.KIND_DELETE_SELLER_PART,
 )
 ITEM_PERMISSIONS = {
     ChangeItem.KIND_CREATE_PART: BomPerms.CREATE_PART,
+    ChangeItem.KIND_UPDATE_PART: BomPerms.EDIT_PART,
+    ChangeItem.KIND_UPDATE_PART_REVISION: BomPerms.EDIT_PART,
     ChangeItem.KIND_ADD_SUBPART: BomPerms.EDIT_PART,
     ChangeItem.KIND_UPDATE_SUBPART: BomPerms.EDIT_PART,
     ChangeItem.KIND_REMOVE_SUBPART: BomPerms.EDIT_PART,
     ChangeItem.KIND_ADD_MANUFACTURER_PART: BomPerms.MANAGE_SOURCING,
+    ChangeItem.KIND_UPDATE_MANUFACTURER_PART: BomPerms.MANAGE_SOURCING,
+    ChangeItem.KIND_DELETE_MANUFACTURER_PART: BomPerms.MANAGE_SOURCING,
     ChangeItem.KIND_ADD_SELLER_PART: BomPerms.MANAGE_SOURCING,
+    ChangeItem.KIND_UPDATE_SELLER_PART: BomPerms.MANAGE_SOURCING,
+    ChangeItem.KIND_DELETE_SELLER_PART: BomPerms.MANAGE_SOURCING,
 }
 
 
@@ -77,7 +95,7 @@ def stage_item(change, kind, payload, ref=''):
     if unknown:
         raise ServiceError(f"Unknown refs {unknown}; a ref must be set on an earlier item in this change.")
 
-    prepared = _PREPARERS[kind](change.organization, payload, validate=not pending_refs)
+    prepared = _prepare(change, kind, payload, validate=not pending_refs)
     if pending_refs:
         prepared['summary'] += f" (depends on {', '.join(sorted(pending_refs))}; checked when applied)"
     position = (max((item.position for item in earlier_items), default=0)) + 1
@@ -213,7 +231,7 @@ def _apply_items(change, items):
             payload['assembly_revision'] = new_revision.revision
             item.part_revision = new_revision
         try:
-            item.result = _APPLIERS[item.kind](change.organization, payload)
+            item.result = _apply(change, item.kind, payload)
         except ServiceError as error:
             raise ServiceError(f"Item {item.position} ({item.summary}) failed: {error}", error.field_errors)
         if new_revision is not None:
@@ -323,7 +341,7 @@ def validate_change(change):
                              'message': f"Depends on {', '.join(sorted(pending_refs))}; checked when applied."})
             continue
         try:
-            _PREPARERS[item.kind](change.organization, item.payload, validate=True)
+            _prepare(change, item.kind, item.payload, validate=True)
         except ServiceError as error:
             problems.append({'item': item, 'level': 'error', 'message': str(error)})
             continue
@@ -362,7 +380,7 @@ def rebase_change(change):
 def _require_item_permissions(change, user, items):
     for item in items:
         permission = ITEM_PERMISSIONS[item.kind]
-        target = item.part_revision if item.kind in SUBPART_KINDS and item.part_revision_id \
+        target = item.part_revision if item.kind in REVISION_KINDS and item.part_revision_id \
             and not item.part_revision.is_immutable() else change.organization
         if not user.has_perm(permission, target):
             raise ServiceError(f"{user.username} does not have permission {permission!r} needed by item "
@@ -393,6 +411,8 @@ def _active_member_count(organization):
 
 
 def is_eco(change):
+    if change.is_direct_edit:
+        return False
     return any((item.result and 'new_revision_id' in item.result)
                or (item.part_revision_id and item.part_revision.is_immutable())
                for item in change.items.exclude(status=ChangeItem.STATUS_REJECTED).select_related('part_revision'))
@@ -409,9 +429,21 @@ def is_protected(change):
             change.items.filter(kind=ChangeItem.KIND_ADD_MANUFACTURER_PART, part__isnull=False)
             .exclude(status=ChangeItem.STATUS_REJECTED).select_related('part')):
         return True
+    if change_settings.protect_primary_manufacturer_part and _changes_primary_manufacturer_part(change):
+        return True
     if change_settings.protect_cost_delta is not None and change.status in Change.PENDING_STATUSES:
         delta = cost_impact(change)['delta']
         return delta is not None and abs(delta) >= change_settings.protect_cost_delta
+    return False
+
+
+def _changes_primary_manufacturer_part(change):
+    for item in change.items.exclude(status=ChangeItem.STATUS_REJECTED).select_related('part'):
+        if item.kind == ChangeItem.KIND_UPDATE_PART:
+            return True
+        if item.kind in (ChangeItem.KIND_UPDATE_MANUFACTURER_PART, ChangeItem.KIND_DELETE_MANUFACTURER_PART) \
+                and item.part_id and item.part.primary_manufacturer_part_id == item.payload.get('manufacturer_part_id'):
+            return True
     return False
 
 
@@ -562,6 +594,8 @@ def revert_change(change, user):
         raise ServiceError(f"{user.username} cannot revert changes in {change.organization.name}.")
     if change.status != Change.STATUS_APPLIED:
         raise ServiceError(f"Change #{change.number} is {change.status}; only an applied change can be reverted.")
+    if change.is_direct_edit:
+        raise ServiceError(f"Change #{change.number} records direct edits that were already saved; it cannot be reverted.")
     title = f"Revert change #{change.number}: {change.title}"[:255]
     if Change.objects.filter(organization=change.organization, title=title).exclude(
             status__in=(Change.STATUS_REJECTED, Change.STATUS_WITHDRAWN)).exists():
@@ -624,6 +658,69 @@ def _counter_item(item):
     return ChangeItem.KIND_ADD_SUBPART, dict(target, **restored)
 
 
+def start_eco(organization, user, part_revision):
+    """The draft Change that edits an immutable revision through a new Draft revision, reused if the user has one."""
+    if not user.has_perm(BomPerms.EDIT_PART, organization):
+        raise ServiceError(f"{user.username} cannot edit parts in {organization.name}.")
+    if not part_revision.is_immutable():
+        raise ServiceError(f"{part_revision.part.full_part_number()} rev {part_revision.revision} is a Draft; "
+                           f"edit it directly.")
+    existing = Change.objects.filter(organization=organization, author=user, status=Change.STATUS_DRAFT,
+                                     base_part_revision=part_revision, is_direct_edit=False).first()
+    if existing is not None:
+        return existing
+    change = start_change(organization, user,
+                          f"Change to {part_revision.part.full_part_number()} rev {part_revision.revision}")
+    change.base_part_revision = part_revision
+    change.save(update_fields=['base_part_revision'])
+    return change
+
+
+def propose_item(organization, user, title, kind, payload):
+    """Stage one item into a new change and submit it for review."""
+    with transaction.atomic():
+        change = start_change(organization, user, title)
+        stage_item(change, kind, payload)
+        return submit_change(change, user)
+
+
+def primary_manufacturer_part_needs_review(organization, user):
+    """Whether this user's edit to a part's primary manufacturer part must go through a change request."""
+    change_settings = ChangeSettings.objects.filter(organization=organization).first()
+    return bool(change_settings and change_settings.protect_primary_manufacturer_part
+                and _active_member_count(organization) > 1
+                and user.bom_profile().role != ROLE_TYPE_ADMIN)
+
+
+def record_direct_edit(organization, user, part_revision, kind, summary, before=None, payload=None, result=None):
+    """Log an edit that has already been saved as an applied item of the user's recent direct-edit Change on the
+    revision. A failure here is logged and never undoes the edit."""
+    if not changes_review_enabled(organization):
+        return
+    try:
+        with transaction.atomic():
+            _record_direct_edit(organization, user, part_revision, kind, summary, before, payload, result)
+    except Exception:
+        logger.exception('Could not record a direct edit of %s', part_revision)
+
+
+def _record_direct_edit(organization, user, part_revision, kind, summary, before, payload, result):
+    recent = Change.objects.filter(
+        organization=organization, author=user, is_direct_edit=True, base_part_revision=part_revision,
+        created_at__gte=timezone.now() - DIRECT_EDIT_WINDOW).order_by('-number').first()
+    if recent is None:
+        recent = start_change(
+            organization, user, f"Edits to {part_revision.part.full_part_number()} rev {part_revision.revision}")
+        recent.is_direct_edit = True
+        recent.base_part_revision = part_revision
+        recent.save(update_fields=['is_direct_edit', 'base_part_revision'])
+        _resolve(recent, user, Change.STATUS_APPLIED, submitted_at=timezone.now())
+    last_position = recent.items.aggregate(Max('position'))['position__max'] or 0
+    ChangeItem.objects.create(
+        change=recent, position=last_position + 1, kind=kind, payload=payload or {}, part=part_revision.part,
+        part_revision=part_revision, summary=summary[:255], before=before, result=result)
+
+
 def record_csv_import(organization, user, kind_label, changes_digest, summary):
     """Log an import that has already been committed as an applied Change, so the feed shows every edit."""
     now = timezone.now()
@@ -683,6 +780,22 @@ def _ref_value(item):
     return item.result['manufacturer_part_id']
 
 
+def _prepare(change, kind, payload, validate):
+    options = {'allow_released': True} if _allows_released_sourcing(change, kind) else {}
+    return _PREPARERS[kind](change.organization, payload, validate=validate, **options)
+
+
+def _apply(change, kind, payload):
+    options = {'allow_released': True} if _allows_released_sourcing(change, kind) else {}
+    return _APPLIERS[kind](change.organization, payload, **options)
+
+
+def _allows_released_sourcing(change, kind):
+    """Manufacturer parts of a part with a Released revision can only change through a person's ECO."""
+    return change.base_part_revision_id is not None and kind in (
+        ChangeItem.KIND_ADD_MANUFACTURER_PART, ChangeItem.KIND_UPDATE_MANUFACTURER_PART)
+
+
 def _call(function, *arguments, **payload):
     try:
         return function(*arguments, **payload)
@@ -724,7 +837,7 @@ def _line_values(subpart):
             'subpart_part_number': subpart.part_revision.part.full_part_number()}
 
 
-def _prepare_subpart_line(organization, payload, validate, describe, bind=None):
+def _prepare_subpart_line(organization, payload, validate, describe, bind=None, match_do_not_load=False):
     payload = dict(payload)
     assembly_part_number = payload.pop('assembly_part_number', '')
     assembly_revision = payload.pop('assembly_revision', None)
@@ -733,7 +846,8 @@ def _prepare_subpart_line(organization, payload, validate, describe, bind=None):
     if not validate:
         return prepared
     part_revision = parts.revision_from_number(organization, assembly_part_number, assembly_revision)
-    subpart = boms.find_subpart(organization, part_revision, subpart_part_number)
+    subpart = boms.find_subpart(organization, part_revision, subpart_part_number,
+                                payload.get('do_not_load') if match_do_not_load else None)
     if bind is not None:
         _call(bind, organization, subpart, **payload)
     prepared['summary'] += f" rev {part_revision.revision}"
@@ -750,10 +864,10 @@ def _prepare_update_subpart(organization, payload, validate):
 
 
 def _prepare_remove_subpart(organization, payload, validate):
-    return _prepare_subpart_line(organization, payload, validate, lambda fields: 'Remove')
+    return _prepare_subpart_line(organization, payload, validate, lambda fields: 'Remove', match_do_not_load=True)
 
 
-def _prepare_add_manufacturer_part(organization, payload, validate):
+def _prepare_add_manufacturer_part(organization, payload, validate, allow_released=False):
     payload = dict(payload)
     part_number = payload.pop('part_number', '')
     prepared = {'summary': f"Add manufacturer part {payload.get('manufacturer')} "
@@ -761,7 +875,7 @@ def _prepare_add_manufacturer_part(organization, payload, validate):
     if not validate:
         return prepared
     part = parts.part_from_number(organization, part_number)
-    _call(parts.bind_manufacturer_part, organization, part, **payload)
+    _call(parts.bind_manufacturer_part, organization, part, allow_released=allow_released, **payload)
     primary = part.primary_manufacturer_part
     return dict(prepared, part=part, before={
         'primary_manufacturer_part': f"{primary.manufacturer.name} {primary.manufacturer_part_number}"
@@ -780,6 +894,101 @@ def _prepare_add_seller_part(organization, payload, validate):
     return dict(prepared, part=manufacturer_part.part, manufacturer_part=manufacturer_part, summary=(
         f"Add {payload.get('seller')} price {payload.get('unit_cost')} to "
         f"{manufacturer_part.manufacturer_part_number} of {manufacturer_part.part.full_part_number()}"))
+
+
+def _prepare_update_part(organization, payload, validate):
+    payload = dict(payload)
+    part_number = payload.pop('part_number', '')
+    prepared = {'summary': f"Set the primary manufacturer part of {part_number}"}
+    if not validate:
+        return prepared
+    part = parts.part_from_number(organization, part_number)
+    manufacturer_part_id = payload.get('primary_manufacturer_part_id')
+    if manufacturer_part_id is not None:
+        manufacturer_part = parts.manufacturer_part_for(organization, manufacturer_part_id)
+        if manufacturer_part.part_id != part.id:
+            raise ServiceError(f"Manufacturer part {manufacturer_part_id} does not belong to {part_number}.")
+        prepared['summary'] += f" to {_manufacturer_part_label(manufacturer_part)}"
+    primary = part.primary_manufacturer_part
+    return dict(prepared, part=part, before={
+        'primary_manufacturer_part': _manufacturer_part_label(primary) if primary else None})
+
+
+def _manufacturer_part_label(manufacturer_part):
+    manufacturer = manufacturer_part.manufacturer.name if manufacturer_part.manufacturer else ''
+    return f"{manufacturer} {manufacturer_part.manufacturer_part_number}".strip()
+
+
+def _prepare_update_part_revision(organization, payload, validate):
+    payload = dict(payload)
+    assembly_part_number = payload.pop('assembly_part_number', '')
+    assembly_revision = payload.pop('assembly_revision', None)
+    prepared = {'summary': f"Update description and properties of {assembly_part_number}"}
+    if not validate:
+        return prepared
+    part_revision = parts.revision_from_number(organization, assembly_part_number, assembly_revision)
+    _call(parts.bind_part_revision_update, organization, part_revision, **payload)
+    existing = part_revision.properties.select_related('property_definition')
+    return dict(prepared, part=part_revision.part, part_revision=part_revision,
+                summary=f"{prepared['summary']} rev {part_revision.revision}",
+                before={'description': part_revision.description,
+                        'properties': {prop.property_definition.code: prop.value_raw for prop in existing}})
+
+
+def _prepare_update_manufacturer_part(organization, payload, validate, allow_released=False):
+    payload = dict(payload)
+    manufacturer_part_id = payload.pop('manufacturer_part_id', None)
+    prepared = {'summary': f"Update manufacturer part {manufacturer_part_id}"}
+    if not validate:
+        return prepared
+    manufacturer_part = parts.manufacturer_part_for(organization, manufacturer_part_id)
+    _call(parts.bind_manufacturer_part_update, organization, manufacturer_part, allow_released, **payload)
+    return dict(prepared, part=manufacturer_part.part, manufacturer_part=manufacturer_part, summary=(
+        f"Update manufacturer part {_manufacturer_part_label(manufacturer_part)} of "
+        f"{manufacturer_part.part.full_part_number()}"),
+        before={'manufacturer': manufacturer_part.manufacturer.name if manufacturer_part.manufacturer else '',
+                'manufacturer_part_number': manufacturer_part.manufacturer_part_number,
+                'link': manufacturer_part.link or '', 'datasheet_url': manufacturer_part.datasheet_url or ''})
+
+
+def _prepare_delete_manufacturer_part(organization, payload, validate):
+    manufacturer_part_id = payload.get('manufacturer_part_id')
+    prepared = {'summary': f"Delete manufacturer part {manufacturer_part_id} and its seller parts"}
+    if not validate:
+        return prepared
+    manufacturer_part = parts.manufacturer_part_for(organization, manufacturer_part_id)
+    return dict(prepared, part=manufacturer_part.part, manufacturer_part=manufacturer_part, summary=(
+        f"Delete manufacturer part {_manufacturer_part_label(manufacturer_part)} of "
+        f"{manufacturer_part.part.full_part_number()} and its seller parts"))
+
+
+def _seller_part_label(seller_part):
+    manufacturer_part = seller_part.manufacturer_part
+    return f"{seller_part.seller.name} on {manufacturer_part.manufacturer_part_number} of " \
+           f"{manufacturer_part.part.full_part_number()}"
+
+
+def _prepare_update_seller_part(organization, payload, validate):
+    payload = dict(payload)
+    seller_part_id = payload.pop('seller_part_id', None)
+    prepared = {'summary': f"Update seller part {seller_part_id}"}
+    if not validate:
+        return prepared
+    seller_part = parts.seller_part_for(organization, seller_part_id)
+    _call(parts.bind_seller_part_update, organization, seller_part, **payload)
+    return dict(prepared, part=seller_part.manufacturer_part.part, manufacturer_part=seller_part.manufacturer_part,
+                summary=f"Update seller part {_seller_part_label(seller_part)}",
+                before=parts.seller_part_summary(seller_part))
+
+
+def _prepare_delete_seller_part(organization, payload, validate):
+    seller_part_id = payload.get('seller_part_id')
+    prepared = {'summary': f"Delete seller part {seller_part_id}"}
+    if not validate:
+        return prepared
+    seller_part = parts.seller_part_for(organization, seller_part_id)
+    return dict(prepared, part=seller_part.manufacturer_part.part, manufacturer_part=seller_part.manufacturer_part,
+                summary=f"Delete seller part {_seller_part_label(seller_part)}")
 
 
 def _apply_create_part(organization, payload):
@@ -815,10 +1024,11 @@ def _apply_remove_subpart(organization, payload):
     return {'part_revision_id': part_revision.id}
 
 
-def _apply_add_manufacturer_part(organization, payload):
+def _apply_add_manufacturer_part(organization, payload, allow_released=False):
     payload = dict(payload)
     part = parts.part_from_number(organization, payload.pop('part_number', ''))
-    manufacturer_part = _call(parts.add_manufacturer_part, organization, part, **payload)
+    manufacturer_part = _call(parts.add_manufacturer_part, organization, part, allow_released=allow_released,
+                              **payload)
     return {'part_id': part.id, 'manufacturer_part_id': manufacturer_part.id}
 
 
@@ -829,6 +1039,46 @@ def _apply_add_seller_part(organization, payload):
     return {'seller_part_id': seller_part.id}
 
 
+def _apply_update_part(organization, payload):
+    part = parts.part_from_number(organization, payload.get('part_number', ''))
+    _call(parts.set_primary_manufacturer_part, part, payload.get('primary_manufacturer_part_id'))
+    return {'part_id': part.id}
+
+
+def _apply_update_part_revision(organization, payload):
+    part_revision, payload = _assembly_revision(organization, payload)
+    _call(parts.update_part_revision, organization, part_revision, **payload)
+    return {'part_revision_id': part_revision.id}
+
+
+def _apply_update_manufacturer_part(organization, payload, allow_released=False):
+    payload = dict(payload)
+    manufacturer_part = parts.manufacturer_part_for(organization, payload.pop('manufacturer_part_id', None))
+    _call(parts.update_manufacturer_part, organization, manufacturer_part, allow_released, **payload)
+    return {'part_id': manufacturer_part.part_id, 'manufacturer_part_id': manufacturer_part.id}
+
+
+def _apply_delete_manufacturer_part(organization, payload):
+    manufacturer_part = parts.manufacturer_part_for(organization, payload.get('manufacturer_part_id'))
+    part_id = manufacturer_part.part_id
+    manufacturer_part.delete()
+    return {'part_id': part_id}
+
+
+def _apply_update_seller_part(organization, payload):
+    payload = dict(payload)
+    seller_part = parts.seller_part_for(organization, payload.pop('seller_part_id', None))
+    _call(parts.update_seller_part, organization, seller_part, **payload)
+    return {'seller_part_id': seller_part.id}
+
+
+def _apply_delete_seller_part(organization, payload):
+    seller_part = parts.seller_part_for(organization, payload.get('seller_part_id'))
+    part_id = seller_part.manufacturer_part.part_id
+    seller_part.delete()
+    return {'part_id': part_id}
+
+
 _PREPARERS = {
     ChangeItem.KIND_CREATE_PART: _prepare_create_part,
     ChangeItem.KIND_ADD_SUBPART: _prepare_add_subpart,
@@ -836,6 +1086,12 @@ _PREPARERS = {
     ChangeItem.KIND_REMOVE_SUBPART: _prepare_remove_subpart,
     ChangeItem.KIND_ADD_MANUFACTURER_PART: _prepare_add_manufacturer_part,
     ChangeItem.KIND_ADD_SELLER_PART: _prepare_add_seller_part,
+    ChangeItem.KIND_UPDATE_PART: _prepare_update_part,
+    ChangeItem.KIND_UPDATE_PART_REVISION: _prepare_update_part_revision,
+    ChangeItem.KIND_UPDATE_MANUFACTURER_PART: _prepare_update_manufacturer_part,
+    ChangeItem.KIND_DELETE_MANUFACTURER_PART: _prepare_delete_manufacturer_part,
+    ChangeItem.KIND_UPDATE_SELLER_PART: _prepare_update_seller_part,
+    ChangeItem.KIND_DELETE_SELLER_PART: _prepare_delete_seller_part,
 }
 _APPLIERS = {
     ChangeItem.KIND_CREATE_PART: _apply_create_part,
@@ -844,4 +1100,10 @@ _APPLIERS = {
     ChangeItem.KIND_REMOVE_SUBPART: _apply_remove_subpart,
     ChangeItem.KIND_ADD_MANUFACTURER_PART: _apply_add_manufacturer_part,
     ChangeItem.KIND_ADD_SELLER_PART: _apply_add_seller_part,
+    ChangeItem.KIND_UPDATE_PART: _apply_update_part,
+    ChangeItem.KIND_UPDATE_PART_REVISION: _apply_update_part_revision,
+    ChangeItem.KIND_UPDATE_MANUFACTURER_PART: _apply_update_manufacturer_part,
+    ChangeItem.KIND_DELETE_MANUFACTURER_PART: _apply_delete_manufacturer_part,
+    ChangeItem.KIND_UPDATE_SELLER_PART: _apply_update_seller_part,
+    ChangeItem.KIND_DELETE_SELLER_PART: _apply_delete_seller_part,
 }
