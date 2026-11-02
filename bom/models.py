@@ -30,6 +30,8 @@ from .utils import increment_str, listify_string, prep_for_sorting_nicely, strin
 from .validators import alphanumeric
 
 logger = logging.getLogger(__name__)
+
+MANUFACTURER_PARTS_LOCKED_MESSAGE = 'Revise this part to change its manufacturer parts.'
 User = get_user_model()
 
 
@@ -409,6 +411,10 @@ class Part(OrganizationScopedModel):
 
     def latest(self):
         return self.revisions().order_by('-id').first()
+
+    def manufacturer_parts_locked(self):
+        latest = self.latest()
+        return latest is not None and latest.is_immutable()
 
     def revisions(self):
         return PartRevision.objects.filter(part=self)
@@ -1029,8 +1035,8 @@ class ManufacturerPart(models.Model, AsDictModel):
         super().clean()
 
         try:
-            if self.part.revisions().filter(configuration=CONFIGURATION_TYPE_RELEASED).exists():
-                raise ValidationError("Part has a released revision. Create a new revision to add manufacturers.")
+            if self.part.manufacturer_parts_locked():
+                raise ValidationError(MANUFACTURER_PARTS_LOCKED_MESSAGE)
         except ObjectDoesNotExist:
             pass
 

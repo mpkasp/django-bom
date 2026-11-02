@@ -67,6 +67,7 @@ from bom.forms import (
     part_form_from_organization,
 )
 from bom.models import (
+    MANUFACTURER_PARTS_LOCKED_MESSAGE,
     APIToken,
     Assembly,
     AssemblySubparts,
@@ -1418,6 +1419,26 @@ def _revision_label(part_revision):
     return f'{part_revision.part.full_part_number()} rev {part_revision.revision}'
 
 
+def _refuse_immutable_edit(request, part_revision, subpart=None):
+    """An error message and redirect when the revision, or the revision holding the subpart, cannot be edited."""
+    revisions = [part_revision] + (list(subpart.get_parent_part_revisions()) if subpart else [])
+    immutable = next((revision for revision in revisions if revision.is_immutable()), None)
+    if immutable is None:
+        return None
+    messages.error(request, f'{_revision_label(immutable)} is {immutable.get_configuration_display()} and cannot be '
+                            f'edited. Revise it to make changes in a new Draft.')
+    return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={
+        'part_id': immutable.part_id, 'part_revision_id': immutable.id}))
+
+
+def _refuse_locked_manufacturer_parts(request, part):
+    if not part.manufacturer_parts_locked():
+        return None
+    messages.error(request, MANUFACTURER_PARTS_LOCKED_MESSAGE)
+    return HttpResponseRedirect(_next_url_or(
+        request, reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing'))
+
+
 def _subpart_values(subpart):
     return {'count': subpart.count, 'reference': subpart.reference or '', 'do_not_load': subpart.do_not_load,
             'subpart_part_number': subpart.part_revision.part.full_part_number()}
@@ -1652,6 +1673,9 @@ def add_subpart(request, part_id, part_revision_id):
     organization = profile.organization
 
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    refusal = _refuse_immutable_edit(request, part_revision)
+    if refusal:
+        return refusal
 
     if request.method == 'POST':
         add_subpart_form = AddSubpartForm(request.POST, organization=organization, part_revision_id=part_revision_id)
@@ -1710,6 +1734,9 @@ def add_subpart(request, part_id, part_revision_id):
 def remove_subpart(request, part_id, part_revision_id, subpart_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     subpart = get_object_or_404(Subpart, pk=subpart_id)
+    refusal = _refuse_immutable_edit(request, part_revision, subpart)
+    if refusal:
+        return refusal
     before = _subpart_values(subpart)
     subpart.delete()
     record_direct_edit(
@@ -1910,6 +1937,9 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
 
     part = get_object_or_404(Part, pk=part_id)
     subpart = get_object_or_404(Subpart, pk=subpart_id)
+    refusal = _refuse_immutable_edit(request, get_object_or_404(PartRevision, pk=part_revision_id), subpart)
+    if refusal:
+        return refusal
     title = "Edit Subpart"
     h1 = "{} {}".format(subpart.part_revision.part.full_part_number(), subpart.part_revision.synopsis())
     before = _subpart_values(subpart)
@@ -1941,6 +1971,9 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
 @bom_permission_required(BomPerms.EDIT_PART)
 def remove_all_subparts(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    refusal = _refuse_immutable_edit(request, part_revision)
+    if refusal:
+        return refusal
     lines = [_subpart_values(line) for line in part_revision.assembly.subparts.select_related('part_revision__part')]
     part_revision.assembly.subparts.all().delete()
     if lines:
@@ -2005,6 +2038,10 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
         before = None
         title = f"Add Manufacturer Part to {part.full_part_number()}"
 
+    refusal = _refuse_locked_manufacturer_parts(request, part)
+    if refusal:
+        return refusal
+
     if request.method == 'POST':
         form = ManufacturerPartForm(request.POST, instance=instance, organization=organization)
         if form.is_valid():
@@ -2038,6 +2075,9 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
 def manufacturer_part_delete(request, manufacturer_part_id):
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     part = manufacturer_part.part
+    refusal = _refuse_locked_manufacturer_parts(request, part)
+    if refusal:
+        return refusal
     before = _manufacturer_part_values(manufacturer_part)
     manufacturer_part.delete()
     record_direct_edit(
@@ -2056,6 +2096,9 @@ def manufacturer_part_make_primary(request, manufacturer_part_id):
     manufacturer_part = get_object_or_404(ManufacturerPart.objects.filter(part__organization=organization),
                                           pk=manufacturer_part_id)
     part = manufacturer_part.part
+    refusal = _refuse_locked_manufacturer_parts(request, part)
+    if refusal:
+        return refusal
     if part.primary_manufacturer_part_id != manufacturer_part.id:
         before = {'primary_manufacturer_part_id': part.primary_manufacturer_part_id}
         part.primary_manufacturer_part = manufacturer_part

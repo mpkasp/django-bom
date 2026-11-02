@@ -506,3 +506,65 @@ class EditPageTest(EditingTestCase):
         self.assertNotContains(released_page, self.edit_url)
         self.assertNotContains(released_page, 'Release&hellip;')
         self.assertNotContains(released_page, 'Manage Revision')
+
+
+class ImmutableGuardTest(EditingTestCase):
+    def setUp(self):
+        super().setUp()
+        self.revision = self.new_part('Widget')
+        self.part = self.revision.part
+        boms.add_subpart(self.organization, self.revision, self.parts[0].full_part_number(), count=1, reference='U1')
+        self.primary = parts.add_manufacturer_part(self.organization, self.part, 'Acme', 'ACME-1')
+        self.add_url = reverse('bom:part-add-manufacturer-part', kwargs={'part_id': self.part.id})
+        PartRevision.objects.filter(pk=self.revision.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+
+    def test_manufacturer_parts_can_be_added_to_the_draft_after_revising_and_not_before(self):
+        mpn = {'manufacturer': 'Initech', 'manufacturer_part_number': 'INI-1'}
+        with self.assertRaisesMessage(ServiceError, 'Revise this part to change its manufacturer parts.'):
+            parts.add_manufacturer_part(self.organization, self.part, 'Initech', 'INI-0')
+
+        self.client.post(reverse('bom:part-revision-revise', kwargs={
+            'part_id': self.part.id, 'part_revision_id': self.revision.id}))
+        self.client.post(self.add_url, mpn)
+
+        self.assertTrue(ManufacturerPart.objects.filter(part=self.part, manufacturer_part_number='INI-1').exists())
+
+    def test_a_crafted_subpart_post_against_a_released_revision_is_refused_without_an_error_page(self):
+        subpart = self.revision.assembly.subparts.get()
+        kwargs = {'part_id': self.part.id, 'part_revision_id': self.revision.id}
+        edit_url = reverse('bom:part-edit-subpart', kwargs=dict(kwargs, subpart_id=subpart.id))
+        remove_url = reverse('bom:part-remove-subpart', kwargs=dict(kwargs, subpart_id=subpart.id))
+
+        attempts = [
+            (edit_url, {'count': 5, 'reference': 'U1, U2, U3, U4, U5'}),
+            (remove_url, {}),
+            (reverse('bom:part-remove-all-subparts', kwargs=kwargs), {}),
+            (reverse('bom:part-add-subpart', kwargs=kwargs),
+             {'subpart_part_number': self.parts[1].full_part_number(), 'count': 1}),
+        ]
+
+        for url, data in attempts:
+            response = self.client.post(url, data)
+            self.assertEqual(response.status_code, 302)
+            self.assertContains(self.client.get(response.url), 'cannot be edited')
+        subpart.refresh_from_db()
+        self.assertEqual(subpart.count, 1)
+        self.assertEqual(self.history().count(), 0)
+
+    def test_manufacturer_part_views_refuse_when_the_latest_revision_is_released(self):
+        primary_kwargs = {'manufacturer_part_id': self.primary.id}
+        attempts = [
+            (self.add_url, {'manufacturer': 'Initech', 'manufacturer_part_number': 'INI-1'}),
+            (reverse('bom:manufacturer-part-edit', kwargs=primary_kwargs),
+             {'manufacturer': 'Acme', 'manufacturer_part_number': 'ACME-2'}),
+            (reverse('bom:manufacturer-part-make-primary', kwargs=primary_kwargs), {}),
+            (reverse('bom:manufacturer-part-delete', kwargs=primary_kwargs), {}),
+        ]
+
+        for url, data in attempts:
+            response = self.client.post(url, data)
+            self.assertEqual(response.status_code, 302)
+            self.assertContains(self.client.get(response.url), 'Revise this part to change its manufacturer parts.')
+        self.assertEqual(list(ManufacturerPart.objects.filter(part=self.part)), [self.primary])
+        self.primary.refresh_from_db()
+        self.assertEqual(self.primary.manufacturer_part_number, 'ACME-1')
