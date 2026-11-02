@@ -154,8 +154,25 @@
                 {% endif %}
             </tr>
         {% empty %}
+            {% if not proposals.subpart_lines %}
             <tr>
                 <td colspan="99" style="text-align: center; height: 20vh;"><i>This part does not contain any other parts.</i></td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+        {% for line in proposals.subpart_lines %}
+            <tr data-tt-id="proposed-{{ forloop.counter }}" style="opacity: 0.6;">
+                <td class="text-normal">1</td>
+                <td class="text-normal">
+                    {% if line.subpart_revision %}<a href="{% url 'bom:part-info' part_id=line.subpart_revision.part_id %}">{{ line.part_number }}</a>{% else %}{{ line.part_number }}{% endif %}
+                    <a class="chip" href="{% url 'bom:change-review' number=line.change.number %}">Proposed</a>
+                </td>
+                <td class="text-normal">{{ line.count | floatformat }}</td>
+                <td class="text-normal">{{ line.reference | default:"-" | truncatechars:25 }}</td>
+                <td class="text-normal">{{ line.do_not_load | default:"-" }}</td>
+                <td class="text-normal">{{ line.subpart_revision.synopsis | default:"-" | truncatechars:75 }}</td>
+                <td class="text-normal">{{ line.subpart_revision.revision | default:"-" }}</td>
+                <td class="text-normal" colspan="99"></td>
             </tr>
         {% endfor %}
     </table>

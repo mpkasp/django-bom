@@ -81,7 +81,8 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
-from bom.services.changes import record_csv_import
+from bom.services.changes import proposals_for_revision, record_csv_import
+from bom.services.flags import changes_review_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from bom.services.search import latest_part_revisions, search_parts
 from bom.third_party_apis.base_api import BaseApiError
@@ -864,6 +865,8 @@ def part_info(request, part_id, part_revision_id=None):
 
     where_used_part = part.where_used_recursive()
     seller_parts = part.seller_parts()
+    proposals = proposals_for_revision(part_revision) \
+        if part_revision is not None and changes_review_enabled(organization) else None
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
 

@@ -3,6 +3,7 @@ from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -44,7 +45,8 @@ def change_list(request, organization):
     active_filter = request.GET.get('filter', 'requests')
     queryset = Change.objects.filter(organization=organization).select_related('author', 'api_token')
     if active_filter == 'ecos':
-        queryset = queryset.filter(items__part_revision__configuration__in=PartRevision.IMMUTABLE_STATES).distinct()
+        queryset = queryset.filter(Q(items__part_revision__configuration__in=PartRevision.IMMUTABLE_STATES)
+                                   | Q(items__result__has_key='new_revision_id')).distinct()
     elif active_filter == 'applied':
         queryset = queryset.filter(status=Change.STATUS_APPLIED)
     elif active_filter == 'rejected':
@@ -78,10 +80,19 @@ def change_review(request, organization, number):
     can_review = user.has_perm(BomPerms.EDIT_PART, organization)
     approval = changes.approval_status(change, user)
     can_act = is_pending and (is_author or change.status == Change.STATUS_OPEN)
+    problems = changes.validate_change(change) if is_pending else []
+    is_stale = change.is_stale
     return TemplateResponse(request, 'bom/changes/change-review.html', {
         'title': f'Change #{change.number}', 'name': 'changes', 'profile': user.bom_profile(),
         'organization': organization, 'change': change, 'items': list(change.items.all()),
-        'is_eco': change.is_eco, 'is_protected': change.is_protected, 'is_stale': change.is_stale,
+        'is_eco': change.is_eco, 'is_protected': change.is_protected, 'is_stale': is_stale,
+        'problems': problems, 'error_count': sum(problem['level'] == 'error' for problem in problems),
+        'warning_count': sum(problem['level'] == 'warning' for problem in problems),
+        'impact': changes.impact(change) if is_pending or change.status == Change.STATUS_APPLIED else None,
+        'created_revisions': changes.created_revisions(change),
+        'can_rebase': is_stale and can_review,
+        'can_revert': change.status == Change.STATUS_APPLIED and can_review
+        and change.items.exclude(kind=ChangeItem.KIND_CSV_IMPORT).exists(),
         'is_pending': is_pending, 'is_author': is_author, 'can_review': can_review, 'approval': approval,
         'can_apply': can_act and can_review and approval['can_apply'],
         'can_apply_as_admin': can_act and can_review and not approval['can_apply'] and approval['can_override'],
@@ -133,6 +144,41 @@ def change_reject(request, organization, number):
 def change_withdraw(request, organization, number):
     change = _change_from_number(organization, number)
     return _perform(request, change, f'Change #{change.number} withdrawn.', changes.withdraw_change)
+
+
+@changes_view
+@require_POST
+def change_rebase(request, organization, number):
+    change = _change_from_number(organization, number)
+    if not request.user.has_perm(BomPerms.EDIT_PART, organization):
+        messages.error(request, "You don't have permission to rebase changes.")
+        return _review_redirect(change)
+    try:
+        conflicts = changes.rebase_change(change)
+    except ServiceError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, f'Change #{change.number} rebased onto the current data.')
+        for conflict in conflicts:
+            messages.warning(request, f"Item {conflict['position']} rejected: {conflict['reason']}")
+    return _review_redirect(change)
+
+
+@changes_view
+@require_POST
+def change_revert(request, organization, number):
+    change = _change_from_number(organization, number)
+    try:
+        counter = changes.revert_change(change, request.user)
+    except ServiceError as error:
+        messages.error(request, str(error))
+        return _review_redirect(change)
+    if counter.status == Change.STATUS_APPLIED:
+        messages.success(request, f'Change #{change.number} reverted by change #{counter.number}.')
+    else:
+        messages.info(request, f'Change #{counter.number} was submitted for review: someone other than its author '
+                               f'must apply it to revert change #{change.number}.')
+    return _review_redirect(counter)
 
 
 @changes_view

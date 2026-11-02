@@ -151,6 +151,14 @@
                 </div>
             </div>
 
+            {% if proposals.changes %}
+                <div class="card-panel deep-purple lighten-5 printer-hide">
+                    {{ proposals.changes|length }} open change{{ proposals.changes|length|pluralize }} touch{{ proposals.changes|length|pluralize:"es," }} this revision:
+                    {% for change in proposals.changes %}
+                        <a href="{% url 'bom:change-review' number=change.number %}">#{{ change.number }} {{ change.title }}</a>{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
             <div class="row">
                 <div class="col s12 printer-hide">
                     <ul id="tabs" class="tabs tabs-fixed-width">
@@ -353,6 +361,10 @@
                 <div id="sourcing" class="col s12">
                     <h4 class="printer-show">Sourcing</h4>
                     {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=part.manufacturer_parts part_revision=part_revision profile=profile show_manufacturer=True %}
+                    {% for item in proposals.seller_items %}
+                        <p style="opacity: 0.6;"><span class="chip">Proposed</span> {{ item.summary }}
+                            <a href="{% url 'bom:change-review' number=item.change.number %}">Change #{{ item.change.number }}</a></p>
+                    {% endfor %}
                     {% if perms.bom.manage_sourcing %}
                         <div class="row" style="padding-top: 16px;">
                             <div class="col s12 center-align">
