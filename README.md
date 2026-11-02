@@ -207,16 +207,18 @@ only stage and submit changes for review (propose); `read,write,apply` can also 
 (`create_api_token --scopes read,write,apply`). Write tools take an optional `change_id` to stage into a change from
 `start_change`; without it a propose-level token submits a one-item change request and an apply-level token applies
 it at once. Edits to Released or In Review revisions make the change an Engineering Change Order (ECO): applying it
-creates a new Draft revision of each edited part (copying its assembly and properties) for a person to release, and
-it requires a second person to apply, as do protections in `ChangeSettings` (including a cost-delta threshold). The
+creates a new Draft revision of each edited part (copying its assembly and properties) and a person's approval then
+releases those revisions, children before parents, and it requires a second person to apply, as do protections in `ChangeSettings` (including a cost-delta threshold). The
 review page shows validation, impact (assemblies that use the edited parts) and the unit-cost effect at 100 units,
 and can rebase a stale change or revert an applied one. Hosts can switch the feature with
-`BOM_CONFIG['changes_review_enabled']`, `BOM_CONFIG['mcp_apply_enabled']` and `BOM_CONFIG['eco_enabled']`
-(callables of the organization or dotted paths; all default on), and set `BOM_CONFIG['site_url']` so change URLs
+`BOM_CONFIG['changes_review_enabled']`, `BOM_CONFIG['mcp_apply_enabled']`, `BOM_CONFIG['eco_enabled']` and
+`BOM_CONFIG['release_approval_enabled']` (callables of the organization or dotted paths; all default on), and set `BOM_CONFIG['site_url']` so change URLs
 returned to MCP clients are absolute.
 
 Admins set the protections (always on for Released and In Review revisions; optionally the primary manufacturer
-part and a cost-delta threshold) in Settings > Organization.
+part and a cost-delta threshold, and, when the host enables it, requiring approval to release) in Settings >
+Organization. With approval required and more than one active member, the Release dialog offers Request approval
+instead of Release; an Admin may release directly by confirming an override that History records.
 
 After an applied Engineering Change Order, Draft parent assemblies are moved to the new revision automatically and
 the review page's **Cascade** panel offers a new Draft revision of each Released parent that still uses the old one.

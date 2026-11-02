@@ -117,6 +117,24 @@ building a new multi-form page.
 
    Agents: apply tokens may edit Drafts and Revise (create Draft revisions) but never release or
    approve; propose tokens only open change requests. Unchanged MCP tool names and payloads.
+
+   As implemented (the matrix above is enforced in `bom/services/changes.py`, not in views):
+
+   - Release: `release_revision` checks `RELEASE_REVISION` (Editor, Admin). When `release_approval_required`
+     (host flag `release_approval_enabled` and `changes_review_enabled` on, `ChangeSettings.require_release_approval`
+     on, more than one active member) it refuses an Editor, and refuses an Admin unless `override_approval=True`;
+     the override is recorded as `protection_overridden_by` on the History entry, in its title and payload.
+   - Request approval: `request_release_approval` needs `EDIT_PART`, review enabled, a Draft or In Review
+     revision with no other pending release request; it creates and submits a change with one
+     `release_revision` item. It is offered whether or not the setting is on.
+   - Approve is `apply_change` on a submitted request: unchanged `approval_status` rules (not the author, except in a
+     single-member organization or as an Admin override), the item permission (`RELEASE_REVISION` for release items),
+     then apply, then release the requested and the created revisions children first, all in one transaction. A
+     Viewer can neither request nor approve. The setting does not affect approval.
+   - Agents: `apply_change(by_agent=True)` (the MCP tools) refuses changes without an `api_token` (a person's
+     request) and any release item, and does not release the revisions its own ECO creates. MCP has no release tool.
+   - Settings: only Admins save Protections; the checkbox is hidden when the host flag is off.
+   - `is_eco` is true for any non-direct change with a `release_revision` item; the review page shows Approve.
 6. **Telemetry:** one structured log line per Edit save, Revise, Release, Request approval,
    Approve, Reject (`logger.info('bom_event=... organization=... user=... part=...')`), matching
    the existing MCP log style, for BigQuery.
