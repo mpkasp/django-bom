@@ -241,7 +241,8 @@ def list_changes(ctx: Context, status: str = 'open', limit: int = 25) -> list[di
     """Changes in the organization, newest first, filtered by status (draft, open, applied, rejected, withdrawn,
     or all). Each has is_eco, true when it edits a Released or In Review revision."""
     with tool_call(ctx, 'list_changes') as actor:
-        queryset = Change.objects.filter(organization=actor.organization).select_related('author')
+        queryset = Change.objects.filter(organization=actor.organization, is_direct_edit=False)
+        queryset = queryset.select_related('author')
         if status != 'all':
             queryset = queryset.filter(status=status)
         return [changes.change_summary(change) for change in queryset[:max(1, min(limit, 200))]]

@@ -1258,7 +1258,7 @@ class Change(OrganizationScopedModel):
     )
     PENDING_STATUSES = (STATUS_DRAFT, STATUS_OPEN)
 
-    number = models.PositiveIntegerField()
+    number = models.PositiveIntegerField(null=True, blank=True)
     title = models.CharField(max_length=255)
     rationale = models.TextField(blank=True)
     status = models.CharField(max_length=16, choices=STATUSES, default=STATUS_DRAFT, db_index=True)
@@ -1275,6 +1275,9 @@ class Change(OrganizationScopedModel):
     protection_overridden_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                                  on_delete=models.SET_NULL, related_name='+')
     cascade = models.JSONField(null=True, blank=True)
+    is_direct_edit = models.BooleanField(default=False)
+    base_part_revision = models.ForeignKey('PartRevision', null=True, blank=True, on_delete=models.SET_NULL,
+                                           related_name='+')
 
     class Meta:
         unique_together = ('organization', 'number')
@@ -1296,7 +1299,7 @@ class Change(OrganizationScopedModel):
         return changes.is_stale(self)
 
     def __str__(self):
-        return f"Change #{self.number}: {self.title}"
+        return f"Change #{self.number}: {self.title}" if self.number else self.title
 
 
 class ChangeItem(models.Model):
@@ -1308,6 +1311,13 @@ class ChangeItem(models.Model):
     KIND_ADD_MANUFACTURER_PART = 'add_manufacturer_part'
     KIND_ADD_SELLER_PART = 'add_seller_part'
     KIND_CSV_IMPORT = 'csv_import'
+    KIND_CREATE_PART_REVISION = 'create_part_revision'
+    KIND_UPDATE_PART = 'update_part'
+    KIND_UPDATE_MANUFACTURER_PART = 'update_manufacturer_part'
+    KIND_DELETE_MANUFACTURER_PART = 'delete_manufacturer_part'
+    KIND_UPDATE_SELLER_PART = 'update_seller_part'
+    KIND_DELETE_SELLER_PART = 'delete_seller_part'
+    KIND_RELEASE_REVISION = 'release_revision'
     KINDS = (
         (KIND_CREATE_PART, 'Create part'),
         (KIND_UPDATE_PART_REVISION, 'Update part revision'),
@@ -1317,6 +1327,13 @@ class ChangeItem(models.Model):
         (KIND_ADD_MANUFACTURER_PART, 'Add manufacturer part'),
         (KIND_ADD_SELLER_PART, 'Add seller part'),
         (KIND_CSV_IMPORT, 'CSV import'),
+        (KIND_CREATE_PART_REVISION, 'Create part revision'),
+        (KIND_UPDATE_PART, 'Update part'),
+        (KIND_UPDATE_MANUFACTURER_PART, 'Update manufacturer part'),
+        (KIND_DELETE_MANUFACTURER_PART, 'Delete manufacturer part'),
+        (KIND_UPDATE_SELLER_PART, 'Update seller part'),
+        (KIND_DELETE_SELLER_PART, 'Delete seller part'),
+        (KIND_RELEASE_REVISION, 'Release revision'),
     )
     STATUS_ACCEPTED = 'accepted'
     STATUS_REJECTED = 'rejected'

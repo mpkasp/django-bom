@@ -70,6 +70,7 @@ from bom.models import (
     APIToken,
     Assembly,
     AssemblySubparts,
+    ChangeItem,
     ChangeSettings,
     Manufacturer,
     ManufacturerPart,
@@ -85,7 +86,7 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
-from bom.services.changes import changes_touching_part, proposals_for_revision, record_csv_import
+from bom.services.changes import part_history, proposals_for_revision, record_csv_import, record_direct_edit
 from bom.services.diffs import revision_diff
 from bom.services.flags import changes_review_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
@@ -920,7 +921,7 @@ def part_info(request, part_id, part_revision_id=None):
     seller_parts = part.seller_parts()
     review_enabled = changes_review_enabled(organization)
     proposals = proposals_for_revision(part_revision) if part_revision is not None and review_enabled else None
-    part_changes = changes_touching_part(part) if review_enabled else None
+    history_entries = part_history(part)
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
 
@@ -1411,6 +1412,29 @@ def write_parts_csv(response, organization, part_revisions):
             writer.writerow({key: smart_str(value) for key, value in row.items()})
 
 
+def _revision_label(part_revision):
+    return f'{part_revision.part.full_part_number()} rev {part_revision.revision}'
+
+
+def _subpart_values(subpart):
+    return {'count': subpart.count, 'reference': subpart.reference or '', 'do_not_load': subpart.do_not_load,
+            'subpart_part_number': subpart.part_revision.part.full_part_number()}
+
+
+def _manufacturer_part_values(manufacturer_part):
+    return {'manufacturer': manufacturer_part.manufacturer.name if manufacturer_part.manufacturer else '',
+            'manufacturer_part_number': manufacturer_part.manufacturer_part_number,
+            'link': manufacturer_part.link or '', 'datasheet_url': manufacturer_part.datasheet_url or '',
+            'sourcing_disable': manufacturer_part.sourcing_disable}
+
+
+def _seller_part_values(seller_part):
+    return {'seller': seller_part.seller.name, 'seller_part_number': seller_part.seller_part_number or '',
+            'unit_cost': str(seller_part.unit_cost.amount), 'nre_cost': str(seller_part.nre_cost.amount),
+            'minimum_order_quantity': seller_part.minimum_order_quantity,
+            'minimum_pack_quantity': seller_part.minimum_pack_quantity, 'lead_time_days': seller_part.lead_time_days}
+
+
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.CREATE_PART)
 def create_part(request):
@@ -1448,6 +1472,12 @@ def create_part(request):
                 new_part.primary_manufacturer_part = mp
                 new_part.save()
 
+            record_direct_edit(
+                organization, user, new_part, ChangeItem.KIND_CREATE_PART,
+                f"Create part {new_part.full_part_number()}: {new_rev.description or ''}", part_revision=new_rev,
+                payload={'revision': new_rev.revision, 'description': new_rev.description},
+                result={'part_id': new_part.id, 'part_number': new_part.full_part_number(),
+                        'part_revision_id': new_rev.id})
             messages.success(request, f"Created {new_part.full_part_number()}")
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': new_part.id}))
         else:
@@ -1480,6 +1510,9 @@ def part_edit(request, part_id):
         form = PartForm(request.POST, request.FILES, instance=part, organization=organization)
         if form.is_valid():
             form.save()
+            if form.changed_data:
+                record_direct_edit(organization, user, part, ChangeItem.KIND_UPDATE_PART,
+                                   f"Edit part {part.full_part_number()}", payload={'fields': form.changed_data})
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
         form = PartForm(instance=part, organization=organization)
@@ -1591,9 +1624,11 @@ def add_subpart(request, part_id, part_revision_id):
             count = add_subpart_form.cleaned_data['count']
 
             first_level_bom = part_revision.assembly.subparts.filter(part_revision=subpart_part, do_not_load=dnl)
+            before = None
 
             if first_level_bom.count() > 0:
                 new_part = first_level_bom[0]
+                before = {'count': new_part.count, 'reference': new_part.reference}
                 new_part.count += count
                 if reference:
                     new_part.reference = new_part.reference + ', ' + reference
@@ -1611,6 +1646,15 @@ def add_subpart(request, part_id, part_revision_id):
 
                 AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
 
+            subpart_part_number = subpart_part.part.full_part_number()
+            record_direct_edit(
+                organization, user, part_revision.part, ChangeItem.KIND_ADD_SUBPART,
+                f"Add {subpart_part_number} x{count} {reference} to {_revision_label(part_revision)}",
+                part_revision=part_revision, before=before,
+                payload={'subpart_part_number': subpart_part_number, 'count': count, 'reference': reference,
+                         'do_not_load': dnl},
+                result={'part_revision_id': part_revision.id, 'subpart_id': new_part.id})
+
             info_msg = "Added subpart "
             if reference:
                 info_msg += ' ' + reference
@@ -1626,8 +1670,16 @@ def add_subpart(request, part_id, part_revision_id):
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.EDIT_PART)
 def remove_subpart(request, part_id, part_revision_id, subpart_id):
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     subpart = get_object_or_404(Subpart, pk=subpart_id)
+    before = _subpart_values(subpart)
     subpart.delete()
+    record_direct_edit(
+        request.user.bom_profile().organization, request.user, part_revision.part, ChangeItem.KIND_REMOVE_SUBPART,
+        f"Remove {before['subpart_part_number']} from {_revision_label(part_revision)}",
+        part_revision=part_revision, before=before, payload={'subpart_part_number': before['subpart_part_number'],
+                                                             'do_not_load': before['do_not_load']},
+        result={'part_revision_id': part_revision.id})
     return HttpResponseRedirect(
         reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
@@ -1822,11 +1874,21 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
     subpart = get_object_or_404(Subpart, pk=subpart_id)
     title = "Edit Subpart"
     h1 = "{} {}".format(subpart.part_revision.part.full_part_number(), subpart.part_revision.synopsis())
+    before = _subpart_values(subpart)
 
     if request.method == 'POST':
         form = SubpartForm(request.POST, instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
         if form.is_valid():
             form.save()
+            parent_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+            record_direct_edit(
+                organization, user, parent_revision.part, ChangeItem.KIND_UPDATE_SUBPART,
+                f"Update {before['subpart_part_number']} in {_revision_label(parent_revision)}",
+                part_revision=parent_revision, before=before,
+                payload={'subpart_part_number': before['subpart_part_number'], 'count': form.cleaned_data['count'],
+                         'reference': form.cleaned_data['reference'],
+                         'do_not_load': form.cleaned_data['do_not_load']},
+                result={'part_revision_id': parent_revision.id, 'subpart_id': subpart.id})
             return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
         else:
             return TemplateResponse(request, 'bom/bom-form.html', locals())
@@ -1841,8 +1903,26 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
 @bom_permission_required(BomPerms.EDIT_PART)
 def remove_all_subparts(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    lines = [_subpart_values(line) for line in part_revision.assembly.subparts.select_related('part_revision__part')]
     part_revision.assembly.subparts.all().delete()
+    if lines:
+        record_direct_edit(
+            request.user.bom_profile().organization, request.user, part_revision.part, ChangeItem.KIND_REMOVE_SUBPART,
+            f"Remove all {len(lines)} lines from {_revision_label(part_revision)}", part_revision=part_revision,
+            before={'lines': lines}, payload={'all': True}, result={'part_revision_id': part_revision.id})
     return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+
+
+def _save_seller_part(request, organization, form, manufacturer_part, before=None):
+    part = manufacturer_part.part
+    saved = form.save()
+    verb = 'Update' if before else 'Add'
+    record_direct_edit(
+        organization, request.user, part,
+        ChangeItem.KIND_UPDATE_SELLER_PART if before else ChangeItem.KIND_ADD_SELLER_PART,
+        f"{verb} {saved.seller.name} price on {manufacturer_part.manufacturer_part_number} of "
+        f"{part.full_part_number()}",
+        before=before, payload=_seller_part_values(saved), result={'seller_part_id': saved.id})
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1879,10 +1959,12 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
         instance = get_object_or_404(ManufacturerPart.objects.filter(part__organization=organization),
                                      pk=manufacturer_part_id)
         part = instance.part
+        before = _manufacturer_part_values(instance)
         title = f"Edit Manufacturer Part for {part.full_part_number()}"
     else:
         part = get_object_or_404(Part.objects.filter(organization=organization), pk=part_id)
         instance = ManufacturerPart(part=part)
+        before = None
         title = f"Add Manufacturer Part to {part.full_part_number()}"
 
     if request.method == 'POST':
@@ -1892,6 +1974,13 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
             if part.primary_manufacturer_part is None:
                 part.primary_manufacturer_part = obj
                 part.save()
+            record_direct_edit(
+                organization, user, part,
+                ChangeItem.KIND_UPDATE_MANUFACTURER_PART if before else ChangeItem.KIND_ADD_MANUFACTURER_PART,
+                f"{'Update' if before else 'Add'} manufacturer part {obj.manufacturer} "
+                f"{obj.manufacturer_part_number} of {part.full_part_number()}",
+                before=before, payload=_manufacturer_part_values(obj),
+                result={'part_id': part.id, 'manufacturer_part_id': obj.id})
             messages.success(request, "Manufacturer part saved.")
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
         else:
@@ -1910,7 +1999,12 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
 def manufacturer_part_delete(request, manufacturer_part_id):
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     part = manufacturer_part.part
+    before = _manufacturer_part_values(manufacturer_part)
     manufacturer_part.delete()
+    record_direct_edit(
+        request.user.bom_profile().organization, request.user, part, ChangeItem.KIND_DELETE_MANUFACTURER_PART,
+        f"Delete manufacturer part {before['manufacturer_part_number']} of {part.full_part_number()}",
+        before=before, payload={'manufacturer_part_id': manufacturer_part_id}, result={'part_id': part.id})
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
 
 
@@ -1930,11 +2024,12 @@ def seller_part_manage(request, manufacturer_part_id=None, seller_part_id=None):
                                pk=manufacturer_part_id)
         instance = SellerPart(manufacturer_part=mp)
         title = f"Add Vendor for {mp.manufacturer_part_number}"
+    before = _seller_part_values(instance) if instance.pk else None
 
     if request.method == 'POST':
         form = SellerPartForm(request.POST, instance=instance, organization=organization)
         if form.is_valid():
-            form.save()
+            _save_seller_part(request, organization, form, mp, before)
             messages.success(request, "Vendor sourcing updated.")
             return HttpResponseRedirect(
                 reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing')
@@ -1953,7 +2048,13 @@ def seller_part_manage(request, manufacturer_part_id=None, seller_part_id=None):
 def seller_part_delete(request, seller_part_id):
     sp = get_object_or_404(SellerPart, pk=seller_part_id)
     part = sp.manufacturer_part.part
+    before = _seller_part_values(sp)
+    summary = (f"Delete {sp.seller.name} price on {sp.manufacturer_part.manufacturer_part_number} of "
+               f"{part.full_part_number()}")
     sp.delete()
+    record_direct_edit(request.user.bom_profile().organization, request.user, part,
+                       ChangeItem.KIND_DELETE_SELLER_PART, summary, before=before,
+                       payload={'seller_part_id': seller_part_id}, result={'part_id': part.id})
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
 
 
@@ -2084,6 +2185,12 @@ def part_revision_new(request, part_id):
                     new_sp.pk = None
                     new_sp.save()
                     AssemblySubparts.objects.create(assembly=new_assembly, subpart=new_sp)
+            record_direct_edit(
+                organization, user, part, ChangeItem.KIND_CREATE_PART_REVISION,
+                f"Create {_revision_label(new_part_revision)}", part_revision=new_part_revision,
+                payload={'revision': new_part_revision.revision,
+                         'copy_assembly': part_revision_new_form.cleaned_data['copy_assembly']},
+                result={'part_revision_id': new_part_revision.id})
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
 
     else:
@@ -2114,11 +2221,20 @@ def part_revision_edit(request, part_id, part_revision_id):
     title = 'Edit {} Rev {}'.format(part.full_part_number(), part_revision.revision)
 
     action = reverse('bom:part-revision-edit', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id})
+    before = {'description': part_revision.description,
+              'properties': {prop.property_definition.code: prop.value_raw
+                             for prop in part_revision.properties.select_related('property_definition')}}
 
     if request.method == 'POST':
         form = PartRevisionForm(request.POST, instance=part_revision, organization=organization)
         if form.is_valid():
             form.save()
+            if form.has_changed():
+                record_direct_edit(
+                    organization, user, part, ChangeItem.KIND_UPDATE_PART_REVISION,
+                    f"Update description and properties of {_revision_label(part_revision)}",
+                    part_revision=part_revision, before=before, payload={'fields': form.changed_data},
+                    result={'part_revision_id': part_revision.id})
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
         form = PartRevisionForm(instance=part_revision, organization=organization)

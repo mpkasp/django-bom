@@ -533,7 +533,7 @@ class ChangesServiceTest(TestCase):
         with self.assertRaises(ServiceError):
             changes.cascade_revisions(change, self.add_member(constants.ROLE_TYPE_VIEWER), [released_parent.id])
 
-    def test_changes_touching_a_part_list_applied_first(self):
+    def test_part_history_lists_only_applied_changes(self):
         leaf, _, _, applied = self.stage_leaf_eco()
         open_change = changes.start_change(self.organization, self.user, 'Open one')
         changes.stage_item(open_change, ChangeItem.KIND_ADD_SUBPART, {
@@ -541,8 +541,10 @@ class ChangesServiceTest(TestCase):
         changes.submit_change(open_change, self.user)
         changes.start_change(self.organization, self.user, 'Untouched')
 
-        self.assertEqual(changes.changes_touching_part(leaf.part), [applied, open_change])
-        self.assertEqual(changes.changes_touching_part(self.parts[3]), [])
+        history = changes.part_history(leaf.part)
+        self.assertEqual([entry['change'] for entry in history], [applied])
+        self.assertEqual(history[0]['diff_revision_ids'], (leaf.id, leaf.part.latest().id))
+        self.assertEqual(changes.part_history(self.parts[3]), [])
 
     def test_organization_scoping(self):
         other_user = User.objects.create_user('stranger', 'stranger@example.com', 'ghostpassword')
@@ -689,31 +691,35 @@ class ChangesViewTest(TestCase):
         self.assertContains(response, f'Created {new_parent.part.full_part_number()} rev {new_parent.revision}')
         self.assertNotContains(response, 'Create new revisions for selected')
 
-    def test_part_page_changes_tab_lists_applied_changes_first(self):
+    def test_part_page_history_tab_lists_applied_changes_newest_first_and_skips_open_ones(self):
         assembly = self.parts[2].latest()
         applied = changes.start_change(self.organization, self.user, 'Applied one')
         changes.stage_item(applied, ChangeItem.KIND_ADD_SUBPART, {
             'assembly_part_number': assembly.part.full_part_number(),
             'subpart_part_number': self.parts[1].full_part_number(), 'count': 1})
         changes.apply_change(applied, self.user)
+        changes.record_direct_edit(self.organization, self.user, assembly.part, ChangeItem.KIND_UPDATE_PART,
+                                   'Direct edit two', part_revision=assembly)
         opened = changes.start_change(self.organization, self.user, 'Open one')
         changes.stage_item(opened, ChangeItem.KIND_ADD_SUBPART, {
             'assembly_part_number': assembly.part.full_part_number(),
             'subpart_part_number': self.parts[0].full_part_number(), 'count': 1})
         changes.submit_change(opened, self.user)
 
-        content = self.client.get(reverse('bom:part-info', kwargs={'part_id': assembly.part_id})).content.decode()
-        self.assertIn('id="changes-tab"', content)
-        tab = content[content.index('<div id="changes"'):]
-        self.assertLess(tab.index('Applied one'), tab.index('Open one'))
+        response = self.client.get(reverse('bom:part-info', kwargs={'part_id': assembly.part_id}))
+        content = response.content.decode()
+        self.assertIn('id="history-tab"', content)
+        tab = content[content.index('<div id="history"'):]
+        self.assertLess(tab.index('Direct edit two'), tab.index('Applied one'))
+        self.assertNotIn('Open one', tab)
 
         unrelated = self.client.get(reverse('bom:part-info', kwargs={'part_id': self.parts[3].id}))
-        self.assertContains(unrelated, 'No changes touch this part yet.')
+        self.assertContains(unrelated, 'No history yet.')
 
-    def test_part_page_hides_the_changes_tab_when_review_is_off(self):
+    def test_part_page_shows_history_even_when_review_is_off(self):
         with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, changes_review_enabled=disable_review)):
             response = self.client.get(reverse('bom:part-info', kwargs={'part_id': self.parts[2].id}))
-        self.assertNotContains(response, 'id="changes-tab"')
+        self.assertContains(response, 'id="history-tab"')
 
     def test_revision_diff_lists_added_removed_and_changed_lines_and_properties(self):
         old = make_assembly(self.organization, self.parts, description='Assembly')

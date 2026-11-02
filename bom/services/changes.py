@@ -1,12 +1,13 @@
 """Change control: edits are staged as ChangeItems and reach the database only through ``apply_change``."""
 import hashlib
 import json
+import logging
 from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Case, Max, Q, When
+from django.db.models import Max, Q
 from django.urls import reverse
 from django.utils import timezone
 
@@ -17,6 +18,8 @@ from bom.permissions import BomPerms
 from bom.services import boms, parts
 from bom.services.errors import ServiceError
 from bom.services.flags import eco_enabled
+
+logger = logging.getLogger(__name__)
 
 REF_PREFIX = '$ref:'
 DEFAULT_QUANTITY = 100
@@ -41,7 +44,7 @@ ITEM_PERMISSIONS = {
 
 def change_for(organization, change_id):
     try:
-        return Change.objects.get(organization=organization, id=change_id)
+        return Change.objects.get(organization=organization, id=change_id, is_direct_edit=False)
     except Change.DoesNotExist:
         raise ServiceError(f"No change {change_id} in {organization.name}.")
 
@@ -393,6 +396,8 @@ def _active_member_count(organization):
 
 
 def is_eco(change):
+    if change.is_direct_edit:
+        return False
     return any((item.result and 'new_revision_id' in item.result)
                or (item.part_revision_id and item.part_revision.is_immutable())
                for item in change.items.exclude(status=ChangeItem.STATUS_REJECTED).select_related('part_revision'))
@@ -527,16 +532,27 @@ def _decimal_text(value):
     return None if value is None else str(value)
 
 
-def changes_touching_part(part, limit=50):
-    """Submitted changes whose items target the part or its revisions, or produced them: applied first, then newest."""
-    revision_ids = list(part.revisions().values_list('id', flat=True))
+def part_history(part, limit=50):
+    """Applied changes that touch the part or its revisions (direct edits, releases and applied requests), newest
+    first, each as ``{'change', 'diff_revision_ids'}`` where the second is the pair of revisions to compare, if any."""
+    revision_ids = set(part.revisions().values_list('id', flat=True))
     touching = (Q(items__part=part) | Q(items__part_revision__in=revision_ids)
                 | Q(items__result__part_id=part.id) | Q(items__result__part_revision_id__in=revision_ids)
                 | Q(items__result__new_revision_id__in=revision_ids))
-    return list(Change.objects.filter(touching, organization=part.organization)
-                .exclude(status__in=(Change.STATUS_DRAFT, Change.STATUS_WITHDRAWN)).distinct()
-                .annotate(applied_first=Case(When(status=Change.STATUS_APPLIED, then=0), default=1))
-                .select_related('author', 'api_token').order_by('applied_first', '-number')[:limit])
+    history = (Change.objects.filter(touching, organization=part.organization, status=Change.STATUS_APPLIED)
+               .distinct().select_related('author', 'api_token').prefetch_related('items')
+               .order_by('-resolved_at', '-id')[:limit])
+    return [{'change': change, 'diff_revision_ids': _diff_revision_ids(change, revision_ids)} for change in history]
+
+
+def _diff_revision_ids(change, revision_ids):
+    for item in change.items.all():
+        result = item.result or {}
+        before = result.get('previous_revision_id') or result.get('source_revision_id')
+        after = result.get('new_revision_id') or result.get('part_revision_id')
+        if before in revision_ids and after in revision_ids and before != after:
+            return before, after
+    return None
 
 
 def _target_revisions(change):
@@ -562,6 +578,8 @@ def revert_change(change, user):
         raise ServiceError(f"{user.username} cannot revert changes in {change.organization.name}.")
     if change.status != Change.STATUS_APPLIED:
         raise ServiceError(f"Change #{change.number} is {change.status}; only an applied change can be reverted.")
+    if change.is_direct_edit:
+        raise ServiceError('A recorded edit was already saved; it cannot be reverted.')
     title = f"Revert change #{change.number}: {change.title}"[:255]
     if Change.objects.filter(organization=change.organization, title=title).exclude(
             status__in=(Change.STATUS_REJECTED, Change.STATUS_WITHDRAWN)).exists():
@@ -622,6 +640,26 @@ def _counter_item(item):
     if item.kind == ChangeItem.KIND_UPDATE_SUBPART:
         return ChangeItem.KIND_UPDATE_SUBPART, dict(target, **restored)
     return ChangeItem.KIND_ADD_SUBPART, dict(target, **restored)
+
+
+def record_direct_edit(organization, user, part, kind, summary, part_revision=None, before=None, payload=None,
+                       result=None, rationale=''):
+    """Log an edit that has already been saved as its own applied Change without a number, so it stays out of the
+    request sequence. A failure here is logged and never undoes the edit."""
+    try:
+        with transaction.atomic():
+            now = timezone.now()
+            change = Change.objects.create(
+                organization=organization, title=summary[:255], rationale=rationale, author=user,
+                status=Change.STATUS_APPLIED, is_direct_edit=True, base_part_revision=part_revision,
+                submitted_at=now, resolved_at=now, resolved_by=user)
+            ChangeItem.objects.create(
+                change=change, position=1, kind=kind, payload=payload or {}, part=part, part_revision=part_revision,
+                summary=summary[:255], before=before, result=result)
+    except Exception:
+        logger.exception('Could not record a direct edit: %s', summary)
+        return None
+    return change
 
 
 def record_csv_import(organization, user, kind_label, changes_digest, summary):

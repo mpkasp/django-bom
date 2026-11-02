@@ -176,7 +176,7 @@
                         <li class="tab"><a id="bom-tab" href="#bom">Bill of Materials</a></li>
                         <li class="tab"><a id="used-tab" href="#used">Where Used</a></li>
                         <li class="tab"><a id="sourcing-tab" href="#sourcing">Sourcing</a></li>
-                        {% if part_changes is not None %}<li class="tab"><a id="changes-tab" href="#changes">Changes</a></li>{% endif %}
+                        <li class="tab"><a id="history-tab" href="#history">History</a></li>
                     </ul>
                 </div>
 
@@ -369,17 +369,16 @@
                     </div>
                 </div>
 
-                {% if part_changes is not None %}
-                    <div id="changes" class="col s12">
-                        <h4 class="printer-show">Changes</h4>
-                        <div class="responsive-table-wrapper">
-                            <table class="highlight tight">
-                                <thead><tr><th>#</th><th>Change</th><th>Author</th><th>Status</th><th>Resolved</th></tr></thead>
-                                <tbody>
-                                {% for change in part_changes %}
+                <div id="history" class="col s12">
+                    <h4 class="printer-show">History</h4>
+                    <div class="responsive-table-wrapper">
+                        <table class="highlight tight">
+                            <thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
+                            <tbody>
+                            {% for entry in history_entries %}
+                                {% with change=entry.change %}
                                     <tr>
-                                        <td>{{ change.number }}</td>
-                                        <td><a href="{% url 'bom:change-review' number=change.number %}">{{ change.title }}</a></td>
+                                        <td>{{ change.resolved_at|date:"Y-m-d H:i" }}</td>
                                         <td>
                                             {% if change.api_token %}
                                                 <span class="chip">{% if change.agent_client %}{{ change.agent_client }} &middot; {% endif %}{{ change.api_token.name }}</span> for {{ change.author.username }}
@@ -387,17 +386,26 @@
                                                 {{ change.author.username }}
                                             {% endif %}
                                         </td>
-                                        <td>{% include 'bom/changes/change-status-chip.html' %}</td>
-                                        <td>{{ change.resolved_at|date:"Y-m-d"|default:"" }}</td>
+                                        <td>
+                                            {% if change.number %}
+                                                <a href="{% url 'bom:change-review' number=change.number %}">{{ change.title }}</a>
+                                                <small class="grey-text">#{{ change.number }}</small>
+                                            {% else %}
+                                                {{ change.title }}
+                                            {% endif %}
+                                            {% if entry.diff_revision_ids %}
+                                                <a href="{% url 'bom:part-diff' part_id=part.id revision_a_id=entry.diff_revision_ids.0 revision_b_id=entry.diff_revision_ids.1 %}">Compare</a>
+                                            {% endif %}
+                                        </td>
                                     </tr>
-                                {% empty %}
-                                    <tr><td colspan="5" class="center-align grey-text">No changes touch this part yet.</td></tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                                {% endwith %}
+                            {% empty %}
+                                <tr><td colspan="3" class="center-align grey-text">No history yet.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                {% endif %}
+                </div>
 
                 <div id="sourcing" class="col s12">
                     <h4 class="printer-show">Sourcing</h4>
