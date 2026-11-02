@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -103,16 +105,10 @@ class ChangesMCPTest(MCPTestCase):
             _, error = client.call('apply_change', change_id=1)
             self.assertIn('not enabled', error)
 
-    def test_released_revision_is_an_eco_and_phase_one_refuses_to_apply_it(self):
+    def test_eco_applies_to_a_new_draft_revision_and_leaves_the_released_one_untouched(self):
         PartRevision.objects.filter(pk=self.assembly.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
         client = self.mcp(self.apply_plaintext)
         assembly_number = self.assembly.part.full_part_number()
-
-        _, error = client.call('add_subpart', assembly_part_number=assembly_number,
-                               subpart_part_number=self.parts[0].full_part_number())
-        self.assertIn('Engineering Change Order', error)
-        self.assertEqual(Change.objects.get().status, Change.STATUS_WITHDRAWN)
-
         started, _ = client.call('start_change', title='Revise assembly', rationale='ECO')
         _, error = client.call('add_subpart', assembly_part_number=assembly_number,
                                subpart_part_number=self.parts[0].full_part_number(), change_id=started['change_id'])
@@ -120,9 +116,46 @@ class ChangesMCPTest(MCPTestCase):
         detail, _ = client.call('get_change', change_id=started['change_id'])
         self.assertTrue(detail['is_eco'])
         self.assertTrue(detail['is_protected'])
-        _, error = client.call('apply_change', change_id=started['change_id'])
-        self.assertIn('Engineering Change Order', error)
-        self.assertFalse(self.assembly.assembly and self.assembly.assembly.subparts.exists())
+
+        detail, error = client.call('apply_change', change_id=started['change_id'])
+        self.assertIsNone(error, error)
+        self.assertTrue(detail['is_eco'])
+        new_revision = PartRevision.objects.get(part=self.assembly.part, revision='2')
+        self.assertEqual(detail['items'][0]['result']['new_revision_id'], new_revision.id)
+        self.assertEqual(new_revision.configuration, constants.CONFIGURATION_TYPE_DRAFT)
+        self.assertEqual(new_revision.assembly.subparts.get().part_revision.part, self.parts[0])
+        self.assertEqual(new_revision.description, self.assembly.description)
+        self.assertEqual(new_revision.properties.count(), self.assembly.properties.count())
+        self.assertFalse(self.assembly.assembly.subparts.exists())
+        self.assertEqual(changes.created_revisions(Change.objects.get(id=started['change_id'])), [new_revision])
+
+    def test_eco_disabled_refuses_immutable_targets(self):
+        PartRevision.objects.filter(pk=self.assembly.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        config = dict(settings.BOM_CONFIG_DEFAULT, eco_enabled=False)
+        with override_settings(BOM_CONFIG=config):
+            client = self.mcp(self.apply_plaintext)
+            _, error = client.call('add_subpart', assembly_part_number=self.assembly.part.full_part_number(),
+                                   subpart_part_number=self.parts[0].full_part_number())
+            self.assertIn('Engineering Change Order', error)
+            self.assertEqual(Change.objects.get().status, Change.STATUS_WITHDRAWN)
+            self.assertFalse(PartRevision.objects.filter(part=self.assembly.part, revision='2').exists())
+
+    def test_update_and_remove_subpart_tools_edit_a_line(self):
+        client = self.mcp(self.apply_plaintext)
+        assembly_number = self.assembly.part.full_part_number()
+        part_number = self.parts[0].full_part_number()
+        client.call('add_subpart', assembly_part_number=assembly_number, subpart_part_number=part_number, count=2)
+        report, error = client.call('update_subpart', assembly_part_number=assembly_number,
+                                    subpart_part_number=part_number, count=5)
+        self.assertIsNone(error, error)
+        self.assertEqual(self.assembly.assembly.subparts.get().count, 5)
+        _, error = client.call('remove_subpart', assembly_part_number=assembly_number,
+                               subpart_part_number=part_number)
+        self.assertIsNone(error, error)
+        self.assertFalse(self.assembly.assembly.subparts.exists())
+        _, error = client.call('remove_subpart', assembly_part_number=assembly_number,
+                               subpart_part_number=part_number)
+        self.assertIn('no line', error)
 
     def test_rejected_item_reason_is_visible_and_skipped_on_apply(self):
         client = self.mcp(self.apply_plaintext)
@@ -302,6 +335,132 @@ class ChangesServiceTest(TestCase):
         changes.withdraw_change(other, editor)
         self.assertEqual(other.status, Change.STATUS_WITHDRAWN)
 
+    def make_priced_cap(self, unit_cost='2.00'):
+        cap = make_assembly(self.organization, self.parts, description='Priced cap')
+        manufacturer_part = parts.add_manufacturer_part(self.organization, cap.part, 'Acme', 'CAP-1')
+        parts.add_seller_part(self.organization, manufacturer_part, 'Digi-Key', unit_cost)
+        return cap
+
+    def stage_add(self, change, subpart, assembly=None, **fields):
+        return changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': (assembly or self.assembly).part.full_part_number(),
+            'subpart_part_number': subpart.part.full_part_number(), 'count': 1, **fields})
+
+    def test_impact_lists_parent_assemblies_and_marks_released_ones(self):
+        top = make_assembly(self.organization, self.parts, description='Top')
+        boms.add_subpart(self.organization, top, self.assembly_number, count=1)
+        PartRevision.objects.filter(pk=top.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        change = changes.start_change(self.organization, self.user, 'Edit child')
+        self.stage_add(change, self.parts[0].latest())
+
+        assemblies = changes.impact(change)['assemblies']
+        self.assertEqual([(entry['part_number'], entry['configuration'], entry['needs_new_revision'])
+                          for entry in assemblies], [(top.part.full_part_number(), 'Released', True)])
+
+        PartRevision.objects.filter(pk=top.pk).update(configuration=constants.CONFIGURATION_TYPE_DRAFT)
+        self.assertFalse(changes.impact(change)['assemblies'][0]['needs_new_revision'])
+
+    def test_cost_delta_is_a_rolled_back_dry_run_and_can_protect_the_change(self):
+        cap = self.make_priced_cap()
+        change = changes.start_change(self.organization, self.user, 'Add priced cap')
+        self.stage_add(change, cap, count=3)
+
+        cost = changes.impact(change)['cost']
+        self.assertEqual(cost['quantity'], 100)
+        self.assertEqual(cost['delta'], Decimal('6'))
+        self.assertEqual(cost['targets'][0]['before'], Decimal('0'))
+        self.assertFalse(self.assembly.assembly.subparts.exists())
+        self.assertFalse(change.is_protected)
+
+        change_settings = ChangeSettings.objects.create(organization=self.organization, protect_cost_delta=Decimal('7'))
+        self.assertFalse(change.is_protected)
+        change_settings.protect_cost_delta = Decimal('6')
+        change_settings.save()
+        self.assertTrue(change.is_protected)
+        self.assertFalse(self.assembly.assembly.subparts.exists())
+
+    def test_rebase_rejects_conflicting_items_and_clears_staleness(self):
+        cap = self.make_priced_cap()
+        boms.add_subpart(self.organization, self.assembly, cap.part.full_part_number(), count=2)
+        change = changes.start_change(self.organization, self.user, 'Edit lines')
+        changes.stage_item(change, ChangeItem.KIND_UPDATE_SUBPART, {
+            'assembly_part_number': self.assembly_number, 'subpart_part_number': cap.part.full_part_number(),
+            'count': 4})
+        keep = self.stage_add(change, self.parts[0].latest())
+        self.assertFalse(change.is_stale)
+
+        boms.remove_subpart(self.organization, self.assembly, cap.part.full_part_number())
+        self.assertTrue(change.is_stale)
+        conflicts = changes.rebase_change(change)
+        self.assertEqual(len(conflicts), 1)
+        self.assertIn('conflict:', conflicts[0]['reason'])
+        update_item = change.items.get(kind=ChangeItem.KIND_UPDATE_SUBPART)
+        self.assertEqual(update_item.status, ChangeItem.STATUS_REJECTED)
+        keep.refresh_from_db()
+        self.assertEqual(keep.status, ChangeItem.STATUS_ACCEPTED)
+        self.assertFalse(change.is_stale)
+        changes.apply_change(change, self.user)
+        self.assertEqual(self.assembly.assembly.subparts.get().part_revision.part, self.parts[0])
+
+    def test_apply_refuses_items_that_no_longer_validate(self):
+        change = changes.start_change(self.organization, self.user, 'Add then obsolete')
+        item = self.stage_add(change, self.parts[0].latest())
+        PartRevision.objects.filter(part=self.parts[0]).update(configuration=constants.CONFIGURATION_TYPE_OBSOLETE)
+        change.base_digest = changes.compute_digest(change)
+        change.save()
+        problems = changes.validate_change(change)
+        self.assertEqual([(problem['item'], problem['level']) for problem in problems], [(item, 'error')])
+        with self.assertRaisesMessage(ServiceError, 'no longer validates'):
+            changes.apply_change(change, self.user)
+
+    def test_eco_on_released_assembly_can_remove_a_line(self):
+        boms.add_subpart(self.organization, self.assembly, self.parts[0].full_part_number(), count=2)
+        PartRevision.objects.filter(pk=self.assembly.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        change = changes.start_change(self.organization, self.user, 'Drop part')
+        changes.stage_item(change, ChangeItem.KIND_REMOVE_SUBPART, {
+            'assembly_part_number': self.assembly_number, 'subpart_part_number': self.parts[0].full_part_number()})
+        changes.apply_change(change, self.user)
+        self.assertEqual(self.assembly.assembly.subparts.count(), 1)
+        new_revision = PartRevision.objects.get(part=self.assembly.part, revision='2')
+        self.assertFalse(new_revision.assembly.subparts.exists())
+
+    def test_revert_undoes_added_and_merged_lines_and_deletes_created_sourcing(self):
+        boms.add_subpart(self.organization, self.assembly, self.parts[0].full_part_number(), count=2)
+        change = changes.start_change(self.organization, self.user, 'Add lines')
+        self.stage_add(change, self.parts[0].latest(), reference='')
+        self.stage_add(change, self.parts[1].latest())
+        changes.stage_item(change, ChangeItem.KIND_ADD_MANUFACTURER_PART, {
+            'part_number': self.parts[1].full_part_number(), 'manufacturer': 'Acme', 'manufacturer_part_number': 'NEW-1'},
+            ref='mpn')
+        changes.stage_item(change, ChangeItem.KIND_ADD_SELLER_PART, {
+            'manufacturer_part_id': '$ref:mpn', 'seller': 'Digi-Key', 'unit_cost': '1.0'})
+        changes.apply_change(change, self.user)
+        self.assertEqual(self.assembly.assembly.subparts.get(part_revision__part=self.parts[0]).count, 3)
+        self.assertTrue(ManufacturerPart.objects.filter(manufacturer_part_number='NEW-1').exists())
+
+        counter = changes.revert_change(change, self.user)
+        self.assertEqual(counter.status, Change.STATUS_APPLIED)
+        lines = self.assembly.assembly.subparts.all()
+        self.assertEqual([(line.part_revision.part, line.count) for line in lines], [(self.parts[0], 2)])
+        self.assertFalse(ManufacturerPart.objects.filter(manufacturer_part_number='NEW-1').exists())
+        self.assertFalse(SellerPart.objects.filter(manufacturer_part__manufacturer_part_number='NEW-1').exists())
+        with self.assertRaisesMessage(ServiceError, 'already been reverted'):
+            changes.revert_change(change, self.user)
+
+    def test_revert_lists_created_parts_in_the_rationale(self):
+        change = changes.start_change(self.organization, self.user, 'Cap and line')
+        changes.stage_item(change, ChangeItem.KIND_CREATE_PART, {
+            'description': 'Cap', 'part_class_code': str(self.primary_part.number_class.code),
+            'properties': {'sheen': 'matte', 'voltage': '3.3'}, 'property_units': {'voltage': 'V'}}, ref='cap')
+        changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': self.assembly_number, 'subpart_part_number': '$ref:cap', 'count': 1})
+        changes.apply_change(change, self.user)
+
+        counter = changes.revert_change(change, self.user)
+        self.assertFalse(self.assembly.assembly.subparts.exists())
+        self.assertIn('was created and is left in place', counter.rationale)
+        self.assertTrue(PartRevision.objects.filter(description='Cap').exists())
+
     def test_organization_scoping(self):
         other_user = User.objects.create_user('stranger', 'stranger@example.com', 'ghostpassword')
         other_organization = create_a_fake_organization(other_user)
@@ -321,6 +480,10 @@ class ChangesViewTest(TestCase):
         changes.stage_item(self.change, ChangeItem.KIND_CREATE_PART, {
             'description': 'Cap', 'part_class_code': str(self.parts[0].number_class.code),
             'properties': {'sheen': 'matte', 'voltage': '3.3'}, 'property_units': {'voltage': 'V'}})
+
+    def new_cap(self):
+        return parts.create_part(self.organization, 'Other cap', part_class_code=str(self.parts[0].number_class.code),
+                                 properties={'sheen': 'matte', 'voltage': '3.3'}, property_units={'voltage': 'V'}).part
 
     def review_url(self, name='change-review'):
         return reverse(f'bom:{name}', kwargs={'number': self.change.number})
@@ -362,6 +525,60 @@ class ChangesViewTest(TestCase):
         self.client.post(self.review_url('change-reject'), {'reason': 'Out of scope'})
         self.change.refresh_from_db()
         self.assertEqual(self.change.status, Change.STATUS_REJECTED)
+
+    def test_review_page_shows_validation_impact_rebase_and_revert(self):
+        cap = self.new_cap()
+        assembly = self.parts[2].latest()
+        change = changes.start_change(self.organization, self.user, 'Add line')
+        changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': assembly.part.full_part_number(),
+            'subpart_part_number': cap.full_part_number(), 'count': 1})
+        url = reverse('bom:change-review', kwargs={'number': change.number})
+        response = self.client.get(url)
+        self.assertContains(response, '0 errors, 0 warnings')
+        self.assertContains(response, 'Cost per unit at 100')
+        self.assertNotContains(response, 'Rebase')
+
+        boms.add_subpart(self.organization, assembly, self.parts[0].full_part_number(), count=1)
+        self.assertContains(self.client.get(url), 'Rebase')
+        self.client.post(reverse('bom:change-rebase', kwargs={'number': change.number}))
+        self.assertNotContains(self.client.get(url), 'Stale')
+
+        self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
+        self.assertContains(self.client.get(url), 'Revert')
+        self.client.post(reverse('bom:change-revert', kwargs={'number': change.number}))
+        self.assertFalse(assembly.assembly.subparts.filter(part_revision__part=cap).exists())
+
+    def test_applied_eco_offers_release_links(self):
+        assembly = self.parts[2].latest()
+        PartRevision.objects.filter(pk=assembly.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        change = changes.start_change(self.organization, self.user, 'ECO')
+        changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': assembly.part.full_part_number(),
+            'subpart_part_number': self.new_cap().full_part_number(), 'count': 1})
+        self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
+        new_revision = assembly.part.latest()
+        self.assertEqual(new_revision.configuration, constants.CONFIGURATION_TYPE_DRAFT)
+        response = self.client.get(reverse('bom:change-review', kwargs={'number': change.number}))
+        self.assertContains(response, f'Release rev {new_revision.revision}')
+        self.assertContains(response, reverse('bom:part-revision-release', kwargs={
+            'part_id': assembly.part_id, 'part_revision_id': new_revision.id}))
+        self.assertContains(self.client.get(reverse('bom:change-list') + '?filter=ecos'), 'ECO')
+
+    def test_part_page_shows_banner_and_ghosted_proposed_lines(self):
+        assembly = self.parts[2].latest()
+        cap = self.parts[1]
+        changes.stage_item(self.change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': assembly.part.full_part_number(),
+            'subpart_part_number': cap.full_part_number(), 'count': 4})
+        response = self.client.get(reverse('bom:part-info', kwargs={'part_id': assembly.part_id}))
+        self.assertContains(response, '1 open change touches this revision')
+        self.assertContains(response, f'#{self.change.number} Add a cap')
+        self.assertContains(response, 'Proposed')
+        self.assertContains(response, cap.full_part_number())
+
+        other = self.client.get(reverse('bom:part-info', kwargs={'part_id': cap.id}))
+        self.assertNotContains(other, 'touches this revision')
 
     def test_other_organizations_changes_are_not_found(self):
         stranger = User.objects.create_user('stranger', 'stranger@example.com', 'ghostpassword')

@@ -205,9 +205,13 @@ Every MCP edit is a *Change*: a bundle of staged items reviewed at `/changes/` a
 only stage and submit changes for review (propose); `read,write,apply` can also apply them
 (`create_api_token --scopes read,write,apply`). Write tools take an optional `change_id` to stage into a change from
 `start_change`; without it a propose-level token submits a one-item change request and an apply-level token applies
-it at once. Edits to Released revisions and any protections in `ChangeSettings` require a second person to apply.
-Hosts can switch the feature with `BOM_CONFIG['changes_review_enabled']` and `BOM_CONFIG['mcp_apply_enabled']`
-(callables of the organization or dotted paths; both default on), and set `BOM_CONFIG['site_url']` so change URLs
+it at once. Edits to Released or In Review revisions make the change an Engineering Change Order (ECO): applying it
+creates a new Draft revision of each edited part (copying its assembly and properties) for a person to release, and
+it requires a second person to apply, as do protections in `ChangeSettings` (including a cost-delta threshold). The
+review page shows validation, impact (assemblies that use the edited parts) and the unit-cost effect at 100 units,
+and can rebase a stale change or revert an applied one. Hosts can switch the feature with
+`BOM_CONFIG['changes_review_enabled']`, `BOM_CONFIG['mcp_apply_enabled']` and `BOM_CONFIG['eco_enabled']`
+(callables of the organization or dotted paths; all default on), and set `BOM_CONFIG['site_url']` so change URLs
 returned to MCP clients are absolute.
 
 ## Contributing
