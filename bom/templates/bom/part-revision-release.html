@@ -1,41 +1,85 @@
 {% extends 'bom/bom-base.html' %}
 
-{% load materializecss %}
-{% load static %}
-
-{% block head-title %}{{ title|safe }}{% endblock %}
+{% block head-title %}{{ title }}{% endblock %}
 
 {% block content %}
     <div class="container-app">
-        {% if perms.bom.release_revision %}
-        <form name="seller" action="{{ action }}" method="post" class="col s12">
+        <p><a href="{{ revision_url }}"><i class="material-icons tiny">arrow_back</i> {{ part.full_part_number }} rev {{ part_revision.revision }}</a></p>
+        <h4>Release {{ part.full_part_number }} rev {{ part_revision.revision }}</h4>
+        <p class="grey-text text-darken-1">{{ part_revision.synopsis }}</p>
+
+        <form method="post" action="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">
             {% csrf_token %}
-            <div class="row">
-                {% if subparts.count > 0 %}
-                    <div class="col s12 m8 push-m2">
-                        <h5><b>Warning!</b> This part has {{ subparts.count }} unreleased subparts. It is strongly recommended to release the below subparts before proceeding:</h5>
-                        <div class="collection">
-                            {% for s in subparts %}
-                                <a href="{% url 'bom:part-info-history' part_id=s.part_revision.part.id part_revision_id=s.part_revision.id %}" target="_blank"
-                                   class="collection-item hoverable">{{ s.part_revision.part.full_part_number }} Rev {{ s.part_revision.revision }} {{ s.part_revision.description }}</a>
-                            {% endfor %}
-                        </div>
+
+            {% if draft_subparts %}
+                <div class="card-panel amber lighten-4">
+                    <b>Warning!</b> This part has {{ draft_subparts|length }} unreleased subpart{{ draft_subparts|length|pluralize }}.
+                    It is strongly recommended to release {{ draft_subparts|length|pluralize:"it,them" }} first:
+                    <div class="collection">
+                        {% for subpart in draft_subparts %}
+                            <a href="{% url 'bom:part-info-history' part_id=subpart.part_revision.part.id part_revision_id=subpart.part_revision.id %}" target="_blank"
+                               class="collection-item hoverable">{{ subpart.part_revision.part.full_part_number }} Rev {{ subpart.part_revision.revision }} {{ subpart.part_revision.description }}</a>
+                        {% endfor %}
                     </div>
-                {% endif %}
-            </div>
-            <div class="row">
-                <div class="col s6 m4 push-m2">
-                    <a href="javascript:history.back()"
-                       class="waves-effect waves-light btn{% if not release_warning %}-flat{% endif %} {% if release_warning %}green{% else %}grey-text{% endif %} lighten-1">Cancel</a>
                 </div>
-                <div class="col s6 m4 push-m2 right-align">
-                    <button class="waves-effect waves-light btn{% if release_warning %}-flat{% endif %} {% if not release_warning %}green{% else %}grey-text{% endif %} lighten-1" type="submit"
-                            name="action">Release{% if release_warning %} Anyway{% endif %}</button>
+            {% endif %}
+
+            <h5>What changed</h5>
+            {% if preview.previous_revision %}
+                <p class="grey-text text-darken-1">Compared with rev {{ preview.previous_revision.revision }} ({{ preview.previous_revision.get_configuration_display }}).</p>
+                {% if items %}
+                    {% include 'bom/changes/components/change-items.html' %}
+                {% else %}
+                    <div class="card-panel">Nothing differs from the previous revision.</div>
+                {% endif %}
+            {% else %}
+                <div class="card-panel">This is the first revision of the part.</div>
+            {% endif %}
+
+            <h5>Unit cost at {{ preview.quantity }} units</h5>
+            <p>
+                {% if preview.previous_revision %}
+                    Rev {{ preview.previous_revision.revision }}: {% if preview.unit_cost_before is None %}unknown{% else %}{{ preview.unit_cost_before|floatformat:4 }}{% endif %} &rarr;
+                {% endif %}
+                Rev {{ part_revision.revision }}: {% if preview.unit_cost_after is None %}unknown{% else %}{{ preview.unit_cost_after|floatformat:4 }}{% endif %}
+            </p>
+
+            {% if preview.draft_parents or preview.released_parents %}
+                <h5>Where used</h5>
+                {% if preview.draft_parents %}
+                    <p>These Draft assemblies will move to rev {{ part_revision.revision }} automatically:</p>
+                    <ul class="browser-default">
+                        {% for parent in preview.draft_parents %}
+                            <li><a href="{% url 'bom:part-info-history' part_id=parent.part_id part_revision_id=parent.id %}" target="_blank">{{ parent.part.full_part_number }} rev {{ parent.revision }}</a></li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                {% if preview.released_parents %}
+                    <p>These Released assemblies use rev {{ preview.previous_revision.revision }}. Select the ones to also revise with rev {{ part_revision.revision }}:</p>
+                    {% for parent in preview.released_parents %}
+                        <p>
+                            <label>
+                                <input type="checkbox" name="cascade_parent_id" value="{{ parent.id }}">
+                                <span>{{ parent.part.full_part_number }} rev {{ parent.revision }}: create a new Draft revision</span>
+                            </label>
+                        </p>
+                    {% endfor %}
+                {% endif %}
+            {% endif %}
+
+            <div class="input-field">
+                <textarea id="release-note" name="note" class="materialize-textarea"></textarea>
+                <label for="release-note">Note (optional)</label>
+            </div>
+
+            <div class="row">
+                <div class="col s6">
+                    <a href="{{ revision_url }}" class="waves-effect waves-light btn-flat grey-text">Cancel</a>
+                </div>
+                <div class="col s6 right-align">
+                    <button class="waves-effect waves-light btn{% if draft_subparts %}-flat grey-text{% else %} green{% endif %} lighten-1" type="submit">Release{% if draft_subparts %} anyway{% endif %}</button>
                 </div>
             </div>
         </form>
-    {% else %}
-        {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}
-    {% endif %}
     </div>
 {% endblock %}

@@ -87,7 +87,7 @@ from bom.models import (
 )
 from bom.permissions import BomPerms
 from bom.services.changes import (newer_draft_revision, part_history, proposals_for_revision, record_csv_import,
-                                  record_direct_edit, revise_revision)
+                                  record_direct_edit, release_preview, release_revision, revise_revision)
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled
@@ -2063,31 +2063,42 @@ def seller_part_delete(request, seller_part_id):
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.RELEASE_REVISION)
 def part_revision_release(request, part_id, part_revision_id):
-    user = request.user
-    profile = user.bom_profile()
-    part = get_object_or_404(Part, pk=part_id)
-    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-
-    if not request.user.has_perm(BomPerms.RELEASE_REVISION, part_revision):
-        messages.error(request, 'Part is immutable. You do not have permission to perform this action.')
-        return HttpResponseRedirect(
-            reverse('bom:part-info-history', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id}))
-
-    action = reverse('bom:part-revision-release', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id})
-    title = f'Promote {part.full_part_number()} Rev {part_revision.revision} {part_revision.synopsis()} to <b>Released</b>?'
-    subparts = part_revision.assembly.subparts.filter(part_revision__configuration=constants.CONFIGURATION_TYPE_DRAFT)
-    release_warning = subparts.count() > 0
+    organization = request.user.bom_profile().organization
+    part_revision = get_object_or_404(PartRevision.objects.select_related('part'), pk=part_revision_id,
+                                      part_id=part_id, part__organization=organization)
+    revision_url = reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id})
 
     if request.method == 'POST':
-        part_revision.configuration = constants.CONFIGURATION_TYPE_RELEASED
         try:
-            part_revision.save(user=user)
-        except ValidationError as e:
-            messages.error(request, e.message)
+            cascade_parent_ids = [int(value) for value in request.POST.getlist('cascade_parent_id')]
+            release_revision(part_revision, request.user, request.POST.get('note', '').strip(), cascade_parent_ids)
+        except ServiceError as error:
+            messages.error(request, str(error))
             return HttpResponseRedirect(request.path_info)
-        return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id}))
+        except ValueError:
+            messages.error(request, 'Select valid assemblies.')
+            return HttpResponseRedirect(request.path_info)
+        messages.success(request, f'Released {part_revision.part.full_part_number()} rev {part_revision.revision}.')
+        return HttpResponseRedirect(revision_url)
 
-    return TemplateResponse(request, 'bom/part-revision-release.html', locals())
+    if part_revision.configuration not in (constants.CONFIGURATION_TYPE_DRAFT, constants.CONFIGURATION_TYPE_IN_REVIEW):
+        messages.error(request, f'{part_revision} is {part_revision.get_configuration_display()}; '
+                                f'only a Draft or In Review revision can be released.')
+        return HttpResponseRedirect(revision_url)
+
+    part = part_revision.part
+    preview = release_preview(part_revision)
+    draft_subparts = part_revision.assembly.subparts.filter(
+        part_revision__configuration=constants.CONFIGURATION_TYPE_DRAFT).select_related('part_revision__part')
+    diff_items = _numbered([
+        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'],
+                      status_label='Differs')
+        for entry in preview['diff']])
+    title = f'Release {part.full_part_number()} rev {part_revision.revision} {part_revision.synopsis()}'
+    return TemplateResponse(request, 'bom/part-revision-release.html', {
+        'title': title, 'profile': request.user.bom_profile(), 'organization': organization, 'part': part,
+        'part_revision': part_revision, 'preview': preview, 'items': diff_items, 'draft_subparts': draft_subparts,
+        'revision_url': revision_url})
 
 
 @login_required(login_url=BOM_LOGIN_URL)

@@ -11,11 +11,13 @@ from django.db.models import Max, Q
 from django.urls import reverse
 from django.utils import timezone
 
-from bom.constants import CONFIGURATION_TYPE_DRAFT, CONFIGURATION_TYPE_RELEASED, ROLE_TYPE_ADMIN
+from bom.constants import (CONFIGURATION_TYPE_DRAFT, CONFIGURATION_TYPE_IN_REVIEW, CONFIGURATION_TYPE_RELEASED,
+                           ROLE_TYPE_ADMIN)
 from bom.models import (Change, ChangeItem, ChangeSettings, ManufacturerPart, PartRevision, SellerPart, Subpart,
                         get_user_meta_model)
 from bom.permissions import BomPerms
 from bom.services import boms, parts
+from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
 from bom.services.flags import eco_enabled
 
@@ -285,14 +287,20 @@ def cascade_revisions(change, user, parent_revision_ids):
         created = []
         for parent_revision_id in parent_revision_ids:
             candidate = candidates[parent_revision_id]
-            new_revision = parts.create_next_revision(candidate['parent'])
-            for previous_revision, replacement in candidate['replacements']:
-                parts.retarget_subparts(new_revision, previous_revision, replacement)
+            new_revision = _cascade_parent(candidate['parent'], candidate['replacements'])
             change.cascade = (change.cascade or []) + [
                 {'source_revision_id': parent_revision_id, 'new_revision_id': new_revision.id}]
             created.append(new_revision)
         change.save(update_fields=['cascade'])
         return created
+
+
+def _cascade_parent(parent, replacements):
+    """A next Draft revision of a Released parent whose lines for each replaced revision point at its replacement."""
+    new_revision = parts.create_next_revision(parent)
+    for previous_revision, replacement in replacements:
+        parts.retarget_subparts(new_revision, previous_revision, replacement)
+    return new_revision
 
 
 def cascaded_revisions(change):
@@ -660,6 +668,79 @@ def record_direct_edit(organization, user, part, kind, summary, part_revision=No
         logger.exception('Could not record a direct edit: %s', summary)
         return None
     return change
+
+
+def _previous_revision(part_revision):
+    return part_revision.part.revisions().filter(id__lt=part_revision.id).order_by('-id').first()
+
+
+def release_preview(part_revision, quantity=DEFAULT_QUANTITY):
+    """What releasing a revision changes: its diff against the previous revision, the unit cost before and after,
+    and the assemblies that use the previous revision (Draft ones follow automatically, Released ones can be
+    revised)."""
+    previous = _previous_revision(part_revision)
+    parents = previous.where_used().select_related('part') if previous else PartRevision.objects.none()
+    return {
+        'previous_revision': previous, 'quantity': quantity,
+        'diff': revision_diff(previous, part_revision) if previous else [],
+        'unit_cost_before': _unit_cost(previous, quantity) if previous else None,
+        'unit_cost_after': _unit_cost(part_revision, quantity),
+        'draft_parents': list(parents.filter(configuration=CONFIGURATION_TYPE_DRAFT)),
+        'released_parents': list(parents.filter(configuration=CONFIGURATION_TYPE_RELEASED)),
+    }
+
+
+def release_revision(part_revision, user, note='', cascade_parent_ids=()):
+    """Release a Draft or In Review revision. Draft assemblies that use the previous revision move to this one, the
+    selected Released assemblies get a new Draft revision that does, and History records the release with the part's
+    manufacturer parts. Everything happens or nothing does."""
+    organization = part_revision.part.organization
+    if not user.has_perm(BomPerms.RELEASE_REVISION, part_revision):
+        raise ServiceError(f"{user.username} cannot release revisions in {organization.name}.")
+    cascade_parent_ids = list(dict.fromkeys(cascade_parent_ids))
+    with transaction.atomic():
+        revision = PartRevision.objects.select_for_update().select_related('part').get(pk=part_revision.pk)
+        label = f"{revision.part.full_part_number()} rev {revision.revision}"
+        if revision.configuration not in (CONFIGURATION_TYPE_DRAFT, CONFIGURATION_TYPE_IN_REVIEW):
+            raise ServiceError(f"{label} is {revision.get_configuration_display()}; "
+                               f"only a Draft or In Review revision can be released.")
+        previous = _previous_revision(revision)
+        released_parents = {parent.id: parent for parent in previous.where_used().select_related('part').filter(
+            configuration=CONFIGURATION_TYPE_RELEASED)} if previous else {}
+        unknown = sorted(set(cascade_parent_ids) - set(released_parents))
+        if unknown:
+            raise ServiceError(f"Revisions {unknown} are not Released assemblies that use "
+                               f"{previous.part.full_part_number()} rev {previous.revision}.")
+        revision.configuration = CONFIGURATION_TYPE_RELEASED
+        try:
+            revision.save(user=user)
+        except ValidationError as error:
+            raise ServiceError('; '.join(error.messages))
+        draft_parents_updated = _retarget_draft_parents(previous, revision) if previous else []
+        cascaded = [_cascade_parent(released_parents[parent_id], [(previous, revision)])
+                    for parent_id in cascade_parent_ids]
+        record_direct_edit(
+            organization, user, revision.part, ChangeItem.KIND_RELEASE_REVISION, f"Release {label}",
+            part_revision=revision, rationale=note, payload={'note': note, 'cascade_parent_ids': cascade_parent_ids},
+            result={'part_revision_id': revision.id, 'previous_revision_id': previous.id if previous else None,
+                    'draft_parents_updated': draft_parents_updated,
+                    'cascaded_revision_ids': [new_revision.id for new_revision in cascaded],
+                    'manufacturer_parts': _manufacturer_part_snapshot(revision.part)})
+        for parent_id, new_revision in zip(cascade_parent_ids, cascaded):
+            record_direct_edit(
+                organization, user, new_revision.part, ChangeItem.KIND_CREATE_PART_REVISION,
+                f"Create {new_revision.part.full_part_number()} rev {new_revision.revision} to use {label}",
+                part_revision=new_revision, payload={'revision': new_revision.revision, 'copy_assembly': True},
+                result={'part_revision_id': new_revision.id, 'source_revision_id': parent_id})
+    return revision
+
+
+def _manufacturer_part_snapshot(part):
+    return [{'id': manufacturer_part.id,
+             'manufacturer': manufacturer_part.manufacturer.name if manufacturer_part.manufacturer else '',
+             'manufacturer_part_number': manufacturer_part.manufacturer_part_number,
+             'is_primary': manufacturer_part.id == part.primary_manufacturer_part_id}
+            for manufacturer_part in part.manufacturer_parts()]
 
 
 def newer_draft_revision(part_revision):

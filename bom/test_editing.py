@@ -200,3 +200,135 @@ class ReviseTest(EditingTestCase):
         self.revise(released)
         draft_page = self.client.get(reverse('bom:part-info', kwargs={'part_id': released.part_id}))
         self.assertNotContains(draft_page, 'Revise</button>')
+
+
+class ReleaseTest(EditingTestCase):
+    def setUp(self):
+        super().setUp()
+        self.component = self.new_part('Component')
+        self.primary = parts.add_manufacturer_part(self.organization, self.component.part, 'Acme', 'ACME-1')
+        self.alternate = parts.add_manufacturer_part(self.organization, self.component.part, 'Globex', 'GLX-1')
+        self.draft_parent = self.assembly_using(self.component, 'Draft parent')
+        self.released_parent = self.assembly_using(self.component, 'Released parent')
+        PartRevision.objects.filter(pk__in=(self.component.pk, self.released_parent.pk)).update(
+            configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        self.next_component = parts.create_next_revision(self.component)
+        boms.add_subpart(self.organization, self.next_component, self.parts[0].full_part_number(), count=1,
+                         reference='U1')
+
+    def assembly_using(self, component, description):
+        assembly = self.new_part(description)
+        boms.add_subpart(self.organization, assembly, component.part.full_part_number(), count=1, reference='U1')
+        return assembly
+
+    def member(self, role):
+        member = User.objects.create_user(f'member-{role}', f'{role}@example.com', 'ghostpassword')
+        profile = member.bom_profile(organization=self.organization)
+        profile.role = role
+        profile.save()
+        return member
+
+    def line_target(self, assembly):
+        assembly.refresh_from_db()
+        return assembly.assembly.subparts.get().part_revision
+
+    def test_release_freezes_the_revision_and_moves_draft_parents(self):
+        changes.release_revision(self.next_component, self.user, note='Ready for build')
+
+        self.next_component.refresh_from_db()
+        self.assertEqual(self.next_component.configuration, constants.CONFIGURATION_TYPE_RELEASED)
+        self.assertEqual(self.line_target(self.draft_parent), self.next_component)
+        self.assertEqual(self.line_target(self.released_parent), self.component)
+        self.assertEqual(self.component.part.revisions().count(), 2)
+
+    def test_release_records_history_with_the_manufacturer_parts_snapshot(self):
+        changes.release_revision(self.next_component, self.user, note='Ready for build')
+
+        entry = self.history().get()
+        self.assertIsNone(entry.number)
+        self.assertEqual(entry.rationale, 'Ready for build')
+        item = entry.items.get()
+        self.assertEqual(item.kind, ChangeItem.KIND_RELEASE_REVISION)
+        self.assertEqual(item.result['previous_revision_id'], self.component.id)
+        self.assertEqual(item.result['manufacturer_parts'], [
+            {'id': self.primary.id, 'manufacturer': 'Acme', 'manufacturer_part_number': 'ACME-1',
+             'is_primary': True},
+            {'id': self.alternate.id, 'manufacturer': 'Globex', 'manufacturer_part_number': 'GLX-1',
+             'is_primary': False}])
+        self.assertEqual(changes.part_history(self.component.part)[0]['diff_revision_ids'],
+                         (self.component.id, self.next_component.id))
+
+    def test_release_cascades_only_the_selected_released_parents(self):
+        other_released = self.assembly_using(self.component, 'Other released parent')
+        PartRevision.objects.filter(pk=other_released.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+
+        changes.release_revision(self.next_component, self.user, cascade_parent_ids=[self.released_parent.id])
+
+        new_parent = self.released_parent.part.latest()
+        self.assertEqual((new_parent.revision, new_parent.configuration), ('2', constants.CONFIGURATION_TYPE_DRAFT))
+        self.assertEqual(new_parent.assembly.subparts.get().part_revision, self.next_component)
+        self.assertEqual(other_released.part.revisions().count(), 1)
+        self.assertEqual(self.line_target(self.released_parent), self.component)
+        self.assertEqual(self.history().count(), 2)
+
+    def test_a_failed_cascade_rolls_the_whole_release_back(self):
+        with mock.patch('bom.services.changes.parts.create_next_revision', side_effect=ServiceError('boom')):
+            with self.assertRaises(ServiceError):
+                changes.release_revision(self.next_component, self.user, cascade_parent_ids=[self.released_parent.id])
+
+        self.next_component.refresh_from_db()
+        self.assertEqual(self.next_component.configuration, constants.CONFIGURATION_TYPE_DRAFT)
+        self.assertEqual(self.line_target(self.draft_parent), self.component)
+        self.assertEqual(self.released_parent.part.revisions().count(), 1)
+        self.assertFalse(self.history().exists())
+
+    def test_cascade_refuses_assemblies_that_do_not_use_the_previous_revision(self):
+        with self.assertRaises(ServiceError):
+            changes.release_revision(self.next_component, self.user, cascade_parent_ids=[self.draft_parent.id])
+        self.next_component.refresh_from_db()
+        self.assertEqual(self.next_component.configuration, constants.CONFIGURATION_TYPE_DRAFT)
+
+    def test_a_viewer_cannot_release(self):
+        with self.assertRaises(ServiceError):
+            changes.release_revision(self.next_component, self.member(constants.ROLE_TYPE_VIEWER))
+        self.next_component.refresh_from_db()
+        self.assertEqual(self.next_component.configuration, constants.CONFIGURATION_TYPE_DRAFT)
+
+        self.client.logout()
+        self.client.login(username='member-V', password='ghostpassword')
+        self.client.post(reverse('bom:part-revision-release', kwargs={
+            'part_id': self.component.part_id, 'part_revision_id': self.next_component.id}))
+        self.next_component.refresh_from_db()
+        self.assertEqual(self.next_component.configuration, constants.CONFIGURATION_TYPE_DRAFT)
+
+    def test_releasing_an_already_released_revision_errors_cleanly(self):
+        with self.assertRaisesMessage(ServiceError, 'only a Draft or In Review revision can be released'):
+            changes.release_revision(self.component, self.user)
+        self.assertFalse(self.history().exists())
+
+        url = reverse('bom:part-revision-release', kwargs={
+            'part_id': self.component.part_id, 'part_revision_id': self.component.id})
+        self.assertEqual(self.client.post(url).status_code, 302)
+        self.assertEqual(self.client.get(url).status_code, 302)
+
+    def test_the_dialog_previews_the_diff_cost_and_where_used_and_releases_with_a_cascade(self):
+        url = reverse('bom:part-revision-release', kwargs={
+            'part_id': self.component.part_id, 'part_revision_id': self.next_component.id})
+
+        page = self.client.get(url)
+
+        self.assertContains(page, 'Compared with rev 1')
+        self.assertContains(page, self.parts[0].full_part_number())
+        self.assertContains(page, 'Unit cost at 100 units')
+        self.assertContains(page, f'{self.draft_parent.part.full_part_number()} rev 1')
+        self.assertContains(page, f'name="cascade_parent_id" value="{self.released_parent.id}"')
+        self.assertNotContains(page, f'name="cascade_parent_id" value="{self.draft_parent.id}"')
+
+        response = self.client.post(url, {'note': 'Go', 'cascade_parent_id': [self.released_parent.id]})
+
+        self.assertRedirects(response, reverse('bom:part-info-history', kwargs={
+            'part_id': self.component.part_id, 'part_revision_id': self.next_component.id}))
+        self.next_component.refresh_from_db()
+        self.assertEqual(self.next_component.configuration, constants.CONFIGURATION_TYPE_RELEASED)
+        self.assertEqual(self.released_parent.part.revisions().count(), 2)
+        self.assertEqual(self.history().get(items__kind=ChangeItem.KIND_RELEASE_REVISION).rationale, 'Go')
