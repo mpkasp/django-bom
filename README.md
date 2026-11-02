@@ -223,15 +223,15 @@ instead of Release; an Admin may release directly by confirming an override that
 After an applied Engineering Change Order, Draft parent assemblies are moved to the new revision automatically and
 the review page's **Cascade** panel offers a new Draft revision of each Released parent that still uses the old one.
 
-Draft revisions are edited directly. On a Released or In Review revision the primary button is **Revise**, which
-makes the next Draft revision; **Release** opens a dialog that previews the diff against the previous revision, the
-unit cost before and after, and the assemblies that use it (Draft ones follow automatically, Released ones can be
-revised with checkboxes), and releases everything in one transaction. Every direct save and release is recorded as
-an unnumbered Change, shown on the part page's **History** tab (newest first, with a link to the revision diff) and
-under the **History** filter at `/changes/`. A release's entry snapshots the part's manufacturer parts. The nav
-item **Requests** counts open change requests and is hidden when there are none. The part page also has a
-**Compare with...** select that opens `/part/<id>/diff/<rev_a>/<rev_b>/`, a diff of two revisions' fields,
-properties and BOM lines. `get_change` returns the change's impact (affected assemblies and cost delta).
+### Editing, Revise, Release and History
+Draft revisions are edited directly on the revision's **Edit** page (description, properties, BOM and manufacturer
+parts). On a Released or In Review revision the primary button is **Revise**, which makes the next Draft. **Release**
+opens a dialog with the diff against the previous revision, the unit cost before and after and the assemblies that use
+the part (Draft ones follow automatically, Released ones can be revised with checkboxes), and releases everything in one
+transaction. **Request approval** in that dialog opens a change request instead; approving it releases the revisions.
+A request that releases revisions is an Engineering Change Order. Every direct edit and release is recorded as an
+unnumbered Change on the part page's **History** tab and under the **History** filter at `/changes/`; the **Requests**
+nav item counts open change requests. **Compare with...** opens a diff of two revisions. Design: [docs/editing-design.md](docs/editing-design.md).
 
 ## Contributing
 

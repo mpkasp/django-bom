@@ -206,9 +206,23 @@
                     <p>Only <strong>Admins</strong> can mark a revision Obsolete. Editors can release revisions. When
                         releasing, IndaBOM warns you if any subparts in the BOM are still in Draft state.</p>
 
-                    <h4>Creating a New Revision</h4>
-                    <p>Use <strong>Manage → New Revision</strong> on the Part Info page. The new revision is initialized
-                        from the latest revision and starts in Draft state, leaving the existing revision unchanged.</p>
+                    <h4>Editing, Revising and Releasing</h4>
+                    <p>Draft revisions are edited directly with <strong>Edit</strong>. Released and In Review revisions
+                        can't be edited: click <strong>Revise</strong> to make the next Draft revision from them,
+                        leaving the existing revision unchanged.</p>
+                    <p><strong>Release&hellip;</strong> opens a dialog that shows what changed since the previous
+                        revision, the unit cost before and after, and the assemblies that use the part. Draft assemblies
+                        follow the new revision automatically, and you can tick Released assemblies to revise them too.
+                        Everything is released together or not at all.</p>
+                    <p>If your organization requires approval to release, or you want a second opinion, choose
+                        <strong>Request approval</strong> instead. The revision stays in Draft until another person
+                        approves the request, which then releases it.</p>
+
+                    <h4>History</h4>
+                    <p>The <strong>History</strong> tab on the Part Info page lists every edit, revision and release of
+                        the part, newest first, with who made it and a link to compare the revisions. The
+                        <strong>Requests</strong> item in the navigation bar counts open change requests, including
+                        those from AI agents, and is hidden when there are none.</p>
                 </div>
 
                 <div class="section">
@@ -285,7 +299,7 @@
 
                 <div class="section">
                     <h3 id="downloading-a-bom">Downloading a BOM</h3>
-                    <p>BOM exports are available from the Part Info page under the <strong>Manage</strong> menu, and
+                    <p>BOM exports are available from the Part Info page's <strong>Bill of Materials</strong> tab under the <strong>Manage</strong> menu, and
                         from the Home / Search Results pages via the per-part dropdown. Export options include:</p>
                     <ul class="browser-default">
                         <li>Indented, single-level, or flat layout. Single level lists only the assembly's direct

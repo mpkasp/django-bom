@@ -1,5 +1,10 @@
 # Changes: change control for engineers and agents
 
+> The editing model in [editing-design.md](editing-design.md) (Edit, Revise, Release, History) supersedes parts of
+> this document. The human staging mode ("Start a change", the session banner) was **removed** and is no longer described here;
+> edits made in the UI save directly and are recorded as numberless History entries. The Change engine, MCP tools
+> and ECO behavior remain as described, with the amendments noted inline.
+
 Implementation spec. Product reasoning and sketches live in the "IndaBOM Change Sets" brief; this
 document is what gets built. It supersedes the `AIProposal` sketch in ai-architecture.md §2 and
 amends mcp-server-design.md §6: MCP writes now go through a Change, and "apply now" is a Change
@@ -9,17 +14,19 @@ applied immediately by its author.
 
 | Term | Meaning | Where |
 |---|---|---|
-| Changes | The feature and the feed | Nav item, page titles, part-page tab, MCP tool family |
+| Changes | The feature and the feed | Page titles, MCP tool family. The nav item is now "Requests" and the part-page tab "History" |
 | Change #N | One staged bundle; one number sequence per organization | Headers, rows, URLs `/changes/N/`, chat |
 | Change request | A Change in status `open` (submitted, awaiting review) | Inbox filter "Requests", submit button, notifications |
-| Engineering Change Order (ECO) | A Change with any item targeting a Released or In Review revision | Chip beside the number, inbox filter, release step. Spell out in full on first mention per page |
+| Engineering Change Order (ECO) | A non-direct Change with an item targeting a Released or In Review revision, or a `release_revision` item | Chip beside the number, inbox filter, release step. Spell out in full on first mention per page |
 | ECR, ECN, CCB, redline | Not used | Help glossary only |
 
 ## Model (`bom/models.py`)
 
 ```
 Change (OrganizationScopedModel)
-  number            PositiveIntegerField   per-organization sequence, assigned on create (max+1 inside select_for_update on the org)
+  number            PositiveIntegerField null   per-organization sequence, assigned on create (max+1 inside select_for_update on the org); NULL for direct edits
+  is_direct_edit    Boolean                a numberless, already applied History entry written by a direct save or release
+  base_part_revision FK PartRevision null  the revision a direct edit or release applies to
   title             CharField(255)
   rationale         TextField(blank)       the "why"; agents must supply it
   status            draft | open | applied | rejected | withdrawn
@@ -38,7 +45,8 @@ ChangeItem
   change            FK Change related_name='items'
   position          PositiveIntegerField   apply order
   kind              create_part | update_part_revision | add_subpart | update_subpart | remove_subpart |
-                    add_manufacturer_part | add_seller_part | csv_import
+                    add_manufacturer_part | add_seller_part | csv_import |
+                    release_revision plus the History-only kinds written by direct edits
   payload           JSONField              exactly the kwargs of the matching bom.services function
   ref               CharField(64, blank)   a key other items may reference as "$ref:<key>" (parts created in this change)
   part              FK Part null           target, when it exists at staging time
@@ -53,6 +61,7 @@ ChangeItem
 ChangeSettings (OneToOne Organization)      avoids a migration on the swappable Organization model
   protect_primary_manufacturer_part  Boolean default False
   protect_cost_delta                 DecimalField null   organization currency, per unit at quote quantity
+  require_release_approval           Boolean default False   behind the host flag release_approval_enabled
 ```
 
 Derived, not stored: `Change.is_eco` (any item's target revision is in `PartRevision.IMMUTABLE_STATES`),
@@ -105,12 +114,13 @@ All take `organization` and a `user`. No view or tool touches the models directl
    - the organization has exactly one active member (`UserMeta` rows for the org), or
    - the applier is an Admin and passes `override_protection=True`, recorded in
      `protection_overridden_by`.
-4. Agent-authored items may never set a revision's configuration to In Review or Released; ECO
-   applies leave the new revision as Draft. The release step is a human action in the existing UI.
+4. Agents never release or approve, and MCP has no release tool. A person applying (approving) an ECO in the UI now
+   also releases the revisions it created and every `release_revision` item, children before parents, in the same
+   transaction. An agent's apply leaves new revisions as Draft. The role matrix is in editing-design.md.
 
 Host flags (callables of `organization`, default always-true in django-bom; IndaBOM wires them):
 `BOM_CONFIG['changes_review_enabled']` (submit/open/review UI), `BOM_CONFIG['mcp_apply_enabled']`,
-`BOM_CONFIG['eco_enabled']`. Strings are dotted paths, like `mcp_access_check`.
+`BOM_CONFIG['eco_enabled']`, `BOM_CONFIG['release_approval_enabled']`. Strings are dotted paths, like `mcp_access_check`.
 
 ## MCP (`bom/mcp/server.py`)
 
@@ -134,30 +144,28 @@ the `part-info` status chip colors (Draft grey, In Review amber, Released teal, 
 inline `confirm()` pattern for irreversible actions.
 
 - `/changes/` list: filters Requests (open) · ECOs · Applied · Rejected; columns Change (title, #,
-  base, age; ECO chip), Author (agent chip "client · token name" + "for <user>", or user), Items
-  (counts by kind), Affects, Cost Δ (Phase 2), Status. Nav item "Changes" with a badge of open count
-  (shown to Editors and Admins).
+  base, age; ECO chip; a History filter lists direct edits), Author (agent chip "client · token name" + "for <user>", or user), Items
+  (counts by kind), Affects, Cost Δ (Phase 2), Status. The nav item is "Requests", counting open change requests,
+  hidden when there are none unless on the page; direct edits never count. The default filter is open requests.
 - `/changes/<number>/` review: header (number, ECO chip + one-line reason, status, stale chip, base
   revision, Open in chat link when `api_token`), rationale card with provenance line, items grouped
   by kind with per-item accept/reject toggles (reject asks for a reason), old → new diff from
   `before`/`payload`, flags for protected fields. Right rail: Validation (errors/warnings from
-  re-validation), Impact and Cost (Phase 2), Approval (who may apply; author/admin/single-member
-  messaging). Footer: Apply N accepted, Apply as admin (Admins on protected changes, with confirm),
-  Reject all (reason), Withdraw (author), Rebase (when stale). An applied ECO's footer offers
-  "Release rev N" linking to the existing release confirmation page.
+  re-validation), Impact and Cost (Phase 2), Approval (who may approve; author/admin/single-member
+  messaging). Footer: Approve N accepted (applies, then releases the revisions it creates), Apply as admin (Admins on protected changes, with confirm),
+  Reject all (reason), Withdraw (author), Rebase (when stale). Release is part of Approve, so there is no
+  separate "Release rev N" step.
 - Part page: banner "N open changes touch this revision" linking to the review page; proposed
-  lines ghosted inside the existing BOM component with a "Proposed" chip (Phase 2); a "Changes" tab
-  listing the changes touching the part, applied first (Phase 4); a "Compare with..." select that opens the
+  lines ghosted inside the existing BOM component with a "Proposed" chip (Phase 2); a "History" tab
+  (formerly "Changes") listing direct edits, releases and applied requests, newest first (Phase 4); a "Compare with..." select that opens the
   revision diff (Phase 4).
 - Settings: API tokens tab (create token with level, list, revoke) and a Protections section on the
   organization tab (Admins): the Released protection shown as always on with the ECO explanation,
   plus the two ChangeSettings switches.
-- Staging mode for human authors (Phase 3): "Start a change" on the Changes page sets
-  `request.session['active_change']`; while set, a banner shows "Editing in Change #N · Leave" and
-  the create part, add subpart, edit subpart, manufacturer part and seller part views call
-  `stage_item` with the form's cleaned data instead of saving. CSV import confirm records an
-  applied Change of kind `csv_import` from Phase 1 (payload: the import kind and `changes_digest`,
-  summary from the preview counts), and moves onto the shared review screen in Phase 3.
+- CSV import confirm records an applied Change of kind `csv_import` (payload: the import kind and `changes_digest`,
+  summary from the preview counts), rendered through the shared review component.
+- Removed: staging mode for human authors ("Start a change", `request.session['active_change']`, the banner and the
+  staging branches in the part, BOM and sourcing views). A data migration withdrew draft Changes with no `api_token`.
 
 ## Phases
 
@@ -169,7 +177,7 @@ Phases 1 to 4 are implemented on the `changes` branch (django-bom 1.320 to 1.323
 2. `impact`, cost delta (a rolled-back dry run), the Validation rail; part-page banner and ghosted lines; ECO: new
    Draft revision on apply, one per part, and the Release link; `rebase_change`; `revert_change`; stale detection.
    `update_subpart` and `remove_subpart` item kinds and MCP tools.
-3. Staging mode for human authors; API Tokens settings tab; Protections section; the import preview renders through
+3. API Tokens settings tab; (staging mode for human authors, since removed); Protections section; the import preview renders through
    the shared `changes/components/change-items.html`. IndaBOM wires the three flags (`indabom/mcp.py`); Pro gets
    review and ECO by default.
 4. ECO cascade: applying an ECO moves the lines of Draft parent assemblies to the new revision in place (noted in the
@@ -183,11 +191,13 @@ Phases 1 to 4 are implemented on the `changes` branch (django-bom 1.320 to 1.323
    `get_change` returns `impact`, `is_eco`, `is_stale` and `is_protected`; `list_changes` returns `is_eco`.
    Agent-written summaries stay out of scope until the AI provider layer exists.
 
+Later phases (editing-design.md A to D, django-bom 1.324 to 1.327): direct edits recorded as History, Revise, the
+Release dialog, the Edit page, Request approval with atomic Approve, and the `require_release_approval` setting.
+
 ### Known gaps
 
 - A staged `create_part` cannot carry properties on Semi-Intelligent organizations.
 - A staged `edit_subpart` ignores revision changes.
-- The legacy seller part add URL and removing a subpart from the UI do not stage into the active change.
 - The Cost delta column on the Changes list is not built; the review page shows cost.
 - Nested targets double-count the cost delta when a change edits an assembly and one of its own subassemblies.
 - Proposed seller parts render as a plain list, not as rows in the sourcing table.

@@ -20,7 +20,7 @@ No session mode. No "Start a change". No separate suggest mode.
   manufacturer parts belong here in the PLM model, but stay part-level for now; see Deferred.)
 - **Supply**, never versioned: vendor parts, prices, MOQ, lead times. Always editable in place.
 
-## Phase A: History, Revise, Release
+## Phase A: History, Revise, Release (shipped)
 
 Port from the unmerged PR #190 branch `changes-simplify-editing` (do not merge it; read it with
 `git diff master...origin/changes-simplify-editing`): the direct-edit recording service, the
@@ -61,7 +61,7 @@ Port from the unmerged PR #190 branch `changes-simplify-editing` (do not merge i
    edits never count. `/changes/` stays as the URL; its default filter is open requests; add a
    History filter that lists direct edits across the organization.
 
-## Phase B: one Edit page for the design
+## Phase B: one Edit page for the design (shipped)
 
 Extend the existing manage BOM page (`manage_bom`) into the revision's Edit page rather than
 building a new multi-form page.
@@ -85,7 +85,7 @@ building a new multi-form page.
 6. Vendor rows on the Sourcing tab stay as they are (supply data, edited directly, recorded in
    History).
 
-## Phase C: change requests and release approval
+## Phase C: change requests and release approval (shipped)
 
 1. **Request approval** in the Release dialog creates a change request (new ChangeItem kind
    `release_revision`, payload: revision id, cascade parent ids, note) submitted for review,
@@ -139,7 +139,7 @@ building a new multi-form page.
    Approve, Reject (`logger.info('bom_event=... organization=... user=... part=...')`), matching
    the existing MCP log style, for BigQuery.
 
-## Phase D: IndaBOM and docs
+## Phase D: IndaBOM and docs (shipped)
 
 - IndaBOM (`/Users/mike/Code/mpkasp/indabom/indabom`, `indabom/mcp.py`, `indabom/settings/base.py`):
   `release_approval_enabled` true for Pro or staff-owned organizations; tests.
@@ -147,6 +147,16 @@ building a new multi-form page.
   `docs/changes-testing.md` (replace staging-mode and Start-a-change tests with History, Revise,
   Release dialog, Request approval, Approve and release, setting matrix), README, and the
   in-product help text that mentions changes.
+
+## Known gaps
+
+- Review, Obsolete and Draft transitions are not recorded in History.
+- Photo changes and deletes are not recorded in History.
+- Manufacturer parts are not versioned per revision (see Deferred).
+- No inline editing on the part page and no inline accept or reject of request items.
+- No "Propose these edits" path for Draft parts.
+- The 0067 data migration's reverse does not restore the withdrawn draft Changes.
+- The Release dialog's cost preview uses a fixed quantity of 100, not the organization's quote quantity.
 
 ## Deferred
 
