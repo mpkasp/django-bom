@@ -1,0 +1,1 @@
+{% if amount is None %}unknown{% elif organization.currency == 'USD' %}${{ amount|floatformat:4 }}{% else %}{{ amount|floatformat:4 }} {{ organization.currency }}{% endif %}

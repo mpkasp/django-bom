@@ -571,3 +571,19 @@ a.anchor {
 .edit-page #manufacturer-parts form {
     display: inline;
 }
+
+.edit-page .edit-page-cost {
+    max-width: 320px;
+}
+
+.edit-page .edit-page-cost td {
+    padding: 6px 0;
+}
+
+.edit-page .edit-page-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
