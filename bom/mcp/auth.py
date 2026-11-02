@@ -9,6 +9,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from starlette.datastructures import Headers
 
 from bom.models import APIToken
+from bom.services.flags import mcp_apply_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +63,11 @@ async def _unauthorized(send):
 class Actor:
     """Who a tool call acts as: the token's user, their organization, and the token's scopes."""
 
-    def __init__(self, token):
+    def __init__(self, token, agent_client=''):
         self.token = token
         self.user = token.user
         self.organization = token.organization
+        self.agent_client = agent_client
 
     @classmethod
     def from_context(cls, ctx):
@@ -73,7 +75,15 @@ class Actor:
         token = getattr(getattr(request, 'state', None), 'api_token', None)
         if token is None:
             raise ToolError('Not authenticated.')
-        return cls(token)
+        return cls(token, agent_client=_client_name(ctx))
+
+    def can_apply(self):
+        return self.token.has_scope(APIToken.SCOPE_APPLY) and mcp_apply_enabled(self.organization)
+
+    def token_level(self):
+        if self.can_apply():
+            return 'apply'
+        return 'propose' if self.token.has_scope(APIToken.SCOPE_WRITE) else 'read'
 
     def require_scope(self, scope):
         if not self.token.has_scope(scope):
@@ -86,9 +96,29 @@ class Actor:
     def require_write(self, permission, obj=None):
         self.require_scope(APIToken.SCOPE_WRITE)
         self.require_permission(permission, obj)
+        self._require_host_access()
+
+    def require_propose(self):
+        self.require_scope(APIToken.SCOPE_WRITE)
+        self._require_host_access()
+
+    def require_apply(self):
+        self.require_scope(APIToken.SCOPE_APPLY)
+        if not mcp_apply_enabled(self.organization):
+            raise ToolError(f"Applying changes through MCP is not enabled for {self.organization.name}.")
+        self._require_host_access()
+
+    def _require_host_access(self):
         denial = _access_check()(self.organization, self.user, self.token.scope_list())
         if denial:
             raise ToolError(denial)
+
+
+def _client_name(ctx):
+    """The MCP client's self-reported name, when the transport exposes it (stateless requests may not)."""
+    client_params = getattr(ctx.session, 'client_params', None)
+    client_info = getattr(client_params, 'client_info', None) or getattr(client_params, 'clientInfo', None)
+    return getattr(client_info, 'name', '') or ''
 
 
 def _access_check():
