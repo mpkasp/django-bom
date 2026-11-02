@@ -41,9 +41,6 @@
                             {% if organization.number_scheme == 'S' and part.number_class %}<span title="{{ part.number_class }}">Class {{ part.number_class.code }}</span>{% endif %}
                             {% if part.primary_manufacturer_part.manufacturer_part_number %}<span>{{ part.primary_manufacturer_part.manufacturer.name }} {{ part.primary_manufacturer_part.manufacturer_part_number }}</span>{% endif %}
                         </div>
-                        {% if perms.bom.edit_part %}
-                            <a class="part-identity-edit" href="{% url 'bom:part-edit' part_id=part.id %}"><i class="material-icons">edit</i>Edit part</a>
-                        {% endif %}
                     </div>
                 </div>
 
@@ -85,27 +82,23 @@
                                         {% csrf_token %}
                                         <button type="submit" class="waves-effect waves-light btn green lighten-1"><i class="material-icons left">edit</i>Revise</button>
                                     </form>
+                                {% else %}
+                                    <a class="waves-effect waves-light btn green lighten-1" href="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}"><i class="material-icons left">edit</i>Edit</a>
+                                {% endif %}
+                                {% if part_revision.configuration == 'D' or part_revision.configuration == 'I' %}
+                                    {% if perms.bom.release_revision %}
+                                        <a class="waves-effect waves-light btn-flat" href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">Release&hellip;</a>
+                                    {% endif %}
                                 {% endif %}
                                 <div class="manage-btn-col">
-                        <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
-                                href='#' data-target='dropdown-revision'><i
-                                class="material-icons right">arrow_drop_down</i>Manage Revision
-                        </button>
-                        <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
-                                class="material-icons green-text text-lighten-1">more_vert</i></a>
+                        <a class='dropdown-trigger' href='#' data-target='dropdown-revision' aria-label="More actions"><i
+                                class="material-icons green-text text-lighten-1">more_horiz</i></a>
                         <ul id='dropdown-revision' class='dropdown-content'>
-                            {% if not part_revision.is_immutable %}
-                                <li>
-                                    <a class="green-text text-lighten-1"
-                                       href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                                        <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
-                                </li>
-                                <li>
-                                    <a class="green-text text-lighten-1"
-                                       href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">
-                                        <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
-                                </li>
-                            {% endif %}
+                            <li>
+                                <a class="green-text text-lighten-1"
+                                   href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                                    <i class="material-icons green-text text-lighten-1">add</i>New revision from this one</a>
+                            </li>
                             {% with allowed=part_revision.get_allowed_transitions config='D' %}
                                 {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
@@ -128,15 +121,6 @@
                                     </li>
                                 {% endif %}
                             {% endwith %}
-                            {% with allowed=part_revision.get_allowed_transitions config='R' %}
-                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
-                                    <li>
-                                        <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
-                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                            <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">check</i>Release</a>
-                                    </li>
-                                {% endif %}
-                            {% endwith %}
                             {% if perms.bom.delete_revision or config in allowed and perms.bom.obsolete_revision or profile.role == 'A' and config != part_revision.configuration %}
                             <li class="divider" tabindex="-1"></li>
                             {% endif %}
@@ -150,6 +134,19 @@
                                     </li>
                                 {% endif %}
                             {% endwith %}
+                            <li class="divider" tabindex="-1"></li>
+                            <li>
+                                <a class="green-text text-lighten-1" href="{% url 'bom:part-edit' part_id=part.id %}">
+                                    <i class="material-icons green-text text-lighten-1">edit</i>Edit part number and class</a>
+                            </li>
+                            <li>
+                                <a class="green-text text-lighten-1 modal-trigger" data-target="part-image-modal">
+                                    <i class="material-icons green-text text-lighten-1">photo_camera</i>Photo</a>
+                            </li>
+                            <li>
+                                <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}">
+                                    <i class="material-icons green-text text-lighten-1">download</i>Export BOM CSV</a>
+                            </li>
                             {% if perms.bom.delete_revision %}
                             <li>
                                 <a class="red-text text-lighten-1" onclick="deletePartRevision()">
@@ -258,8 +255,8 @@
                             <div class="row">
                                 <div class="col s4 l2 text-right" style="padding-left: 0px;">Primary Manufacturer Part:</div>
                                 <div class="col s8 l10">{% if part.primary_manufacturer_part.link %}<a href="{{ part.primary_manufacturer_part.link }}" target="_blank">{% endif %}{{ part.primary_manufacturer_part.manufacturer.name }} - {{ part.primary_manufacturer_part.manufacturer_part_number }}{% if part.primary_manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}
-                                    {% if perms.bom.edit_part %}
-                                        <a href="{% url 'bom:part-edit' part_id=part.id %}">&nbsp;[change]</a>
+                                    {% if perms.bom.edit_part and part_revision and not part_revision.is_immutable %}
+                                        <a href="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}#manufacturer-parts">&nbsp;manage</a>
                                     {% endif %}
                                 </div>
                             </div>

@@ -29,7 +29,7 @@
             <ul id='manage-bom-{{ part.id }}-indented' class='dropdown-content'>
                 {% if perms.bom.edit_part %}
                     <li>{% if part_revision and not part_revision.is_immutable %}
-                        <a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">
+                        <a class="green-text text-lighten-1" href="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}">
                             <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
                     {% else %}
                         <a class="grey-text text-lighten-1" onclick="alert('Can\'t edit a released part!')"><i class="material-icons grey-text text-lighten-1">edit</i>Edit BOM</a>
