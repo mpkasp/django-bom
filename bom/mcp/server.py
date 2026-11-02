@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 READ_ONLY = ToolAnnotations(read_only_hint=True)
 WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=False)
+DESTRUCTIVE = ToolAnnotations(read_only_hint=False, destructive_hint=True)
 
 mcp = MCPServer(
     'IndaBOM',
@@ -169,7 +170,7 @@ def _applied_output(organization, item):
     result = item.result
     if item.kind == ChangeItem.KIND_CREATE_PART:
         return parts.part_detail(parts.revision_from_number(organization, result['part_number']))
-    if item.kind == ChangeItem.KIND_ADD_SUBPART:
+    if item.kind in changes.SUBPART_KINDS:
         return boms.bom_report(PartRevision.objects.get(pk=result['part_revision_id']))
     if item.kind == ChangeItem.KIND_ADD_MANUFACTURER_PART:
         return parts.manufacturer_part_summary(parts.manufacturer_part_for(organization, result['manufacturer_part_id']))
@@ -277,6 +278,34 @@ def add_subpart(ctx: Context, assembly_part_number: str, subpart_part_number: st
             'subpart_part_number': subpart_part_number, 'count': count, 'reference': reference,
             'do_not_load': do_not_load}
         return _finish_write(actor, _write_item(actor, ChangeItem.KIND_ADD_SUBPART, payload, change_id))
+
+
+@mcp.tool(annotations=WRITE)
+def update_subpart(ctx: Context, assembly_part_number: str, subpart_part_number: str, count: float | None = None,
+                   reference: str | None = None, do_not_load: bool | None = None,
+                   assembly_revision: str | None = None, change_id: int | None = None) -> dict:
+    """Change the quantity, reference designators or do-not-load flag of the line that uses `subpart_part_number`
+    in an assembly. Values left out are kept. `reference` must match `count` when given. Editing a Released
+    revision makes the change an Engineering Change Order. """ + CHANGE_ID_DOC
+    with tool_call(ctx, 'update_subpart') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        payload = {
+            'assembly_part_number': assembly_part_number, 'assembly_revision': assembly_revision,
+            'subpart_part_number': subpart_part_number, 'count': count, 'reference': reference,
+            'do_not_load': do_not_load}
+        return _finish_write(actor, _write_item(actor, ChangeItem.KIND_UPDATE_SUBPART, payload, change_id))
+
+
+@mcp.tool(annotations=DESTRUCTIVE)
+def remove_subpart(ctx: Context, assembly_part_number: str, subpart_part_number: str,
+                   assembly_revision: str | None = None, change_id: int | None = None) -> dict:
+    """Remove the line that uses `subpart_part_number` from an assembly. Editing a Released revision makes the
+    change an Engineering Change Order. """ + CHANGE_ID_DOC
+    with tool_call(ctx, 'remove_subpart') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        payload = {'assembly_part_number': assembly_part_number, 'assembly_revision': assembly_revision,
+                   'subpart_part_number': subpart_part_number}
+        return _finish_write(actor, _write_item(actor, ChangeItem.KIND_REMOVE_SUBPART, payload, change_id))
 
 
 @mcp.tool(annotations=WRITE)

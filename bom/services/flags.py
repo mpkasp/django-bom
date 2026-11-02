@@ -17,3 +17,7 @@ def changes_review_enabled(organization):
 
 def mcp_apply_enabled(organization):
     return host_flag('mcp_apply_enabled', organization)
+
+
+def eco_enabled(organization):
+    return host_flag('eco_enabled', organization)

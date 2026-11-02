@@ -2,7 +2,8 @@ from django.db import models
 
 from bom import constants
 from bom.forms import ManufacturerPartForm, PartRevisionForm, SellerPartForm, part_form_from_organization
-from bom.models import ManufacturerPart, Part, PartClass, PartRevision, PartRevisionPropertyDefinition, SellerPart, UnitDefinition
+from bom.models import (Assembly, AssemblySubparts, ManufacturerPart, Part, PartClass, PartRevision,
+                        PartRevisionProperty, PartRevisionPropertyDefinition, SellerPart, Subpart, UnitDefinition)
 from bom.services.errors import ServiceError
 
 
@@ -186,6 +187,24 @@ def create_part(organization, description, part_class_code=None, number_item=Non
         new_part.primary_manufacturer_part = manufacturer_part
         new_part.save()
 
+    return new_revision
+
+
+def create_next_revision(source_revision):
+    """A new Draft revision of the part, numbered after its latest, copying the source's assembly and properties."""
+    part = source_revision.part
+    new_revision = PartRevision.objects.create(
+        part=part, revision=str(part.latest().next_revision()), description=source_revision.description,
+        assembly=Assembly.objects.create())
+    for subpart in source_revision.assembly.subparts.all() if source_revision.assembly else []:
+        copied = Subpart.objects.create(part_revision=subpart.part_revision, count=subpart.count,
+                                        reference=subpart.reference, do_not_load=subpart.do_not_load)
+        AssemblySubparts.objects.create(assembly=new_revision.assembly, subpart=copied)
+    for revision_property in source_revision.properties.all():
+        PartRevisionProperty.objects.create(
+            part_revision=new_revision, property_definition=revision_property.property_definition,
+            value_raw=revision_property.value_raw, unit_definition=revision_property.unit_definition)
+    new_revision.update_synopsis()
     return new_revision
 
 
