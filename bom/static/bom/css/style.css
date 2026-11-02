@@ -546,3 +546,44 @@ a.anchor {
     margin: 0 8px;
     color: #bdbdbd;
 }
+.edit-page .card-panel h5 {
+    margin-top: 0;
+}
+
+.edit-page .card-panel h6 {
+    margin-top: 24px;
+    font-weight: 500;
+}
+
+.edit-page .edit-page-radios {
+    padding-top: 2.2rem;
+}
+
+.edit-page .edit-page-radio {
+    margin-right: 16px;
+}
+
+.edit-page .edit-page-add {
+    margin-left: -16px;
+    margin-top: 8px;
+}
+
+.edit-page #manufacturer-parts form {
+    display: inline;
+}
+
+.edit-page .edit-page-cost {
+    max-width: 320px;
+}
+
+.edit-page .edit-page-cost td {
+    padding: 6px 0;
+}
+
+.edit-page .edit-page-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
