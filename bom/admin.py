@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 
 from .models import (
+    APIToken,
     Assembly,
     Manufacturer,
     ManufacturerPart,
@@ -207,3 +208,14 @@ admin.site.register(Subpart, SubpartAdmin)
 admin.site.register(UnitDefinition, UnitDefinitionAdmin)
 admin.site.register(PartRevisionPropertyDefinition, PartRevisionPropertyDefinitionAdmin)
 admin.site.register(QuantityOfMeasure, QuantityOfMeasureAdmin)
+
+
+class APITokenAdmin(admin.ModelAdmin):
+    list_display = ('name', 'prefix', 'user', 'organization', 'scopes', 'created_at', 'last_used_at', 'expires_at', 'revoked_at')
+    list_filter = ('scopes',)
+    search_fields = ('name', 'prefix', 'user__username', 'organization__name')
+    readonly_fields = ('prefix', 'hashed_key', 'created_at', 'last_used_at')
+    raw_id_fields = ('user', 'organization')
+
+
+admin.site.register(APIToken, APITokenAdmin)
