@@ -87,8 +87,9 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
-from bom.services.changes import (newer_draft_revision, part_history, proposals_for_revision, record_csv_import,
-                                  record_direct_edit, release_preview, release_revision, revise_revision)
+from bom.services.changes import (log_event, newer_draft_revision, part_history, proposals_for_revision, record_csv_import,
+                                  record_direct_edit, release_approval_required, release_preview, release_revision,
+                                  request_release_approval, revise_revision)
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled
@@ -1587,6 +1588,7 @@ def manage_bom(request, part_id, part_revision_id):
         part_revision_form = PartRevisionForm(request.POST, instance=part_revision, organization=organization)
         if part_revision_form.is_valid():
             part_revision_form.save()
+            log_event('edit_save', organization, user, part)
             if part_revision_form.has_changed():
                 record_direct_edit(
                     organization, user, part, ChangeItem.KIND_UPDATE_PART_REVISION,
@@ -2175,7 +2177,14 @@ def part_revision_release(request, part_id, part_revision_id):
     if request.method == 'POST':
         try:
             cascade_parent_ids = [int(value) for value in request.POST.getlist('cascade_parent_id')]
-            release_revision(part_revision, request.user, request.POST.get('note', '').strip(), cascade_parent_ids)
+            note = request.POST.get('note', '').strip()
+            if request.POST.get('action') == 'request_approval':
+                change = request_release_approval(part_revision, request.user, note, cascade_parent_ids)
+                messages.success(request, f'Requested approval to release {_revision_label(part_revision)} in '
+                                          f'change #{change.number}.')
+                return HttpResponseRedirect(reverse('bom:change-review', kwargs={'number': change.number}))
+            release_revision(part_revision, request.user, note, cascade_parent_ids,
+                             override_approval='override' in request.POST)
         except ServiceError as error:
             messages.error(request, str(error))
             return HttpResponseRedirect(request.path_info)
@@ -2199,10 +2208,14 @@ def part_revision_release(request, part_id, part_revision_id):
                       status_label='Differs')
         for entry in preview['diff']])
     title = f'Release {part.full_part_number()} rev {part_revision.revision} {part_revision.synopsis()}'
+    profile = request.user.bom_profile()
+    approval_required = release_approval_required(organization)
     return TemplateResponse(request, 'bom/part-revision-release.html', {
-        'title': title, 'profile': request.user.bom_profile(), 'organization': organization, 'part': part,
+        'title': title, 'profile': profile, 'organization': organization, 'part': part,
         'part_revision': part_revision, 'preview': preview, 'items': diff_items, 'draft_subparts': draft_subparts,
-        'revision_url': revision_url})
+        'revision_url': revision_url, 'approval_required': approval_required,
+        'can_request_approval': changes_review_enabled(organization),
+        'can_release': not approval_required, 'can_override': approval_required and profile.role == constants.ROLE_TYPE_ADMIN})
 
 
 @login_required(login_url=BOM_LOGIN_URL)

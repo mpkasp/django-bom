@@ -91,6 +91,22 @@ class SettingsTabsTest(TestCase):
         change_settings.refresh_from_db()
         self.assertFalse(change_settings.protect_primary_manufacturer_part)
 
+    def test_require_release_approval_is_saved_by_admins_and_hidden_without_the_host_flag(self):
+        page = self.client.get(self.settings_url('organization'))
+        self.assertContains(page, 'Require approval to release')
+
+        self.client.post(self.settings_url('organization'), {
+            'submit-protections': '', 'require_release_approval': 'on'})
+        self.assertTrue(ChangeSettings.objects.get(organization=self.organization).require_release_approval)
+
+        self.editor_client.post(self.settings_url('organization'), {'submit-protections': ''})
+        self.assertTrue(ChangeSettings.objects.get(organization=self.organization).require_release_approval)
+
+        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, release_approval_enabled=False)):
+            self.assertNotContains(self.client.get(self.settings_url('organization')), 'Require approval to release')
+            self.client.post(self.settings_url('organization'), {'submit-protections': ''})
+        self.assertTrue(ChangeSettings.objects.get(organization=self.organization).require_release_approval)
+
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class ImportPreviewComponentTest(TestCase):

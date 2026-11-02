@@ -19,10 +19,11 @@ from bom.permissions import BomPerms
 from bom.services import boms, parts
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
-from bom.services.flags import eco_enabled
+from bom.services.flags import changes_review_enabled, eco_enabled, release_approval_enabled
 
 logger = logging.getLogger(__name__)
 
+RELEASABLE_STATES = (CONFIGURATION_TYPE_DRAFT, CONFIGURATION_TYPE_IN_REVIEW)
 REF_PREFIX = '$ref:'
 DEFAULT_QUANTITY = 100
 SUBPART_KINDS = (ChangeItem.KIND_ADD_SUBPART, ChangeItem.KIND_UPDATE_SUBPART, ChangeItem.KIND_REMOVE_SUBPART)
@@ -41,7 +42,13 @@ ITEM_PERMISSIONS = {
     ChangeItem.KIND_REMOVE_SUBPART: BomPerms.EDIT_PART,
     ChangeItem.KIND_ADD_MANUFACTURER_PART: BomPerms.MANAGE_SOURCING,
     ChangeItem.KIND_ADD_SELLER_PART: BomPerms.MANAGE_SOURCING,
+    ChangeItem.KIND_RELEASE_REVISION: BomPerms.RELEASE_REVISION,
 }
+
+
+def log_event(event, organization, user, part=None):
+    logger.info('bom_event=%s organization=%s user=%s part=%s', event, organization.id, user.id,
+                part.id if part is not None else None)
 
 
 def change_for(organization, change_id):
@@ -145,6 +152,7 @@ def reject_change(change, user, reason):
         raise ServiceError('Give a reason for rejecting this change.', {'reason': ['This field is required.']})
     for item in change.items.filter(status=ChangeItem.STATUS_ACCEPTED):
         _set_status(item, ChangeItem.STATUS_REJECTED, reason)
+    log_event('reject', change.organization, user, _first_part(change))
     return _resolve(change, user, Change.STATUS_REJECTED)
 
 
@@ -170,7 +178,14 @@ def _require_author(change, user):
         raise ServiceError(f"Only the author of change #{change.number} can do that.")
 
 
-def apply_change(change, user, override_protection=False):
+def _first_part(change):
+    return next((item.part for item in change.items.select_related('part') if item.part_id), None)
+
+
+def apply_change(change, user, override_protection=False, by_agent=False):
+    """Apply (approve, for a submitted request) the accepted items, then release the revisions the change asks to
+    release and the Draft revisions its edits created, children before parents. A person must approve a change that
+    releases revisions: an agent token only applies changes it started itself and never releases."""
     with transaction.atomic():
         Change.objects.select_for_update().filter(pk=change.pk).first()
         change.refresh_from_db()
@@ -181,6 +196,9 @@ def apply_change(change, user, override_protection=False):
         items = list(change.items.filter(status=ChangeItem.STATUS_ACCEPTED).exclude(kind=ChangeItem.KIND_CSV_IMPORT))
         if not items:
             raise ServiceError(f"Change #{change.number} has no accepted items to apply.")
+        release_items = [item for item in items if item.kind == ChangeItem.KIND_RELEASE_REVISION]
+        if by_agent and (release_items or change.api_token_id is None):
+            raise ServiceError(f"An agent token cannot approve or release; a person must apply change #{change.number}.")
         if is_stale(change):
             raise ServiceError(
                 f"Change #{change.number} is stale: the parts it touches changed after it was staged. "
@@ -195,9 +213,50 @@ def apply_change(change, user, override_protection=False):
             overridden = True
         _require_item_permissions(change, user, items)
 
-        _apply_items(change, items)
+        was_submitted = change.status == Change.STATUS_OPEN
+        edit_items = [item for item in items if item.kind != ChangeItem.KIND_RELEASE_REVISION]
+        new_revisions = _apply_items(change, edit_items)
+        if not by_agent:
+            _release_together(change, user, release_items, new_revisions.values())
+        if was_submitted:
+            log_event('approve', change.organization, user, _first_part(change))
         return _resolve(change, user, Change.STATUS_APPLIED,
                         protection_overridden_by=user if overridden else None)
+
+
+def _release_together(change, user, release_items, created_revisions):
+    """Release the requested revisions and the ones the edits created. Any failure raises and the caller's
+    transaction undoes the apply too."""
+    requests = {}
+    for item in release_items:
+        requests.setdefault(item.part_revision_id, []).append(item)
+    for revision in created_revisions:
+        requests.setdefault(revision.id, [])
+    revisions = PartRevision.objects.filter(id__in=requests).select_related('part')
+    for revision in _children_first(list(revisions)):
+        _require_release_permission(user, revision)
+        item = next(iter(requests[revision.id]), None)
+        cascade_parent_ids = item.payload.get('cascade_parent_ids', []) if item else []
+        details = _release_core(revision.id, user, cascade_parent_ids)
+        for requested_item in requests[revision.id]:
+            requested_item.result = details
+            requested_item.save(update_fields=['result'])
+        for edit_item in change.items.filter(result__new_revision_id=revision.id):
+            edit_item.result = dict(edit_item.result, released=True)
+            edit_item.save(update_fields=['result'])
+
+
+def _children_first(revisions):
+    pending = {revision.id: revision for revision in revisions}
+    ordered = []
+    while pending:
+        ready = [revision for revision in pending.values() if not any(
+            child_id in pending for child_id in revision.assembly.subparts.values_list('part_revision_id', flat=True))]
+        if not ready:
+            raise ServiceError('These revisions contain each other and cannot be released together.')
+        for revision in sorted(ready, key=lambda ready_revision: ready_revision.id):
+            ordered.append(pending.pop(revision.id))
+    return ordered
 
 
 def _apply_items(change, items):
@@ -256,7 +315,7 @@ def cascade_candidates(change):
         return []
     done = {entry['source_revision_id'] for entry in change.cascade or []}
     candidates = {}
-    for item in change.items.all():
+    for item in change.items.exclude(kind=ChangeItem.KIND_RELEASE_REVISION):
         result = item.result or {}
         if 'previous_revision_id' not in result:
             continue
@@ -328,6 +387,10 @@ def validate_change(change):
     ``{'item', 'level', 'message'}`` where level is ``error`` or ``warning``."""
     problems = []
     for item in change.items.filter(status=ChangeItem.STATUS_ACCEPTED).exclude(kind=ChangeItem.KIND_CSV_IMPORT):
+        if item.kind == ChangeItem.KIND_RELEASE_REVISION:
+            if item.part_revision is None or item.part_revision.configuration not in RELEASABLE_STATES:
+                problems.append({'item': item, 'level': 'error', 'message': 'The revision can no longer be released.'})
+            continue
         pending_refs = _referenced_keys(item.payload)
         if pending_refs:
             problems.append({'item': item, 'level': 'warning',
@@ -406,7 +469,7 @@ def _active_member_count(organization):
 def is_eco(change):
     if change.is_direct_edit:
         return False
-    return any((item.result and 'new_revision_id' in item.result)
+    return any(item.kind == ChangeItem.KIND_RELEASE_REVISION or (item.result and 'new_revision_id' in item.result)
                or (item.part_revision_id and item.part_revision.is_immutable())
                for item in change.items.exclude(status=ChangeItem.STATUS_REJECTED).select_related('part_revision'))
 
@@ -485,7 +548,8 @@ def cost_impact(change, quantity=DEFAULT_QUANTITY):
     before = {part_id: _unit_cost(revision, quantity) for part_id, revision in targets.items()}
     after = {part_id: None for part_id in targets}
     if change.status in Change.PENDING_STATUSES:
-        items = list(change.items.filter(status=ChangeItem.STATUS_ACCEPTED).exclude(kind=ChangeItem.KIND_CSV_IMPORT))
+        items = list(change.items.filter(status=ChangeItem.STATUS_ACCEPTED).exclude(
+            kind__in=(ChangeItem.KIND_CSV_IMPORT, ChangeItem.KIND_RELEASE_REVISION)))
         try:
             with transaction.atomic():
                 _refuse_immutable_targets(change, items)
@@ -599,7 +663,9 @@ def revert_change(change, user):
         left_in_place, seller_part_ids, manufacturer_part_ids = [], [], []
         for item in items:
             try:
-                if item.kind == ChangeItem.KIND_CREATE_PART:
+                if item.kind == ChangeItem.KIND_RELEASE_REVISION:
+                    left_in_place.append(f"Item {item.position} ({item.summary}) cannot be reverted; revise instead.")
+                elif item.kind == ChangeItem.KIND_CREATE_PART:
                     left_in_place.append(f"{item.result['part_number']} was created and is left in place.")
                 elif item.kind == ChangeItem.KIND_ADD_SELLER_PART:
                     seller_part_ids.append(item.result['seller_part_id'])
@@ -690,49 +756,126 @@ def release_preview(part_revision, quantity=DEFAULT_QUANTITY):
     }
 
 
-def release_revision(part_revision, user, note='', cascade_parent_ids=()):
+def release_approval_required(organization):
+    """Whether releasing needs a second person: the setting is on, the host allows it, and someone else could approve."""
+    if not (changes_review_enabled(organization) and release_approval_enabled(organization)):
+        return False
+    change_settings = ChangeSettings.objects.filter(organization=organization).first()
+    return bool(change_settings and change_settings.require_release_approval) \
+        and _active_member_count(organization) > 1
+
+
+def _require_release_permission(user, part_revision):
+    if not user.has_perm(BomPerms.RELEASE_REVISION, part_revision):
+        raise ServiceError(f"{user.username} cannot release revisions in {part_revision.part.organization.name}.")
+
+
+def release_revision(part_revision, user, note='', cascade_parent_ids=(), override_approval=False):
     """Release a Draft or In Review revision. Draft assemblies that use the previous revision move to this one, the
     selected Released assemblies get a new Draft revision that does, and History records the release with the part's
-    manufacturer parts. Everything happens or nothing does."""
+    manufacturer parts. Everything happens or nothing does. When the organization requires approval only an Admin may
+    release directly, by confirming ``override_approval``, which History records."""
     organization = part_revision.part.organization
-    if not user.has_perm(BomPerms.RELEASE_REVISION, part_revision):
-        raise ServiceError(f"{user.username} cannot release revisions in {organization.name}.")
+    _require_release_permission(user, part_revision)
+    overridden = False
+    if release_approval_required(organization):
+        if user.bom_profile().role != ROLE_TYPE_ADMIN:
+            raise ServiceError('This organization requires approval to release. Request approval instead.')
+        if not override_approval:
+            raise ServiceError('This organization requires approval to release. Confirm the Admin override to '
+                               'release directly, or request approval instead.')
+        overridden = True
     cascade_parent_ids = list(dict.fromkeys(cascade_parent_ids))
     with transaction.atomic():
-        revision = PartRevision.objects.select_for_update().select_related('part').get(pk=part_revision.pk)
+        details = _release_core(part_revision.pk, user, cascade_parent_ids)
+        revision = PartRevision.objects.select_related('part').get(pk=part_revision.pk)
         label = f"{revision.part.full_part_number()} rev {revision.revision}"
-        if revision.configuration not in (CONFIGURATION_TYPE_DRAFT, CONFIGURATION_TYPE_IN_REVIEW):
-            raise ServiceError(f"{label} is {revision.get_configuration_display()}; "
-                               f"only a Draft or In Review revision can be released.")
-        previous = _previous_revision(revision)
-        released_parents = {parent.id: parent for parent in previous.where_used().select_related('part').filter(
-            configuration=CONFIGURATION_TYPE_RELEASED)} if previous else {}
-        unknown = sorted(set(cascade_parent_ids) - set(released_parents))
-        if unknown:
-            raise ServiceError(f"Revisions {unknown} are not Released assemblies that use "
-                               f"{previous.part.full_part_number()} rev {previous.revision}.")
-        revision.configuration = CONFIGURATION_TYPE_RELEASED
-        try:
-            revision.save(user=user)
-        except ValidationError as error:
-            raise ServiceError('; '.join(error.messages))
-        draft_parents_updated = _retarget_draft_parents(previous, revision) if previous else []
-        cascaded = [_cascade_parent(released_parents[parent_id], [(previous, revision)])
-                    for parent_id in cascade_parent_ids]
-        record_direct_edit(
-            organization, user, revision.part, ChangeItem.KIND_RELEASE_REVISION, f"Release {label}",
-            part_revision=revision, rationale=note, payload={'note': note, 'cascade_parent_ids': cascade_parent_ids},
-            result={'part_revision_id': revision.id, 'previous_revision_id': previous.id if previous else None,
-                    'draft_parents_updated': draft_parents_updated,
-                    'cascaded_revision_ids': [new_revision.id for new_revision in cascaded],
-                    'manufacturer_parts': _manufacturer_part_snapshot(revision.part)})
-        for parent_id, new_revision in zip(cascade_parent_ids, cascaded):
+        summary = f"Release {label}" + (' (Admin override of required approval)' if overridden else '')
+        entry = record_direct_edit(
+            organization, user, revision.part, ChangeItem.KIND_RELEASE_REVISION, summary,
+            part_revision=revision, rationale=note,
+            payload={'note': note, 'cascade_parent_ids': cascade_parent_ids, 'approval_overridden': overridden},
+            result=details)
+        if overridden and entry is not None:
+            entry.protection_overridden_by = user
+            entry.save(update_fields=['protection_overridden_by'])
+        for parent_id, new_revision in zip(cascade_parent_ids, _cascaded(details)):
             record_direct_edit(
                 organization, user, new_revision.part, ChangeItem.KIND_CREATE_PART_REVISION,
                 f"Create {new_revision.part.full_part_number()} rev {new_revision.revision} to use {label}",
                 part_revision=new_revision, payload={'revision': new_revision.revision, 'copy_assembly': True},
                 result={'part_revision_id': new_revision.id, 'source_revision_id': parent_id})
+    log_event('release', organization, user, revision.part)
     return revision
+
+
+def _cascaded(details):
+    return list(PartRevision.objects.filter(id__in=details['cascaded_revision_ids']).select_related('part')
+                .order_by('id'))
+
+
+def _release_core(part_revision_id, user, cascade_parent_ids):
+    """Freeze the revision, move its Draft parents and cascade the selected Released parents. Returns the
+    result recorded on the History or request item. The caller owns the transaction and the permission checks."""
+    revision = PartRevision.objects.select_for_update().select_related('part').get(pk=part_revision_id)
+    label = f"{revision.part.full_part_number()} rev {revision.revision}"
+    if revision.configuration not in RELEASABLE_STATES:
+        raise ServiceError(f"{label} is {revision.get_configuration_display()}; "
+                           f"only a Draft or In Review revision can be released.")
+    previous = _previous_revision(revision)
+    released_parents = {parent.id: parent for parent in previous.where_used().select_related('part').filter(
+        configuration=CONFIGURATION_TYPE_RELEASED)} if previous else {}
+    unknown = sorted(set(cascade_parent_ids) - set(released_parents))
+    if unknown:
+        raise ServiceError(f"Revisions {unknown} are not Released assemblies that use "
+                           f"{previous.part.full_part_number()} rev {previous.revision}.")
+    revision.configuration = CONFIGURATION_TYPE_RELEASED
+    try:
+        revision.save(user=user)
+    except ValidationError as error:
+        raise ServiceError('; '.join(error.messages))
+    draft_parents_updated = _retarget_draft_parents(previous, revision) if previous else []
+    cascaded = [_cascade_parent(released_parents[parent_id], [(previous, revision)])
+                for parent_id in cascade_parent_ids]
+    return {'part_revision_id': revision.id, 'previous_revision_id': previous.id if previous else None,
+            'draft_parents_updated': draft_parents_updated,
+            'cascaded_revision_ids': [new_revision.id for new_revision in cascaded],
+            'manufacturer_parts': _manufacturer_part_snapshot(revision.part)}
+
+
+def request_release_approval(part_revision, user, note='', cascade_parent_ids=()):
+    """Submit a change request to release the revision. It stays Draft until someone else approves the request."""
+    organization = part_revision.part.organization
+    label = f"{part_revision.part.full_part_number()} rev {part_revision.revision}"
+    if not user.has_perm(BomPerms.EDIT_PART, organization):
+        raise ServiceError(f"{user.username} cannot request approval in {organization.name}.")
+    if not changes_review_enabled(organization):
+        raise ServiceError(f"Change requests are not enabled for {organization.name}.")
+    if part_revision.configuration not in RELEASABLE_STATES:
+        raise ServiceError(f"{label} is {part_revision.get_configuration_display()}; "
+                           f"only a Draft or In Review revision can be released.")
+    if ChangeItem.objects.filter(kind=ChangeItem.KIND_RELEASE_REVISION, part_revision=part_revision,
+                                 change__status__in=Change.PENDING_STATUSES).exists():
+        raise ServiceError(f"{label} already has a pending request to release it.")
+    cascade_parent_ids = list(dict.fromkeys(cascade_parent_ids))
+    previous = _previous_revision(part_revision)
+    released_parent_ids = set(previous.where_used().filter(configuration=CONFIGURATION_TYPE_RELEASED)
+                              .values_list('id', flat=True)) if previous else set()
+    unknown = sorted(set(cascade_parent_ids) - released_parent_ids)
+    if unknown:
+        raise ServiceError(f"Revisions {unknown} are not Released assemblies that use "
+                           f"{previous.part.full_part_number()} rev {previous.revision}.")
+    with transaction.atomic():
+        change = start_change(organization, user, f"Release {label}", note)
+        ChangeItem.objects.create(
+            change=change, position=1, kind=ChangeItem.KIND_RELEASE_REVISION,
+            payload={'part_revision_id': part_revision.id, 'cascade_parent_ids': cascade_parent_ids, 'note': note},
+            part=part_revision.part, part_revision=part_revision, summary=f"Release {label}")
+        change.base_digest = compute_digest(change)
+        change.save(update_fields=['base_digest'])
+        submit_change(change, user)
+    log_event('request_approval', organization, user, part_revision.part)
+    return change
 
 
 def _manufacturer_part_snapshot(part):
@@ -767,6 +910,7 @@ def revise_revision(part_revision, user):
             f"Revise {label} into rev {new_revision.revision}", part_revision=new_revision,
             payload={'revision': new_revision.revision, 'copy_assembly': True},
             result={'part_revision_id': new_revision.id, 'source_revision_id': part_revision.id})
+    log_event('revise', organization, user, part_revision.part)
     return new_revision
 
 

@@ -9,7 +9,8 @@ from starlette.testclient import TestClient
 from bom import constants
 from bom.helpers import create_a_fake_organization, create_some_fake_parts
 from bom.mcp.asgi import build_application
-from bom.models import APIToken, Part, PartRevision, Seller
+from bom.services import changes, parts
+from bom.models import APIToken, Change, Part, PartRevision, PartRevisionPropertyDefinition, Seller
 
 def deny_everything(organization, user, scopes):
     return 'Upgrade to Pro.'
@@ -193,3 +194,45 @@ class MCPServerTest(MCPTestCase):
     def test_form_errors_reach_the_model(self):
         _, error = self.mcp(self.write_plaintext).call('create_part', description='x', part_class_code='999')
         self.assertIn('number_class', error)
+
+
+class MCPReleaseTest(MCPTestCase):
+    def setUp(self):
+        super().setUp()
+        PartRevisionPropertyDefinition.objects.update(required=False)
+        self.revision = parts.create_part(
+            self.organization, 'Subject', part_class_code=str(self.parts[0].number_class.code))
+        self.request = changes.request_release_approval(self.revision, self.user)
+
+    def test_there_is_no_release_tool(self):
+        names = {tool['name'] for tool in self.mcp(self.apply_plaintext).rpc('tools/list').json()['result']['tools']}
+
+        self.assertFalse({name for name in names if 'release' in name or 'approve' in name})
+
+    def test_an_apply_token_cannot_approve_a_release_request(self):
+        result, error = self.mcp(self.apply_plaintext).call('apply_change', change_id=self.request.id)
+
+        self.assertIn('agent token cannot approve or release', error)
+        self.revision.refresh_from_db()
+        self.assertEqual(self.revision.configuration, constants.CONFIGURATION_TYPE_DRAFT)
+        self.request.refresh_from_db()
+        self.assertEqual(self.request.status, Change.STATUS_OPEN)
+
+    def test_an_apply_token_cannot_approve_a_request_a_person_started(self):
+        change = changes.start_change(self.organization, self.user, 'Human edit')
+        changes.stage_item(change, 'add_subpart', {
+            'assembly_part_number': self.revision.part.full_part_number(),
+            'subpart_part_number': self.parts[0].full_part_number(), 'count': 1})
+        changes.submit_change(change, self.user)
+
+        result, error = self.mcp(self.apply_plaintext).call('apply_change', change_id=change.id)
+
+        self.assertIn('agent token cannot approve or release', error)
+
+    def test_an_apply_token_still_applies_its_own_draft_edit(self):
+        result, error = self.mcp(self.apply_plaintext).call(
+            'add_subpart', assembly_part_number=self.revision.part.full_part_number(),
+            subpart_part_number=self.parts[0].full_part_number(), count=2)
+
+        self.assertIsNone(error)
+        self.assertEqual(self.revision.part.latest().configuration, constants.CONFIGURATION_TYPE_DRAFT)

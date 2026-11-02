@@ -9,7 +9,8 @@ from django.urls import reverse
 
 from bom import constants
 from bom.helpers import create_some_fake_parts, create_user_and_organization
-from bom.models import APIToken, Change, ChangeItem, ManufacturerPart, PartRevision, PartRevisionPropertyDefinition
+from bom.models import (APIToken, Change, ChangeItem, ChangeSettings, ManufacturerPart, PartRevision,
+                        PartRevisionPropertyDefinition)
 from bom.services import boms, changes, parts
 from bom.services.errors import ServiceError
 
@@ -568,3 +569,337 @@ class ImmutableGuardTest(EditingTestCase):
         self.assertEqual(list(ManufacturerPart.objects.filter(part=self.part)), [self.primary])
         self.primary.refresh_from_db()
         self.assertEqual(self.primary.manufacturer_part_number, 'ACME-1')
+
+
+class ApprovalTestCase(EditingTestCase):
+    def setUp(self):
+        super().setUp()
+        self.component = self.new_part('Component')
+        PartRevision.objects.filter(pk=self.component.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        self.draft_parent = self.assembly_using(self.component, 'Draft parent')
+        self.released_parent = self.assembly_using(self.component, 'Released parent')
+        PartRevision.objects.filter(pk=self.released_parent.pk).update(
+            configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        self.draft = parts.create_next_revision(self.component)
+
+    def assembly_using(self, component, description):
+        assembly = self.new_part(description)
+        boms.add_subpart(self.organization, assembly, component.part.full_part_number(), count=1, reference='U1')
+        return assembly
+
+    def member(self, role):
+        member = User.objects.create_user(f'member-{role}', f'{role}@example.com', 'ghostpassword')
+        profile = member.bom_profile(organization=self.organization)
+        profile.role = role
+        profile.save()
+        return member
+
+    def require_approval(self, required=True):
+        ChangeSettings.objects.update_or_create(
+            organization=self.organization, defaults={'require_release_approval': required})
+
+    def principal(self, role):
+        profile = self.user.bom_profile()
+        profile.role = role
+        profile.save()
+        self.user = User.objects.get(pk=self.user.pk)
+        return self.user
+
+    def fresh_draft(self, description='Subject'):
+        return self.new_part(description)
+
+    def add_release_item(self, change, revision):
+        ChangeItem.objects.create(
+            change=change, position=change.items.count() + 1, kind=ChangeItem.KIND_RELEASE_REVISION,
+            part=revision.part, part_revision=revision, summary=f'Release {revision}',
+            payload={'part_revision_id': revision.id, 'cascade_parent_ids': []})
+        change.base_digest = changes.compute_digest(change)
+        change.save(update_fields=['base_digest'])
+
+    def configuration(self, revision):
+        revision.refresh_from_db()
+        return revision.configuration
+
+
+class ReleaseApprovalTest(ApprovalTestCase):
+    def test_release_matrix(self):
+        released, draft = constants.CONFIGURATION_TYPE_RELEASED, constants.CONFIGURATION_TYPE_DRAFT
+        for role, required, members, override, expected in [
+            (constants.ROLE_TYPE_VIEWER, False, 2, False, draft),
+            (constants.ROLE_TYPE_VIEWER, True, 2, True, draft),
+            (constants.ROLE_TYPE_EDITOR, False, 2, False, released),
+            (constants.ROLE_TYPE_ADMIN, False, 2, False, released),
+            (constants.ROLE_TYPE_EDITOR, True, 1, False, released),
+            (constants.ROLE_TYPE_ADMIN, True, 1, False, released),
+            (constants.ROLE_TYPE_EDITOR, True, 2, False, draft),
+            (constants.ROLE_TYPE_EDITOR, True, 2, True, draft),
+            (constants.ROLE_TYPE_ADMIN, True, 2, False, draft),
+            (constants.ROLE_TYPE_ADMIN, True, 2, True, released),
+        ]:
+            with self.subTest(role=role, required=required, members=members, override=override):
+                User.objects.exclude(pk=self.user.pk).delete()
+                if members == 2:
+                    self.member(constants.ROLE_TYPE_EDITOR)
+                self.require_approval(required)
+                user = self.principal(role)
+                revision = self.fresh_draft()
+                try:
+                    changes.release_revision(revision, user, override_approval=override)
+                except ServiceError:
+                    pass
+                self.assertEqual(self.configuration(revision), expected)
+
+    def test_an_admin_override_is_recorded_on_the_history_entry(self):
+        self.member(constants.ROLE_TYPE_EDITOR)
+        self.require_approval()
+        revision = self.fresh_draft()
+
+        changes.release_revision(revision, self.user, note='Urgent', override_approval=True)
+
+        entry = self.history().get(items__kind=ChangeItem.KIND_RELEASE_REVISION)
+        self.assertEqual(entry.protection_overridden_by, self.user)
+        self.assertIn('Admin override', entry.title)
+        self.assertTrue(entry.items.get().payload['approval_overridden'])
+
+    def test_a_normal_release_records_no_override(self):
+        revision = self.fresh_draft()
+
+        changes.release_revision(revision, self.user)
+
+        entry = self.history().get()
+        self.assertIsNone(entry.protection_overridden_by)
+        self.assertFalse(entry.items.get().payload['approval_overridden'])
+
+    def test_the_dialog_offers_the_buttons_each_principal_may_use(self):
+        self.member(constants.ROLE_TYPE_EDITOR)
+        self.require_approval()
+        url = reverse('bom:part-revision-release', kwargs={
+            'part_id': self.draft.part_id, 'part_revision_id': self.draft.id})
+
+        admin_page = self.client.get(url)
+        self.assertContains(admin_page, 'Request approval')
+        self.assertContains(admin_page, 'Release as admin')
+        self.assertNotContains(admin_page, 'value="release"')
+
+        self.principal(constants.ROLE_TYPE_EDITOR)
+        editor_page = self.client.get(url)
+        self.assertContains(editor_page, 'Request approval')
+        self.assertNotContains(editor_page, 'Release as admin')
+        self.assertNotContains(editor_page, 'value="release"')
+
+        self.require_approval(False)
+        self.assertContains(self.client.get(url), 'value="release"')
+
+    def test_the_dialog_refuses_a_direct_release_when_approval_is_required(self):
+        self.member(constants.ROLE_TYPE_EDITOR)
+        self.require_approval()
+        self.principal(constants.ROLE_TYPE_EDITOR)
+        url = reverse('bom:part-revision-release', kwargs={
+            'part_id': self.draft.part_id, 'part_revision_id': self.draft.id})
+
+        response = self.client.post(url, {'action': 'release'})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertContains(self.client.get(response.url), 'requires approval to release')
+        self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_DRAFT)
+
+    def test_request_approval_opens_an_eco_and_leaves_the_revision_draft(self):
+        self.member(constants.ROLE_TYPE_EDITOR)
+        self.require_approval()
+        url = reverse('bom:part-revision-release', kwargs={
+            'part_id': self.draft.part_id, 'part_revision_id': self.draft.id})
+
+        response = self.client.post(url, {
+            'action': 'request_approval', 'note': 'Please check', 'cascade_parent_id': [self.released_parent.id]})
+
+        change = Change.objects.get(organization=self.organization, is_direct_edit=False)
+        self.assertRedirects(response, reverse('bom:change-review', kwargs={'number': change.number}))
+        self.assertEqual((change.status, change.author), (Change.STATUS_OPEN, self.user))
+        self.assertTrue(change.is_eco)
+        item = change.items.get()
+        self.assertEqual(item.kind, ChangeItem.KIND_RELEASE_REVISION)
+        self.assertEqual(item.payload['cascade_parent_ids'], [self.released_parent.id])
+        self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_DRAFT)
+        self.assertEqual(self.released_parent.part.revisions().count(), 1)
+        self.assertContains(self.client.get(reverse('bom:change-list') + '?filter=ecos'), change.title)
+
+    def test_a_revision_cannot_have_two_pending_release_requests_or_a_viewer_request(self):
+        changes.request_release_approval(self.draft, self.user)
+
+        with self.assertRaisesMessage(ServiceError, 'already has a pending request'):
+            changes.request_release_approval(self.draft, self.user)
+
+        viewer = self.member(constants.ROLE_TYPE_VIEWER)
+        with self.assertRaisesMessage(ServiceError, 'cannot request approval'):
+            changes.request_release_approval(self.fresh_draft(), viewer)
+
+    def test_approve_matrix(self):
+        for role, own_request, members, override, approved in [
+            (constants.ROLE_TYPE_VIEWER, False, 2, False, False),
+            (constants.ROLE_TYPE_EDITOR, False, 2, False, True),
+            (constants.ROLE_TYPE_ADMIN, False, 2, False, True),
+            (constants.ROLE_TYPE_EDITOR, True, 2, False, False),
+            (constants.ROLE_TYPE_EDITOR, True, 2, True, False),
+            (constants.ROLE_TYPE_ADMIN, True, 2, False, False),
+            (constants.ROLE_TYPE_ADMIN, True, 2, True, True),
+            (constants.ROLE_TYPE_EDITOR, True, 1, False, True),
+            (constants.ROLE_TYPE_ADMIN, True, 1, False, True),
+        ]:
+            for required in (True, False):
+                with self.subTest(role=role, own_request=own_request, members=members, override=override,
+                                  required=required):
+                    User.objects.exclude(pk=self.user.pk).delete()
+                    other = self.member(constants.ROLE_TYPE_EDITOR) if members == 2 else None
+                    self.require_approval(required)
+                    user = self.principal(role)
+                    revision = self.fresh_draft()
+                    change = changes.request_release_approval(revision, user if own_request else other)
+                    try:
+                        changes.apply_change(change, user, override_protection=override)
+                    except ServiceError:
+                        pass
+                    expected = constants.CONFIGURATION_TYPE_RELEASED if approved else \
+                        constants.CONFIGURATION_TYPE_DRAFT
+                    self.assertEqual(self.configuration(revision), expected)
+
+    def test_approve_releases_cascades_and_records_the_request_in_history(self):
+        other = self.member(constants.ROLE_TYPE_EDITOR)
+        change = changes.request_release_approval(self.draft, other, note='Ship it',
+                                                  cascade_parent_ids=[self.released_parent.id])
+
+        changes.apply_change(change, self.user)
+
+        self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_RELEASED)
+        self.assertEqual(self.released_parent.part.revisions().count(), 2)
+        self.assertEqual(self.draft_parent.assembly.subparts.get().part_revision, self.draft)
+        change.refresh_from_db()
+        self.assertEqual((change.status, change.resolved_by), (Change.STATUS_APPLIED, self.user))
+        item = change.items.get()
+        self.assertEqual(item.result['part_revision_id'], self.draft.id)
+        self.assertEqual(len(item.result['cascaded_revision_ids']), 1)
+        self.assertEqual(changes.part_history(self.component.part)[0]['change'], change)
+
+    def test_approve_releases_children_before_parents(self):
+        child = self.fresh_draft('Child')
+        parent = self.assembly_using(child, 'Parent')
+        other = self.member(constants.ROLE_TYPE_EDITOR)
+        change = changes.request_release_approval(parent, other)
+        self.add_release_item(change, child)
+        released_order = []
+        real_release = changes._release_core
+        with mock.patch.object(changes, '_release_core', side_effect=lambda revision_id, *args: (
+                released_order.append(revision_id), real_release(revision_id, *args))[1]):
+            changes.apply_change(change, self.user)
+
+        self.assertEqual(released_order, [child.id, parent.id])
+
+    def test_approve_rolls_everything_back_when_a_release_fails(self):
+        child = self.fresh_draft('Child')
+        parent = self.assembly_using(child, 'Parent')
+        other = self.member(constants.ROLE_TYPE_EDITOR)
+        change = changes.request_release_approval(parent, other)
+        self.add_release_item(change, child)
+        real_release = changes._release_core
+        calls = []
+
+        def fail_on_second_release(revision_id, *args):
+            calls.append(revision_id)
+            if len(calls) == 2:
+                raise ServiceError('forced failure')
+            return real_release(revision_id, *args)
+
+        with mock.patch.object(changes, '_release_core', side_effect=fail_on_second_release):
+            with self.assertRaisesMessage(ServiceError, 'forced failure'):
+                changes.apply_change(change, self.user)
+
+        self.assertEqual(self.configuration(child), constants.CONFIGURATION_TYPE_DRAFT)
+        self.assertEqual(self.configuration(parent), constants.CONFIGURATION_TYPE_DRAFT)
+        change.refresh_from_db()
+        self.assertEqual(change.status, Change.STATUS_OPEN)
+        self.assertFalse(change.items.filter(result__isnull=False).exists())
+
+    def test_approving_an_eco_releases_the_revisions_its_edits_created(self):
+        other = self.member(constants.ROLE_TYPE_EDITOR)
+        released_assembly = self.released_parent
+        change = changes.start_change(self.organization, other, 'Add a part')
+        changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': released_assembly.part.full_part_number(),
+            'subpart_part_number': self.parts[0].full_part_number(), 'count': 1})
+        changes.submit_change(change, other)
+
+        changes.apply_change(change, self.user)
+
+        new_revision = released_assembly.part.latest()
+        self.assertEqual(new_revision.configuration, constants.CONFIGURATION_TYPE_RELEASED)
+        self.assertTrue(change.items.get().result['released'])
+
+    def test_a_stale_release_request_is_refused_until_rebased(self):
+        other = self.member(constants.ROLE_TYPE_EDITOR)
+        change = changes.request_release_approval(self.draft, other)
+        boms.add_subpart(self.organization, self.draft, self.parts[0].full_part_number(), count=1, reference='U9')
+
+        with self.assertRaisesMessage(ServiceError, 'stale'):
+            changes.apply_change(change, self.user)
+        changes.rebase_change(change)
+        changes.apply_change(change, self.user)
+
+        self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_RELEASED)
+
+    def test_a_request_for_a_revision_released_meanwhile_fails_validation(self):
+        other = self.member(constants.ROLE_TYPE_EDITOR)
+        change = changes.request_release_approval(self.draft, other)
+        changes.release_revision(self.draft, self.user)
+
+        with self.assertRaises(ServiceError):
+            changes.apply_change(change, self.user)
+
+    def test_the_review_page_labels_a_release_request_as_an_eco_with_approve(self):
+        other = self.member(constants.ROLE_TYPE_EDITOR)
+        change = changes.request_release_approval(self.draft, other)
+
+        page = self.client.get(reverse('bom:change-review', kwargs={'number': change.number}))
+        self.assertContains(page, 'Engineering Change Order')
+        self.assertContains(page, 'Approve 1 accepted')
+
+        self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
+        self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_RELEASED)
+
+
+class TelemetryTest(ApprovalTestCase):
+    def assertEvent(self, logs, event):
+        self.assertTrue(any(f'bom_event={event} organization={self.organization.id} user=' in line
+                            for line in logs.output), logs.output)
+
+    def test_each_editing_action_logs_one_structured_line(self):
+        other = self.member(constants.ROLE_TYPE_EDITOR)
+        draft = self.fresh_draft()
+        released = self.fresh_draft('Released')
+        PartRevision.objects.filter(pk=released.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        released.refresh_from_db()
+        edit_url = reverse('bom:part-edit-revision', kwargs={'part_id': draft.part_id, 'part_revision_id': draft.id})
+
+        with self.assertLogs('bom.services.changes', level='INFO') as logs:
+            self.client.post(edit_url, {'revision': draft.revision, 'configuration': 'D', 'description': 'New'})
+        self.assertEvent(logs, 'edit_save')
+        self.assertIn(f'part={draft.part_id}', logs.output[0])
+
+        with self.assertLogs('bom.services.changes', level='INFO') as logs:
+            changes.revise_revision(released, self.user)
+        self.assertEvent(logs, 'revise')
+
+        with self.assertLogs('bom.services.changes', level='INFO') as logs:
+            changes.release_revision(draft, self.user)
+        self.assertEvent(logs, 'release')
+
+        with self.assertLogs('bom.services.changes', level='INFO') as logs:
+            approval = changes.request_release_approval(self.draft, other)
+        self.assertEvent(logs, 'request_approval')
+
+        with self.assertLogs('bom.services.changes', level='INFO') as logs:
+            changes.apply_change(approval, self.user)
+        self.assertEvent(logs, 'approve')
+
+        rejected = changes.request_release_approval(self.fresh_draft('Another'), other)
+        with self.assertLogs('bom.services.changes', level='INFO') as logs:
+            changes.reject_change(rejected, self.user, 'No')
+        self.assertEvent(logs, 'reject')

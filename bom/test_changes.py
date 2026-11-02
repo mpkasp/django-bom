@@ -634,7 +634,7 @@ class ChangesViewTest(TestCase):
         self.client.post(reverse('bom:change-revert', kwargs={'number': change.number}))
         self.assertFalse(assembly.assembly.subparts.filter(part_revision__part=cap).exists())
 
-    def test_applied_eco_offers_release_links(self):
+    def test_approved_eco_releases_what_it_created(self):
         assembly = self.parts[2].latest()
         PartRevision.objects.filter(pk=assembly.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
         change = changes.start_change(self.organization, self.user, 'ECO')
@@ -643,11 +643,9 @@ class ChangesViewTest(TestCase):
             'subpart_part_number': self.new_cap().full_part_number(), 'count': 1})
         self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
         new_revision = assembly.part.latest()
-        self.assertEqual(new_revision.configuration, constants.CONFIGURATION_TYPE_DRAFT)
+        self.assertEqual(new_revision.configuration, constants.CONFIGURATION_TYPE_RELEASED)
         response = self.client.get(reverse('bom:change-review', kwargs={'number': change.number}))
-        self.assertContains(response, f'Release rev {new_revision.revision}')
-        self.assertContains(response, reverse('bom:part-revision-release', kwargs={
-            'part_id': assembly.part_id, 'part_revision_id': new_revision.id}))
+        self.assertContains(response, f'Released rev {new_revision.revision}')
         self.assertContains(self.client.get(reverse('bom:change-list') + '?filter=ecos'), 'ECO')
 
     def test_part_page_shows_banner_and_ghosted_proposed_lines(self):

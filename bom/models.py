@@ -1373,6 +1373,7 @@ class ChangeSettings(models.Model):
                                         related_name='change_settings')
     protect_primary_manufacturer_part = models.BooleanField(default=False)
     protect_cost_delta = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    require_release_approval = models.BooleanField(default=False)
 
     class Meta:
         verbose_name_plural = 'change settings'

@@ -146,7 +146,7 @@ def _write_item(actor, kind, payload, change_id, ref=''):
         change.save(update_fields=['title'])
         if actor.can_apply():
             actor.require_apply()
-            changes.apply_change(change, actor.user)
+            changes.apply_change(change, actor.user, by_agent=True)
             item.refresh_from_db()
             return change, item
     except (ServiceError, ToolError):
@@ -209,11 +209,12 @@ def submit_change(ctx: Context, change_id: int) -> dict:
 @mcp.tool(annotations=WRITE)
 def apply_change(ctx: Context, change_id: int) -> dict:
     """Apply a change now. Needs the apply scope; protected changes (for example edits to a Released revision) must
-    be applied by someone other than their author. Rejected items are skipped."""
+    be applied by someone other than their author. Agents apply only the changes they started and never release
+    revisions or approve a request; a person does that. Rejected items are skipped."""
     with tool_call(ctx, 'apply_change') as actor:
         actor.require_apply()
         change = changes.change_for(actor.organization, change_id)
-        return changes.change_detail(changes.apply_change(change, actor.user))
+        return changes.change_detail(changes.apply_change(change, actor.user, by_agent=True))
 
 
 @mcp.tool(annotations=WRITE)

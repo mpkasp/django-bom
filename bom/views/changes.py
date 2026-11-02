@@ -47,6 +47,7 @@ def change_list(request, organization):
     queryset = Change.objects.filter(organization=organization).select_related('author', 'api_token')
     if active_filter == 'ecos':
         queryset = queryset.filter(Q(items__part_revision__configuration__in=PartRevision.IMMUTABLE_STATES)
+                                   | Q(items__kind=ChangeItem.KIND_RELEASE_REVISION)
                                    | Q(items__result__has_key='new_revision_id')).exclude(is_direct_edit=True).distinct()
     elif active_filter == 'applied':
         queryset = queryset.filter(status=Change.STATUS_APPLIED, is_direct_edit=False)

@@ -21,3 +21,7 @@ def mcp_apply_enabled(organization):
 
 def eco_enabled(organization):
     return host_flag('eco_enabled', organization)
+
+
+def release_approval_enabled(organization):
+    return host_flag('release_approval_enabled', organization)

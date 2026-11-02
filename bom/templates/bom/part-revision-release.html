@@ -72,12 +72,24 @@
                 <label for="release-note">Note (optional)</label>
             </div>
 
+            {% if approval_required %}
+                <div class="card-panel amber lighten-4">This organization requires approval to release. Request approval and someone other than you approves the request, which then releases this revision.</div>
+            {% endif %}
+
             <div class="row">
-                <div class="col s6">
+                <div class="col s4">
                     <a href="{{ revision_url }}" class="waves-effect waves-light btn-flat grey-text">Cancel</a>
                 </div>
-                <div class="col s6 right-align">
-                    <button class="waves-effect waves-light btn{% if draft_subparts %}-flat grey-text{% else %} green{% endif %} lighten-1" type="submit">Release{% if draft_subparts %} anyway{% endif %}</button>
+                <div class="col s8 right-align">
+                    {% if can_request_approval %}
+                        <button class="waves-effect waves-light btn{% if can_release %}-flat{% endif %} teal lighten-1" type="submit" name="action" value="request_approval">Request approval</button>
+                    {% endif %}
+                    {% if can_override %}
+                        <button class="waves-effect waves-light btn orange" type="submit" name="override" value="1" onclick="return confirm('Release without approval as an Admin? This override is recorded.');">Release as admin</button>
+                    {% endif %}
+                    {% if can_release %}
+                        <button class="waves-effect waves-light btn{% if draft_subparts %}-flat grey-text{% else %} green{% endif %} lighten-1" type="submit" name="action" value="release">Release{% if draft_subparts %} anyway{% endif %}</button>
+                    {% endif %}
                 </div>
             </div>
         </form>
