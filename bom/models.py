@@ -689,7 +689,7 @@ class PartRevision(models.Model):
                     return prop.value_raw
         return None
 
-    def indented(self, top_level_quantity=100):
+    def indented(self, top_level_quantity=100, max_level=None):
         def indented_given_bom(bom, part_revision, parent_id=None, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None, reference='', do_not_load=False):
             bom_item_id = (parent_id or '') + (str(part_revision.id) + '-dnl' if do_not_load else str(part_revision.id))
             extended_quantity = parent_qty * qty
@@ -716,6 +716,8 @@ class PartRevision(models.Model):
             ))
 
             indent_level = indent_level + 1
+            if max_level is not None and indent_level > max_level:
+                return
             if part_revision is None or part_revision.assembly is None or part_revision.assembly.subparts.count() == 0:
                 return
             else:

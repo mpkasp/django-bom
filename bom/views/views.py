@@ -962,8 +962,16 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
         messages.error(request, "Cant export a part that is not yours!")
         return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
+    single_level = not flat and request.GET.get('levels') == '1'
+    if flat:
+        layout = 'flat'
+    elif single_level:
+        layout = 'single_level'
+    else:
+        layout = 'indented'
+
     response = HttpResponse(content_type='text/csv')
-    filename = f'indabom_export_{part.full_part_number()}_{"flat" if flat else "indented"}'
+    filename = f'indabom_export_{part.full_part_number()}_{layout}'
     response['Content-Disposition'] = f'attachment; filename="{filename}.csv'
 
     qty_cache_key = str(part_id) + '_qty'
@@ -973,7 +981,7 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
         if flat:
             bom = part_revision.flat(top_level_quantity=qty)
         else:
-            bom = part_revision.indented(top_level_quantity=qty)
+            bom = part_revision.indented(top_level_quantity=qty, max_level=1 if single_level else None)
     except (RuntimeError, RecursionError):
         messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
         bom = []

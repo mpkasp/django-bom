@@ -48,6 +48,9 @@
                     <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}">
                         <i class="material-icons green-text text-lighten-1">download</i>Export CSV</a>
                     </li>
+                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}?levels=1">
+                        <i class="material-icons green-text text-lighten-1">download</i>Export CSV (single level)</a>
+                    </li>
                     <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom-sourcing' part_revision_id=part_revision.id %}">
                         <i class="material-icons green-text text-lighten-1">download</i>Export CSV with sourcing</a>
                     </li>
