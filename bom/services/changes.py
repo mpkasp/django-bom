@@ -662,6 +662,33 @@ def record_direct_edit(organization, user, part, kind, summary, part_revision=No
     return change
 
 
+def newer_draft_revision(part_revision):
+    return part_revision.part.revisions().filter(
+        configuration=CONFIGURATION_TYPE_DRAFT, id__gt=part_revision.id).order_by('id').first()
+
+
+def revise_revision(part_revision, user):
+    """The next Draft revision made from an immutable one, recorded in History."""
+    organization = part_revision.part.organization
+    label = f"{part_revision.part.full_part_number()} rev {part_revision.revision}"
+    if not user.has_perm(BomPerms.EDIT_PART, organization):
+        raise ServiceError(f"{user.username} cannot revise parts in {organization.name}.")
+    if not part_revision.is_immutable():
+        raise ServiceError(f"{label} is a Draft; edit it directly.")
+    newer_draft = newer_draft_revision(part_revision)
+    if newer_draft is not None:
+        raise ServiceError(f"{part_revision.part.full_part_number()} already has a newer Draft, "
+                           f"rev {newer_draft.revision}.")
+    with transaction.atomic():
+        new_revision = parts.create_next_revision(part_revision)
+        record_direct_edit(
+            organization, user, part_revision.part, ChangeItem.KIND_CREATE_PART_REVISION,
+            f"Revise {label} into rev {new_revision.revision}", part_revision=new_revision,
+            payload={'revision': new_revision.revision, 'copy_assembly': True},
+            result={'part_revision_id': new_revision.id, 'source_revision_id': part_revision.id})
+    return new_revision
+
+
 def record_csv_import(organization, user, kind_label, changes_digest, summary):
     """Log an import that has already been committed as an applied Change, so the feed shows every edit."""
     now = timezone.now()

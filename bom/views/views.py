@@ -86,8 +86,10 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
-from bom.services.changes import part_history, proposals_for_revision, record_csv_import, record_direct_edit
+from bom.services.changes import (newer_draft_revision, part_history, proposals_for_revision, record_csv_import,
+                                  record_direct_edit, revise_revision)
 from bom.services.diffs import revision_diff
+from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from bom.services.search import latest_part_revisions, search_parts
@@ -2134,6 +2136,29 @@ def part_revision_obsolete(request, part_id, part_revision_id):
         messages.error(request, e.message)
     return HttpResponseRedirect(
         reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
+@require_POST
+def part_revision_revise(request, part_id, part_revision_id):
+    organization = request.user.bom_profile().organization
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id,
+                                      part__organization=organization)
+    try:
+        new_revision = revise_revision(part_revision, request.user)
+    except ServiceError as error:
+        newer_draft = newer_draft_revision(part_revision)
+        if newer_draft is None:
+            messages.error(request, str(error))
+        else:
+            messages.error(request, format_html('{} <a href="{}">Open it</a> to keep editing.', str(error), reverse(
+                'bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': newer_draft.id})))
+        return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={
+            'part_id': part_id, 'part_revision_id': part_revision_id}))
+    messages.success(request, f'Created Draft rev {new_revision.revision}.')
+    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={
+        'part_id': part_id, 'part_revision_id': new_revision.id}))
 
 
 @login_required(login_url=BOM_LOGIN_URL)

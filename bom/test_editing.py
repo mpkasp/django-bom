@@ -2,13 +2,16 @@ import importlib
 from unittest import mock
 
 from django.apps import apps
+from django.contrib.auth.models import User
 from django.conf import settings
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
+from bom import constants
 from bom.helpers import create_some_fake_parts, create_user_and_organization
 from bom.models import APIToken, Change, ChangeItem, ManufacturerPart, PartRevision, PartRevisionPropertyDefinition
-from bom.services import changes, parts
+from bom.services import boms, changes, parts
+from bom.services.errors import ServiceError
 
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
@@ -131,3 +134,69 @@ class WithdrawStagedDraftsMigrationTest(EditingTestCase):
         self.assertEqual(statuses, {'Staged by a person': Change.STATUS_WITHDRAWN,
                                     'Staged by an agent': Change.STATUS_DRAFT,
                                     'Already submitted': Change.STATUS_OPEN})
+
+
+class ReviseTest(EditingTestCase):
+    def released_revision(self):
+        revision = self.new_part('Widget')
+        boms.add_subpart(self.organization, revision, self.parts[0].full_part_number(), count=1, reference='U1')
+        PartRevision.objects.filter(pk=revision.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        revision.refresh_from_db()
+        return revision
+
+    def revise(self, revision):
+        return self.client.post(reverse('bom:part-revision-revise', kwargs={
+            'part_id': revision.part_id, 'part_revision_id': revision.id}))
+
+    def test_revise_creates_the_next_draft_with_the_bom_and_records_history(self):
+        released = self.released_revision()
+
+        response = self.revise(released)
+
+        draft = released.part.latest()
+        self.assertEqual((draft.revision, draft.configuration), ('2', constants.CONFIGURATION_TYPE_DRAFT))
+        self.assertEqual(draft.assembly.subparts.get().part_revision, self.parts[0].latest())
+        self.assertRedirects(response, reverse('bom:part-manage-bom', kwargs={
+            'part_id': released.part_id, 'part_revision_id': draft.id}))
+        entry = self.history().get()
+        self.assertIsNone(entry.number)
+        self.assertEqual(entry.items.get().kind, ChangeItem.KIND_CREATE_PART_REVISION)
+        self.assertEqual(changes.part_history(released.part)[0]['diff_revision_ids'], (released.id, draft.id))
+
+    def test_revise_refuses_when_a_newer_draft_exists_and_links_to_it(self):
+        released = self.released_revision()
+        self.revise(released)
+        draft = released.part.latest()
+
+        response = self.revise(released)
+
+        self.assertEqual(released.part.revisions().count(), 2)
+        self.assertEqual(self.history().count(), 1)
+        page = self.client.get(response.url)
+        self.assertContains(page, 'already has a newer Draft')
+        self.assertContains(page, reverse('bom:part-info-history', kwargs={
+            'part_id': released.part_id, 'part_revision_id': draft.id}))
+
+    def test_revise_refuses_a_draft_and_a_viewer(self):
+        draft = self.new_part('Still a draft')
+        with self.assertRaises(ServiceError):
+            changes.revise_revision(draft, self.user)
+
+        released = self.released_revision()
+        viewer = User.objects.create_user('viewer', 'viewer@example.com', 'ghostpassword')
+        profile = viewer.bom_profile(organization=self.organization)
+        profile.role = constants.ROLE_TYPE_VIEWER
+        profile.save()
+        with self.assertRaises(ServiceError):
+            changes.revise_revision(released, viewer)
+        self.assertEqual(released.part.revisions().count(), 1)
+
+    def test_the_part_page_offers_revise_on_a_released_revision_only(self):
+        released = self.released_revision()
+        revise_url = reverse('bom:part-revision-revise', kwargs={
+            'part_id': released.part_id, 'part_revision_id': released.id})
+        self.assertContains(self.client.get(reverse('bom:part-info', kwargs={'part_id': released.part_id})), revise_url)
+
+        self.revise(released)
+        draft_page = self.client.get(reverse('bom:part-info', kwargs={'part_id': released.part_id}))
+        self.assertNotContains(draft_page, 'Revise</button>')

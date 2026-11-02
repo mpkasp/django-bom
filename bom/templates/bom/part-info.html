@@ -80,6 +80,12 @@
                                 </div>
                             {% endif %}
                             {% if perms.bom.edit_part %}
+                                {% if part_revision.is_immutable %}
+                                    <form method="post" action="{% url 'bom:part-revision-revise' part_id=part.id part_revision_id=part_revision.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="waves-effect waves-light btn green lighten-1"><i class="material-icons left">edit</i>Revise</button>
+                                    </form>
+                                {% endif %}
                                 <div class="manage-btn-col">
                         <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
                                 href='#' data-target='dropdown-revision'><i
@@ -88,12 +94,12 @@
                         <a class='dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
                                 class="material-icons green-text text-lighten-1">more_vert</i></a>
                         <ul id='dropdown-revision' class='dropdown-content'>
-                            <li>
-                                <a class="green-text text-lighten-1"
-                                   href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                                    <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
-                            </li>
                             {% if not part_revision.is_immutable %}
+                                <li>
+                                    <a class="green-text text-lighten-1"
+                                       href="{% url 'bom:part-revision-new' part_id=part.id %}">
+                                        <i class="material-icons green-text text-lighten-1">add</i>New revision</a>
+                                </li>
                                 <li>
                                     <a class="green-text text-lighten-1"
                                        href="{% url 'bom:part-revision-edit' part_id=part.id part_revision_id=part_revision.id %}">

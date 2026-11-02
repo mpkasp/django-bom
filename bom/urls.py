@@ -84,6 +84,7 @@ bom_patterns = [
     path('part/<int:part_id>/diff/<int:revision_a_id>/<int:revision_b_id>/', views.part_diff, name='part-diff'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/edit/', views.part_revision_edit, name='part-revision-edit'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/delete/', views.part_revision_delete, name='part-revision-delete'),
+    path('part/<int:part_id>/rev/<int:part_revision_id>/revise/', views.part_revision_revise, name='part-revision-revise'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/release/', views.part_revision_release, name='part-revision-release'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/review/', views.part_revision_in_review, name='part-revision-review'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/obsolete/', views.part_revision_obsolete, name='part-revision-obsolete'),
