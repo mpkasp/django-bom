@@ -13,9 +13,8 @@
 {% endblock %}
 
 {% block content %}
-    <div class="part-info container-app">
-        <a href="{% url 'bom:part-info-history' part_id=part.id part_revision_id=part_revision.id %}">Return to {{ part.full_part_number }}</a>
-        <h4>{{ title }}</h4>
+    <div class="part-info container-app edit-page">
+        <p><a href="{% url 'bom:part-info-history' part_id=part.id part_revision_id=part_revision.id %}"><i class="material-icons tiny">arrow_back</i> Back to {{ part.full_part_number }}</a></p>
         {% if immutable %}
             <div class="card-panel">
                 <p>Rev {{ part_revision.revision }} is {{ part_revision.get_configuration_display }}. Revise it to make
@@ -29,6 +28,7 @@
             </div>
         {% else %}
         <div class="card-panel">
+            <h5>Details</h5>
             <form id="part-revision-form" action="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}" method="post">
                 {% csrf_token %}
                 {{ part_revision_form.non_field_errors }}
@@ -38,93 +38,87 @@
                 </div>
             </form>
         </div>
-        <div id="bom" class="col s12">
-            <br><h5>Modify Subparts</h5>
 
+        <div id="bom" class="card-panel">
+            <h5>Bill of materials</h5>
             {% include 'bom/components/bom-indented.html' with order_by='indented' manage=1 bom_items=indented_bom.parts part=part part_revision=part_revision profile=profile %}
 
-            <br><h5>Add Subpart</h5>
-            <div class="row">
-                <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}"
-                      method="post" class="col s12">
-                    {% csrf_token %}
+            <h6>Add subpart</h6>
+            <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}" method="post">
+                {% csrf_token %}
+                <div class="row">
                     {{ add_subpart_form.subpart_part_number|materializecss:'m4 s12' }}
-                    {{ add_subpart_form.count|materializecss:'m1 s12' }}
+                    {{ add_subpart_form.count|materializecss:'m2 s12' }}
+                    {{ add_subpart_form.reference|materializecss:'m3 s12' }}
                     {{ add_subpart_form.do_not_load|materializecss:'m2 s12 input-field materialize-checkbox-padding' }}
-                    {{ add_subpart_form.reference|materializecss:'m4 s12' }}
-                    <div class="fieldWrapper">
-                        <button class="waves-effect waves-light btn btn-primary" type="submit" name="action">add
-                        </button>
+                    <div class="col m1 s12 input-field">
+                        <button class="waves-effect waves-light btn btn-primary" type="submit" name="action">Add</button>
                     </div>
-                </form>
-            </div>
-            <br><h5>Batch Add Subparts</h5>
-            <p>To add batch subparts, upload a csv that contains at least two columns with the headers:
-                <b>part_number</b> <i>or</i> <b>manufacturer_part_number</b> and <b>quantity</b>; the 'part_number' or
-                'manufacturer_part_number' column must contain part numbers that have already been created in this
-                system.</p>
-            <p>Additional fields include 'reference' or 'designator' to add a reference field to the subpart;
-               'do_not_load' if you don't want the part loaded into the assembly that contains it; 'dnp' if
-                you don't want to upload the part to IndaBOM.</p>
-            <p><b>Add to BOM</b> keeps the existing subparts and adds to their quantities. <b>Replace BOM</b> sets this
-                BOM to match the file. You'll see a preview of every change before anything is saved.</p>
+                </div>
+            </form>
+
+            <h6>Import from CSV</h6>
+            <p class="grey-text text-darken-1">Columns: <b>part_number</b> or <b>manufacturer_part_number</b>, and
+                <b>quantity</b>. Optional: <b>reference</b> (or designator), <b>do_not_load</b>, <b>dnp</b>. Parts must
+                already exist. You'll see a preview before anything is saved.</p>
             <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="row">
-                    <div class="col s9 file-field input-field">
-                        <div class="green lighten-1 btn">
+                    <div class="col m6 s12 file-field input-field">
+                        <div class="btn green lighten-1">
                             <span>File</span>
                             {{ upload_subparts_csv_form.file }}
                         </div>
                         <div class="file-path-wrapper">
-                            <input class="file-path validate" type="text" placeholder="Upload a file.">
+                            <input class="file-path validate" type="text" placeholder="No file chosen">
                             {{ upload_subparts_csv_form.file.errors }}
                         </div>
                     </div>
-                    <div class="col s1 input-field">
-                        <input class="green lighten-1 btn" type="submit" value="Upload"/>
+                    <div class="col m4 s12 edit-page-radios">
+                        <label class="edit-page-radio"><input name="mode" type="radio" value="add" checked/><span>Add to BOM</span></label>
+                        <label class="edit-page-radio"><input name="mode" type="radio" value="replace"/><span>Replace BOM</span></label>
+                    </div>
+                    <div class="col m2 s12 input-field right-align">
+                        <input class="waves-effect waves-light btn btn-primary" type="submit" value="Upload"/>
                     </div>
                 </div>
-                <p style="margin: 8px 0 0;">
-                    <label style="margin-right: 16px;"><input name="mode" type="radio" value="add" checked/><span>Add to BOM</span></label>
-                    <label><input name="mode" type="radio" value="replace"/><span>Replace BOM</span></label>
-                </p>
-
             </form>
-            <br><h5 id="manufacturer-parts">Manufacturer Parts</h5>
+        </div>
+
+        <div id="manufacturer-parts" class="card-panel">
+            <h5>Manufacturer parts</h5>
             {% if manufacturer_parts %}
-                <table class="highlight part-list tight">
+                <table class="highlight">
                     <thead>
                     <tr>
-                        <th class="text-normal">Manufacturer</th>
-                        <th class="text-normal">Manufacturer Part Number</th>
-                        <th class="text-normal">Primary</th>
-                        <th class="text-normal"></th>
+                        <th>Manufacturer</th>
+                        <th>Part number</th>
+                        <th></th>
+                        <th></th>
                     </tr>
                     </thead>
                     <tbody>
                     {% for manufacturer_part in manufacturer_parts %}
                         <tr>
-                            <td class="text-normal">{{ manufacturer_part.manufacturer.name }}</td>
-                            <td class="text-normal">{{ manufacturer_part.manufacturer_part_number }}</td>
-                            <td class="text-normal">
+                            <td>{{ manufacturer_part.manufacturer.name }}</td>
+                            <td>{{ manufacturer_part.manufacturer_part_number }}</td>
+                            <td>
                                 {% if manufacturer_part.id == part.primary_manufacturer_part_id %}
-                                    <span class="chip teal darken-2 white-text">Primary</span>
+                                    <span class="chip">Primary</span>
+                                {% elif perms.bom.manage_sourcing %}
+                                    <form method="post" action="{% url 'bom:manufacturer-part-make-primary' manufacturer_part_id=manufacturer_part.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.path }}">
+                                        <button type="submit" class="btn-flat btn-small green-text text-lighten-1">Make primary</button>
+                                    </form>
                                 {% endif %}
                             </td>
-                            <td class="text-normal right-align">
+                            <td class="right-align">
                                 {% if perms.bom.manage_sourcing %}
-                                    {% if manufacturer_part.id != part.primary_manufacturer_part_id %}
-                                        <form method="post" action="{% url 'bom:manufacturer-part-make-primary' manufacturer_part_id=manufacturer_part.id %}" style="display: inline;">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="next" value="{{ request.path }}">
-                                            <button type="submit" class="btn-flat green-text text-lighten-1">Make primary</button>
-                                        </form>
-                                    {% endif %}
-                                    <a class="green-text text-lighten-1" href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}">edit</a> |
-                                    <a class="red-text text-lighten-1"
+                                    <a class="btn-flat btn-small green-text text-lighten-1" href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}">Edit</a>
+                                    <a class="btn-flat btn-small red-text text-lighten-1"
                                        href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}"
-                                       onclick="return confirm('Are you sure you want to delete {{ manufacturer_part.manufacturer_part_number|escapejs }}?\n\nIts vendor parts will also be permanently deleted.')">delete</a>
+                                       onclick="return confirm('Are you sure you want to delete {{ manufacturer_part.manufacturer_part_number|escapejs }}?\n\nIts vendor parts will also be permanently deleted.')">Delete</a>
                                 {% endif %}
                             </td>
                         </tr>
@@ -132,13 +126,12 @@
                     </tbody>
                 </table>
             {% else %}
-                <p>This part has no manufacturer parts yet.</p>
+                <p class="grey-text text-darken-1">This part has no manufacturer parts yet.</p>
             {% endif %}
             {% if perms.bom.manage_sourcing %}
-                <a class="waves-effect waves-light btn-flat green-text text-lighten-1" style="margin-left: -16px;"
+                <a class="waves-effect waves-light btn-flat green-text text-lighten-1 edit-page-add"
                    href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}?next={{ request.path|urlencode }}"><i class="material-icons left">add</i>Add manufacturer part</a>
             {% endif %}
-            <br>
         </div>
         {% endif %}
     </div>

@@ -1050,7 +1050,7 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
     subpart_part_number = forms.CharField(label="Subpart part number", required=True)
     count = forms.FloatField(required=False, label='Quantity')
     reference = forms.CharField(required=False, label="Reference")
-    do_not_load = forms.BooleanField(required=False, label="do_not_load")
+    do_not_load = forms.BooleanField(required=False, label="Do not load")
 
     def __init__(self, *args, **kwargs):
         self.part_revision_id = kwargs.pop('part_revision_id', None)
