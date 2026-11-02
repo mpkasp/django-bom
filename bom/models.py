@@ -1167,6 +1167,11 @@ class APIToken(models.Model):
     SCOPE_WRITE = 'write'
     SCOPE_APPLY = 'apply'
     SCOPES = ((SCOPE_READ, 'Read'), (SCOPE_WRITE, 'Write'), (SCOPE_APPLY, 'Apply'))
+    LEVELS = (
+        ('read', 'Read', (SCOPE_READ,)),
+        ('propose', 'Write: propose', (SCOPE_READ, SCOPE_WRITE)),
+        ('apply', 'Write: apply', (SCOPE_READ, SCOPE_WRITE, SCOPE_APPLY)),
+    )
     PLAINTEXT_PREFIX = 'ibom_'
     PREFIX_LEN = 8
 
@@ -1224,6 +1229,11 @@ class APIToken(models.Model):
 
     def has_scope(self, scope):
         return scope in self.scope_list()
+
+    def level_display(self):
+        if self.has_scope(self.SCOPE_APPLY):
+            return self.LEVELS[2][1]
+        return self.LEVELS[1][1] if self.has_scope(self.SCOPE_WRITE) else self.LEVELS[0][1]
 
     def revoke(self):
         self.revoked_at = timezone.now()

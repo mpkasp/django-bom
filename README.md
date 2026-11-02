@@ -187,7 +187,8 @@ uv run uvicorn bom.asgi:application
 The server listens at `/mcp` (Streamable HTTP, stateless). In a host project, mount `bom.mcp.asgi.build_mcp_app()`
 and enter `bom.mcp.asgi.mcp_lifespan` from the host app's lifespan.
 
-Every request needs a bearer token. Issue one for a user (the plaintext is printed once):
+Every request needs a bearer token. Create one under Settings > API Tokens (the plaintext is shown once), or issue
+one for a user from the command line (the plaintext is printed once):
 ```
 uv run python manage.py create_api_token <username> --name "Claude Code" --scopes read,write
 ```
@@ -213,6 +214,12 @@ and can rebase a stale change or revert an applied one. Hosts can switch the fea
 `BOM_CONFIG['changes_review_enabled']`, `BOM_CONFIG['mcp_apply_enabled']` and `BOM_CONFIG['eco_enabled']`
 (callables of the organization or dotted paths; all default on), and set `BOM_CONFIG['site_url']` so change URLs
 returned to MCP clients are absolute.
+
+People can stage their own edits too: **Start a change** on the Changes page opens a draft, and while it is active a
+banner shows "Editing in Change #N" and creating a part, adding or editing a BOM line, and adding manufacturer or
+vendor parts stage items instead of saving, ready to submit or apply from the review page. Admins set the
+protections (always on for Released and In Review revisions; optionally the primary manufacturer part and a
+cost-delta threshold) in Settings > Organization.
 
 ## Contributing
 
