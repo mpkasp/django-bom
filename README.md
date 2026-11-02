@@ -221,6 +221,12 @@ vendor parts stage items instead of saving, ready to submit or apply from the re
 protections (always on for Released and In Review revisions; optionally the primary manufacturer part and a
 cost-delta threshold) in Settings > Organization.
 
+After an applied Engineering Change Order, Draft parent assemblies are moved to the new revision automatically and
+the review page's **Cascade** panel offers a new Draft revision of each Released parent that still uses the old one.
+The part page has a **Changes** tab (the part's history: every submitted change that touches it, applied first) and a
+**Compare with...** select that opens `/part/<id>/diff/<rev_a>/<rev_b>/`, a diff of two revisions' fields,
+properties and BOM lines. `get_change` returns the change's impact (affected assemblies and cost delta).
+
 ## Contributing
 
 Contributions welcome! Before contributing your work please read the [contributing readme](https://github.com/mpkasp/django-bom/blob/master/CONTRIBUTING.md).

@@ -31,6 +31,7 @@ Change (OrganizationScopedModel)
   created_at, submitted_at, resolved_at    DateTimeFields
   resolved_by       FK User null
   protection_overridden_by FK User null    set when an Admin approved past a protection
+  cascade           JSONField null         ECO cascade: [{source_revision_id, new_revision_id}] for the parent revisions created
   unique_together (organization, number)
 
 ChangeItem
@@ -146,7 +147,8 @@ inline `confirm()` pattern for irreversible actions.
   "Release rev N" linking to the existing release confirmation page.
 - Part page: banner "N open changes touch this revision" linking to the review page; proposed
   lines ghosted inside the existing BOM component with a "Proposed" chip (Phase 2); a "Changes" tab
-  listing applied changes touching the part (Phase 4).
+  listing the changes touching the part, applied first (Phase 4); a "Compare with..." select that opens the
+  revision diff (Phase 4).
 - Settings: API tokens tab (create token with level, list, revoke) and a Protections section on the
   organization tab (Admins): the Released protection shown as always on with the ECO explanation,
   plus the two ChangeSettings switches.
@@ -159,20 +161,41 @@ inline `confirm()` pattern for irreversible actions.
 
 ## Phases
 
-1. Models + migration; `services/changes.py` (start, stage, submit, set_item_status, apply with
-   authorization, reject, withdraw, digest); `apply` scope; MCP tools; list + review pages; nav
-   badge; CSV import records a Change; tests (service, MCP via the existing `bom/test_mcp.py`
-   harness, views). `/changes/` and review are gated by `changes_review_enabled`.
-2. `impact`, cost delta, Validation rail; part-page banner and ghosted lines; ECO: new Draft
-   revision on apply + Release link; `rebase_change` with conflict list; `revert_change`; stale
-   detection on the review page.
-3. Staging mode for human authors; API tokens settings tab; Protections section; import preview
-   rendered through the shared review template; IndaBOM wires the three flags (`indabom/mcp.py`),
-   Pro gets review and ECO by default.
-4. ECO cascade (offer new revisions for Released parent assemblies, user chooses); "Changes" tab
-   on the part page; revision diff view (`/part/<id>/diff/<rev_a>/<rev_b>/`) built on the same
-   diff component; README/CLAUDE.md/MCP docs updated. Agent-written summaries are out of scope
-   until the AI provider layer exists.
+Phases 1 to 4 are implemented on the `changes` branch (django-bom 1.320 to 1.323).
+
+1. Models and migration; `services/changes.py` (start, stage, submit, set_item_status, apply with authorization,
+   reject, withdraw, digest); the `apply` scope; MCP tools; list and review pages; nav badge; CSV import records a
+   Change. `/changes/` and review are gated by `changes_review_enabled`.
+2. `impact`, cost delta (a rolled-back dry run), the Validation rail; part-page banner and ghosted lines; ECO: new
+   Draft revision on apply, one per part, and the Release link; `rebase_change`; `revert_change`; stale detection.
+   `update_subpart` and `remove_subpart` item kinds and MCP tools.
+3. Staging mode for human authors; API Tokens settings tab; Protections section; the import preview renders through
+   the shared `changes/components/change-items.html`. IndaBOM wires the three flags (`indabom/mcp.py`); Pro gets
+   review and ECO by default.
+4. ECO cascade: applying an ECO moves the lines of Draft parent assemblies to the new revision in place (noted in the
+   item result as `draft_parents_updated`, with `previous_revision_id` beside `new_revision_id`). The applied
+   review page lists the Released parents that still use a replaced revision, each with a checkbox, and "Create new
+   revisions for selected" creates a next Draft revision of each (`create_next_revision`) with its lines for the
+   replaced revisions pointed at the new ones, recorded in `Change.cascade`. A fifth part-page tab, "Changes",
+   lists submitted changes that target the part or produced it, applied first. The revision diff view
+   (`/part/<id>/diff/<rev_a>/<rev_b>/`, "Compare with..." on the part page) compares revision fields, properties and
+   direct BOM lines keyed by subpart number and do-not-load, rendered through the shared change-items component.
+   `get_change` returns `impact`, `is_eco`, `is_stale` and `is_protected`; `list_changes` returns `is_eco`.
+   Agent-written summaries stay out of scope until the AI provider layer exists.
+
+### Known gaps
+
+- A staged `create_part` cannot carry properties on Semi-Intelligent organizations.
+- A staged `edit_subpart` ignores revision changes.
+- The legacy seller part add URL and removing a subpart from the UI do not stage into the active change.
+- The Cost delta column on the Changes list is not built; the review page shows cost.
+- Nested targets double-count the cost delta when a change edits an assembly and one of its own subassemblies.
+- Proposed seller parts render as a plain list, not as rows in the sourcing table.
+- The flat BOM has no ghost rows; only the indented BOM shows proposed lines.
+- The cascade offers only Released parents; In Review parents are not offered, and a parent that already has a newer
+  Draft still gets another revision if selected.
+- The diff compares direct BOM lines only (a changed subassembly appears as a revision change on its line), and a
+  part number used twice in one assembly with the same do-not-load flag is treated as one line.
 
 ## Non-goals (v1)
 

@@ -142,6 +142,12 @@ So MCP write tools commit directly, with these constraints:
 - **Every write is logged** with actor, tool, arguments, and resulting object ids. This is the
   audit trail the proposal model would otherwise have provided.
 
+MCP writes now go through Changes: each write tool stages an item (or runs a one-item change), and
+`apply_change` is the only path to the database, subject to the token's `apply` scope, protections and the
+second-person rule for Engineering Change Orders. The "commit directly" and "Forms are the only write path"
+points above still hold inside `apply_change`, which calls the same services. See
+[changes-design.md](changes-design.md).
+
 ### 7. Tool surface
 
 Read (scope `read`):
