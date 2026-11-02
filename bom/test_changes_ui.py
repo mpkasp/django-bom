@@ -6,118 +6,7 @@ from django.urls import reverse
 
 from bom import constants
 from bom.helpers import create_user_and_organization, create_some_fake_parts
-from bom.models import (APIToken, Change, ChangeItem, ChangeSettings, ManufacturerPart, Part, PartRevision,
-                        PartRevisionPropertyDefinition, SellerPart)
-from bom.services import parts as services_parts
-
-
-@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
-class StagingModeTest(TestCase):
-    def setUp(self):
-        self.user, self.organization = create_user_and_organization()
-        self.parts = create_some_fake_parts(self.organization)
-        self.assembly = self.parts[1]
-        self.client = Client()
-        self.client.login(username='kasper', password='ghostpassword')
-        PartRevisionPropertyDefinition.objects.update(required=False)
-        self.leaf = services_parts.create_part(self.organization, 'Leaf', part_class_code=str(
-            self.parts[0].number_class.code)).part
-
-    def start_change(self):
-        response = self.client.post(reverse('bom:change-start'), {'title': 'Rework', 'rationale': 'Why'})
-        self.change = Change.objects.get(organization=self.organization)
-        return response
-
-    def test_start_sets_the_session_and_shows_the_banner_until_leaving(self):
-        self.start_change()
-        self.assertEqual(self.change.status, Change.STATUS_DRAFT)
-        self.assertEqual(self.client.session['active_change'], self.change.id)
-
-        page = self.client.get(reverse('bom:home'))
-        self.assertContains(page, f'Editing in Change #{self.change.number}')
-        self.assertContains(page, 'Rework')
-
-        self.client.post(reverse('bom:change-leave'))
-        self.assertNotIn('active_change', self.client.session)
-        self.assertNotContains(self.client.get(reverse('bom:home')), 'Editing in Change')
-
-    def test_create_part_is_staged_instead_of_saved(self):
-        self.start_change()
-        part_count = Part.objects.count()
-        response = self.client.post(reverse('bom:create-part'), {
-            'number_class': str(self.parts[0].number_class), 'number_item': '', 'number_variation': '',
-            'description': 'Staged cap', 'revision': 'A',
-            'manufacturer': 'Acme', 'manufacturer_part_number': 'ACME-1',
-        }, follow=True)
-
-        self.assertEqual(Part.objects.count(), part_count)
-        item = self.change.items.get()
-        self.assertEqual(item.kind, ChangeItem.KIND_CREATE_PART)
-        self.assertEqual(item.payload['description'], 'Staged cap')
-        self.assertEqual(item.payload['manufacturer'], 'Acme')
-        self.assertContains(response, f'Staged in Change #{self.change.number}')
-
-    def test_add_subpart_is_staged_instead_of_saved(self):
-        self.start_change()
-        assembly_revision = self.assembly.latest()
-        line_count = assembly_revision.assembly.subparts.count() if assembly_revision.assembly else 0
-        response = self.client.post(
-            reverse('bom:part-add-subpart', kwargs={'part_id': self.assembly.id,
-                                                    'part_revision_id': assembly_revision.id}),
-            {'subpart_part_number': self.leaf.full_part_number(), 'count': 2, 'reference': 'U8, U9'}, follow=True)
-
-        assembly_revision.refresh_from_db()
-        self.assertEqual(assembly_revision.assembly.subparts.count() if assembly_revision.assembly else 0, line_count)
-        item = self.change.items.get()
-        self.assertEqual(item.kind, ChangeItem.KIND_ADD_SUBPART)
-        self.assertEqual(item.payload['subpart_part_number'], self.leaf.full_part_number())
-        self.assertEqual(item.payload['count'], 2)
-        self.assertContains(response, f'Staged in Change #{self.change.number}')
-
-    def test_edit_subpart_and_sourcing_are_staged(self):
-        assembly_revision = self.assembly.latest()
-        subpart = assembly_revision.assembly.subparts.first()
-        self.start_change()
-        self.client.post(reverse('bom:part-edit-subpart', kwargs={
-            'part_id': self.assembly.id, 'part_revision_id': assembly_revision.id, 'subpart_id': subpart.id}),
-            {'part_revision': subpart.part_revision.id, 'count': 1, 'reference': 'R1'})
-        subpart.refresh_from_db()
-        self.assertNotEqual(subpart.reference, 'R1')
-
-        manufacturer_part_count = ManufacturerPart.objects.count()
-        self.client.post(reverse('bom:part-add-manufacturer-part', kwargs={'part_id': self.assembly.id}),
-                         {'manufacturer': 'Acme', 'manufacturer_part_number': 'ACME-2'})
-        self.assertEqual(ManufacturerPart.objects.count(), manufacturer_part_count)
-
-        manufacturer_part = self.assembly.primary_manufacturer_part
-        seller_part_count = SellerPart.objects.count()
-        self.client.post(reverse('bom:manufacturer-part-add-sellerpart', kwargs={
-            'manufacturer_part_id': manufacturer_part.id}), {
-            'seller': 'Digi-Key', 'unit_cost_0': '0.50', 'unit_cost_1': 'USD', 'nre_cost_0': '0', 'nre_cost_1': 'USD',
-            'minimum_order_quantity': 1, 'minimum_pack_quantity': 1})
-        self.assertEqual(SellerPart.objects.count(), seller_part_count)
-        self.assertEqual(
-            list(self.change.items.values_list('kind', flat=True)),
-            [ChangeItem.KIND_UPDATE_SUBPART, ChangeItem.KIND_ADD_MANUFACTURER_PART, ChangeItem.KIND_ADD_SELLER_PART])
-
-    def test_disabled_review_hides_the_mode_and_saves_normally(self):
-        self.start_change()
-        config = dict(settings.BOM_CONFIG_DEFAULT, changes_review_enabled=False)
-        with override_settings(BOM_CONFIG=config):
-            self.assertNotContains(self.client.get(reverse('bom:home')), 'Editing in Change')
-            part_count = Part.objects.count()
-            self.client.post(reverse('bom:create-part'), {
-                'number_class': str(self.parts[0].number_class), 'description': 'Real cap', 'revision': 'A'})
-            self.assertEqual(Part.objects.count(), part_count + 1)
-        self.assertFalse(self.change.items.exists())
-
-    def test_staged_change_is_applied_from_the_review_page(self):
-        self.start_change()
-        self.client.post(reverse('bom:create-part'), {
-            'number_class': str(self.parts[0].number_class), 'description': 'Staged cap', 'revision': 'A'})
-        self.client.post(reverse('bom:change-apply', kwargs={'number': self.change.number}))
-        self.assertTrue(PartRevision.objects.filter(description='Staged cap').exists())
-        self.assertNotContains(self.client.get(reverse('bom:home')), 'Editing in Change')
+from bom.models import APIToken, ChangeSettings, PartRevision, PartRevisionPropertyDefinition
 
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
@@ -201,6 +90,22 @@ class SettingsTabsTest(TestCase):
             'submit-protections': '', 'protect_primary_manufacturer_part': 'on'})
         change_settings.refresh_from_db()
         self.assertFalse(change_settings.protect_primary_manufacturer_part)
+
+    def test_require_release_approval_is_saved_by_admins_and_hidden_without_the_host_flag(self):
+        page = self.client.get(self.settings_url('organization'))
+        self.assertContains(page, 'Require approval to release')
+
+        self.client.post(self.settings_url('organization'), {
+            'submit-protections': '', 'require_release_approval': 'on'})
+        self.assertTrue(ChangeSettings.objects.get(organization=self.organization).require_release_approval)
+
+        self.editor_client.post(self.settings_url('organization'), {'submit-protections': ''})
+        self.assertTrue(ChangeSettings.objects.get(organization=self.organization).require_release_approval)
+
+        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, release_approval_enabled=False)):
+            self.assertNotContains(self.client.get(self.settings_url('organization')), 'Require approval to release')
+            self.client.post(self.settings_url('organization'), {'submit-protections': ''})
+        self.assertTrue(ChangeSettings.objects.get(organization=self.organization).require_release_approval)
 
 
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)

@@ -67,6 +67,7 @@ from bom.forms import (
     part_form_from_organization,
 )
 from bom.models import (
+    MANUFACTURER_PARTS_LOCKED_MESSAGE,
     APIToken,
     Assembly,
     AssemblySubparts,
@@ -86,16 +87,18 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
-from bom.services.changes import changes_touching_part, proposals_for_revision, record_csv_import
+from bom.services.changes import (log_event, newer_draft_revision, part_history, proposals_for_revision, record_csv_import,
+                                  record_direct_edit, release_approval_required, release_preview, release_revision,
+                                  request_release_approval, revise_revision)
 from bom.services.diffs import revision_diff
+from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from bom.services.search import latest_part_revisions, search_parts
 from bom.third_party_apis.base_api import BaseApiError
 from bom.third_party_apis.google_drive import has_drive_scope
 from bom.third_party_apis.sourcing import PROBE_CANDIDATE_LIMIT, build_provider, provider_credential_schema, provider_is_configured
-from bom.utils import check_references_for_duplicates, listify_string, prep_for_sorting_nicely
-from bom.views.staging import active_change, stage
+from bom.utils import check_references_for_duplicates, prep_for_sorting_nicely
 
 logger = logging.getLogger(__name__)
 UserMeta = get_user_meta_model()
@@ -922,7 +925,7 @@ def part_info(request, part_id, part_revision_id=None):
     seller_parts = part.seller_parts()
     review_enabled = changes_review_enabled(organization)
     proposals = proposals_for_revision(part_revision) if part_revision is not None and review_enabled else None
-    part_changes = changes_touching_part(part) if review_enabled else None
+    history_entries = part_history(part)
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
 
@@ -1413,17 +1416,47 @@ def write_parts_csv(response, organization, part_revisions):
             writer.writerow({key: smart_str(value) for key, value in row.items()})
 
 
-def _staged_properties(part_revision_form):
-    properties, property_units = {}, {}
-    for definition in part_revision_form.property_definitions:
-        value = part_revision_form.cleaned_data.get(definition.form_field_name)
-        if value in (None, ''):
-            continue
-        properties[definition.code] = str(value)
-        unit_id = part_revision_form.cleaned_data.get(definition.form_unit_field_name)
-        if unit_id:
-            property_units[definition.code] = UnitDefinition.objects.get(id=unit_id).symbol
-    return {'properties': properties, 'property_units': property_units}
+def _revision_label(part_revision):
+    return f'{part_revision.part.full_part_number()} rev {part_revision.revision}'
+
+
+def _refuse_immutable_edit(request, part_revision, subpart=None):
+    """An error message and redirect when the revision, or the revision holding the subpart, cannot be edited."""
+    revisions = [part_revision] + (list(subpart.get_parent_part_revisions()) if subpart else [])
+    immutable = next((revision for revision in revisions if revision.is_immutable()), None)
+    if immutable is None:
+        return None
+    messages.error(request, f'{_revision_label(immutable)} is {immutable.get_configuration_display()} and cannot be '
+                            f'edited. Revise it to make changes in a new Draft.')
+    return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={
+        'part_id': immutable.part_id, 'part_revision_id': immutable.id}))
+
+
+def _refuse_locked_manufacturer_parts(request, part):
+    if not part.manufacturer_parts_locked():
+        return None
+    messages.error(request, MANUFACTURER_PARTS_LOCKED_MESSAGE)
+    return HttpResponseRedirect(_next_url_or(
+        request, reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing'))
+
+
+def _subpart_values(subpart):
+    return {'count': subpart.count, 'reference': subpart.reference or '', 'do_not_load': subpart.do_not_load,
+            'subpart_part_number': subpart.part_revision.part.full_part_number()}
+
+
+def _manufacturer_part_values(manufacturer_part):
+    return {'manufacturer': manufacturer_part.manufacturer.name if manufacturer_part.manufacturer else '',
+            'manufacturer_part_number': manufacturer_part.manufacturer_part_number,
+            'link': manufacturer_part.link or '', 'datasheet_url': manufacturer_part.datasheet_url or '',
+            'sourcing_disable': manufacturer_part.sourcing_disable}
+
+
+def _seller_part_values(seller_part):
+    return {'seller': seller_part.seller.name, 'seller_part_number': seller_part.seller_part_number or '',
+            'unit_cost': str(seller_part.unit_cost.amount), 'nre_cost': str(seller_part.nre_cost.amount),
+            'minimum_order_quantity': seller_part.minimum_order_quantity,
+            'minimum_pack_quantity': seller_part.minimum_pack_quantity, 'lead_time_days': seller_part.lead_time_days}
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1449,25 +1482,7 @@ def create_part(request):
         if sourcing_attempted:
             is_valid = is_valid and manufacturer_part_form.is_valid()
 
-        staging_change = active_change(request, organization)
-        if is_valid and staging_change:
-            payload = {
-                'description': part_revision_form.cleaned_data['description'],
-                'revision': part_revision_form.cleaned_data['revision'],
-                'number_item': part_form.cleaned_data.get('number_item'),
-                'number_variation': part_form.cleaned_data.get('number_variation'),
-            }
-            if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
-                payload['part_class_code'] = part_form.cleaned_data['number_class'].code
-            payload.update(_staged_properties(part_revision_form))
-            if sourcing_attempted:
-                manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
-                payload.update(manufacturer=getattr(manufacturer, 'name', manufacturer),
-                               manufacturer_part_number=manufacturer_part_form.cleaned_data['manufacturer_part_number'],
-                               link=manufacturer_part_form.cleaned_data['link'])
-            if stage(request, staging_change, ChangeItem.KIND_CREATE_PART, payload):
-                return HttpResponseRedirect(reverse('bom:change-review', kwargs={'number': staging_change.number}))
-        elif is_valid:
+        if is_valid:
             new_part = part_form.save()
             new_rev = part_revision_form.save(commit=False)
             new_rev.part = new_part
@@ -1481,6 +1496,12 @@ def create_part(request):
                 new_part.primary_manufacturer_part = mp
                 new_part.save()
 
+            record_direct_edit(
+                organization, user, new_part, ChangeItem.KIND_CREATE_PART,
+                f"Create part {new_part.full_part_number()}: {new_rev.description or ''}", part_revision=new_rev,
+                payload={'revision': new_rev.revision, 'description': new_rev.description},
+                result={'part_id': new_part.id, 'part_number': new_part.full_part_number(),
+                        'part_revision_id': new_rev.id})
             messages.success(request, f"Created {new_part.full_part_number()}")
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': new_part.id}))
         else:
@@ -1513,11 +1534,26 @@ def part_edit(request, part_id):
         form = PartForm(request.POST, request.FILES, instance=part, organization=organization)
         if form.is_valid():
             form.save()
+            if form.changed_data:
+                record_direct_edit(organization, user, part, ChangeItem.KIND_UPDATE_PART,
+                                   f"Edit part {part.full_part_number()}", payload={'fields': form.changed_data})
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
     else:
         form = PartForm(instance=part, organization=organization)
 
     return TemplateResponse(request, 'bom/bom-form.html', locals())
+
+
+def _edit_page_url(part_id, part_revision_id):
+    return reverse('bom:part-edit-revision', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id})
+
+
+def _next_url_or(request, default):
+    next_url = request.GET.get('next') or request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()},
+                                                    require_https=request.is_secure()):
+        return next_url
+    return default
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1531,15 +1567,40 @@ def manage_bom(request, part_id, part_revision_id):
 
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
 
-    if not request.user.has_perm('bom.edit_part', part_revision):
-        messages.error(request, "This revision is immutable and cannot be modified.")
-        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
-
-    title = 'Manage BOM for ' + part.full_part_number()
-
     if part.organization != organization:
         messages.error(request, "Cant access a part that is not yours!")
         return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
+
+    title = f'Edit {part.full_part_number()} rev {part_revision.revision}'
+
+    if part_revision.is_immutable():
+        messages.error(request, f'{part_revision.get_configuration_display()} revisions cannot be edited. '
+                                'Revise it to make changes in a new Draft.')
+        return TemplateResponse(request, 'bom/part-revision-manage-bom.html', {
+            'title': title, 'profile': profile, 'organization': organization, 'part': part,
+            'part_revision': part_revision, 'immutable': True})
+
+    edit_url = _edit_page_url(part_id, part_revision_id)
+    if request.method == 'POST':
+        before = {'description': part_revision.description,
+                  'properties': {prop.property_definition.code: prop.value_raw
+                                 for prop in part_revision.properties.select_related('property_definition')}}
+        part_revision_form = PartRevisionForm(request.POST, instance=part_revision, organization=organization)
+        if part_revision_form.is_valid():
+            part_revision_form.save()
+            log_event('edit_save', organization, user, part)
+            if part_revision_form.has_changed():
+                record_direct_edit(
+                    organization, user, part, ChangeItem.KIND_UPDATE_PART_REVISION,
+                    f"Update description and properties of {_revision_label(part_revision)}",
+                    part_revision=part_revision, before=before, payload={'fields': part_revision_form.changed_data},
+                    result={'part_revision_id': part_revision.id})
+            messages.success(request, 'Saved description and properties.')
+            return HttpResponseRedirect(edit_url)
+    else:
+        part_revision_form = PartRevisionForm(instance=part_revision, organization=organization)
+
+    manufacturer_parts = part.manufacturer_parts().order_by('manufacturer_part_number')
 
     add_subpart_form = AddSubpartForm(initial={'count': 1, }, organization=organization,
                                       part_revision_id=part_revision_id)
@@ -1614,29 +1675,24 @@ def add_subpart(request, part_id, part_revision_id):
     organization = profile.organization
 
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    refusal = _refuse_immutable_edit(request, part_revision)
+    if refusal:
+        return refusal
 
     if request.method == 'POST':
         add_subpart_form = AddSubpartForm(request.POST, organization=organization, part_revision_id=part_revision_id)
-        staging_change = active_change(request, organization)
-        if add_subpart_form.is_valid() and staging_change:
-            stage(request, staging_change, ChangeItem.KIND_ADD_SUBPART, {
-                'assembly_part_number': part_revision.part.full_part_number(),
-                'assembly_revision': part_revision.revision,
-                'subpart_part_number': add_subpart_form.subpart_part.part.full_part_number(),
-                'count': add_subpart_form.cleaned_data['count'],
-                'reference': add_subpart_form.cleaned_data['reference'],
-                'do_not_load': add_subpart_form.cleaned_data['do_not_load'],
-            })
-        elif add_subpart_form.is_valid():
+        if add_subpart_form.is_valid():
             subpart_part = add_subpart_form.subpart_part
             reference = add_subpart_form.cleaned_data['reference']
             dnl = add_subpart_form.cleaned_data['do_not_load']
             count = add_subpart_form.cleaned_data['count']
 
             first_level_bom = part_revision.assembly.subparts.filter(part_revision=subpart_part, do_not_load=dnl)
+            before = None
 
             if first_level_bom.count() > 0:
                 new_part = first_level_bom[0]
+                before = {'count': new_part.count, 'reference': new_part.reference}
                 new_part.count += count
                 if reference:
                     new_part.reference = new_part.reference + ', ' + reference
@@ -1654,6 +1710,15 @@ def add_subpart(request, part_id, part_revision_id):
 
                 AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
 
+            subpart_part_number = subpart_part.part.full_part_number()
+            record_direct_edit(
+                organization, user, part_revision.part, ChangeItem.KIND_ADD_SUBPART,
+                f"Add {subpart_part_number} x{count} {reference} to {_revision_label(part_revision)}",
+                part_revision=part_revision, before=before,
+                payload={'subpart_part_number': subpart_part_number, 'count': count, 'reference': reference,
+                         'do_not_load': dnl},
+                result={'part_revision_id': part_revision.id, 'subpart_id': new_part.id})
+
             info_msg = "Added subpart "
             if reference:
                 info_msg += ' ' + reference
@@ -1663,16 +1728,27 @@ def add_subpart(request, part_id, part_revision_id):
         else:
             add_form_error_messages(request, add_subpart_form)
 
-    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+    return HttpResponseRedirect(_edit_page_url(part_id, part_revision_id))
 
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.EDIT_PART)
 def remove_subpart(request, part_id, part_revision_id, subpart_id):
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
     subpart = get_object_or_404(Subpart, pk=subpart_id)
+    refusal = _refuse_immutable_edit(request, part_revision, subpart)
+    if refusal:
+        return refusal
+    before = _subpart_values(subpart)
     subpart.delete()
+    record_direct_edit(
+        request.user.bom_profile().organization, request.user, part_revision.part, ChangeItem.KIND_REMOVE_SUBPART,
+        f"Remove {before['subpart_part_number']} from {_revision_label(part_revision)}",
+        part_revision=part_revision, before=before, payload={'subpart_part_number': before['subpart_part_number'],
+                                                             'do_not_load': before['do_not_load']},
+        result={'part_revision_id': part_revision.id})
     return HttpResponseRedirect(
-        reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+        _edit_page_url(part_id, part_revision_id))
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1863,30 +1939,27 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
 
     part = get_object_or_404(Part, pk=part_id)
     subpart = get_object_or_404(Subpart, pk=subpart_id)
+    refusal = _refuse_immutable_edit(request, get_object_or_404(PartRevision, pk=part_revision_id), subpart)
+    if refusal:
+        return refusal
     title = "Edit Subpart"
     h1 = "{} {}".format(subpart.part_revision.part.full_part_number(), subpart.part_revision.synopsis())
+    before = _subpart_values(subpart)
 
     if request.method == 'POST':
         form = SubpartForm(request.POST, instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
-        staging_change = active_change(request, organization)
         if form.is_valid():
-            reference_list = listify_string(form.cleaned_data['reference'])
-            count = form.cleaned_data['count']
-            if staging_change:
-                parent_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-                staged = stage(request, staging_change, ChangeItem.KIND_UPDATE_SUBPART, {
-                    'assembly_part_number': parent_revision.part.full_part_number(),
-                    'assembly_revision': parent_revision.revision,
-                    'subpart_part_number': subpart.part_revision.part.full_part_number(),
-                    'count': count,
-                    'reference': form.cleaned_data['reference'],
-                    'do_not_load': form.cleaned_data['do_not_load'],
-                })
-                if not staged:
-                    return TemplateResponse(request, 'bom/bom-form.html', locals())
-            else:
-                form.save()
-            return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+            form.save()
+            parent_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+            record_direct_edit(
+                organization, user, parent_revision.part, ChangeItem.KIND_UPDATE_SUBPART,
+                f"Update {before['subpart_part_number']} in {_revision_label(parent_revision)}",
+                part_revision=parent_revision, before=before,
+                payload={'subpart_part_number': before['subpart_part_number'], 'count': form.cleaned_data['count'],
+                         'reference': form.cleaned_data['reference'],
+                         'do_not_load': form.cleaned_data['do_not_load']},
+                result={'part_revision_id': parent_revision.id, 'subpart_id': subpart.id})
+            return HttpResponseRedirect(_edit_page_url(part_id, part_revision_id))
         else:
             return TemplateResponse(request, 'bom/bom-form.html', locals())
 
@@ -1900,8 +1973,29 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
 @bom_permission_required(BomPerms.EDIT_PART)
 def remove_all_subparts(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
+    refusal = _refuse_immutable_edit(request, part_revision)
+    if refusal:
+        return refusal
+    lines = [_subpart_values(line) for line in part_revision.assembly.subparts.select_related('part_revision__part')]
     part_revision.assembly.subparts.all().delete()
-    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
+    if lines:
+        record_direct_edit(
+            request.user.bom_profile().organization, request.user, part_revision.part, ChangeItem.KIND_REMOVE_SUBPART,
+            f"Remove all {len(lines)} lines from {_revision_label(part_revision)}", part_revision=part_revision,
+            before={'lines': lines}, payload={'all': True}, result={'part_revision_id': part_revision.id})
+    return HttpResponseRedirect(_edit_page_url(part_id, part_revision_id))
+
+
+def _save_seller_part(request, organization, form, manufacturer_part, before=None):
+    part = manufacturer_part.part
+    saved = form.save()
+    verb = 'Update' if before else 'Add'
+    record_direct_edit(
+        organization, request.user, part,
+        ChangeItem.KIND_UPDATE_SELLER_PART if before else ChangeItem.KIND_ADD_SELLER_PART,
+        f"{verb} {saved.seller.name} price on {manufacturer_part.manufacturer_part_number} of "
+        f"{part.full_part_number()}",
+        before=before, payload=_seller_part_values(saved), result={'seller_part_id': saved.id})
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1938,32 +2032,35 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
         instance = get_object_or_404(ManufacturerPart.objects.filter(part__organization=organization),
                                      pk=manufacturer_part_id)
         part = instance.part
+        before = _manufacturer_part_values(instance)
         title = f"Edit Manufacturer Part for {part.full_part_number()}"
     else:
         part = get_object_or_404(Part.objects.filter(organization=organization), pk=part_id)
         instance = ManufacturerPart(part=part)
+        before = None
         title = f"Add Manufacturer Part to {part.full_part_number()}"
+
+    refusal = _refuse_locked_manufacturer_parts(request, part)
+    if refusal:
+        return refusal
 
     if request.method == 'POST':
         form = ManufacturerPartForm(request.POST, instance=instance, organization=organization)
-        staging_change = None if manufacturer_part_id else active_change(request, organization)
-        if form.is_valid() and staging_change:
-            manufacturer = form.cleaned_data['manufacturer']
-            if stage(request, staging_change, ChangeItem.KIND_ADD_MANUFACTURER_PART, {
-                'part_number': part.full_part_number(),
-                'manufacturer': getattr(manufacturer, 'name', manufacturer),
-                'manufacturer_part_number': form.cleaned_data['manufacturer_part_number'],
-                'link': form.cleaned_data['link'],
-                'datasheet_url': form.cleaned_data['datasheet_url'],
-            }):
-                return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
-        elif form.is_valid():
+        if form.is_valid():
             obj = form.save()
             if part.primary_manufacturer_part is None:
                 part.primary_manufacturer_part = obj
                 part.save()
+            record_direct_edit(
+                organization, user, part,
+                ChangeItem.KIND_UPDATE_MANUFACTURER_PART if before else ChangeItem.KIND_ADD_MANUFACTURER_PART,
+                f"{'Update' if before else 'Add'} manufacturer part {obj.manufacturer} "
+                f"{obj.manufacturer_part_number} of {part.full_part_number()}",
+                before=before, payload=_manufacturer_part_values(obj),
+                result={'part_id': part.id, 'manufacturer_part_id': obj.id})
             messages.success(request, "Manufacturer part saved.")
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
+            return HttpResponseRedirect(_next_url_or(
+                request, reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing'))
         else:
             messages.error(request, "Error saving manufacturer part.")
     else:
@@ -1980,8 +2077,43 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
 def manufacturer_part_delete(request, manufacturer_part_id):
     manufacturer_part = get_object_or_404(ManufacturerPart, pk=manufacturer_part_id)
     part = manufacturer_part.part
+    refusal = _refuse_locked_manufacturer_parts(request, part)
+    if refusal:
+        return refusal
+    before = _manufacturer_part_values(manufacturer_part)
     manufacturer_part.delete()
-    return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
+    record_direct_edit(
+        request.user.bom_profile().organization, request.user, part, ChangeItem.KIND_DELETE_MANUFACTURER_PART,
+        f"Delete manufacturer part {before['manufacturer_part_number']} of {part.full_part_number()}",
+        before=before, payload={'manufacturer_part_id': manufacturer_part_id}, result={'part_id': part.id})
+    return HttpResponseRedirect(_next_url_or(
+        request, reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing'))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_SOURCING)
+@require_POST
+def manufacturer_part_make_primary(request, manufacturer_part_id):
+    organization = request.user.bom_profile().organization
+    manufacturer_part = get_object_or_404(ManufacturerPart.objects.filter(part__organization=organization),
+                                          pk=manufacturer_part_id)
+    part = manufacturer_part.part
+    refusal = _refuse_locked_manufacturer_parts(request, part)
+    if refusal:
+        return refusal
+    if part.primary_manufacturer_part_id != manufacturer_part.id:
+        before = {'primary_manufacturer_part_id': part.primary_manufacturer_part_id}
+        part.primary_manufacturer_part = manufacturer_part
+        part.save()
+        record_direct_edit(
+            organization, request.user, part, ChangeItem.KIND_UPDATE_PART,
+            f"Make {manufacturer_part.manufacturer} {manufacturer_part.manufacturer_part_number} the primary "
+            f"manufacturer part of {part.full_part_number()}",
+            before=before, payload={'primary_manufacturer_part_id': manufacturer_part.id},
+            result={'part_id': part.id})
+        messages.success(request, f'{manufacturer_part.manufacturer_part_number} is now the primary manufacturer part.')
+    return HttpResponseRedirect(_next_url_or(
+        request, reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing'))
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -2000,29 +2132,12 @@ def seller_part_manage(request, manufacturer_part_id=None, seller_part_id=None):
                                pk=manufacturer_part_id)
         instance = SellerPart(manufacturer_part=mp)
         title = f"Add Vendor for {mp.manufacturer_part_number}"
+    before = _seller_part_values(instance) if instance.pk else None
 
     if request.method == 'POST':
         form = SellerPartForm(request.POST, instance=instance, organization=organization)
-        staging_change = None if seller_part_id else active_change(request, organization)
-        if form.is_valid() and staging_change:
-            seller = form.cleaned_data['seller']
-            if stage(request, staging_change, ChangeItem.KIND_ADD_SELLER_PART, {
-                'manufacturer_part_id': mp.id,
-                'seller': getattr(seller, 'name', seller),
-                'unit_cost': str(form.cleaned_data['unit_cost'].amount),
-                'currency': str(form.cleaned_data['unit_cost'].currency),
-                'nre_cost': str(form.cleaned_data['nre_cost'].amount),
-                'seller_part_number': form.cleaned_data['seller_part_number'],
-                'minimum_order_quantity': form.cleaned_data['minimum_order_quantity'],
-                'minimum_pack_quantity': form.cleaned_data['minimum_pack_quantity'],
-                'lead_time_days': form.cleaned_data['lead_time_days'],
-                'link': form.cleaned_data['link'],
-                'ncnr': form.cleaned_data['ncnr'],
-            }):
-                return HttpResponseRedirect(
-                    reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing')
-        elif form.is_valid():
-            form.save()
+        if form.is_valid():
+            _save_seller_part(request, organization, form, mp, before)
             messages.success(request, "Vendor sourcing updated.")
             return HttpResponseRedirect(
                 reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing')
@@ -2041,38 +2156,66 @@ def seller_part_manage(request, manufacturer_part_id=None, seller_part_id=None):
 def seller_part_delete(request, seller_part_id):
     sp = get_object_or_404(SellerPart, pk=seller_part_id)
     part = sp.manufacturer_part.part
+    before = _seller_part_values(sp)
+    summary = (f"Delete {sp.seller.name} price on {sp.manufacturer_part.manufacturer_part_number} of "
+               f"{part.full_part_number()}")
     sp.delete()
+    record_direct_edit(request.user.bom_profile().organization, request.user, part,
+                       ChangeItem.KIND_DELETE_SELLER_PART, summary, before=before,
+                       payload={'seller_part_id': seller_part_id}, result={'part_id': part.id})
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
 
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.RELEASE_REVISION)
 def part_revision_release(request, part_id, part_revision_id):
-    user = request.user
-    profile = user.bom_profile()
-    part = get_object_or_404(Part, pk=part_id)
-    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-
-    if not request.user.has_perm(BomPerms.RELEASE_REVISION, part_revision):
-        messages.error(request, 'Part is immutable. You do not have permission to perform this action.')
-        return HttpResponseRedirect(
-            reverse('bom:part-info-history', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id}))
-
-    action = reverse('bom:part-revision-release', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id})
-    title = f'Promote {part.full_part_number()} Rev {part_revision.revision} {part_revision.synopsis()} to <b>Released</b>?'
-    subparts = part_revision.assembly.subparts.filter(part_revision__configuration=constants.CONFIGURATION_TYPE_DRAFT)
-    release_warning = subparts.count() > 0
+    organization = request.user.bom_profile().organization
+    part_revision = get_object_or_404(PartRevision.objects.select_related('part'), pk=part_revision_id,
+                                      part_id=part_id, part__organization=organization)
+    revision_url = reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id})
 
     if request.method == 'POST':
-        part_revision.configuration = constants.CONFIGURATION_TYPE_RELEASED
         try:
-            part_revision.save(user=user)
-        except ValidationError as e:
-            messages.error(request, e.message)
+            cascade_parent_ids = [int(value) for value in request.POST.getlist('cascade_parent_id')]
+            note = request.POST.get('note', '').strip()
+            if request.POST.get('action') == 'request_approval':
+                change = request_release_approval(part_revision, request.user, note, cascade_parent_ids)
+                messages.success(request, f'Requested approval to release {_revision_label(part_revision)} in '
+                                          f'change #{change.number}.')
+                return HttpResponseRedirect(reverse('bom:change-review', kwargs={'number': change.number}))
+            release_revision(part_revision, request.user, note, cascade_parent_ids,
+                             override_approval='override' in request.POST)
+        except ServiceError as error:
+            messages.error(request, str(error))
             return HttpResponseRedirect(request.path_info)
-        return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part.id, 'part_revision_id': part_revision.id}))
+        except ValueError:
+            messages.error(request, 'Select valid assemblies.')
+            return HttpResponseRedirect(request.path_info)
+        messages.success(request, f'Released {part_revision.part.full_part_number()} rev {part_revision.revision}.')
+        return HttpResponseRedirect(revision_url)
 
-    return TemplateResponse(request, 'bom/part-revision-release.html', locals())
+    if part_revision.configuration not in (constants.CONFIGURATION_TYPE_DRAFT, constants.CONFIGURATION_TYPE_IN_REVIEW):
+        messages.error(request, f'{part_revision} is {part_revision.get_configuration_display()}; '
+                                f'only a Draft or In Review revision can be released.')
+        return HttpResponseRedirect(revision_url)
+
+    part = part_revision.part
+    preview = release_preview(part_revision)
+    draft_subparts = part_revision.assembly.subparts.filter(
+        part_revision__configuration=constants.CONFIGURATION_TYPE_DRAFT).select_related('part_revision__part')
+    diff_items = _numbered([
+        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'],
+                      status_label='Differs')
+        for entry in preview['diff']])
+    title = f'Release {part.full_part_number()} rev {part_revision.revision} {part_revision.synopsis()}'
+    profile = request.user.bom_profile()
+    approval_required = release_approval_required(organization)
+    return TemplateResponse(request, 'bom/part-revision-release.html', {
+        'title': title, 'profile': profile, 'organization': organization, 'part': part,
+        'part_revision': part_revision, 'preview': preview, 'items': diff_items, 'draft_subparts': draft_subparts,
+        'revision_url': revision_url, 'approval_required': approval_required,
+        'can_request_approval': changes_review_enabled(organization),
+        'can_release': not approval_required, 'can_override': approval_required and profile.role == constants.ROLE_TYPE_ADMIN})
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -2125,6 +2268,28 @@ def part_revision_obsolete(request, part_id, part_revision_id):
 
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.EDIT_PART)
+@require_POST
+def part_revision_revise(request, part_id, part_revision_id):
+    organization = request.user.bom_profile().organization
+    part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id,
+                                      part__organization=organization)
+    try:
+        new_revision = revise_revision(part_revision, request.user)
+    except ServiceError as error:
+        newer_draft = newer_draft_revision(part_revision)
+        if newer_draft is None:
+            messages.error(request, str(error))
+        else:
+            messages.error(request, format_html('{} <a href="{}">Open it</a> to keep editing.', str(error), reverse(
+                'bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': newer_draft.id})))
+        return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={
+            'part_id': part_id, 'part_revision_id': part_revision_id}))
+    messages.success(request, f'Created Draft rev {new_revision.revision}.')
+    return HttpResponseRedirect(_edit_page_url(part_id, new_revision.id))
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.EDIT_PART)
 def part_revision_new(request, part_id):
     user = request.user
     profile = user.bom_profile()
@@ -2172,6 +2337,12 @@ def part_revision_new(request, part_id):
                     new_sp.pk = None
                     new_sp.save()
                     AssemblySubparts.objects.create(assembly=new_assembly, subpart=new_sp)
+            record_direct_edit(
+                organization, user, part, ChangeItem.KIND_CREATE_PART_REVISION,
+                f"Create {_revision_label(new_part_revision)}", part_revision=new_part_revision,
+                payload={'revision': new_part_revision.revision,
+                         'copy_assembly': part_revision_new_form.cleaned_data['copy_assembly']},
+                result={'part_revision_id': new_part_revision.id})
             return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
 
     else:
@@ -2188,30 +2359,7 @@ def part_revision_new(request, part_id):
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.EDIT_PART)
 def part_revision_edit(request, part_id, part_revision_id):
-    user = request.user
-    profile = user.bom_profile()
-    organization = profile.organization
-
-    part = get_object_or_404(Part, pk=part_id)
-    part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-
-    if not request.user.has_perm('bom.edit_part', part_revision):
-        messages.error(request, "This revision is immutable and cannot be modified.")
-        return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
-
-    title = 'Edit {} Rev {}'.format(part.full_part_number(), part_revision.revision)
-
-    action = reverse('bom:part-revision-edit', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id})
-
-    if request.method == 'POST':
-        form = PartRevisionForm(request.POST, instance=part_revision, organization=organization)
-        if form.is_valid():
-            form.save()
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
-    else:
-        form = PartRevisionForm(instance=part_revision, organization=organization)
-
-    return TemplateResponse(request, 'bom/part-revision-edit.html', locals())
+    return HttpResponseRedirect(_edit_page_url(part_id, part_revision_id))
 
 
 @login_required(login_url=BOM_LOGIN_URL)

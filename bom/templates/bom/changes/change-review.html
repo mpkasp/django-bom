@@ -4,7 +4,7 @@
 
 {% block content %}
     <div class="container-app">
-        <p><a href="{% url 'bom:change-list' %}"><i class="material-icons tiny">arrow_back</i> Changes</a></p>
+        <p><a href="{% url 'bom:change-list' %}"><i class="material-icons tiny">arrow_back</i> Requests</a></p>
         <h4>
             Change #{{ change.number }}: {{ change.title }}
             {% include 'bom/changes/change-status-chip.html' %}
@@ -12,8 +12,8 @@
         </h4>
         {% if is_eco %}
             <div class="card-panel deep-purple lighten-5">
-                This is an Engineering Change Order (ECO): it edits a revision that is Released or In Review.
-                Applying it creates a new Draft revision of each part, which must then be released.
+                This is an Engineering Change Order (ECO): it releases revisions or edits one that is Released or In Review.
+                Approving it applies the edits and releases the revisions it creates or names, children before parents.
             </div>
         {% endif %}
         {% if is_stale %}
@@ -118,7 +118,7 @@
                     {% endif %}
                     {% if can_apply %}
                         <form method="post" action="{% url 'bom:change-apply' number=change.number %}">{% csrf_token %}
-                            <button class="btn waves-effect green" type="submit">Apply {{ accepted_count }} accepted</button></form>
+                            <button class="btn waves-effect green" type="submit">{% if is_eco %}Approve{% else %}Apply{% endif %} {{ accepted_count }} accepted</button></form>
                     {% endif %}
                     {% if can_apply_as_admin %}
                         <form method="post" action="{% url 'bom:change-apply' number=change.number %}" onsubmit="return confirm('Apply your own protected change as an Admin? This override is recorded.');">{% csrf_token %}
@@ -145,8 +145,13 @@
             <div class="row">
                 <div class="col s12" style="display: flex; gap: 8px; flex-wrap: wrap;">
                     {% for revision in created_revisions %}
-                        <a class="btn waves-effect teal" href="{% url 'bom:part-revision-release' part_id=revision.part_id part_revision_id=revision.id %}">
-                            Release rev {{ revision.revision }} of {{ revision.part.full_part_number }}</a>
+                        {% if revision.configuration == 'D' %}
+                            <a class="btn waves-effect teal" href="{% url 'bom:part-revision-release' part_id=revision.part_id part_revision_id=revision.id %}">
+                                Release rev {{ revision.revision }} of {{ revision.part.full_part_number }}</a>
+                        {% else %}
+                            <a class="btn-flat waves-effect" href="{% url 'bom:part-info-history' part_id=revision.part_id part_revision_id=revision.id %}">
+                                Released rev {{ revision.revision }} of {{ revision.part.full_part_number }}</a>
+                        {% endif %}
                     {% endfor %}
                     {% if can_revert %}
                         <form method="post" action="{% url 'bom:change-revert' number=change.number %}" onsubmit="return confirm('Revert this change? A new change that undoes it will be applied.');">{% csrf_token %}

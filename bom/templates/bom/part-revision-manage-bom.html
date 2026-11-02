@@ -14,8 +14,30 @@
 
 {% block content %}
     <div class="part-info container-app">
-        <a href="{% url 'bom:part-info' part_id=part.id %}">Return to {{ part.full_part_number }}</a>
-        <!-- <h5>{{ part.description }}</h5> -->
+        <a href="{% url 'bom:part-info-history' part_id=part.id part_revision_id=part_revision.id %}">Return to {{ part.full_part_number }}</a>
+        <h4>{{ title }}</h4>
+        {% if immutable %}
+            <div class="card-panel">
+                <p>Rev {{ part_revision.revision }} is {{ part_revision.get_configuration_display }}. Revise it to make
+                    changes in a new Draft revision.</p>
+                {% if perms.bom.edit_part %}
+                    <form method="post" action="{% url 'bom:part-revision-revise' part_id=part.id part_revision_id=part_revision.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="waves-effect waves-light btn green lighten-1"><i class="material-icons left">edit</i>Revise</button>
+                    </form>
+                {% endif %}
+            </div>
+        {% else %}
+        <div class="card-panel">
+            <form id="part-revision-form" action="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}" method="post">
+                {% csrf_token %}
+                {{ part_revision_form.non_field_errors }}
+                {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}
+                <div class="right-align">
+                    <button class="waves-effect waves-light btn btn-primary" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
         <div id="bom" class="col s12">
             <br><h5>Modify Subparts</h5>
 
@@ -69,13 +91,56 @@
                 </p>
 
             </form>
-            <div class="row">
-                <div class="col s6">
-                    <a href="{% url 'bom:part-info' part_id=part.id %}" class="waves-effect waves-light btn-flat grey-text lighten-1" style="margin-left: -16px;">Cancel</a>
-                </div>
-            </div>
+            <br><h5 id="manufacturer-parts">Manufacturer Parts</h5>
+            {% if manufacturer_parts %}
+                <table class="highlight part-list tight">
+                    <thead>
+                    <tr>
+                        <th class="text-normal">Manufacturer</th>
+                        <th class="text-normal">Manufacturer Part Number</th>
+                        <th class="text-normal">Primary</th>
+                        <th class="text-normal"></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for manufacturer_part in manufacturer_parts %}
+                        <tr>
+                            <td class="text-normal">{{ manufacturer_part.manufacturer.name }}</td>
+                            <td class="text-normal">{{ manufacturer_part.manufacturer_part_number }}</td>
+                            <td class="text-normal">
+                                {% if manufacturer_part.id == part.primary_manufacturer_part_id %}
+                                    <span class="chip teal darken-2 white-text">Primary</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-normal right-align">
+                                {% if perms.bom.manage_sourcing %}
+                                    {% if manufacturer_part.id != part.primary_manufacturer_part_id %}
+                                        <form method="post" action="{% url 'bom:manufacturer-part-make-primary' manufacturer_part_id=manufacturer_part.id %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.path }}">
+                                            <button type="submit" class="btn-flat green-text text-lighten-1">Make primary</button>
+                                        </form>
+                                    {% endif %}
+                                    <a class="green-text text-lighten-1" href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}">edit</a> |
+                                    <a class="red-text text-lighten-1"
+                                       href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}"
+                                       onclick="return confirm('Are you sure you want to delete {{ manufacturer_part.manufacturer_part_number|escapejs }}?\n\nIts vendor parts will also be permanently deleted.')">delete</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>This part has no manufacturer parts yet.</p>
+            {% endif %}
+            {% if perms.bom.manage_sourcing %}
+                <a class="waves-effect waves-light btn-flat green-text text-lighten-1" style="margin-left: -16px;"
+                   href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}?next={{ request.path|urlencode }}"><i class="material-icons left">add</i>Add manufacturer part</a>
+            {% endif %}
             <br>
         </div>
+        {% endif %}
     </div>
 {% endblock %}
 

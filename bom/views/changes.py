@@ -8,7 +8,6 @@ from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from bom.models import Change, ChangeItem, PartRevision
@@ -16,10 +15,10 @@ from bom.permissions import BomPerms
 from bom.services import changes
 from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled
-from bom.views.staging import ACTIVE_CHANGE_SESSION_KEY
 from bom.views.views import BOM_LOGIN_URL
 
-LIST_FILTERS = (('requests', 'Requests'), ('ecos', 'ECOs'), ('applied', 'Applied'), ('rejected', 'Rejected'))
+LIST_FILTERS = (('requests', 'Requests'), ('ecos', 'ECOs'), ('applied', 'Applied'), ('rejected', 'Rejected'),
+                ('history', 'History'))
 KIND_LABELS = dict(ChangeItem.KINDS)
 
 
@@ -48,11 +47,14 @@ def change_list(request, organization):
     queryset = Change.objects.filter(organization=organization).select_related('author', 'api_token')
     if active_filter == 'ecos':
         queryset = queryset.filter(Q(items__part_revision__configuration__in=PartRevision.IMMUTABLE_STATES)
-                                   | Q(items__result__has_key='new_revision_id')).distinct()
+                                   | Q(items__kind=ChangeItem.KIND_RELEASE_REVISION)
+                                   | Q(items__result__has_key='new_revision_id')).exclude(is_direct_edit=True).distinct()
     elif active_filter == 'applied':
-        queryset = queryset.filter(status=Change.STATUS_APPLIED)
+        queryset = queryset.filter(status=Change.STATUS_APPLIED, is_direct_edit=False)
     elif active_filter == 'rejected':
         queryset = queryset.filter(status=Change.STATUS_REJECTED)
+    elif active_filter == 'history':
+        queryset = queryset.filter(is_direct_edit=True).order_by('-resolved_at', '-id')
     else:
         active_filter = 'requests'
         queryset = queryset.filter(status=Change.STATUS_OPEN)
@@ -68,7 +70,7 @@ def change_list(request, organization):
             'affects': sorted({item.part.full_part_number() for item in items if item.part_id}),
         })
     return TemplateResponse(request, 'bom/changes/change-list.html', {
-        'title': 'Changes', 'name': 'changes', 'profile': request.user.bom_profile(), 'organization': organization,
+        'title': 'Requests', 'name': 'changes', 'profile': request.user.bom_profile(), 'organization': organization,
         'rows': rows, 'filters': LIST_FILTERS, 'active_filter': active_filter,
     })
 
@@ -212,27 +214,3 @@ def change_item_status(request, organization, number, item_id):
     except ServiceError as error:
         messages.error(request, str(error))
     return _review_redirect(change)
-
-
-@changes_view
-@require_POST
-def change_start(request, organization):
-    try:
-        change = changes.start_change(organization, request.user, request.POST.get('title', ''),
-                                      request.POST.get('rationale', ''))
-    except ServiceError as error:
-        messages.error(request, str(error))
-        return HttpResponseRedirect(reverse('bom:change-list'))
-    request.session[ACTIVE_CHANGE_SESSION_KEY] = change.id
-    messages.success(request, f'Started Change #{change.number}. Your edits are staged until you apply or submit it.')
-    return _review_redirect(change)
-
-
-@login_required(login_url=BOM_LOGIN_URL)
-@require_POST
-def change_leave(request):
-    request.session.pop(ACTIVE_CHANGE_SESSION_KEY, None)
-    referer = request.META.get('HTTP_REFERER')
-    if not url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
-        referer = reverse('bom:home')
-    return HttpResponseRedirect(referer)

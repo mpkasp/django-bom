@@ -20,6 +20,7 @@ from djmoney.forms.widgets import MoneyWidget
 from djmoney.money import Money
 
 from bom.permissions import BomPerms
+from bom.services.flags import release_approval_enabled
 from .constants import (
     NUMBER_SCHEME_INTELLIGENT,
     NUMBER_SCHEME_SEMI_INTELLIGENT,
@@ -472,12 +473,18 @@ class APITokenCreateForm(forms.Form):
 class ChangeSettingsForm(forms.ModelForm):
     class Meta:
         model = ChangeSettings
-        fields = ['protect_primary_manufacturer_part', 'protect_cost_delta']
+        fields = ['protect_primary_manufacturer_part', 'protect_cost_delta', 'require_release_approval']
         labels = {
             'protect_primary_manufacturer_part': 'Protect the primary manufacturer part',
             'protect_cost_delta': 'Protect cost increases above',
+            'require_release_approval': 'Require approval to release',
         }
         help_texts = {'protect_cost_delta': 'Per unit, in the organization currency. Leave blank to turn off.'}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not release_approval_enabled(self.instance.organization):
+            del self.fields['require_release_approval']
 
 
 # ==========================================
@@ -748,13 +755,7 @@ class BasePartForm(OrganizationModelForm):
         self.ignore_unique_constraint = kwargs.pop('ignore_unique_constraint', False)
         super().__init__(*args, **kwargs)
 
-        # Setup MFG Part Queryset if editing
-        if self.instance.pk:
-            self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(
-                part__id=self.instance.id
-            ).order_by('manufacturer_part_number')
-        elif 'primary_manufacturer_part' in self.fields:
-            del self.fields['primary_manufacturer_part']
+        self.fields.pop('primary_manufacturer_part', None)
 
         # Plain file input so it renders as a Materialize file-field (the default ClearableFileInput's
         # "Currently/Clear/Change" markup doesn't fit); CurrentFileInput surfaces the existing filename.

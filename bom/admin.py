@@ -241,7 +241,7 @@ class ChangeAdmin(admin.ModelAdmin):
 
 
 class ChangeSettingsAdmin(admin.ModelAdmin):
-    list_display = ('organization', 'protect_primary_manufacturer_part', 'protect_cost_delta')
+    list_display = ('organization', 'protect_primary_manufacturer_part', 'protect_cost_delta', 'require_release_approval')
     raw_id_fields = ('organization',)
 
 

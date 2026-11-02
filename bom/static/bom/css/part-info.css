@@ -163,18 +163,6 @@ a.part-thumb-empty:hover {
     font-size: 0.9rem;
 }
 
-.part-identity-edit {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: 6px;
-    font-size: 0.85rem;
-}
-
-.part-identity-edit i {
-    font-size: 1rem;
-}
-
 /* Revision controls (right side of header) */
 .part-revision-controls {
     display: flex;

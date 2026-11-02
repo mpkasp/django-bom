@@ -2310,7 +2310,7 @@ class TestBOM(TransactionTestCase):
         response = self.client.get(
             reverse('bom:part-revision-edit', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}))
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
         edit_part_revision_form_data = {
             'description': 'new rev',
@@ -2323,7 +2323,7 @@ class TestBOM(TransactionTestCase):
         }
 
         response = self.client.post(
-            reverse('bom:part-revision-edit', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}),
+            reverse('bom:part-edit-revision', kwargs={'part_id': p1.id, 'part_revision_id': p1.latest().id}),
             edit_part_revision_form_data)
 
         self.assertEqual(response.status_code, 302)
