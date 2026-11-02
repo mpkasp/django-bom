@@ -199,6 +199,17 @@ claude mcp add --transport http indabom http://localhost:8000/mcp --header "Auth
 Hosts can gate access (e.g. by subscription) with `BOM_CONFIG['mcp_access_check']`, a callable or its dotted
 path, `(organization, user, scopes) -> error message or None`, that runs before every write.
 
+### Changes and token levels
+Every MCP edit is a *Change*: a bundle of staged items reviewed at `/changes/` and applied together
+(design: [docs/changes-design.md](docs/changes-design.md)). Token scopes set the level: `read`; `read,write` can
+only stage and submit changes for review (propose); `read,write,apply` can also apply them
+(`create_api_token --scopes read,write,apply`). Write tools take an optional `change_id` to stage into a change from
+`start_change`; without it a propose-level token submits a one-item change request and an apply-level token applies
+it at once. Edits to Released revisions and any protections in `ChangeSettings` require a second person to apply.
+Hosts can switch the feature with `BOM_CONFIG['changes_review_enabled']` and `BOM_CONFIG['mcp_apply_enabled']`
+(callables of the organization or dotted paths; both default on), and set `BOM_CONFIG['site_url']` so change URLs
+returned to MCP clients are absolute.
+
 ## Contributing
 
 Contributions welcome! Before contributing your work please read the [contributing readme](https://github.com/mpkasp/django-bom/blob/master/CONTRIBUTING.md).

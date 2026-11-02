@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -51,7 +52,7 @@ class MCPClient:
 
 # TransactionTestCase: tool calls run on worker threads with their own DB connections, so rows must be committed.
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
-class MCPServerTest(TransactionTestCase):
+class MCPTestCase(TransactionTestCase):
     def setUp(self):
         self.user = User.objects.create_user('kasper', 'kasper@example.com', 'ghostpassword')
         self.organization = create_a_fake_organization(self.user)
@@ -62,6 +63,9 @@ class MCPServerTest(TransactionTestCase):
         self.read_token, self.read_plaintext = APIToken.issue(self.user, self.organization, 'read')
         self.write_token, self.write_plaintext = APIToken.issue(
             self.user, self.organization, 'write', scopes=[APIToken.SCOPE_READ, APIToken.SCOPE_WRITE])
+        self.apply_token, self.apply_plaintext = APIToken.issue(
+            self.user, self.organization, 'apply',
+            scopes=[APIToken.SCOPE_READ, APIToken.SCOPE_WRITE, APIToken.SCOPE_APPLY])
         self.app = build_application()
 
     def mcp(self, plaintext):
@@ -72,6 +76,8 @@ class MCPServerTest(TransactionTestCase):
             self.http = http
             return super().run(result)
 
+
+class MCPServerTest(MCPTestCase):
     def test_rejects_missing_unknown_expired_and_revoked_tokens(self):
         self.assertEqual(self.mcp(None).rpc('tools/list').status_code, 401)
         response = self.mcp('ibom_not-a-token').rpc('tools/list')
@@ -150,7 +156,7 @@ class MCPServerTest(TransactionTestCase):
         self.assertIn('Upgrade to Pro.', error)
 
     def test_create_part_add_subpart_and_sourcing(self):
-        client = self.mcp(self.write_plaintext)
+        client = self.mcp(self.apply_plaintext)
         part_class = self.parts[0].number_class
 
         result, error = client.call(
@@ -181,7 +187,7 @@ class MCPServerTest(TransactionTestCase):
         result, error = client.call('add_seller_part', manufacturer_part_id=result['id'], seller='Digi-Key',
                                     unit_cost='1.25', minimum_order_quantity=10)
         self.assertIsNone(error, error)
-        self.assertEqual(result['unit_cost'], '1.25')
+        self.assertEqual(Decimal(result['unit_cost']), Decimal('1.25'))
         self.assertTrue(Seller.objects.filter(organization=self.organization, name='Digi-Key').exists())
 
     def test_form_errors_reach_the_model(self):
