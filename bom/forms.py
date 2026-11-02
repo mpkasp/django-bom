@@ -748,13 +748,7 @@ class BasePartForm(OrganizationModelForm):
         self.ignore_unique_constraint = kwargs.pop('ignore_unique_constraint', False)
         super().__init__(*args, **kwargs)
 
-        # Setup MFG Part Queryset if editing
-        if self.instance.pk:
-            self.fields['primary_manufacturer_part'].queryset = ManufacturerPart.objects.filter(
-                part__id=self.instance.id
-            ).order_by('manufacturer_part_number')
-        elif 'primary_manufacturer_part' in self.fields:
-            del self.fields['primary_manufacturer_part']
+        self.fields.pop('primary_manufacturer_part', None)
 
         # Plain file input so it renders as a Materialize file-field (the default ClearableFileInput's
         # "Currently/Clear/Change" markup doesn't fit); CurrentFileInput surfaces the existing filename.

@@ -35,6 +35,7 @@ bom_patterns = [
     path('part/<int:part_id>/manufacturer-part/add/', views.manufacturer_part_manage, name='part-add-manufacturer-part'),
     path('manufacturer-part/<int:manufacturer_part_id>/edit/', views.manufacturer_part_manage, name='manufacturer-part-edit'),
     path('manufacturer-part/<int:manufacturer_part_id>/delete/', views.manufacturer_part_delete, name='manufacturer-part-delete'),
+    path('manufacturer-part/<int:manufacturer_part_id>/make-primary/', views.manufacturer_part_make_primary, name='manufacturer-part-make-primary'),
 
     path('manufacturer-part/<int:manufacturer_part_id>/vendor-part/add/', views.seller_part_manage, name='manufacturer-part-add-sellerpart'),
     path('vendor-part/<int:seller_part_id>/edit/', views.seller_part_manage, name='seller-part-edit'),
@@ -92,6 +93,7 @@ bom_patterns = [
     path('part/<int:part_id>/rev/<int:part_revision_id>/remove-all-subparts/', views.remove_all_subparts, name='part-remove-all-subparts'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/edit-subpart/<int:subpart_id>', views.edit_subpart, name='part-edit-subpart'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/remove-subpart/<int:subpart_id>/', views.remove_subpart, name='part-remove-subpart'),
+    path('part/<int:part_id>/rev/<int:part_revision_id>/manage-bom/', views.manage_bom, name='part-edit-revision'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/manage-bom/', views.manage_bom, name='part-manage-bom'),
     path('part/<int:part_id>/rev/<int:part_revision_id>/add-subpart/', views.add_subpart, name='part-add-subpart'),
 

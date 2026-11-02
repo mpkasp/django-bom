@@ -61,7 +61,7 @@ class DirectEditHistoryTest(EditingTestCase):
         self.assertRecordedOnce(lambda: self.client.get(
             reverse('bom:part-remove-subpart', kwargs=dict(kwargs, subpart_id=line.id))), ChangeItem.KIND_REMOVE_SUBPART)
         self.assertRecordedOnce(lambda: self.client.post(
-            reverse('bom:part-revision-edit', kwargs=kwargs), {'revision': assembly.revision, 'configuration': 'D',
+            reverse('bom:part-edit-revision', kwargs=kwargs), {'revision': assembly.revision, 'configuration': 'D',
                                                                'description': 'Renamed'}),
             ChangeItem.KIND_UPDATE_PART_REVISION)
         self.assertRecordedOnce(lambda: self.client.post(
@@ -156,7 +156,7 @@ class ReviseTest(EditingTestCase):
         draft = released.part.latest()
         self.assertEqual((draft.revision, draft.configuration), ('2', constants.CONFIGURATION_TYPE_DRAFT))
         self.assertEqual(draft.assembly.subparts.get().part_revision, self.parts[0].latest())
-        self.assertRedirects(response, reverse('bom:part-manage-bom', kwargs={
+        self.assertRedirects(response, reverse('bom:part-edit-revision', kwargs={
             'part_id': released.part_id, 'part_revision_id': draft.id}))
         entry = self.history().get()
         self.assertIsNone(entry.number)
@@ -381,3 +381,128 @@ class RequestsNavTest(EditingTestCase):
         self.assertContains(applied_page, 'An applied request')
         self.assertNotContains(applied_page, 'Fresh cap')
         self.assertNotContains(self.client.get(url + '?filter=ecos'), 'Fresh cap')
+
+
+class EditPageTest(EditingTestCase):
+    def setUp(self):
+        super().setUp()
+        self.revision = self.new_part('Widget')
+        self.part = self.revision.part
+        self.primary = parts.add_manufacturer_part(self.organization, self.part, 'Acme', 'ACME-1')
+        self.alternate = parts.add_manufacturer_part(self.organization, self.part, 'Globex', 'GLX-1')
+        self.edit_url = self.url('part-edit-revision', self.revision)
+
+    def url(self, name, revision):
+        return reverse(f'bom:{name}', kwargs={'part_id': revision.part_id, 'part_revision_id': revision.id})
+
+    def release(self, revision):
+        PartRevision.objects.filter(pk=revision.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+
+    def form_data(self, description):
+        return {'revision': self.revision.revision, 'configuration': 'D', 'description': description}
+
+    def test_the_edit_page_shows_the_revision_form_the_bom_and_the_manufacturer_parts(self):
+        page = self.client.get(self.edit_url)
+
+        self.assertContains(page, f'Edit {self.part.full_part_number()} rev {self.revision.revision}')
+        self.assertContains(page, 'id="part-revision-form"')
+        self.assertContains(page, 'Modify Subparts')
+        self.assertContains(page, 'id="manufacturer-parts"')
+        self.assertContains(page, 'GLX-1')
+        self.assertContains(page, reverse('bom:manufacturer-part-make-primary', kwargs={
+            'manufacturer_part_id': self.alternate.id}))
+        self.assertEqual(self.client.get(self.url('part-manage-bom', self.revision)).status_code, 200)
+
+    def test_saving_the_revision_form_records_one_history_entry(self):
+        response = self.client.post(self.edit_url, self.form_data('Renamed'))
+
+        self.assertRedirects(response, self.edit_url)
+        self.revision.refresh_from_db()
+        self.assertEqual(self.revision.description, 'Renamed')
+        entry = self.history().get()
+        self.assertEqual(entry.items.get().kind, ChangeItem.KIND_UPDATE_PART_REVISION)
+
+    def test_a_released_revision_refuses_edits_and_offers_revise(self):
+        self.release(self.revision)
+
+        page = self.client.get(self.edit_url)
+
+        self.assertContains(page, 'cannot be edited')
+        self.assertContains(page, self.url('part-revision-revise', self.revision))
+        self.assertNotContains(page, 'id="part-revision-form"')
+
+    def test_posting_the_revision_form_after_release_shows_an_error_and_changes_nothing(self):
+        self.release(self.revision)
+
+        response = self.client.post(self.edit_url, self.form_data('Too late'), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'cannot be edited')
+        self.revision.refresh_from_db()
+        self.assertEqual(self.revision.description, 'Widget')
+        self.assertEqual(self.history().count(), 0)
+
+    def test_make_primary_sets_the_primary_records_history_and_returns_to_the_edit_page(self):
+        response = self.client.post(
+            reverse('bom:manufacturer-part-make-primary', kwargs={'manufacturer_part_id': self.alternate.id}),
+            {'next': self.edit_url})
+
+        self.assertRedirects(response, self.edit_url)
+        self.part.refresh_from_db()
+        self.assertEqual(self.part.primary_manufacturer_part, self.alternate)
+        item = self.history().get().items.get()
+        self.assertEqual(item.kind, ChangeItem.KIND_UPDATE_PART)
+        self.assertEqual(item.before, {'primary_manufacturer_part_id': self.primary.id})
+
+    def test_make_primary_ignores_an_external_next_and_needs_post(self):
+        url = reverse('bom:manufacturer-part-make-primary', kwargs={'manufacturer_part_id': self.alternate.id})
+        self.assertEqual(self.client.get(url).status_code, 405)
+
+        response = self.client.post(url, {'next': 'https://evil.example.com/'})
+
+        self.assertNotIn('evil.example.com', response.url)
+
+    def test_manufacturer_part_add_edit_and_delete_return_to_the_edit_page(self):
+        next_query = {'next': self.edit_url}
+        added = self.client.post(
+            reverse('bom:part-add-manufacturer-part', kwargs={'part_id': self.part.id}) + f'?next={self.edit_url}',
+            {'manufacturer': 'Initech', 'manufacturer_part_number': 'INI-1'})
+        edited = self.client.post(
+            reverse('bom:manufacturer-part-edit', kwargs={'manufacturer_part_id': self.alternate.id})
+            + f'?next={self.edit_url}', {'manufacturer': 'Globex', 'manufacturer_part_number': 'GLX-2'})
+        deleted = self.client.get(
+            reverse('bom:manufacturer-part-delete', kwargs={'manufacturer_part_id': self.alternate.id}), next_query)
+
+        for response in (added, edited, deleted):
+            self.assertRedirects(response, self.edit_url)
+
+    def test_part_revision_edit_redirects_to_the_edit_page(self):
+        url = self.url('part-revision-edit', self.revision)
+        self.assertRedirects(self.client.get(url), self.edit_url)
+        self.assertRedirects(self.client.post(url, self.form_data('Ignored')), self.edit_url)
+        self.revision.refresh_from_db()
+        self.assertEqual(self.revision.description, 'Widget')
+
+    def test_the_part_identity_page_no_longer_has_the_primary_manufacturer_part_field(self):
+        page = self.client.get(reverse('bom:part-edit', kwargs={'part_id': self.part.id}))
+
+        self.assertNotContains(page, 'primary_manufacturer_part')
+
+    def test_the_part_page_header_offers_edit_on_a_draft_and_revise_on_a_released_revision(self):
+        part_url = reverse('bom:part-info', kwargs={'part_id': self.part.id})
+
+        draft_page = self.client.get(part_url)
+        self.assertContains(draft_page, f'href="{self.edit_url}"')
+        self.assertContains(draft_page, 'Release&hellip;')
+        self.assertContains(draft_page, 'New revision from this one')
+        self.assertNotContains(draft_page, self.url('part-revision-revise', self.revision))
+        self.assertNotContains(draft_page, 'Manage Revision')
+        self.assertNotContains(draft_page, 'part-identity-edit')
+        self.assertNotContains(draft_page, '[change]')
+
+        self.release(self.revision)
+        released_page = self.client.get(part_url)
+        self.assertContains(released_page, self.url('part-revision-revise', self.revision))
+        self.assertNotContains(released_page, self.edit_url)
+        self.assertNotContains(released_page, 'Release&hellip;')
+        self.assertNotContains(released_page, 'Manage Revision')
