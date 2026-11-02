@@ -81,6 +81,7 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
+from bom.services.changes import record_csv_import
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from bom.services.search import latest_part_revisions, search_parts
 from bom.third_party_apis.base_api import BaseApiError
@@ -1055,6 +1056,10 @@ def import_confirm(request):
             notice=f"The {IMPORT_LABELS[kind]} changed after your preview, so nothing was saved. "
                    f"Review the updated changes below.")
 
+    counts = _import_change_counts(import_form, kind)
+    summary = ', '.join(f"{count['number']} {count['label']}" for count in counts) or 'no changes'
+    record_csv_import(organization, request.user, IMPORT_LABELS[kind], pending_import['changes_digest'],
+                      f"Imported {IMPORT_LABELS[kind]}: {summary}")
     add_csv_upload_messages(request, import_form, f'{IMPORT_LABELS[kind]} row', f'{IMPORT_LABELS[kind]} rows')
     return HttpResponseRedirect(return_url)
 
@@ -1096,10 +1101,7 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
         context.update(_bom_preview_context(import_form))
     else:
         context['preview_component'] = 'bom/components/import-preview-sourcing.html'
-        context['change_counts'] = _change_counts(
-            (len(changes['created']), ('new', 'new'), 'new'),
-            (len(changes['updated']), ('updated', 'updated'), 'updated'),
-            (changes['unchanged'], ('unchanged', 'unchanged'), 'unchanged'))
+        context['change_counts'] = _import_change_counts(import_form, kind)
     context['change_count'] = sum(count['number'] for count in context['change_counts'] if count['kind'] != 'unchanged')
     return TemplateResponse(request, 'bom/import-preview.html', context)
 
@@ -1107,6 +1109,16 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
 def _change_counts(*counts):
     """The non-zero counts shown at the top of an import preview, from (number, (singular, plural), kind)."""
     return [{'number': number, 'label': labels[number != 1], 'kind': kind} for number, labels, kind in counts if number]
+
+
+def _import_change_counts(import_form, kind):
+    if kind == 'bom':
+        return _bom_preview_context(import_form)['change_counts']
+    changes = import_form.changes()
+    return _change_counts(
+        (len(changes['created']), ('new', 'new'), 'new'),
+        (len(changes['updated']), ('updated', 'updated'), 'updated'),
+        (changes['unchanged'], ('unchanged', 'unchanged'), 'unchanged'))
 
 
 def _bom_preview_context(bom_csv_form):

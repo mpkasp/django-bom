@@ -1,0 +1,6 @@
+<span class="chip
+    {% if change.status == 'applied' %}teal darken-2 white-text
+    {% elif change.status == 'open' %}amber lighten-3 black-text
+    {% elif change.status == 'rejected' %}red darken-1 white-text
+    {% else %}grey lighten-2 grey-text text-darken-2
+    {% endif %}">{{ change.get_status_display }}</span>{% if is_eco %}<span class="chip deep-purple lighten-4" title="Engineering Change Order: edits a Released or In Review revision">ECO</span>{% endif %}

@@ -1,0 +1,52 @@
+{% extends 'bom/bom-base.html' %}
+
+{% block head-title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="container-app">
+        <h4>Changes</h4>
+        <p class="grey-text text-darken-1">Every edit made by an agent or a teammate is a Change. Requests are changes waiting for review.</p>
+        <ul class="tabs transparent">
+            {% for key, label in filters %}
+                <li class="tab"><a target="_self" href="{% url 'bom:change-list' %}?filter={{ key }}" {% if key == active_filter %}class="active"{% endif %}>{{ label }}</a></li>
+            {% endfor %}
+        </ul>
+        <div class="responsive-table-wrapper">
+            <table class="highlight tight">
+                <thead>
+                <tr>
+                    <th>Change</th>
+                    <th>Author</th>
+                    <th>Items</th>
+                    <th>Affects</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in rows %}
+                    {% with change=row.change is_eco=row.is_eco %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'bom:change-review' number=change.number %}">{{ change.title }}</a>
+                                <br><small class="grey-text">#{{ change.number }} &middot; {{ change.created_at|timesince }} ago</small>
+                            </td>
+                            <td>
+                                {% if change.api_token %}
+                                    <span class="chip">{% if change.agent_client %}{{ change.agent_client }} &middot; {% endif %}{{ change.api_token.name }}</span> for {{ change.author.username }}
+                                {% else %}
+                                    {{ change.author.username }}
+                                {% endif %}
+                            </td>
+                            <td>{{ row.kind_counts|join:', ' }}</td>
+                            <td>{{ row.affects|join:', ' }}</td>
+                            <td>{% include 'bom/changes/change-status-chip.html' %}</td>
+                        </tr>
+                    {% endwith %}
+                {% empty %}
+                    <tr><td colspan="5" class="center-align grey-text">Nothing here.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

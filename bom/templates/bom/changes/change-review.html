@@ -1,0 +1,113 @@
+{% extends 'bom/bom-base.html' %}
+
+{% block head-title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="container-app">
+        <p><a href="{% url 'bom:change-list' %}"><i class="material-icons tiny">arrow_back</i> Changes</a></p>
+        <h4>
+            Change #{{ change.number }}: {{ change.title }}
+            {% include 'bom/changes/change-status-chip.html' %}
+            {% if is_stale %}<span class="chip amber lighten-3 black-text">Stale</span>{% endif %}
+        </h4>
+        {% if is_eco %}
+            <div class="card-panel deep-purple lighten-5">
+                This is an Engineering Change Order (ECO): it edits a revision that is Released or In Review.
+                Applying ECOs is not available yet.
+            </div>
+        {% endif %}
+        {% if is_stale %}
+            <div class="card-panel amber lighten-4">
+                The parts this change touches were modified after it was staged, so it cannot be applied. Withdraw it and stage it again.
+            </div>
+        {% endif %}
+
+        <div class="row">
+            <div class="col s12 m8">
+                <div class="card-panel">
+                    <span class="grey-text">Rationale</span>
+                    <p>{{ change.rationale|default:"No rationale given."|linebreaksbr }}</p>
+                    <small class="grey-text">
+                        Authored by {{ change.author.username }}{% if change.api_token %} through {% if change.agent_client %}{{ change.agent_client }} &middot; {% endif %}token {{ change.api_token.name }}{% endif %},
+                        {{ change.created_at|timesince }} ago.
+                        {% if change.resolved_by %}{{ change.get_status_display }} by {{ change.resolved_by.username }}.{% endif %}
+                        {% if change.protection_overridden_by %}Protection overridden by {{ change.protection_overridden_by.username }}.{% endif %}
+                    </small>
+                </div>
+
+                <table class="highlight">
+                    <thead><tr><th>#</th><th>Item</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                    {% for item in items %}
+                        <tr {% if item.status == 'rejected' %}class="grey-text"{% endif %}>
+                            <td>{{ item.position }}</td>
+                            <td>
+                                <span class="chip">{{ item.get_kind_display }}</span> {{ item.summary }}
+                                {% if item.before %}<br><small class="grey-text">Currently: {% for key, value in item.before.items %}{{ key }} = {{ value|default:"none" }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>{% endif %}
+                                <br><small>{% for key, value in item.payload.items %}{% if value %}{{ key }}: {{ value }}{% if not forloop.last %}; {% endif %}{% endif %}{% endfor %}</small>
+                                {% if item.result %}<br><small class="teal-text">Result: {{ item.result }}</small>{% endif %}
+                                {% if item.reject_reason %}<br><small class="red-text">Rejected: {{ item.reject_reason }}</small>{% endif %}
+                            </td>
+                            <td>{{ item.get_status_display }}</td>
+                            <td>
+                                {% if can_review and is_pending and item.kind != 'csv_import' %}
+                                    {% if item.status == 'accepted' %}
+                                        <form method="post" action="{% url 'bom:change-item-status' number=change.number item_id=item.id %}" onsubmit="var reason = prompt('Reason for rejecting this item?'); if (!reason) { return false; } this.reason.value = reason;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="status" value="rejected">
+                                            <input type="hidden" name="reason" value="">
+                                            <button class="btn-flat btn-small" type="submit">Reject</button>
+                                        </form>
+                                    {% else %}
+                                        <form method="post" action="{% url 'bom:change-item-status' number=change.number item_id=item.id %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="status" value="accepted">
+                                            <button class="btn-flat btn-small" type="submit">Accept</button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="col s12 m4">
+                <div class="card-panel">
+                    <span class="grey-text">Approval</span>
+                    <p>{% if is_pending %}{{ approval.message }}{% else %}This change is {{ change.get_status_display|lower }}.{% endif %}</p>
+                </div>
+            </div>
+        </div>
+
+        {% if is_pending %}
+            <div class="row">
+                <div class="col s12" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    {% if can_submit %}
+                        <form method="post" action="{% url 'bom:change-submit' number=change.number %}">{% csrf_token %}
+                            <button class="btn waves-effect" type="submit">Submit for review</button></form>
+                    {% endif %}
+                    {% if can_apply %}
+                        <form method="post" action="{% url 'bom:change-apply' number=change.number %}">{% csrf_token %}
+                            <button class="btn waves-effect green" type="submit">Apply {{ accepted_count }} accepted</button></form>
+                    {% endif %}
+                    {% if can_apply_as_admin %}
+                        <form method="post" action="{% url 'bom:change-apply' number=change.number %}" onsubmit="return confirm('Apply your own protected change as an Admin? This override is recorded.');">{% csrf_token %}
+                            <input type="hidden" name="override" value="1">
+                            <button class="btn waves-effect orange" type="submit">Apply as admin</button></form>
+                    {% endif %}
+                    {% if can_reject %}
+                        <form method="post" action="{% url 'bom:change-reject' number=change.number %}" onsubmit="var reason = prompt('Reason for rejecting this change?'); if (!reason) { return false; } this.reason.value = reason;">{% csrf_token %}
+                            <input type="hidden" name="reason" value="">
+                            <button class="btn-flat waves-effect red-text" type="submit">Reject all</button></form>
+                    {% endif %}
+                    {% if is_author %}
+                        <form method="post" action="{% url 'bom:change-withdraw' number=change.number %}" onsubmit="return confirm('Withdraw this change?');">{% csrf_token %}
+                            <button class="btn-flat waves-effect" type="submit">Withdraw</button></form>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
