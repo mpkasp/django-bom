@@ -336,6 +336,34 @@ class TestBOM(TransactionTestCase):
         response = self.client.post(reverse('bom:part-revision-export-bom-flat-sourcing-detailed', kwargs={'part_revision_id': p1.latest().id}))
         self.assertEqual(response.status_code, 200)
 
+    def test_part_revision_export_bom_single_level(self):
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        export_url = reverse('bom:part-revision-export-bom', kwargs={'part_revision_id': p3.latest().id})
+
+        indented_rows = list(csv.DictReader(io.StringIO(self.client.get(export_url).content.decode('utf-8'))))
+        self.assertIn('2', [row['level'] for row in indented_rows])
+
+        response = self.client.get(export_url + '?levels=1')
+        self.assertIn('_single_level.csv', response['Content-Disposition'])
+        rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8'))))
+        self.assertEqual(rows, [row for row in indented_rows if row['level'] in ('0', '1')])
+
+        response = self.client.get(reverse('bom:part-revision-export-bom-sourcing', kwargs={'part_revision_id': p3.latest().id}) + '?levels=1')
+        rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8'))))
+        self.assertEqual({row['level'] for row in rows}, {'0', '1'})
+
+    def test_single_level_bom_export_imports_without_changing_sub_assemblies(self):
+        panel, drive, wire, screw = self._create_parts(4)
+        self._import_file(reverse('bom:upload-bom'), {'file': self._bom_upload_file((0, panel, 1), (1, drive, 2), (2, wire, 15), (1, screw, 4))})
+
+        exported = self.client.get(reverse('bom:part-revision-export-bom', kwargs={'part_revision_id': panel.latest().id}) + '?levels=1').content
+        self.assertEqual([row['level'] for row in csv.DictReader(io.StringIO(exported.decode('utf-8')))], ['0', '1', '1'])
+
+        response = self._import_file(reverse('bom:upload-bom'), {'file': SimpleUploadedFile('bom.csv', exported, content_type='text/csv')})
+        self.assertIn('Imported', self._upload_feedback(response))
+        self.assertEqual(self._line_counts(panel), {drive: 2, screw: 4})
+        self.assertEqual(self._line_counts(drive), {wire: 15})
+
     def test_export_bom_manufacturer_approval_status(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
         manufacturer = p1.primary_manufacturer_part.manufacturer
