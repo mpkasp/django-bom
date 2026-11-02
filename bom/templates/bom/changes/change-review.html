@@ -82,6 +82,26 @@
                         {% endif %}
                     </div>
                 {% endif %}
+                {% if cascade_candidates or cascaded_revisions %}
+                    <div class="card-panel">
+                        <span class="grey-text">Cascade</span>
+                        {% if cascade_candidates %}
+                            <p><small>These Released assemblies still use a revision this change replaced.</small></p>
+                            <form method="post" action="{% url 'bom:change-cascade' number=change.number %}">{% csrf_token %}
+                                {% for candidate in cascade_candidates %}
+                                    <p style="margin: 4px 0;"><label>
+                                        <input type="checkbox" name="parent_revision_id" value="{{ candidate.parent.id }}" checked>
+                                        <span>{{ candidate.parent.part.full_part_number }} rev {{ candidate.parent.revision }}</span></label></p>
+                                {% endfor %}
+                                <button class="btn waves-effect teal" type="submit">Create new revisions for selected</button>
+                            </form>
+                        {% endif %}
+                        {% for revision in cascaded_revisions %}
+                            <p style="margin: 4px 0;">Created {{ revision.part.full_part_number }} rev {{ revision.revision }}
+                                <a href="{% url 'bom:part-revision-release' part_id=revision.part_id part_revision_id=revision.id %}">Release</a></p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
                 <div class="card-panel">
                     <span class="grey-text">Approval</span>
                     <p>{% if is_pending %}{{ approval.message }}{% else %}This change is {{ change.get_status_display|lower }}.{% endif %}</p>

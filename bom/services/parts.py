@@ -208,6 +208,12 @@ def create_next_revision(source_revision):
     return new_revision
 
 
+def retarget_subparts(assembly_revision, from_revision, to_revision):
+    """Point the assembly's lines that use ``from_revision`` at ``to_revision``. Returns the number of lines moved."""
+    return Subpart.objects.filter(assemblysubparts__assembly=assembly_revision.assembly,
+                                  part_revision=from_revision).update(part_revision=to_revision)
+
+
 def _property_form_data(organization, part_class, properties, property_units):
     """Map ``{code: value}`` / ``{code: unit symbol}`` onto the revision form's dynamic field names."""
     if not properties:

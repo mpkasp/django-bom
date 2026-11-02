@@ -6,12 +6,11 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Case, Max, Q, When
 from django.urls import reverse
 from django.utils import timezone
 
-from bom.constants import ROLE_TYPE_ADMIN
-from bom.constants import CONFIGURATION_TYPE_RELEASED
+from bom.constants import CONFIGURATION_TYPE_DRAFT, CONFIGURATION_TYPE_RELEASED, ROLE_TYPE_ADMIN
 from bom.models import (Change, ChangeItem, ChangeSettings, ManufacturerPart, PartRevision, SellerPart, Subpart,
                         get_user_meta_model)
 from bom.permissions import BomPerms
@@ -205,10 +204,12 @@ def _apply_items(change, items):
         payload = _resolve_refs(item.payload, ref_values)
         target = item.part_revision
         new_revision = None
+        draft_parents_updated = None
         if target is not None and target.is_immutable():
             new_revision = new_revisions.get(target.part_id)
             if new_revision is None:
                 new_revision = new_revisions[target.part_id] = parts.create_next_revision(target)
+                draft_parents_updated = _retarget_draft_parents(target, new_revision)
             payload['assembly_revision'] = new_revision.revision
             item.part_revision = new_revision
         try:
@@ -216,11 +217,24 @@ def _apply_items(change, items):
         except ServiceError as error:
             raise ServiceError(f"Item {item.position} ({item.summary}) failed: {error}", error.field_errors)
         if new_revision is not None:
-            item.result.update({'new_revision_id': new_revision.id, 'new_revision': new_revision.revision})
+            item.result.update({'new_revision_id': new_revision.id, 'new_revision': new_revision.revision,
+                                'previous_revision_id': target.id})
+            if draft_parents_updated:
+                item.result['draft_parents_updated'] = draft_parents_updated
         item.save(update_fields=['result', 'part_revision'])
         if item.ref:
             ref_values[item.ref] = _ref_value(item)
     return new_revisions
+
+
+def _retarget_draft_parents(previous_revision, new_revision):
+    """Draft assemblies are edited in place, so their lines move to the new revision; Released ones are offered
+    a new revision through ``cascade_revisions``."""
+    updated = []
+    for parent in previous_revision.where_used().filter(configuration=CONFIGURATION_TYPE_DRAFT).select_related('part'):
+        parts.retarget_subparts(parent, previous_revision, new_revision)
+        updated.append(f"{parent.part.full_part_number()} rev {parent.revision}")
+    return updated
 
 
 def created_revisions(change):
@@ -228,6 +242,59 @@ def created_revisions(change):
     revision_ids = {item.result['new_revision_id'] for item in change.items.all()
                     if item.result and 'new_revision_id' in item.result}
     return list(PartRevision.objects.filter(id__in=revision_ids).select_related('part').order_by('part_id'))
+
+
+def cascade_candidates(change):
+    """Released assemblies of an applied ECO that still use a revision it replaced and have not been cascaded yet,
+    as ``{'parent', 'replacements': [(previous_revision, new_revision)]}``."""
+    if change.status != Change.STATUS_APPLIED:
+        return []
+    done = {entry['source_revision_id'] for entry in change.cascade or []}
+    candidates = {}
+    for item in change.items.all():
+        result = item.result or {}
+        if 'previous_revision_id' not in result:
+            continue
+        previous_revision = PartRevision.objects.get(pk=result['previous_revision_id'])
+        new_revision = PartRevision.objects.get(pk=result['new_revision_id'])
+        released_parents = previous_revision.where_used().filter(configuration=CONFIGURATION_TYPE_RELEASED)
+        for parent in released_parents.exclude(id__in=done).select_related('part'):
+            replacements = candidates.setdefault(parent.id, {'parent': parent, 'replacements': []})['replacements']
+            if (previous_revision, new_revision) not in replacements:
+                replacements.append((previous_revision, new_revision))
+    return list(candidates.values())
+
+
+def cascade_revisions(change, user, parent_revision_ids):
+    """Create a next Draft revision of each selected Released parent assembly, with its lines for the replaced
+    revisions pointed at the ECO's new revisions, and record them on the change."""
+    if not user.has_perm(BomPerms.EDIT_PART, change.organization):
+        raise ServiceError(f"{user.username} cannot create revisions in {change.organization.name}.")
+    with transaction.atomic():
+        Change.objects.select_for_update().filter(pk=change.pk).first()
+        change.refresh_from_db()
+        candidates = {candidate['parent'].id: candidate for candidate in cascade_candidates(change)}
+        unknown = sorted(set(parent_revision_ids) - set(candidates))
+        if unknown:
+            raise ServiceError(f"Revisions {unknown} are not Released assemblies waiting on change #{change.number}.")
+        if not parent_revision_ids:
+            raise ServiceError('Select at least one assembly.')
+        created = []
+        for parent_revision_id in parent_revision_ids:
+            candidate = candidates[parent_revision_id]
+            new_revision = parts.create_next_revision(candidate['parent'])
+            for previous_revision, replacement in candidate['replacements']:
+                parts.retarget_subparts(new_revision, previous_revision, replacement)
+            change.cascade = (change.cascade or []) + [
+                {'source_revision_id': parent_revision_id, 'new_revision_id': new_revision.id}]
+            created.append(new_revision)
+        change.save(update_fields=['cascade'])
+        return created
+
+
+def cascaded_revisions(change):
+    revision_ids = [entry['new_revision_id'] for entry in change.cascade or []]
+    return list(PartRevision.objects.filter(id__in=revision_ids).select_related('part').order_by('id'))
 
 
 def _refuse_immutable_targets(change, items):
@@ -436,6 +503,40 @@ def impact(change, quantity=DEFAULT_QUANTITY):
                 'uses': revision.part.full_part_number(),
                 'needs_new_revision': parent.configuration == CONFIGURATION_TYPE_RELEASED}
     return {'assemblies': list(assemblies.values()), 'cost': cost_impact(change, quantity)}
+
+
+def impact_summary(change, quantity=DEFAULT_QUANTITY):
+    """``impact`` as plain JSON values, or None for a change that was rejected or withdrawn."""
+    if change.status not in Change.PENDING_STATUSES + (Change.STATUS_APPLIED,):
+        return None
+    report = impact(change, quantity)
+    cost = report['cost']
+    return {
+        'assemblies': report['assemblies'],
+        'cost': {
+            'quantity': cost['quantity'], 'currency': cost['currency'],
+            'delta': _decimal_text(cost['delta']),
+            'targets': [{'part_number': row['part_number'], 'revision': row['revision'],
+                         'before': _decimal_text(row['before']), 'after': _decimal_text(row['after']),
+                         'delta': _decimal_text(row['delta'])} for row in cost['targets']],
+        },
+    }
+
+
+def _decimal_text(value):
+    return None if value is None else str(value)
+
+
+def changes_touching_part(part, limit=50):
+    """Submitted changes whose items target the part or its revisions, or produced them: applied first, then newest."""
+    revision_ids = list(part.revisions().values_list('id', flat=True))
+    touching = (Q(items__part=part) | Q(items__part_revision__in=revision_ids)
+                | Q(items__result__part_id=part.id) | Q(items__result__part_revision_id__in=revision_ids)
+                | Q(items__result__new_revision_id__in=revision_ids))
+    return list(Change.objects.filter(touching, organization=part.organization)
+                .exclude(status__in=(Change.STATUS_DRAFT, Change.STATUS_WITHDRAWN)).distinct()
+                .annotate(applied_first=Case(When(status=Change.STATUS_APPLIED, then=0), default=1))
+                .select_related('author', 'api_token').order_by('applied_first', '-number')[:limit])
 
 
 def _target_revisions(change):

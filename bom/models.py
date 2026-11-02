@@ -1272,6 +1272,7 @@ class Change(OrganizationScopedModel):
                                     related_name='+')
     protection_overridden_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                                  on_delete=models.SET_NULL, related_name='+')
+    cascade = models.JSONField(null=True, blank=True)
 
     class Meta:
         unique_together = ('organization', 'number')

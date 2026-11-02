@@ -92,6 +92,8 @@ def change_review(request, organization, number):
         'warning_count': sum(problem['level'] == 'warning' for problem in problems),
         'impact': changes.impact(change) if is_pending or change.status == Change.STATUS_APPLIED else None,
         'created_revisions': changes.created_revisions(change),
+        'cascade_candidates': changes.cascade_candidates(change) if can_review else [],
+        'cascaded_revisions': changes.cascaded_revisions(change),
         'can_rebase': is_stale and can_review,
         'can_revert': change.status == Change.STATUS_APPLIED and can_review
         and change.items.exclude(kind=ChangeItem.KIND_CSV_IMPORT).exists(),
@@ -181,6 +183,20 @@ def change_revert(request, organization, number):
         messages.info(request, f'Change #{counter.number} was submitted for review: someone other than its author '
                                f'must apply it to revert change #{change.number}.')
     return _review_redirect(counter)
+
+
+@changes_view
+@require_POST
+def change_cascade(request, organization, number):
+    change = _change_from_number(organization, number)
+    try:
+        parent_revision_ids = [int(value) for value in request.POST.getlist('parent_revision_id')]
+        created = changes.cascade_revisions(change, request.user, parent_revision_ids)
+    except (ServiceError, ValueError) as error:
+        messages.error(request, str(error) if isinstance(error, ServiceError) else 'Select valid assemblies.')
+    else:
+        messages.success(request, f'Created {len(created)} new Draft revision{"s" if len(created) != 1 else ""}.')
+    return _review_redirect(change)
 
 
 @changes_view

@@ -69,6 +69,16 @@
                                 {% endif %}">
                                 {{ part_revision.get_configuration_display }}
                             </span>
+                            {% if revisions.count > 1 %}
+                                <div class="input-field revision-select-wrapper">
+                                    <select id="compare-revision">
+                                        <option value="" disabled selected>Compare with&hellip;</option>
+                                        {% for r in revisions.all %}{% if r.id != part_revision.id %}
+                                            <option value="{% url 'bom:part-diff' part_id=part.id revision_a_id=r.id revision_b_id=part_revision.id %}">Rev {{ r.revision }} ({{ r.get_configuration_display }})</option>
+                                        {% endif %}{% endfor %}
+                                    </select>
+                                </div>
+                            {% endif %}
                             {% if perms.bom.edit_part %}
                                 <div class="manage-btn-col">
                         <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
@@ -166,6 +176,7 @@
                         <li class="tab"><a id="bom-tab" href="#bom">Bill of Materials</a></li>
                         <li class="tab"><a id="used-tab" href="#used">Where Used</a></li>
                         <li class="tab"><a id="sourcing-tab" href="#sourcing">Sourcing</a></li>
+                        {% if part_changes is not None %}<li class="tab"><a id="changes-tab" href="#changes">Changes</a></li>{% endif %}
                     </ul>
                 </div>
 
@@ -358,6 +369,36 @@
                     </div>
                 </div>
 
+                {% if part_changes is not None %}
+                    <div id="changes" class="col s12">
+                        <h4 class="printer-show">Changes</h4>
+                        <div class="responsive-table-wrapper">
+                            <table class="highlight tight">
+                                <thead><tr><th>#</th><th>Change</th><th>Author</th><th>Status</th><th>Resolved</th></tr></thead>
+                                <tbody>
+                                {% for change in part_changes %}
+                                    <tr>
+                                        <td>{{ change.number }}</td>
+                                        <td><a href="{% url 'bom:change-review' number=change.number %}">{{ change.title }}</a></td>
+                                        <td>
+                                            {% if change.api_token %}
+                                                <span class="chip">{% if change.agent_client %}{{ change.agent_client }} &middot; {% endif %}{{ change.api_token.name }}</span> for {{ change.author.username }}
+                                            {% else %}
+                                                {{ change.author.username }}
+                                            {% endif %}
+                                        </td>
+                                        <td>{% include 'bom/changes/change-status-chip.html' %}</td>
+                                        <td>{{ change.resolved_at|date:"Y-m-d"|default:"" }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr><td colspan="5" class="center-align grey-text">No changes touch this part yet.</td></tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% endif %}
+
                 <div id="sourcing" class="col s12">
                     <h4 class="printer-show">Sourcing</h4>
                     {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=part.manufacturer_parts part_revision=part_revision profile=profile show_manufacturer=True %}
@@ -480,6 +521,10 @@
         var selectRevisionSelectedIndex = 1;
         $(document).ready(function () {
             selectRevisionSelectedIndex = $("#select-revision")[0].selectedIndex;
+        });
+
+        $("#compare-revision").on('change', function () {
+            window.location.href = this.value;
         });
 
         $("#select-revision").on('change', function () {

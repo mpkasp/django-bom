@@ -129,6 +129,25 @@ class ChangesMCPTest(MCPTestCase):
         self.assertFalse(self.assembly.assembly.subparts.exists())
         self.assertEqual(changes.created_revisions(Change.objects.get(id=started['change_id'])), [new_revision])
 
+    def test_get_change_reports_impact_and_list_changes_flags_ecos(self):
+        top = make_assembly(self.organization, self.parts, description='Top')
+        boms.add_subpart(self.organization, top, self.assembly.part.full_part_number(), count=1)
+        PartRevision.objects.filter(pk=top.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        client = self.mcp(self.apply_plaintext)
+        started, _ = client.call('start_change', title='Edit child', rationale='Why')
+        client.call('add_subpart', assembly_part_number=self.assembly.part.full_part_number(),
+                    subpart_part_number=self.parts[0].full_part_number(), change_id=started['change_id'])
+
+        detail, error = client.call('get_change', change_id=started['change_id'])
+        self.assertIsNone(error, error)
+        self.assertEqual([(entry['part_number'], entry['needs_new_revision']) for entry in detail['impact']['assemblies']],
+                         [(top.part.full_part_number(), True)])
+        self.assertIn('delta', detail['impact']['cost'])
+        self.assertEqual((detail['is_eco'], detail['is_stale'], detail['is_protected']), (False, False, False))
+
+        listed, _ = client.call('list_changes', status='draft')
+        self.assertFalse(listed[0]['is_eco'])
+
     def test_eco_disabled_refuses_immutable_targets(self):
         PartRevision.objects.filter(pk=self.assembly.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
         config = dict(settings.BOM_CONFIG_DEFAULT, eco_enabled=False)
@@ -461,6 +480,70 @@ class ChangesServiceTest(TestCase):
         self.assertIn('was created and is left in place', counter.rationale)
         self.assertTrue(PartRevision.objects.filter(description='Cap').exists())
 
+    def stage_leaf_eco(self):
+        """A Released leaf used by a Released and a Draft parent, edited by an applied ECO."""
+        leaf = make_assembly(self.organization, self.parts, description='Leaf')
+        leaf_number = leaf.part.full_part_number()
+        released_parent = make_assembly(self.organization, self.parts, description='Released parent')
+        draft_parent = make_assembly(self.organization, self.parts, description='Draft parent')
+        for parent in (released_parent, draft_parent):
+            boms.add_subpart(self.organization, parent, leaf_number, count=2, reference='L1, L2')
+        PartRevision.objects.filter(pk__in=(leaf.pk, released_parent.pk)).update(
+            configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        change = changes.start_change(self.organization, self.user, 'Rework leaf')
+        changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': leaf_number, 'subpart_part_number': self.parts[0].full_part_number()})
+        changes.apply_change(change, self.user)
+        return leaf, released_parent, draft_parent, change
+
+    def test_eco_apply_moves_draft_parents_and_leaves_released_parents_on_the_old_revision(self):
+        leaf, released_parent, draft_parent, change = self.stage_leaf_eco()
+        new_leaf = PartRevision.objects.get(part=leaf.part, revision='2')
+
+        self.assertEqual(draft_parent.assembly.subparts.get().part_revision, new_leaf)
+        self.assertEqual(released_parent.assembly.subparts.get().part_revision, leaf)
+        result = change.items.get().result
+        self.assertEqual(result['previous_revision_id'], leaf.id)
+        self.assertEqual(result['draft_parents_updated'], [f'{draft_parent.part.full_part_number()} rev 1'])
+        self.assertEqual([candidate['parent'] for candidate in changes.cascade_candidates(change)], [released_parent])
+
+    def test_cascade_creates_draft_revisions_of_selected_released_parents_pointing_at_the_new_revision(self):
+        leaf, released_parent, _, change = self.stage_leaf_eco()
+        new_leaf = PartRevision.objects.get(part=leaf.part, revision='2')
+
+        created = changes.cascade_revisions(change, self.user, [released_parent.id])
+
+        self.assertEqual(len(created), 1)
+        self.assertEqual(created[0].part, released_parent.part)
+        self.assertEqual(created[0].configuration, constants.CONFIGURATION_TYPE_DRAFT)
+        line = created[0].assembly.subparts.get()
+        self.assertEqual((line.part_revision, line.count, line.reference), (new_leaf, 2, 'L1, L2'))
+        self.assertEqual(released_parent.assembly.subparts.get().part_revision, leaf)
+        change.refresh_from_db()
+        self.assertEqual(change.cascade, [{'source_revision_id': released_parent.id, 'new_revision_id': created[0].id}])
+        self.assertEqual(changes.cascaded_revisions(change), created)
+        self.assertEqual(changes.cascade_candidates(change), [])
+        with self.assertRaises(ServiceError):
+            changes.cascade_revisions(change, self.user, [released_parent.id])
+
+    def test_cascade_requires_a_selection_and_edit_permission(self):
+        _, released_parent, _, change = self.stage_leaf_eco()
+        with self.assertRaises(ServiceError):
+            changes.cascade_revisions(change, self.user, [])
+        with self.assertRaises(ServiceError):
+            changes.cascade_revisions(change, self.add_member(constants.ROLE_TYPE_VIEWER), [released_parent.id])
+
+    def test_changes_touching_a_part_list_applied_first(self):
+        leaf, _, _, applied = self.stage_leaf_eco()
+        open_change = changes.start_change(self.organization, self.user, 'Open one')
+        changes.stage_item(open_change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': leaf.part.full_part_number(), 'subpart_part_number': self.parts[1].full_part_number()})
+        changes.submit_change(open_change, self.user)
+        changes.start_change(self.organization, self.user, 'Untouched')
+
+        self.assertEqual(changes.changes_touching_part(leaf.part), [applied, open_change])
+        self.assertEqual(changes.changes_touching_part(self.parts[3]), [])
+
     def test_organization_scoping(self):
         other_user = User.objects.create_user('stranger', 'stranger@example.com', 'ghostpassword')
         other_organization = create_a_fake_organization(other_user)
@@ -579,6 +662,104 @@ class ChangesViewTest(TestCase):
 
         other = self.client.get(reverse('bom:part-info', kwargs={'part_id': cap.id}))
         self.assertNotContains(other, 'touches this revision')
+
+    def test_applied_eco_offers_the_cascade_and_the_post_creates_revisions(self):
+        leaf = make_assembly(self.organization, self.parts, description='Leaf')
+        parent = make_assembly(self.organization, self.parts, description='Parent')
+        boms.add_subpart(self.organization, parent, leaf.part.full_part_number(), count=2, reference='L1, L2')
+        PartRevision.objects.filter(pk__in=(leaf.pk, parent.pk)).update(
+            configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        change = changes.start_change(self.organization, self.user, 'ECO')
+        changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': leaf.part.full_part_number(),
+            'subpart_part_number': self.new_cap().full_part_number(), 'count': 1})
+        self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
+
+        review_url = reverse('bom:change-review', kwargs={'number': change.number})
+        response = self.client.get(review_url)
+        self.assertContains(response, 'Cascade')
+        self.assertContains(response, 'Create new revisions for selected')
+        self.assertContains(response, f'{parent.part.full_part_number()} rev {parent.revision}')
+
+        response = self.client.post(reverse('bom:change-cascade', kwargs={'number': change.number}),
+                                    {'parent_revision_id': [parent.id]}, follow=True)
+        new_parent = parent.part.latest()
+        self.assertEqual(new_parent.configuration, constants.CONFIGURATION_TYPE_DRAFT)
+        self.assertEqual(new_parent.assembly.subparts.get().part_revision, leaf.part.latest())
+        self.assertContains(response, f'Created {new_parent.part.full_part_number()} rev {new_parent.revision}')
+        self.assertNotContains(response, 'Create new revisions for selected')
+
+    def test_part_page_changes_tab_lists_applied_changes_first(self):
+        assembly = self.parts[2].latest()
+        applied = changes.start_change(self.organization, self.user, 'Applied one')
+        changes.stage_item(applied, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': assembly.part.full_part_number(),
+            'subpart_part_number': self.parts[1].full_part_number(), 'count': 1})
+        changes.apply_change(applied, self.user)
+        opened = changes.start_change(self.organization, self.user, 'Open one')
+        changes.stage_item(opened, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': assembly.part.full_part_number(),
+            'subpart_part_number': self.parts[0].full_part_number(), 'count': 1})
+        changes.submit_change(opened, self.user)
+
+        content = self.client.get(reverse('bom:part-info', kwargs={'part_id': assembly.part_id})).content.decode()
+        self.assertIn('id="changes-tab"', content)
+        tab = content[content.index('<div id="changes"'):]
+        self.assertLess(tab.index('Applied one'), tab.index('Open one'))
+
+        unrelated = self.client.get(reverse('bom:part-info', kwargs={'part_id': self.parts[3].id}))
+        self.assertContains(unrelated, 'No changes touch this part yet.')
+
+    def test_part_page_hides_the_changes_tab_when_review_is_off(self):
+        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, changes_review_enabled=disable_review)):
+            response = self.client.get(reverse('bom:part-info', kwargs={'part_id': self.parts[2].id}))
+        self.assertNotContains(response, 'id="changes-tab"')
+
+    def test_revision_diff_lists_added_removed_and_changed_lines_and_properties(self):
+        old = make_assembly(self.organization, self.parts, description='Assembly')
+        boms.add_subpart(self.organization, old, self.parts[0].full_part_number(), count=1, reference='A1')
+        boms.add_subpart(self.organization, old, self.parts[1].full_part_number(), count=2)
+        new = parts.create_next_revision(old)
+        boms.update_subpart(self.organization, new, self.parts[0].full_part_number(), count=5, reference='A1, A2, A3, A4, A5')
+        boms.remove_subpart(self.organization, new, self.parts[1].full_part_number())
+        boms.add_subpart(self.organization, new, self.parts[2].full_part_number(), count=1)
+        new.description = 'Assembly v2'
+        new.save()
+        sheen = new.properties.get(property_definition__code='sheen')
+        sheen.value_raw = 'gloss'
+        sheen.save()
+
+        response = self.client.get(reverse('bom:part-diff', kwargs={
+            'part_id': old.part_id, 'revision_a_id': old.id, 'revision_b_id': new.id}))
+
+        self.assertEqual(response.status_code, 200)
+        labels = {(item.get_kind_display, item.summary): item for item in response.context['items']}
+        self.assertEqual(labels[('Update line', self.parts[0].full_part_number())].payload,
+                         {'count': 5, 'reference': 'A1, A2, A3, A4, A5'})
+        self.assertEqual(labels[('Update line', self.parts[0].full_part_number())].before,
+                         {'count': 1, 'reference': 'A1'})
+        self.assertIn(('Remove line', self.parts[1].full_part_number()), labels)
+        self.assertIn(('Add line', self.parts[2].full_part_number()), labels)
+        property_item = next(item for item in response.context['items'] if item.get_kind_display == 'Update property')
+        self.assertEqual((property_item.before, property_item.payload), ({'value': 'matte'}, {'value': 'gloss'}))
+        self.assertEqual(next(item for item in response.context['items'] if item.get_kind_display == 'Revision').payload,
+                         {'description': 'Assembly v2'})
+
+    def test_revision_diff_is_scoped_to_the_part_and_organization(self):
+        first, second = self.parts[0].latest(), self.parts[1].latest()
+        url = reverse('bom:part-diff', kwargs={
+            'part_id': first.part_id, 'revision_a_id': first.id, 'revision_b_id': second.id})
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_part_page_offers_compare_with_when_the_part_has_several_revisions(self):
+        assembly = make_assembly(self.organization, self.parts)
+        self.assertNotContains(self.client.get(reverse('bom:part-info', kwargs={'part_id': assembly.part_id})),
+                               'Compare with')
+        newer = parts.create_next_revision(assembly)
+        response = self.client.get(reverse('bom:part-info', kwargs={'part_id': assembly.part_id}))
+        self.assertContains(response, 'Compare with')
+        self.assertContains(response, reverse('bom:part-diff', kwargs={
+            'part_id': assembly.part_id, 'revision_a_id': assembly.id, 'revision_b_id': newer.id}))
 
     def test_other_organizations_changes_are_not_found(self):
         stranger = User.objects.create_user('stranger', 'stranger@example.com', 'ghostpassword')

@@ -86,7 +86,8 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
-from bom.services.changes import proposals_for_revision, record_csv_import
+from bom.services.changes import changes_touching_part, proposals_for_revision, record_csv_import
+from bom.services.diffs import revision_diff
 from bom.services.flags import changes_review_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from bom.services.search import latest_part_revisions, search_parts
@@ -919,9 +920,26 @@ def part_info(request, part_id, part_revision_id=None):
 
     where_used_part = part.where_used_recursive()
     seller_parts = part.seller_parts()
-    proposals = proposals_for_revision(part_revision) \
-        if part_revision is not None and changes_review_enabled(organization) else None
+    review_enabled = changes_review_enabled(organization)
+    proposals = proposals_for_revision(part_revision) if part_revision is not None and review_enabled else None
+    part_changes = changes_touching_part(part) if review_enabled else None
     return TemplateResponse(request, 'bom/part-info.html', locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def part_diff(request, part_id, revision_a_id, revision_b_id):
+    organization = request.user.bom_profile().organization
+    part = get_object_or_404(Part, pk=part_id, organization=organization)
+    revision_a = get_object_or_404(PartRevision, pk=revision_a_id, part=part)
+    revision_b = get_object_or_404(PartRevision, pk=revision_b_id, part=part)
+    diff_items = [
+        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'],
+                      status_label='Differs')
+        for entry in revision_diff(revision_a, revision_b)]
+    return TemplateResponse(request, 'bom/part-diff.html', {
+        'title': f'{part.full_part_number()} rev {revision_a.revision} to rev {revision_b.revision}',
+        'profile': request.user.bom_profile(), 'part': part, 'revision_a': revision_a, 'revision_b': revision_b,
+        'items': _numbered(diff_items)})
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1164,10 +1182,10 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
     return TemplateResponse(request, 'bom/import-preview.html', context)
 
 
-def _preview_item(kind_label, summary, before=None, after=None):
+def _preview_item(kind_label, summary, before=None, after=None, status_label='Will import'):
     """An import preview entry in the shape of a ChangeItem, for the shared change-items component."""
     return SimpleNamespace(kind='csv_import', get_kind_display=kind_label, summary=summary, before=before,
-                           payload=after or {}, status='accepted', get_status_display='Will import', result=None,
+                           payload=after or {}, status='accepted', get_status_display=status_label, result=None,
                            reject_reason='')
 
 

@@ -226,16 +226,20 @@ def withdraw_change(ctx: Context, change_id: int) -> dict:
 
 @mcp.tool(annotations=READ_ONLY)
 def get_change(ctx: Context, change_id: int) -> dict:
-    """A change's status, whether it is an Engineering Change Order (touches a Released revision), protected, or
-    stale, and each item with its status, reviewer rejection reason, and the ids produced when applied."""
+    """A change's status, whether it is an Engineering Change Order (is_eco: touches a Released revision), protected
+    (is_protected: someone other than the author must apply it) or stale (is_stale: the parts changed since it was
+    staged, so stage it again), each item with its status, reviewer rejection reason and the ids produced when
+    applied, and its impact: assemblies that use the edited parts (Released ones need new revisions) and the unit
+    cost before, after and delta at the organization's quote quantity."""
     with tool_call(ctx, 'get_change') as actor:
-        return changes.change_detail(changes.change_for(actor.organization, change_id))
+        change = changes.change_for(actor.organization, change_id)
+        return dict(changes.change_detail(change), impact=changes.impact_summary(change))
 
 
 @mcp.tool(annotations=READ_ONLY)
 def list_changes(ctx: Context, status: str = 'open', limit: int = 25) -> list[dict]:
     """Changes in the organization, newest first, filtered by status (draft, open, applied, rejected, withdrawn,
-    or all)."""
+    or all). Each has is_eco, true when it edits a Released or In Review revision."""
     with tool_call(ctx, 'list_changes') as actor:
         queryset = Change.objects.filter(organization=actor.organization).select_related('author')
         if status != 'all':
