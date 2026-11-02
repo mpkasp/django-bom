@@ -407,7 +407,7 @@ class EditPageTest(EditingTestCase):
 
         self.assertContains(page, f'Edit {self.part.full_part_number()} rev {self.revision.revision}')
         self.assertContains(page, 'id="part-revision-form"')
-        self.assertContains(page, 'Modify Subparts')
+        self.assertContains(page, 'Bill of materials')
         self.assertContains(page, 'id="manufacturer-parts"')
         self.assertContains(page, 'GLX-1')
         self.assertContains(page, reverse('bom:manufacturer-part-make-primary', kwargs={
