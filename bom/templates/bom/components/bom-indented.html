@@ -28,20 +28,21 @@
             <!-- Dropdown Structure -->
             <ul id='manage-bom-{{ part.id }}-indented' class='dropdown-content'>
                 {% if perms.bom.edit_part %}
-                    <li>{% if part_revision and not part_revision.is_immutable %}
-                        <a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">
-                            <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
+                    {% if part_revision.is_immutable and eco_available %}
+                        <li>{% include 'bom/components/start-eco-form.html' %}</li>
+                    {% elif part_revision and not part_revision.is_immutable %}
+                        <li>
+                            <a class="green-text text-lighten-1" href="{% url 'bom:part-manage-bom' part_id=part.id part_revision_id=part_revision.id %}">
+                                <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
+                        </li>
+                        <li>
+                            <a class="green-text text-lighten-1" href="{% url 'bom:import' %}?type=bom&parent={{ part.full_part_number|urlencode }}">
+                                <i class="material-icons green-text text-lighten-1">upload_file</i>Import BOM from CSV…</a>
+                        </li>
                     {% else %}
-                        <a class="grey-text text-lighten-1" onclick="alert('Can\'t edit a released part!')"><i class="material-icons grey-text text-lighten-1">edit</i>Edit BOM</a>
+                        <li><a class="grey-text text-lighten-1" onclick="alert('Can\'t edit a released part!')"><i class="material-icons grey-text text-lighten-1">edit</i>Edit BOM</a></li>
+                        <li><a class="grey-text text-lighten-1" onclick="alert('Can\'t import into a released part!')"><i class="material-icons grey-text text-lighten-1">upload_file</i>Import BOM from CSV…</a></li>
                     {% endif %}
-                    </li>
-                    <li>{% if part_revision and not part_revision.is_immutable %}
-                        <a class="green-text text-lighten-1" href="{% url 'bom:import' %}?type=bom&parent={{ part.full_part_number|urlencode }}">
-                            <i class="material-icons green-text text-lighten-1">upload_file</i>Import BOM from CSV…</a>
-                    {% else %}
-                        <a class="grey-text text-lighten-1" onclick="alert('Can\'t import into a released part!')"><i class="material-icons grey-text text-lighten-1">upload_file</i>Import BOM from CSV…</a>
-                    {% endif %}
-                    </li>
                     <li class="divider" tabindex="-1"></li>
                 {% endif %}
                 {% if part_revision %}

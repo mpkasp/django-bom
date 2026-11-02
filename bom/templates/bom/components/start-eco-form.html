@@ -1,0 +1,5 @@
+<form method="post" action="{% url 'bom:change-start-eco' %}" class="start-eco-form">{% csrf_token %}
+    <input type="hidden" name="part_revision_id" value="{{ part_revision.id }}">
+    <a class="green-text text-lighten-1" href="#" onclick="this.closest('form').submit(); return false;">
+        <i class="material-icons green-text text-lighten-1">edit</i>Start a change (ECO)</a>
+</form>

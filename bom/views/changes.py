@@ -15,7 +15,7 @@ from bom.models import Change, ChangeItem, PartRevision
 from bom.permissions import BomPerms
 from bom.services import changes
 from bom.services.errors import ServiceError
-from bom.services.flags import changes_review_enabled
+from bom.services.flags import changes_review_enabled, eco_enabled
 from bom.views.staging import ACTIVE_CHANGE_SESSION_KEY
 from bom.views.views import BOM_LOGIN_URL
 
@@ -48,7 +48,7 @@ def change_list(request, organization):
     queryset = Change.objects.filter(organization=organization).select_related('author', 'api_token')
     if active_filter == 'ecos':
         queryset = queryset.filter(Q(items__part_revision__configuration__in=PartRevision.IMMUTABLE_STATES)
-                                   | Q(items__result__has_key='new_revision_id')).distinct()
+                                   | Q(items__result__has_key='new_revision_id')).exclude(is_direct_edit=True).distinct()
     elif active_filter == 'applied':
         queryset = queryset.filter(status=Change.STATUS_APPLIED)
     elif active_filter == 'rejected':
@@ -96,7 +96,7 @@ def change_review(request, organization, number):
         'cascaded_revisions': changes.cascaded_revisions(change),
         'can_rebase': is_stale and can_review,
         'can_revert': change.status == Change.STATUS_APPLIED and can_review
-        and change.items.exclude(kind=ChangeItem.KIND_CSV_IMPORT).exists(),
+        and not change.is_direct_edit and change.items.exclude(kind=ChangeItem.KIND_CSV_IMPORT).exists(),
         'is_pending': is_pending, 'is_author': is_author, 'can_review': can_review, 'approval': approval,
         'can_apply': can_act and can_review and approval['can_apply'],
         'can_apply_as_admin': can_act and can_review and not approval['can_apply'] and approval['can_override'],
@@ -216,16 +216,25 @@ def change_item_status(request, organization, number, item_id):
 
 @changes_view
 @require_POST
-def change_start(request, organization):
+def change_start_eco(request, organization):
+    part_revision = PartRevision.objects.filter(
+        part__organization=organization, pk=request.POST.get('part_revision_id') or None).select_related('part').first()
+    if part_revision is None:
+        raise Http404('No such part revision.')
+    part_url = reverse('bom:part-info', kwargs={'part_id': part_revision.part_id})
+    if not eco_enabled(organization):
+        messages.error(request, 'Engineering Change Orders are not enabled for this organization.')
+        return HttpResponseRedirect(part_url)
     try:
-        change = changes.start_change(organization, request.user, request.POST.get('title', ''),
-                                      request.POST.get('rationale', ''))
+        change = changes.start_eco(organization, request.user, part_revision)
     except ServiceError as error:
         messages.error(request, str(error))
-        return HttpResponseRedirect(reverse('bom:change-list'))
+        return HttpResponseRedirect(part_url)
     request.session[ACTIVE_CHANGE_SESSION_KEY] = change.id
-    messages.success(request, f'Started Change #{change.number}. Your edits are staged until you apply or submit it.')
-    return _review_redirect(change)
+    messages.success(request, f'Started Change #{change.number}. Edits to {part_revision.part.full_part_number()} '
+                              f'are held for review until you apply or submit it.')
+    return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={
+        'part_id': part_revision.part_id, 'part_revision_id': part_revision.id}))
 
 
 @login_required(login_url=BOM_LOGIN_URL)

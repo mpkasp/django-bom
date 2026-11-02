@@ -71,7 +71,7 @@
 <main>
     {% if active_change %}
         <div class="card-panel teal lighten-5" style="margin: 0; padding: 8px 16px;">
-            Editing in Change #{{ active_change.number }} &middot; {{ active_change.title }} &middot;
+            {% if active_change.base_part_revision %}Editing ECO Change #{{ active_change.number }} for {{ active_change.base_part_revision.part.full_part_number }} rev {{ active_change.base_part_revision.revision }}. Edits to this part are held for review.{% else %}Editing in Change #{{ active_change.number }} &middot; {{ active_change.title }}{% endif %} &middot;
             <a href="{% url 'bom:change-review' number=active_change.number %}">Review</a> &middot;
             <form method="post" action="{% url 'bom:change-leave' %}" style="display: inline;">{% csrf_token %}
                 <button type="submit" class="btn-flat" style="padding: 0 4px; height: auto; line-height: inherit; text-transform: none;">Leave</button></form>
