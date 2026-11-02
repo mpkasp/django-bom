@@ -70,7 +70,6 @@ from bom.models import (
     APIToken,
     Assembly,
     AssemblySubparts,
-    ChangeItem,
     ChangeSettings,
     Manufacturer,
     ManufacturerPart,
@@ -94,8 +93,7 @@ from bom.services.search import latest_part_revisions, search_parts
 from bom.third_party_apis.base_api import BaseApiError
 from bom.third_party_apis.google_drive import has_drive_scope
 from bom.third_party_apis.sourcing import PROBE_CANDIDATE_LIMIT, build_provider, provider_credential_schema, provider_is_configured
-from bom.utils import check_references_for_duplicates, listify_string, prep_for_sorting_nicely
-from bom.views.staging import active_change, stage
+from bom.utils import check_references_for_duplicates, prep_for_sorting_nicely
 
 logger = logging.getLogger(__name__)
 UserMeta = get_user_meta_model()
@@ -1413,19 +1411,6 @@ def write_parts_csv(response, organization, part_revisions):
             writer.writerow({key: smart_str(value) for key, value in row.items()})
 
 
-def _staged_properties(part_revision_form):
-    properties, property_units = {}, {}
-    for definition in part_revision_form.property_definitions:
-        value = part_revision_form.cleaned_data.get(definition.form_field_name)
-        if value in (None, ''):
-            continue
-        properties[definition.code] = str(value)
-        unit_id = part_revision_form.cleaned_data.get(definition.form_unit_field_name)
-        if unit_id:
-            property_units[definition.code] = UnitDefinition.objects.get(id=unit_id).symbol
-    return {'properties': properties, 'property_units': property_units}
-
-
 @login_required(login_url=BOM_LOGIN_URL)
 @bom_permission_required(BomPerms.CREATE_PART)
 def create_part(request):
@@ -1449,25 +1434,7 @@ def create_part(request):
         if sourcing_attempted:
             is_valid = is_valid and manufacturer_part_form.is_valid()
 
-        staging_change = active_change(request, organization)
-        if is_valid and staging_change:
-            payload = {
-                'description': part_revision_form.cleaned_data['description'],
-                'revision': part_revision_form.cleaned_data['revision'],
-                'number_item': part_form.cleaned_data.get('number_item'),
-                'number_variation': part_form.cleaned_data.get('number_variation'),
-            }
-            if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
-                payload['part_class_code'] = part_form.cleaned_data['number_class'].code
-            payload.update(_staged_properties(part_revision_form))
-            if sourcing_attempted:
-                manufacturer = manufacturer_part_form.cleaned_data['manufacturer']
-                payload.update(manufacturer=getattr(manufacturer, 'name', manufacturer),
-                               manufacturer_part_number=manufacturer_part_form.cleaned_data['manufacturer_part_number'],
-                               link=manufacturer_part_form.cleaned_data['link'])
-            if stage(request, staging_change, ChangeItem.KIND_CREATE_PART, payload):
-                return HttpResponseRedirect(reverse('bom:change-review', kwargs={'number': staging_change.number}))
-        elif is_valid:
+        if is_valid:
             new_part = part_form.save()
             new_rev = part_revision_form.save(commit=False)
             new_rev.part = new_part
@@ -1617,17 +1584,7 @@ def add_subpart(request, part_id, part_revision_id):
 
     if request.method == 'POST':
         add_subpart_form = AddSubpartForm(request.POST, organization=organization, part_revision_id=part_revision_id)
-        staging_change = active_change(request, organization)
-        if add_subpart_form.is_valid() and staging_change:
-            stage(request, staging_change, ChangeItem.KIND_ADD_SUBPART, {
-                'assembly_part_number': part_revision.part.full_part_number(),
-                'assembly_revision': part_revision.revision,
-                'subpart_part_number': add_subpart_form.subpart_part.part.full_part_number(),
-                'count': add_subpart_form.cleaned_data['count'],
-                'reference': add_subpart_form.cleaned_data['reference'],
-                'do_not_load': add_subpart_form.cleaned_data['do_not_load'],
-            })
-        elif add_subpart_form.is_valid():
+        if add_subpart_form.is_valid():
             subpart_part = add_subpart_form.subpart_part
             reference = add_subpart_form.cleaned_data['reference']
             dnl = add_subpart_form.cleaned_data['do_not_load']
@@ -1868,24 +1825,8 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
 
     if request.method == 'POST':
         form = SubpartForm(request.POST, instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
-        staging_change = active_change(request, organization)
         if form.is_valid():
-            reference_list = listify_string(form.cleaned_data['reference'])
-            count = form.cleaned_data['count']
-            if staging_change:
-                parent_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-                staged = stage(request, staging_change, ChangeItem.KIND_UPDATE_SUBPART, {
-                    'assembly_part_number': parent_revision.part.full_part_number(),
-                    'assembly_revision': parent_revision.revision,
-                    'subpart_part_number': subpart.part_revision.part.full_part_number(),
-                    'count': count,
-                    'reference': form.cleaned_data['reference'],
-                    'do_not_load': form.cleaned_data['do_not_load'],
-                })
-                if not staged:
-                    return TemplateResponse(request, 'bom/bom-form.html', locals())
-            else:
-                form.save()
+            form.save()
             return HttpResponseRedirect(reverse('bom:part-manage-bom', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
         else:
             return TemplateResponse(request, 'bom/bom-form.html', locals())
@@ -1946,18 +1887,7 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
 
     if request.method == 'POST':
         form = ManufacturerPartForm(request.POST, instance=instance, organization=organization)
-        staging_change = None if manufacturer_part_id else active_change(request, organization)
-        if form.is_valid() and staging_change:
-            manufacturer = form.cleaned_data['manufacturer']
-            if stage(request, staging_change, ChangeItem.KIND_ADD_MANUFACTURER_PART, {
-                'part_number': part.full_part_number(),
-                'manufacturer': getattr(manufacturer, 'name', manufacturer),
-                'manufacturer_part_number': form.cleaned_data['manufacturer_part_number'],
-                'link': form.cleaned_data['link'],
-                'datasheet_url': form.cleaned_data['datasheet_url'],
-            }):
-                return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
-        elif form.is_valid():
+        if form.is_valid():
             obj = form.save()
             if part.primary_manufacturer_part is None:
                 part.primary_manufacturer_part = obj
@@ -2003,25 +1933,7 @@ def seller_part_manage(request, manufacturer_part_id=None, seller_part_id=None):
 
     if request.method == 'POST':
         form = SellerPartForm(request.POST, instance=instance, organization=organization)
-        staging_change = None if seller_part_id else active_change(request, organization)
-        if form.is_valid() and staging_change:
-            seller = form.cleaned_data['seller']
-            if stage(request, staging_change, ChangeItem.KIND_ADD_SELLER_PART, {
-                'manufacturer_part_id': mp.id,
-                'seller': getattr(seller, 'name', seller),
-                'unit_cost': str(form.cleaned_data['unit_cost'].amount),
-                'currency': str(form.cleaned_data['unit_cost'].currency),
-                'nre_cost': str(form.cleaned_data['nre_cost'].amount),
-                'seller_part_number': form.cleaned_data['seller_part_number'],
-                'minimum_order_quantity': form.cleaned_data['minimum_order_quantity'],
-                'minimum_pack_quantity': form.cleaned_data['minimum_pack_quantity'],
-                'lead_time_days': form.cleaned_data['lead_time_days'],
-                'link': form.cleaned_data['link'],
-                'ncnr': form.cleaned_data['ncnr'],
-            }):
-                return HttpResponseRedirect(
-                    reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing')
-        elif form.is_valid():
+        if form.is_valid():
             form.save()
             messages.success(request, "Vendor sourcing updated.")
             return HttpResponseRedirect(

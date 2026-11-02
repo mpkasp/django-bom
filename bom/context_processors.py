@@ -3,7 +3,6 @@ from django.conf import settings  # import the settings file
 from bom.constants import ROLE_TYPE_ADMIN, ROLE_TYPE_EDITOR
 from bom.models import Change, get_user_meta_model
 from bom.services.flags import changes_review_enabled
-from bom.views.staging import active_change
 
 
 def bom_config(request):
@@ -12,9 +11,7 @@ def bom_config(request):
         if 'base_template' in settings.BOM_CONFIG:
             base_template = settings.BOM_CONFIG['base_template']
     profile = _profile(request)
-    organization = profile.organization if profile else None
-    return {'BASE_TEMPLATE': base_template, 'open_change_count': _open_change_count(profile),
-            'active_change': active_change(request, organization) if hasattr(request, 'session') else None}
+    return {'BASE_TEMPLATE': base_template, 'open_change_count': _open_change_count(profile)}
 
 
 def _profile(request):
