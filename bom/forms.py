@@ -1023,6 +1023,7 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.part_revision_id = kwargs.pop('part_revision_id', None)
+        self.allow_immutable = kwargs.pop('allow_immutable', False)
         super().__init__(*args, **kwargs)
 
         self.part_revision = PartRevision.objects.get(id=self.part_revision_id)
@@ -1082,7 +1083,7 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
         if len(refs) > 0 and len(refs) != count:
             raise ValidationError(f"Reference count ({len(refs)}) mismatch quantity ({count}).")
 
-        if self.part_revision.is_immutable():
+        if self.part_revision.is_immutable() and not self.allow_immutable:
             raise ValidationError(
                 f"Cannot add subparts to PartRevision {self.part_revision} in {self.part_revision.get_configuration_display()}. "
                 f"Create a new revision, or revert this revision to Draft to make changes."

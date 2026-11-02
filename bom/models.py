@@ -1165,7 +1165,8 @@ class APIToken(models.Model):
     """
     SCOPE_READ = 'read'
     SCOPE_WRITE = 'write'
-    SCOPES = ((SCOPE_READ, 'Read'), (SCOPE_WRITE, 'Write'))
+    SCOPE_APPLY = 'apply'
+    SCOPES = ((SCOPE_READ, 'Read'), (SCOPE_WRITE, 'Write'), (SCOPE_APPLY, 'Apply'))
     PLAINTEXT_PREFIX = 'ibom_'
     PREFIX_LEN = 8
 
@@ -1230,3 +1231,115 @@ class APIToken(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.PLAINTEXT_PREFIX}{self.prefix}…)"
+
+
+class Change(OrganizationScopedModel):
+    """A staged bundle of edits. Everything an agent or a person changes is applied through one of these."""
+    STATUS_DRAFT = 'draft'
+    STATUS_OPEN = 'open'
+    STATUS_APPLIED = 'applied'
+    STATUS_REJECTED = 'rejected'
+    STATUS_WITHDRAWN = 'withdrawn'
+    STATUSES = (
+        (STATUS_DRAFT, 'Draft'), (STATUS_OPEN, 'Open'), (STATUS_APPLIED, 'Applied'),
+        (STATUS_REJECTED, 'Rejected'), (STATUS_WITHDRAWN, 'Withdrawn'),
+    )
+    PENDING_STATUSES = (STATUS_DRAFT, STATUS_OPEN)
+
+    number = models.PositiveIntegerField()
+    title = models.CharField(max_length=255)
+    rationale = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=STATUSES, default=STATUS_DRAFT, db_index=True)
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bom_changes')
+    api_token = models.ForeignKey('APIToken', null=True, blank=True, on_delete=models.SET_NULL, related_name='changes')
+    agent_client = models.CharField(max_length=64, blank=True)
+    agent_model = models.CharField(max_length=64, blank=True)
+    base_digest = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name='+')
+    protection_overridden_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                                 on_delete=models.SET_NULL, related_name='+')
+
+    class Meta:
+        unique_together = ('organization', 'number')
+        ordering = ['-number']
+
+    @property
+    def is_eco(self):
+        from bom.services import changes
+        return changes.is_eco(self)
+
+    @property
+    def is_protected(self):
+        from bom.services import changes
+        return changes.is_protected(self)
+
+    @property
+    def is_stale(self):
+        from bom.services import changes
+        return changes.is_stale(self)
+
+    def __str__(self):
+        return f"Change #{self.number}: {self.title}"
+
+
+class ChangeItem(models.Model):
+    KIND_CREATE_PART = 'create_part'
+    KIND_UPDATE_PART_REVISION = 'update_part_revision'
+    KIND_ADD_SUBPART = 'add_subpart'
+    KIND_UPDATE_SUBPART = 'update_subpart'
+    KIND_REMOVE_SUBPART = 'remove_subpart'
+    KIND_ADD_MANUFACTURER_PART = 'add_manufacturer_part'
+    KIND_ADD_SELLER_PART = 'add_seller_part'
+    KIND_CSV_IMPORT = 'csv_import'
+    KINDS = (
+        (KIND_CREATE_PART, 'Create part'),
+        (KIND_UPDATE_PART_REVISION, 'Update part revision'),
+        (KIND_ADD_SUBPART, 'Add subpart'),
+        (KIND_UPDATE_SUBPART, 'Update subpart'),
+        (KIND_REMOVE_SUBPART, 'Remove subpart'),
+        (KIND_ADD_MANUFACTURER_PART, 'Add manufacturer part'),
+        (KIND_ADD_SELLER_PART, 'Add seller part'),
+        (KIND_CSV_IMPORT, 'CSV import'),
+    )
+    STATUS_ACCEPTED = 'accepted'
+    STATUS_REJECTED = 'rejected'
+    STATUSES = ((STATUS_ACCEPTED, 'Accepted'), (STATUS_REJECTED, 'Rejected'))
+
+    change = models.ForeignKey(Change, on_delete=models.CASCADE, related_name='items')
+    position = models.PositiveIntegerField()
+    kind = models.CharField(max_length=32, choices=KINDS)
+    payload = models.JSONField(default=dict)
+    ref = models.CharField(max_length=64, blank=True)
+    part = models.ForeignKey(Part, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    part_revision = models.ForeignKey(PartRevision, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    manufacturer_part = models.ForeignKey(ManufacturerPart, null=True, blank=True, on_delete=models.SET_NULL,
+                                          related_name='+')
+    summary = models.CharField(max_length=255)
+    before = models.JSONField(null=True, blank=True)
+    status = models.CharField(max_length=16, choices=STATUSES, default=STATUS_ACCEPTED)
+    reject_reason = models.CharField(max_length=255, blank=True)
+    result = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['position']
+        unique_together = ('change', 'position')
+
+    def __str__(self):
+        return self.summary
+
+
+class ChangeSettings(models.Model):
+    organization = models.OneToOneField(settings.BOM_ORGANIZATION_MODEL, on_delete=models.CASCADE,
+                                        related_name='change_settings')
+    protect_primary_manufacturer_part = models.BooleanField(default=False)
+    protect_cost_delta = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'change settings'
+
+    def __str__(self):
+        return f"Change settings for {self.organization}"

@@ -58,14 +58,20 @@ def where_used(part):
     ]
 
 
-def add_subpart(organization, part_revision, subpart_part_number, count=1, reference='', do_not_load=False):
-    """Add a subpart to a draft revision's assembly, merging into an existing line for the same part, as the UI does."""
+def bind_subpart(organization, part_revision, subpart_part_number, count=1, reference='', do_not_load=False,
+                 allow_immutable=False):
     form = AddSubpartForm(
         {'subpart_part_number': subpart_part_number, 'count': count, 'reference': reference or '',
          'do_not_load': do_not_load},
-        organization=organization, part_revision_id=part_revision.id)
+        organization=organization, part_revision_id=part_revision.id, allow_immutable=allow_immutable)
     if not form.is_valid():
         raise ServiceError('Could not add subpart.', ServiceError.from_form(form).field_errors)
+    return form
+
+
+def add_subpart(organization, part_revision, subpart_part_number, count=1, reference='', do_not_load=False):
+    """Add a subpart to a draft revision's assembly, merging into an existing line for the same part, as the UI does."""
+    form = bind_subpart(organization, part_revision, subpart_part_number, count, reference, do_not_load)
 
     subpart_revision = form.subpart_part
     reference = form.cleaned_data['reference']
