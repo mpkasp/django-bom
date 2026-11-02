@@ -127,12 +127,27 @@ anywhere that serves production traffic.
   count restored, the seller part deleted; created parts are listed in the rationale as left in place; the second
   revert is refused.
 
-### P1-5. Staging mode for humans
-- Risk: a human edit silently saves instead of staging, or a staged edit is lost.
-- Steps: Changes > Start a change; with the banner showing, create a part, add and edit a subpart, add a manufacturer
-  part and a seller part; leave via the banner and reload; return to the change; submit and apply.
-- Expected: nothing is saved while staging; items accumulate on the review page; leaving keeps the draft; applying
-  creates everything. Known gaps (docs/changes-design.md) save directly or are not staged: note them, do not file them.
+### P1-5. Direct edits are recorded; Start a change (ECO)
+- Risk: a Draft edit is lost or not recorded, a Released part is edited without an ECO, or an ECO edit leaks to the
+  database.
+- Steps: (a) on a Draft assembly add a subpart, edit a line, remove a line, add a manufacturer part and a seller part;
+  open Changes > Applied and the part's Changes tab; make another edit and wait over an hour (or backdate) for a second
+  one. (b) Open a Released revision: the Manage Revision menu and the BOM Manage menu offer "Start a change (ECO)" and
+  no Edit, Edit BOM or Import. Start one; Manage BOM opens with the banner. Add, edit, remove and remove-all lines,
+  change the description, add, edit and delete manufacturer and seller parts, and edit a different Draft part. Leave via
+  the banner and start again from the same revision; review, submit and apply.
+- Expected: (a) the edits saved at once and appear as one "Direct edit" Change (a second after an hour), under Applied
+  only, never in Requests or the nav badge. (b) nothing about the ECO's part is saved while staging (the Released
+  revision is unchanged); the other Draft part saved directly and was recorded; starting again reuses the draft;
+  applying creates one new Draft revision with every edit including the removals. Known gaps
+  (docs/changes-design.md) save directly or are not staged: note them, do not file them.
+
+### P1-5b. Protected primary manufacturer part
+- Risk: a non-Admin changes the primary manufacturer part without review, or an Admin is blocked.
+- Steps: turn on the protection in Settings with two members. As an Editor, change a part's primary manufacturer part
+  (part edit) and edit the primary manufacturer part's number; repeat as an Admin.
+- Expected: the Editor sees "Changing the primary manufacturer part needs review. Sent as Change #N." and nothing
+  saved; the change is an open request someone else can apply; the Admin's edit saves and is recorded.
 
 ### P1-6. Part page: banner, ghost rows, Changes tab and diff
 - Risk: wrong or leaking information on the most visited page.
@@ -192,7 +207,7 @@ Use the smallest lever that stops the problem.
 1. Stop agent writes: revoke the API tokens in Settings > API Tokens (immediate, per token) or turn off `mcp_apply_enabled`
    for the organization (agents can then only propose).
 2. Hide the feature: switch `changes_review_enabled` off for the organization (or globally in the IndaBOM flag
-   wiring). Nav item, banner, tab and `/changes/` disappear; staging mode no longer starts and edits save directly as before;
+   wiring). Nav item, banner, tab and `/changes/` disappear; Start a change (ECO) is not offered and edits save directly without being recorded;
    existing changes are kept.
 3. Stop ECOs only: switch `eco_enabled` off; edits to Released revisions are refused again.
 4. Undo a bad change: Revert it from its review page. Revisions created by an ECO or cascade are ordinary Draft

@@ -32,13 +32,17 @@ Change (OrganizationScopedModel)
   resolved_by       FK User null
   protection_overridden_by FK User null    set when an Admin approved past a protection
   cascade           JSONField null         ECO cascade: [{source_revision_id, new_revision_id}] for the parent revisions created
+  is_direct_edit    BooleanField           an applied Change that only records edits saved directly on a Draft
+  base_part_revision FK PartRevision null  the revision a person's ECO starts from; for a direct-edit Change, the edited revision
   unique_together (organization, number)
 
 ChangeItem
   change            FK Change related_name='items'
   position          PositiveIntegerField   apply order
-  kind              create_part | update_part_revision | add_subpart | update_subpart | remove_subpart |
-                    add_manufacturer_part | add_seller_part | csv_import
+  kind              create_part | create_part_revision | update_part | update_part_revision | add_subpart |
+                    update_subpart | remove_subpart | add_manufacturer_part | update_manufacturer_part |
+                    delete_manufacturer_part | add_seller_part | update_seller_part | delete_seller_part | csv_import
+                    (create_part_revision and csv_import are records only; the rest can be staged)
   payload           JSONField              exactly the kwargs of the matching bom.services function
   ref               CharField(64, blank)   a key other items may reference as "$ref:<key>" (parts created in this change)
   part              FK Part null           target, when it exists at staging time
@@ -55,7 +59,8 @@ ChangeSettings (OneToOne Organization)      avoids a migration on the swappable 
   protect_cost_delta                 DecimalField null   organization currency, per unit at quote quantity
 ```
 
-Derived, not stored: `Change.is_eco` (any item's target revision is in `PartRevision.IMMUTABLE_STATES`),
+Derived, not stored: `Change.is_eco` (any item's target revision is in `PartRevision.IMMUTABLE_STATES`; never for a
+direct-edit Change),
 `Change.is_protected` (is_eco, or a protection in ChangeSettings matches), `Change.is_stale`
 (recomputed digest != base_digest).
 
@@ -152,16 +157,44 @@ inline `confirm()` pattern for irreversible actions.
 - Settings: API tokens tab (create token with level, list, revoke) and a Protections section on the
   organization tab (Admins): the Released protection shown as always on with the ECO explanation,
   plus the two ChangeSettings switches.
-- Staging mode for human authors (Phase 3): "Start a change" on the Changes page sets
-  `request.session['active_change']`; while set, a banner shows "Editing in Change #N · Leave" and
-  the create part, add subpart, edit subpart, manufacturer part and seller part views call
-  `stage_item` with the form's cleaned data instead of saving. CSV import confirm records an
-  applied Change of kind `csv_import` from Phase 1 (payload: the import kind and `changes_digest`,
-  summary from the preview counts), and moves onto the shared review screen in Phase 3.
+- One rule for people: **Draft parts are edited directly; Released parts are changed through an ECO.**
+  - Direct edits. Edits to a Draft (any non-immutable revision) save immediately, as before, and
+    `record_direct_edit` logs each as an applied, accepted item of the author's most recent direct-edit Change on that
+    revision when it was created in the last 60 minutes, otherwise of a new one titled "Edits to <part number> rev
+    <revision>". Nothing is re-applied, and a failure to record is logged, never raised. Create part, part revision
+    edit and new revision, add/edit/remove/remove-all subparts, and manufacturer and seller part add, edit and delete
+    are recorded. These Changes appear under Applied with a "Direct edit" chip and in the part's Changes tab; never in
+    Requests, the ECO filter or the nav badge, and they cannot be reverted. Nothing is recorded when
+    `changes_review_enabled` is off.
+  - Start a change (ECO). On a Released or In Review revision the Manage Revision menu and the BOM Manage menus offer
+    "Start a change (ECO)" in place of Edit, New revision, Edit BOM and Import BOM (hidden when `eco_enabled` or
+    `changes_review_enabled` is off or the user cannot edit parts). It POSTs to `change-start-eco`, which creates (or
+    reuses the user's draft for that revision) a Change "Change to <part number> rev <revision>" with
+    `base_part_revision`, sets `request.session['active_change']` and opens Manage BOM. The session key is set only
+    there; the Changes page has no start form.
+  - While the ECO is active, every edit to its part (`base_part_revision.part`) stages and nothing saves: add, edit,
+    remove and remove-all subparts (one `remove_subpart` per line), revision description and property values
+    (`update_part_revision`), manufacturer part add/edit/delete and seller part add/edit/delete, and the primary
+    manufacturer part (`update_part`). `active_change(request, organization, part)` returns the change only for
+    that part (or with no part, to create a new part, which also stages). Edits to any other part save directly and are
+    recorded. Manage BOM and the revision edit page open on the immutable revision only while an ECO for its part is
+    active. Creating a revision by hand is refused during the ECO, since applying it creates the next revision. A banner
+    reads "Editing ECO Change #N for <part number> rev <revision>. Edits to this part are held for review. · Review ·
+    Leave". Adding or editing a manufacturer part of a part with a Released revision is normally refused by
+    `ManufacturerPart.clean`; items of a change with a `base_part_revision` are validated and applied with that check
+    lifted (MCP changes keep it).
+  - Protected primary manufacturer part. With `protect_primary_manufacturer_part` on, more than one member, and a
+    non-Admin author, changing a part's primary manufacturer part (part edit, editing the primary manufacturer part's
+    manufacturer or number, or deleting it) does not save: it is staged (`update_part`, `update_manufacturer_part` or
+    `delete_manufacturer_part`) into a new Change submitted as a change request ("Changing the primary manufacturer part
+    needs review. Sent as Change #N."). Admins and single-member organizations save directly. Such changes are
+    protected, so someone other than the author applies them.
+- CSV import confirm records an applied Change of kind `csv_import` (payload: the import kind and `changes_digest`,
+  summary from the preview counts) and the preview renders through the shared review component.
 
 ## Phases
 
-Phases 1 to 4 are implemented on the `changes` branch (django-bom 1.320 to 1.323).
+Phases 1 to 4 are implemented (django-bom 1.320 to 1.323); 1.325 replaced the general staging mode.
 
 1. Models and migration; `services/changes.py` (start, stage, submit, set_item_status, apply with authorization,
    reject, withdraw, digest); the `apply` scope; MCP tools; list and review pages; nav badge; CSV import records a
@@ -169,7 +202,7 @@ Phases 1 to 4 are implemented on the `changes` branch (django-bom 1.320 to 1.323
 2. `impact`, cost delta (a rolled-back dry run), the Validation rail; part-page banner and ghosted lines; ECO: new
    Draft revision on apply, one per part, and the Release link; `rebase_change`; `revert_change`; stale detection.
    `update_subpart` and `remove_subpart` item kinds and MCP tools.
-3. Staging mode for human authors; API Tokens settings tab; Protections section; the import preview renders through
+3. Staging for human authors (reworked in 1.325 into direct-edit recording plus Start a change (ECO)); API Tokens settings tab; Protections section; the import preview renders through
    the shared `changes/components/change-items.html`. IndaBOM wires the three flags (`indabom/mcp.py`); Pro gets
    review and ECO by default.
 4. ECO cascade: applying an ECO moves the lines of Draft parent assemblies to the new revision in place (noted in the
@@ -187,7 +220,14 @@ Phases 1 to 4 are implemented on the `changes` branch (django-bom 1.320 to 1.323
 
 - A staged `create_part` cannot carry properties on Semi-Intelligent organizations.
 - A staged `edit_subpart` ignores revision changes.
-- The legacy seller part add URL and removing a subpart from the UI do not stage into the active change.
+- CSV imports are not staged by an active ECO; they still save and record a `csv_import` Change.
+- Part edit stages only a change of primary manufacturer part during an ECO; its other fields (number, picture) save
+  directly, and the primary change is staged alone with a warning.
+- A direct-edit Change cannot be reverted, and direct edits are not checked against protections other than the
+  primary manufacturer part.
+- A staged `remove_subpart` matches the line by part number and do-not-load flag; two lines that differ only in
+  count or reference are refused.
+- An ECO made only of sourcing items creates no new revision and is not an ECO by definition (`is_eco`).
 - The Cost delta column on the Changes list is not built; the review page shows cost.
 - Nested targets double-count the cost delta when a change edits an assembly and one of its own subassemblies.
 - Proposed seller parts render as a plain list, not as rows in the sourcing table.

@@ -215,9 +215,13 @@ and can rebase a stale change or revert an applied one. Hosts can switch the fea
 (callables of the organization or dotted paths; all default on), and set `BOM_CONFIG['site_url']` so change URLs
 returned to MCP clients are absolute.
 
-People can stage their own edits too: **Start a change** on the Changes page opens a draft, and while it is active a
-banner shows "Editing in Change #N" and creating a part, adding or editing a BOM line, and adding manufacturer or
-vendor parts stage items instead of saving, ready to submit or apply from the review page. Admins set the
+People follow one rule: Draft parts are edited directly; Released parts are changed through an ECO. Edits to a Draft
+save at once and are recorded as an applied **Direct edit** change (under Applied on the Changes page and in the part's
+Changes tab; edits by the same person to the same revision within an hour share one). On a Released or In Review
+revision, **Start a change (ECO)** (Manage Revision and the BOM Manage menu) opens a draft and, while its banner shows,
+every edit to that part (BOM lines, description and properties, manufacturer and vendor parts) is staged instead of
+saved, ready to submit or apply from the review page; applying creates the new Draft revision. Where the protection is
+on, a non-Admin's change to a part's primary manufacturer part is sent as a change request. Admins set the
 protections (always on for Released and In Review revisions; optionally the primary manufacturer part and a
 cost-delta threshold) in Settings > Organization.
 
