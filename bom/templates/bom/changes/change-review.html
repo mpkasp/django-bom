@@ -4,7 +4,7 @@
 
 {% block content %}
     <div class="container-app">
-        <p><a href="{% url 'bom:change-list' %}"><i class="material-icons tiny">arrow_back</i> Changes</a></p>
+        <p><a href="{% url 'bom:change-list' %}"><i class="material-icons tiny">arrow_back</i> Requests</a></p>
         <h4>
             Change #{{ change.number }}: {{ change.title }}
             {% include 'bom/changes/change-status-chip.html' %}

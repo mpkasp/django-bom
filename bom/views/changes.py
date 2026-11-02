@@ -17,7 +17,8 @@ from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled
 from bom.views.views import BOM_LOGIN_URL
 
-LIST_FILTERS = (('requests', 'Requests'), ('ecos', 'ECOs'), ('applied', 'Applied'), ('rejected', 'Rejected'))
+LIST_FILTERS = (('requests', 'Requests'), ('ecos', 'ECOs'), ('applied', 'Applied'), ('rejected', 'Rejected'),
+                ('history', 'History'))
 KIND_LABELS = dict(ChangeItem.KINDS)
 
 
@@ -46,11 +47,13 @@ def change_list(request, organization):
     queryset = Change.objects.filter(organization=organization).select_related('author', 'api_token')
     if active_filter == 'ecos':
         queryset = queryset.filter(Q(items__part_revision__configuration__in=PartRevision.IMMUTABLE_STATES)
-                                   | Q(items__result__has_key='new_revision_id')).distinct()
+                                   | Q(items__result__has_key='new_revision_id')).exclude(is_direct_edit=True).distinct()
     elif active_filter == 'applied':
-        queryset = queryset.filter(status=Change.STATUS_APPLIED)
+        queryset = queryset.filter(status=Change.STATUS_APPLIED, is_direct_edit=False)
     elif active_filter == 'rejected':
         queryset = queryset.filter(status=Change.STATUS_REJECTED)
+    elif active_filter == 'history':
+        queryset = queryset.filter(is_direct_edit=True).order_by('-resolved_at', '-id')
     else:
         active_filter = 'requests'
         queryset = queryset.filter(status=Change.STATUS_OPEN)
@@ -66,7 +69,7 @@ def change_list(request, organization):
             'affects': sorted({item.part.full_part_number() for item in items if item.part_id}),
         })
     return TemplateResponse(request, 'bom/changes/change-list.html', {
-        'title': 'Changes', 'name': 'changes', 'profile': request.user.bom_profile(), 'organization': organization,
+        'title': 'Requests', 'name': 'changes', 'profile': request.user.bom_profile(), 'organization': organization,
         'rows': rows, 'filters': LIST_FILTERS, 'active_filter': active_filter,
     })
 

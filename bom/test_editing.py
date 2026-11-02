@@ -332,3 +332,52 @@ class ReleaseTest(EditingTestCase):
         self.assertEqual(self.next_component.configuration, constants.CONFIGURATION_TYPE_RELEASED)
         self.assertEqual(self.released_parent.part.revisions().count(), 2)
         self.assertEqual(self.history().get(items__kind=ChangeItem.KIND_RELEASE_REVISION).rationale, 'Go')
+
+
+class RequestsNavTest(EditingTestCase):
+    nav_link = 'title="IndaBOM | Requests"'
+
+    def propose(self, title):
+        change = changes.start_change(self.organization, self.user, title)
+        changes.stage_item(change, ChangeItem.KIND_CREATE_PART, {
+            'description': title, 'part_class_code': self.part_class_code})
+        return changes.submit_change(change, self.user)
+
+    def test_the_nav_item_is_hidden_at_zero_and_counts_open_requests(self):
+        home = reverse('bom:home')
+        self.assertNotContains(self.client.get(home), self.nav_link)
+
+        self.client.post(reverse('bom:create-part'), {
+            'number_class': self.part_class_code, 'description': 'Fresh cap', 'revision': 'A'})
+        changes.start_change(self.organization, self.user, 'Still a draft')
+        self.assertNotContains(self.client.get(home), self.nav_link)
+
+        self.propose('First request')
+        self.propose('Second request')
+        page = self.client.get(home)
+        self.assertContains(page, self.nav_link)
+        self.assertContains(page, 'data-badge-caption="">2<')
+
+    def test_the_nav_item_shows_on_the_requests_page_even_at_zero(self):
+        page = self.client.get(reverse('bom:change-list'))
+        self.assertContains(page, self.nav_link)
+        self.assertNotContains(page, 'new badge')
+        self.assertContains(page, '<h4>Requests</h4>')
+
+    def test_the_history_filter_lists_direct_edits_and_the_other_filters_do_not(self):
+        self.client.post(reverse('bom:create-part'), {
+            'number_class': self.part_class_code, 'description': 'Fresh cap', 'revision': 'A'})
+        self.propose('A proposal')
+        applied = self.propose('An applied request')
+        changes.apply_change(applied, self.user, override_protection=True)
+        url = reverse('bom:change-list')
+
+        history = self.client.get(url + '?filter=history')
+        self.assertContains(history, 'Create part')
+        self.assertNotContains(history, 'A proposal')
+        self.assertNotContains(self.client.get(url), 'Create part')
+        self.assertContains(self.client.get(url), 'A proposal')
+        applied_page = self.client.get(url + '?filter=applied')
+        self.assertContains(applied_page, 'An applied request')
+        self.assertNotContains(applied_page, 'Fresh cap')
+        self.assertNotContains(self.client.get(url + '?filter=ecos'), 'Fresh cap')
