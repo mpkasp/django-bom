@@ -722,7 +722,7 @@ class PartClassSelectionForm(OrganizationFormMixin, forms.Form):
         self.fields['part_class'] = forms.CharField(
             required=False,
             widget=AutocompleteTextInput(
-                attrs={'placeholder': 'Select a part class.'},
+                attrs={'placeholder': 'All part classes'},
                 autocomplete_submit=True,
                 queryset=PartClass.objects.filter(organization=self.organization)
             )

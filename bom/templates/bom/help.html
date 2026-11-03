@@ -30,7 +30,7 @@
                         </li>
                         <li>
                             Create or import your parts. Click the <strong>+</strong> button on the Home page, or
-                            <strong>&middot;&middot;&middot; &rarr; Import CSV&hellip;</strong> above the parts list.
+                            <strong>&vellip; &rarr; Import CSV&hellip;</strong> next to the Parts title.
                         </li>
                         <li>
                             Build BOMs for assemblies. On a part's info page, click <strong>Edit</strong> and add
@@ -422,8 +422,8 @@
                 <div class="section">
                     <h2 id="importing">Importing &amp; Exporting Data</h2>
                     <p>Any file IndaBOM exports can be edited and imported back from the
-                        <a href="{% url 'bom:import' %}">Import</a> page (<strong>&middot;&middot;&middot; &rarr; Import CSV&hellip;</strong>
-                        above the parts list, or the upload button next to <strong>+</strong>). Rows that match existing
+                        <a href="{% url 'bom:import' %}">Import</a> page (<strong>&vellip; &rarr; Import CSV&hellip;</strong>
+                        next to the Parts title, or the upload button next to <strong>+</strong>). Rows that match existing
                         records update the fields they provide; blank cells leave values alone; nothing is deleted
                         except BOM lines you replace. Every import shows a review of its changes, and nothing is saved
                         until you click <strong>Import</strong>. A row with an error blocks the whole import.</p>
@@ -459,7 +459,7 @@
 
                 <div class="section">
                     <h3>Exporting</h3>
-                    <p>The <strong>&middot;&middot;&middot;</strong> menu above the parts list exports the parts shown: the
+                    <p><strong>&vellip; &rarr; Export all parts</strong> next to the Parts title exports the parts shown: the
                         parts matching your search, or every part when there is no search. The file has one
                         row per part with its primary manufacturer part and a vendor price. <strong>Export all vendor
                         prices</strong> downloads every price break with plain decimal costs. Both use the import column names, so
