@@ -129,7 +129,7 @@
                 <p class="grey-text text-darken-1">This part has no manufacturer parts yet.</p>
             {% endif %}
             {% if perms.bom.manage_sourcing %}
-                <a class="waves-effect waves-light btn-flat green-text text-lighten-1 edit-page-add"
+                <a class="waves-effect waves-light btn btn-primary edit-page-add"
                    href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}?next={{ request.path|urlencode }}"><i class="material-icons left">add</i>Add manufacturer part</a>
             {% endif %}
         </div>
