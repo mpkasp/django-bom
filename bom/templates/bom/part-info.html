@@ -80,7 +80,7 @@
                                 {% endif %}
                                 {% if part_revision.configuration == 'D' or part_revision.configuration == 'I' %}
                                     {% if perms.bom.release_revision %}
-                                        <a class="waves-effect waves-light btn-flat" href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">Release&hellip;</a>
+                                        <a class="waves-effect waves-light btn green lighten-1" href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">Release&hellip;</a>
                                     {% endif %}
                                 {% endif %}
                                 <div class="manage-btn-col">
@@ -343,7 +343,7 @@
                             <a href="{% url 'bom:change-review' number=item.change.number %}">Change #{{ item.change.number }}</a></p>
                     {% endfor %}
                     {% if perms.bom.manage_sourcing %}
-                        <a class="waves-effect waves-green btn-flat green-text text-darken-2 tab-add-action"
+                        <a class="waves-effect waves-light btn btn-primary tab-add-action"
                            href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}"><i class="material-icons left">add</i>Add manufacturer part</a>
                     {% endif %}
                 </div>
