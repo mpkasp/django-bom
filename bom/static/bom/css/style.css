@@ -721,13 +721,48 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     background-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxMiIgdmlld0JveD0iMCAwIDI0IDE2Ij48cGF0aCBkPSJNMTUgNiAxIDYgOCAxM3oiIGZpbGw9IiM0M2EwNDciLz48L3N2Zz4=);
 }
 
-.personal-tokens > summary {
+.settings-disclosure > summary {
     cursor: pointer;
     list-style-position: outside;
     margin-left: 18px;
 }
 
-.personal-tokens > summary h5 {
+.settings-disclosure[open] > summary {
+    margin-bottom: 16px;
+}
+
+.settings-disclosure > summary h5 {
     display: inline;
     margin: 0 8px 0 0;
+}
+
+.mcp-quickstart dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 12px 24px;
+    align-items: baseline;
+    margin: 0 0 8px 0;
+}
+
+.mcp-quickstart dt {
+    font-weight: 500;
+}
+
+.mcp-quickstart dd {
+    margin: 0;
+}
+
+.mcp-quickstart code {
+    word-break: break-all;
+}
+
+@media only screen and (max-width: 600px) {
+    .mcp-quickstart dl {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .mcp-quickstart dt:not(:first-child) {
+        margin-top: 12px;
+    }
 }

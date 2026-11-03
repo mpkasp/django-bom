@@ -1,10 +1,11 @@
 import base64
 import hashlib
+import json
 import re
 import secrets
 from datetime import timedelta
 from unittest import mock
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -20,6 +21,7 @@ from bom.mcp.auth import ConnectionTokenVerifier
 from bom.mcp.server import mcp
 from bom.models import APIToken
 from bom.test_mcp import MCPClient, MCPTestCase, deny_everything
+from bom.views.views import editor_install_links
 
 ISSUER_URL = 'http://testserver'
 RESOURCE_URL = 'http://testserver/mcp'
@@ -293,6 +295,42 @@ class ConnectionManagementTest(OAuthMCPTestCase):
         self.assertIsNotNone(self.connection.revoked_at)
         self.assertFalse(AccessToken.objects.filter(application=self.application).exists())
         self.assertEqual(self.mcp(plaintext).rpc('tools/list').status_code, 401)
+
+
+@override_settings(ROOT_URLCONF='bom.test_oauth_urls')
+class ConnectQuickStartTest(OAuthMCPTestCase):
+    OAUTH_CONFIG = {'mcp_oauth_issuer_url': ISSUER_URL, 'mcp_resource_url': RESOURCE_URL}
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+
+    def settings_page(self, **config):
+        with override_settings(BOM_CONFIG={**settings.BOM_CONFIG, **config}):
+            return self.client.get('/settings/api/')
+
+    def test_shows_the_quick_start_until_an_assistant_connects(self):
+        response = self.settings_page(**self.OAUTH_CONFIG)
+        self.assertContains(response, 'Add custom connector')
+        self.assertContains(response, f'claude mcp add --transport http indabom {RESOURCE_URL}')
+        self.assertContains(response, 'Add to Cursor')
+        self.assertNotContains(response, 'No connected apps yet.')
+
+        self.mcp(self.make_toolkit_token(self.make_application('Cursor'))).rpc('tools/list')
+        response = self.settings_page(**self.OAUTH_CONFIG)
+        self.assertContains(response, 'Connect another assistant')
+
+    def test_lists_connections_only_without_oauth(self):
+        response = self.settings_page()
+        self.assertContains(response, 'No connected apps yet.')
+        self.assertNotContains(response, 'Add custom connector')
+
+    def test_editor_install_links_carry_the_server_address(self):
+        links = editor_install_links(RESOURCE_URL)
+        cursor_config = parse_qs(urlparse(links['cursor']).query)['config'][0]
+        self.assertEqual(json.loads(base64.b64decode(cursor_config)), {'url': RESOURCE_URL})
+        vscode_config = unquote(links['vscode'].split('?', 1)[1])
+        self.assertEqual(json.loads(vscode_config), {'name': 'indabom', 'type': 'http', 'url': RESOURCE_URL})
 
 
 class HelpAIPageTest(OAuthMCPTestCase):

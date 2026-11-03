@@ -1,0 +1,17 @@
+<div class="mcp-quickstart">
+    <dl>
+        <dt>Server address</dt>
+        <dd><code>{{ mcp_url }}</code>
+            <button type="button" class="btn-flat btn-small copy-button" data-copy="{{ mcp_url }}">Copy</button></dd>
+        <dt>Claude</dt>
+        <dd>Open <b>Settings → Connectors</b>, choose <b>Add custom connector</b> and paste the address.</dd>
+        <dt>Claude Code</dt>
+        <dd><code>claude mcp add --transport http indabom {{ mcp_url }}</code>
+            <button type="button" class="btn-flat btn-small copy-button"
+                    data-copy="claude mcp add --transport http indabom {{ mcp_url }}">Copy</button><br>
+            then run <code>/mcp</code>, choose <b>indabom</b> and select <b>Authenticate</b>.</dd>
+        <dt>Cursor and VS Code</dt>
+        <dd><a class="btn btn-small btn-primary" href="{{ install_links.cursor }}">Add to Cursor</a>
+            <a class="btn btn-small btn-primary" href="{{ install_links.vscode }}">Add to VS Code</a></dd>
+    </dl>
+</div>

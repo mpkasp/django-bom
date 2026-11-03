@@ -5,6 +5,7 @@ import logging
 import uuid
 from json import dumps
 from types import SimpleNamespace
+from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib import messages
@@ -634,6 +635,9 @@ def bom_settings(request, tab_anchor=None):
     api_tokens = api_tokens.filter(revoked_at__isnull=True)
     connected_apps = api_tokens.exclude(oauth_client_id='')
     personal_api_tokens = api_tokens.filter(oauth_client_id='')
+    mcp_oauth_enabled = bool(settings.BOM_CONFIG.get('mcp_oauth_issuer_url'))
+    mcp_server_url = mcp_url()
+    mcp_install_links = editor_install_links(mcp_server_url)
     if user_can_manage_members:
         change_settings_form = ChangeSettingsForm(
             instance=ChangeSettings.objects.filter(organization=organization).first()
@@ -2369,6 +2373,15 @@ def mcp_url():
         return configured
     site_url = settings.BOM_CONFIG.get('site_url', '').rstrip('/')
     return f'{site_url}/mcp' if site_url else 'https://your-server/mcp'
+
+
+def editor_install_links(server_url):
+    """One-click install links in the formats Cursor and VS Code document for remote MCP servers."""
+    cursor_config = base64.b64encode(dumps({'url': server_url}).encode()).decode()
+    return {
+        'cursor': f'cursor://anysphere.cursor-deeplink/mcp/install?name=indabom&config={quote(cursor_config)}',
+        'vscode': f"vscode:mcp/install?{quote(dumps({'name': 'indabom', 'type': 'http', 'url': server_url}))}",
+    }
 
 
 class Help(TemplateView):
