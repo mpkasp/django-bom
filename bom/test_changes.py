@@ -655,7 +655,7 @@ class ChangesViewTest(TestCase):
             'assembly_part_number': assembly.part.full_part_number(),
             'subpart_part_number': cap.full_part_number(), 'count': 4})
         response = self.client.get(reverse('bom:part-info', kwargs={'part_id': assembly.part_id}))
-        self.assertContains(response, '1 open change touches this revision')
+        self.assertContains(response, '1 open change request touches this revision')
         self.assertContains(response, f'#{self.change.number} Add a cap')
         self.assertContains(response, 'Proposed')
         self.assertContains(response, cap.full_part_number())

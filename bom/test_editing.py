@@ -202,6 +202,21 @@ class ReviseTest(EditingTestCase):
         draft_page = self.client.get(reverse('bom:part-info', kwargs={'part_id': released.part_id}))
         self.assertNotContains(draft_page, 'Revise</button>')
 
+    def test_the_part_page_status_explains_the_draft_and_points_old_revisions_at_it(self):
+        released = self.released_revision()
+        self.revise(released)
+
+        draft_page = self.client.get(reverse('bom:part-info', kwargs={'part_id': released.part_id}))
+        self.assertContains(draft_page, 'Rev 1 stays in use until you release rev 2.')
+        self.assertContains(draft_page, 'Compare with rev 1')
+        self.assertNotContains(draft_page, 'New revision from this one')
+
+        old_page = self.client.get(reverse('bom:part-info-history', kwargs={
+            'part_id': released.part_id, 'part_revision_id': released.id}))
+        self.assertContains(old_page, "You're viewing rev 1")
+        self.assertContains(old_page, 'Open rev 2')
+        self.assertNotContains(old_page, 'Revise</button>')
+
 
 class ReleaseTest(EditingTestCase):
     def setUp(self):
@@ -495,7 +510,7 @@ class EditPageTest(EditingTestCase):
         draft_page = self.client.get(part_url)
         self.assertContains(draft_page, f'href="{self.edit_url}"')
         self.assertContains(draft_page, 'Release&hellip;')
-        self.assertContains(draft_page, 'New revision from this one')
+        self.assertContains(draft_page, 'Send to review')
         self.assertNotContains(draft_page, self.url('part-revision-revise', self.revision))
         self.assertNotContains(draft_page, 'Manage Revision')
         self.assertNotContains(draft_page, 'part-identity-edit')
