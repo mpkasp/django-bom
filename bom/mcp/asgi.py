@@ -1,6 +1,8 @@
 import contextlib
+from urllib.parse import urlparse
 
 from django.conf import settings
+from mcp.server.auth.routes import build_resource_metadata_url
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.routing import Mount, Route
@@ -10,8 +12,8 @@ from bom.mcp.server import mcp
 
 
 def build_mcp_app(path='/mcp'):
-    """The authenticated MCP ASGI app. Register it in the host as ``Route(path, endpoint=build_mcp_app(path))``
-    (a ``Mount`` would strip the prefix and skip the bare path).
+    """The authenticated MCP ASGI app. Register it in the host with ``mcp_routes(path)`` (a ``Mount`` would strip
+    the prefix and skip the bare path).
 
     The host app's lifespan must enter ``mcp.session_manager.run()``; Starlette never runs a sub-app's
     lifespan. Use ``mcp_lifespan`` for that.
@@ -19,7 +21,17 @@ def build_mcp_app(path='/mcp'):
     inner = mcp.streamable_http_app(
         streamable_http_path=path, stateless_http=True, json_response=True,
         transport_security=_transport_security())
-    return BearerTokenMiddleware(inner)
+    return inner if mcp.settings.auth else BearerTokenMiddleware(inner)
+
+
+def mcp_routes(path='/mcp'):
+    """The MCP endpoint, plus the RFC 9728 protected resource metadata route when OAuth is configured."""
+    app = build_mcp_app(path)
+    routes = [Route(path, endpoint=app, methods=['GET', 'POST', 'DELETE'])]
+    if mcp.settings.auth:
+        metadata_path = urlparse(str(build_resource_metadata_url(mcp.settings.auth.resource_server_url))).path
+        routes.append(Route(metadata_path, endpoint=app, methods=['GET', 'OPTIONS']))
+    return routes
 
 
 @contextlib.asynccontextmanager
@@ -41,7 +53,7 @@ def _transport_security():
 
 def build_application(django_app=None):
     """Standalone ASGI entrypoint: the MCP server at /mcp beside the Django app (when given)."""
-    routes = [Route('/mcp', endpoint=build_mcp_app('/mcp'), methods=['GET', 'POST', 'DELETE'])]
+    routes = mcp_routes('/mcp')
     if django_app is not None:
         routes.append(Mount('/', app=django_app))
     return Starlette(routes=routes, lifespan=mcp_lifespan)

@@ -7,7 +7,7 @@ from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
-from bom.mcp.auth import Actor
+from bom.mcp.auth import Actor, ConnectionTokenVerifier, oauth_auth_settings
 from bom.permissions import BomPerms
 from bom.models import Change, ChangeItem, PartRevision, SellerPart
 from bom.services import boms, changes, parts, sourcing
@@ -21,8 +21,12 @@ READ_ONLY = ToolAnnotations(read_only_hint=True)
 WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=False)
 DESTRUCTIVE = ToolAnnotations(read_only_hint=False, destructive_hint=True)
 
+auth_settings = oauth_auth_settings()
+
 mcp = MCPServer(
     'IndaBOM',
+    auth=auth_settings,
+    token_verifier=ConnectionTokenVerifier(auth_settings.resource_server_url) if auth_settings else None,
     instructions=(
         "Tools for reading and building bills of materials in the caller's IndaBOM organization. "
         "Call get_organization first: it tells you the part numbering scheme, the valid part classes, "

@@ -66,6 +66,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "django-hijack",
+    "django-oauth-toolkit>=3.4.1",
 ]
 
 [tool.setuptools]
