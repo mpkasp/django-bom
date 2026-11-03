@@ -1357,18 +1357,22 @@ def write_parts_csv(response, organization, part_revisions):
     property_columns = [name for name in csv_headers.get_default_all()
                         if name not in csv_headers.get_defaults_list(part_columns)]
 
+    def manufacturer_columns(manufacturer_part):
+        return {
+            csv_headers.get_default('part_manufacturer'): manufacturer_part.manufacturer.name
+            if manufacturer_part is not None and manufacturer_part.manufacturer is not None else '',
+            csv_headers.get_default('part_manufacturer_part_number'): manufacturer_part.manufacturer_part_number
+            if manufacturer_part is not None else '',
+        }
+
     writer = csv.DictWriter(response, fieldnames=csv_headers.get_default_all())
     writer.writeheader()
     for part_revision in part_revisions:
         part = part_revision.part
-        primary_manufacturer_part = part.primary_manufacturer_part
         row = {
             csv_headers.get_default('part_number'): part.full_part_number(),
             csv_headers.get_default('part_revision'): part_revision.revision,
-            csv_headers.get_default('part_manufacturer'): primary_manufacturer_part.manufacturer.name
-            if primary_manufacturer_part is not None and primary_manufacturer_part.manufacturer is not None else '',
-            csv_headers.get_default('part_manufacturer_part_number'): primary_manufacturer_part.manufacturer_part_number
-            if primary_manufacturer_part is not None else '',
+            **manufacturer_columns(part.primary_manufacturer_part),
         }
         if organization.number_scheme == constants.NUMBER_SCHEME_SEMI_INTELLIGENT:
             row[csv_headers.get_default('part_category')] = part.number_class.name
@@ -1380,6 +1384,7 @@ def write_parts_csv(response, organization, part_revisions):
         if not seller_parts:
             writer.writerow({key: smart_str(value) for key, value in row.items()})
         for seller_part in seller_parts:
+            row.update(manufacturer_columns(seller_part.manufacturer_part))
             for name in seller_csv_headers.get_default_all():
                 value = getattr(seller_part, name)
                 row[csv_headers.get_default(name)] = value if value is not None else ''
