@@ -228,11 +228,117 @@ tools plus `create_part`, `add_subpart`, `add_manufacturer_part`, `add_seller_pa
 ASGI entrypoint and Cloud Run service in `infra/`; connected from Claude Code via header.
 Exit: a new product's parts and BOM created entirely from a chat session and visible in the UI.
 
-**Phase 2: usable by customers**
+**Phase 2: usable by customers** (spec below)
 django-oauth-toolkit authorization server and the dual `TokenVerifier`; remaining write tools;
-a docs page with client setup snippets; telemetry dashboard; amend ai-architecture §2.
+a docs page with client setup snippets; adoption milestones in the funnel export; amend
+ai-architecture §2. The BigQuery log sink and dashboard are dropped for now (see Phase 2 spec).
 Exit: a user adds IndaBOM as a claude.ai custom connector with Google sign-in and no copied token.
 
 **Phase 3**
 `purchase_package`, resources and prompts, and the REST API if integrator demand appears. The
 service layer built in Phase 1 means the REST API is a second thin surface, not a prerequisite.
+
+## Phase 2 spec
+
+Goal: onboarding is one command and a browser sign-in.
+
+```
+claude mcp add --transport http indabom https://mcp.indabom.com/mcp
+```
+
+Then `/mcp`, choose indabom, Authenticate. The browser opens IndaBOM's normal Google sign-in, then a
+consent page where the user picks what the assistant may do. claude.ai custom connectors work the same
+way. Pasted personal tokens keep working unchanged.
+
+### Split
+
+- **IndaBOM** hosts the authorization server: django-oauth-toolkit (latest 3.x) installed in the web
+  app, its views under `/o/`, RFC 8414 and RFC 9728 metadata at the domain root.
+- **django-bom** owns everything a self-hoster could reuse: the consent template, the token verifier
+  that accepts both kinds of token, connection records, the setup docs page and the new tools.
+  django-bom never imports `oauth2_provider` unless it is in `INSTALLED_APPS`, and does not depend on
+  it in `pyproject.toml`.
+
+### Authorization server settings (IndaBOM)
+
+- Authorization code with PKCE S256 only; refresh tokens on; public clients
+  (`token_endpoint_auth_method: none`). No implicit, password or client-credentials grants.
+- Open dynamic client registration (`AllowAllDCRPermission`) and Client ID Metadata Documents, so
+  Claude Code, Claude Desktop, claude.ai and Cursor register themselves.
+- Loopback redirects on any port (`ALLOW_LOCALHOST_LOOPBACK`) plus https redirects; nothing else.
+- Scopes `read`, `write`, `apply`, the same names and meanings as `APIToken` scopes.
+- Tokens are bound to the MCP resource (RFC 8707); the MCP service validates the audience.
+- Abuse limits: a per-IP throttle on `/o/register/`, and a `cleanup_oauth_clients` management command
+  that deletes dynamically registered applications with no grants or tokens after 7 days.
+- `/o/authorize/` requires login, which is the existing Google sign-in.
+
+### Consent page (django-bom)
+
+django-bom ships `templates/oauth2_provider/authorize.html`, so it overrides the toolkit's template when
+`bom` is listed before `oauth2_provider`. It shows the client's name, the organization, and one choice:
+
+| Choice | Scopes granted |
+|---|---|
+| Read only | `read` |
+| Propose changes for review | `read write` |
+| Propose and apply changes | `read write apply` |
+
+Choices the user's role or the host flags cannot use are hidden: a Viewer sees only Read; Apply needs
+`mcp_apply_enabled`; writes need `mcp_access_check` to pass (on IndaBOM, Pro). The default selection is
+the narrowest of the scopes the client requested and the user's ceiling.
+
+### Connections are `APIToken` rows
+
+The first time an OAuth access token is used, the verifier gets or creates an `APIToken` for that user,
+organization and OAuth client (`APIToken.oauth_client_id`, new, blank for pasted tokens), named after
+the client, with the granted scopes. Its `hashed_key` is random and never shown, so it can't be used as
+a pasted token. Everything downstream keeps working unchanged: `Actor`, `Change.api_token`, agent
+badges in History, `last_used_at`, and the Settings → API Tokens tab, which lists connections beside
+personal tokens. Revoking a connection there also revokes that client's OAuth access and refresh tokens
+for the user, and a revoked connection rejects its OAuth tokens.
+
+### MCP service (django-bom)
+
+- Replace `BearerTokenMiddleware` with the SDK's `token_verifier` and
+  `AuthSettings(issuer_url, resource_server_url, required_scopes=['read'], validate_token_resource=True)`
+  from `BOM_CONFIG['mcp_oauth_issuer_url']` and `BOM_CONFIG['mcp_resource_url']`. The SDK then publishes
+  RFC 9728 metadata and answers unauthenticated requests with the 401 that makes clients offer
+  Authenticate.
+- The verifier accepts a pasted `ibom_` token (resource is the MCP URL) or a toolkit access token
+  (looked up in the shared database, no introspection call; resource is the token's audience). Both
+  return an SDK `AccessToken` whose claims carry the `APIToken` id; `Actor` resolves from it.
+- Without `mcp_oauth_issuer_url` (self-hosted without the toolkit), only pasted tokens are accepted
+  and no OAuth metadata is published.
+- `mcp_access_check` and token-level enforcement are unchanged.
+
+### Remaining tools
+
+| Tool | Kind | Notes |
+|---|---|---|
+| `export_bom_csv` | read | `part_number`, `revision?`, `layout`: indented, single_level or flat; the same CSV as the UI |
+| `update_part_revision` | write | Draft only: description and properties; an immutable revision returns an error that says to call `revise_part` |
+| `revise_part` | write | the next Draft from a Released or In Review revision (the UI's Revise) |
+| `upload_bom` | write | `assembly_part_number`, `csv_text`, `mode` add or replace; previews through the import service and stages the result |
+
+Write tools go through Changes like the existing ones: a propose token stages items for review, an apply
+token may apply. Agents still never release or approve.
+
+### Setup docs page (django-bom)
+
+A "Connect an AI assistant" page, linked from Help and from Settings → API Tokens: the MCP URL, then
+per-client steps for Claude Code, claude.ai, Claude Desktop and Cursor (OAuth first, pasted token as the
+fallback), what each access level allows, and how to revoke.
+
+### Adoption milestones instead of a log sink (IndaBOM)
+
+The per-call log lines stay in Cloud Logging (30-day retention, searchable in Logs Explorer). The daily
+funnel export adds two milestones per user, `first_agent_connection_at` (first `APIToken`) and
+`first_agent_change_at` (first Change with an `api_token`), to `indabom_funnel.user_milestones`. A
+BigQuery log sink is worth adding only if read-tool history beyond 30 days is needed.
+
+### ai-architecture §2
+
+Amend to describe what shipped: agents write Changes through the same engine people use, staged and
+applied through the existing forms, with token levels as the ceiling and protections as the floor; there
+is no separate `AIProposal` model.
+
