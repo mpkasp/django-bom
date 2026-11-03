@@ -16,7 +16,7 @@ from bom.constants import (CONFIGURATION_TYPE_DRAFT, CONFIGURATION_TYPE_IN_REVIE
 from bom.models import (Change, ChangeItem, ChangeSettings, ManufacturerPart, PartRevision, SellerPart, Subpart,
                         get_user_meta_model)
 from bom.permissions import BomPerms
-from bom.services import boms, parts
+from bom.services import boms, imports, parts
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled, eco_enabled, release_approval_enabled
@@ -78,9 +78,13 @@ def start_change(organization, user, title, rationale='', api_token=None, agent_
             author=user, api_token=api_token, agent_client=agent_client[:64], agent_model=agent_model[:64])
 
 
-def stage_item(change, kind, payload, ref=''):
+def _require_draft(change):
     if change.status != Change.STATUS_DRAFT:
         raise ServiceError(f"Change #{change.number} is {change.status}; items can only be staged into a draft.")
+
+
+def stage_item(change, kind, payload, ref='', refresh_digest=True):
+    _require_draft(change)
     if kind not in STAGEABLE_KINDS:
         raise ServiceError(f"Cannot stage {kind!r}. Supported kinds: {', '.join(STAGEABLE_KINDS)}.")
     payload = dict(payload)
@@ -102,9 +106,26 @@ def stage_item(change, kind, payload, ref=''):
         part=prepared.get('part'), part_revision=prepared.get('part_revision'),
         manufacturer_part=prepared.get('manufacturer_part'), summary=prepared['summary'][:255],
         before=prepared.get('before'))
+    if refresh_digest:
+        _refresh_base_digest(change)
+    return item
+
+
+def _refresh_base_digest(change):
     change.base_digest = compute_digest(change)
     change.save(update_fields=['base_digest'])
-    return item
+
+
+def stage_bom_upload(change, assembly_part_number, csv_text, mode):
+    """Stage the add, update and remove subpart items that a BOM CSV makes, all or none. Returns the staged items
+    and the import's warnings."""
+    _require_draft(change)
+    parent_part = parts.part_from_number(change.organization, assembly_part_number)
+    edits, warnings = imports.bom_upload_edits(change.organization, parent_part, csv_text, mode)
+    with transaction.atomic():
+        items = [stage_item(change, kind, payload, refresh_digest=False) for kind, payload in edits]
+        _refresh_base_digest(change)
+    return items, warnings
 
 
 def submit_change(change, user):

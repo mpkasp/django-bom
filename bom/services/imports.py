@@ -6,7 +6,9 @@ from django.db import transaction
 
 from bom.csv_headers import BOMIndentedCSVHeaders, PartsListCSVHeadersSemiIntelligent, SellerPartCSVHeaders
 from bom.forms import BOMCSVForm, PartsImportForm, VendorPricesImportForm, open_csv_reader
-from bom.models import Part
+from bom.models import ChangeItem, Part
+from bom.services import parts
+from bom.services.errors import ServiceError
 
 IMPORT_FORMS = {'bom': BOMCSVForm, 'parts': PartsImportForm, 'prices': VendorPricesImportForm}
 IMPORT_LABELS = {'bom': 'BOM', 'parts': 'parts', 'prices': 'vendor prices'}
@@ -28,6 +30,65 @@ def run_import(organization, kind, csv_bytes, options, expected_changes_digest=N
         if not committed:
             transaction.set_rollback(True)
     return import_form, committed
+
+
+def bom_upload_edits(organization, parent_part, csv_text, mode):
+    """The subpart edits an indented-BOM CSV makes, as ``(kind, payload)`` pairs ready to stage, plus the import's
+    warnings. Only BOM lines become edits, so the CSV may not need parts or revisions that do not exist yet. A
+    Released parent is previewed against the next Draft it would get when the edits are applied."""
+    if mode not in (BOMCSVForm.MODE_ADD, BOMCSVForm.MODE_REPLACE):
+        raise ServiceError(f"Unknown mode {mode!r}. Valid modes: {BOMCSVForm.MODE_ADD}, {BOMCSVForm.MODE_REPLACE}.")
+    parent_revision = parent_part.latest()
+    if parent_revision is None:
+        raise ServiceError(f"Part {parent_part.full_part_number()} has no revisions.")
+
+    import_form = _preview_bom_upload(organization, parent_part, parent_revision, csv_text.encode(), mode)
+    errors = [str(error) for field_errors in import_form.errors.values() for error in field_errors]
+    if errors:
+        raise ServiceError(f"The CSV has {len(errors)} error{'s' if len(errors) != 1 else ''}; nothing was staged.\n"
+                           + '\n'.join(f"- {error}" for error in errors))
+    changes = import_form.changes()
+    missing = [f"{part['part_number']} rev {part['revision']}" for part in changes['parts']]
+    if missing:
+        raise ServiceError(
+            f"The CSV needs parts or revisions that do not exist yet: {', '.join(missing)}. Create them with "
+            f"create_part and apply that change first, and give each row a revision that exists.")
+
+    edits = []
+    for assembly in changes['assemblies']:
+        revision = parent_revision.revision if assembly['part_id'] == parent_part.id else assembly['revision']
+        target = {'assembly_part_number': assembly['part_number'], 'assembly_revision': revision}
+        for line in assembly['lines']:
+            edits.append(_line_edit(organization, target, line))
+    if not edits:
+        raise ServiceError(f"The CSV makes no changes to the BOM of {parent_part.full_part_number()}.")
+    return edits, import_form.warnings
+
+
+def _preview_bom_upload(organization, parent_part, parent_revision, csv_bytes, mode):
+    with transaction.atomic():
+        if parent_revision.is_immutable():
+            parts.create_next_revision(parent_revision)
+        import_form = _build_import_form(
+            organization, 'bom', csv_bytes, {'mode': mode, 'parent_part_id': parent_part.id})
+        import_form.is_valid()
+        transaction.set_rollback(True)
+    return import_form
+
+
+def _line_edit(organization, target, line):
+    subpart = dict(target, subpart_part_number=line['part_number'])
+    if line['change'] == 'removed':
+        return ChangeItem.KIND_REMOVE_SUBPART, subpart
+    latest = parts.revision_from_number(organization, line['part_number'])
+    if latest.revision != line['revision']:
+        raise ServiceError(
+            f"{line['part_number']} is listed at rev {line['revision']}, but BOM lines always use a part's latest "
+            f"revision, rev {latest.revision}. Use rev {latest.revision} in the CSV.")
+    if line['change'] == 'updated':
+        return ChangeItem.KIND_UPDATE_SUBPART, dict(subpart, count=line['new_count'], reference=line['new_reference'])
+    return ChangeItem.KIND_ADD_SUBPART, dict(subpart, count=line['new_count'], reference=line['new_reference'],
+                                              do_not_load=line['do_not_load'])
 
 
 def _build_import_form(organization, kind, csv_bytes, options):

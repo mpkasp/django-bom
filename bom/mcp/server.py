@@ -31,7 +31,7 @@ mcp = MCPServer(
         "Edits are Changes: call start_change once per user intent with a title and a rationale (the why), pass "
         "its change_id to the write tools to stage items, then submit_change for review or apply_change. "
         "When the user did not say, ask whether to apply now or submit for review. get_organization shows what "
-        "this token may do (token_level)."
+        "this token may do (token_level). Agents never release revisions or approve requests; people do that."
     ),
 )
 
@@ -387,3 +387,22 @@ def revise_part(ctx: Context, part_number: str, change_id: int) -> dict:
         changes.require_revisable(source)
         payload = {'part_number': part_number, 'revision': source.revision}
         return _write_item(actor, ChangeItem.KIND_CREATE_PART_REVISION, payload, change_id)
+
+
+@mcp.tool(annotations=WRITE)
+def upload_bom(ctx: Context, assembly_part_number: str, csv_text: str, change_id: int, mode: str = 'add') -> dict:
+    """Stage the BOM lines of an indented-BOM CSV (the format export_bom_csv produces; columns such as part_number,
+    quantity, reference, level) into an assembly. `mode` `add` (default) adds the CSV's quantities and references
+    to the assembly's existing lines; `replace` makes the assembly's lines match the CSV and removes the rest. The
+    CSV is checked with the same import as the web upload and becomes one add_subpart, update_subpart or
+    remove_subpart item per changed line, so a reviewer can accept or reject lines individually. The CSV may only use
+    parts and revisions that already exist, and it cannot create or edit parts; a CSV with errors stages nothing and
+    the error lists each bad row. A Released assembly becomes an Engineering Change Order, as with add_subpart.
+    Stages into `change_id` (from start_change); nothing is saved until the change is applied."""
+    with tool_call(ctx, 'upload_bom') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        change = _own_change(actor, change_id)
+        items, warnings = changes.stage_bom_upload(change, assembly_part_number, csv_text, mode)
+        return {'change_id': change.id, 'number': change.number, 'url': changes.change_url(change),
+                'staged': [changes.item_summary(item) for item in items], 'warnings': warnings,
+                'items_in_change': change.items.count()}

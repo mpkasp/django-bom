@@ -487,6 +487,192 @@ class MCPRevisionToolsTest(MCPTestCase):
         self.assertIn('No change', error)
 
 
+class MCPUploadBomTest(MCPTestCase):
+    def setUp(self):
+        super().setUp()
+        PartRevisionPropertyDefinition.objects.update(required=False)
+        self.resistor, self.capacitor = self.parts[0], self.parts[1]
+        self.assembly_revision = parts.create_part(
+            self.organization, 'Board', part_class_code=str(self.parts[0].number_class.code))
+        self.assembly_number = self.assembly_revision.part.full_part_number()
+
+    def csv_text(self, *rows, header='part_number,quantity,reference'):
+        return '\n'.join([header] + [','.join(str(cell) for cell in row) for row in rows]) + '\n'
+
+    def start_change(self, plaintext):
+        result, error = self.mcp(plaintext).call('start_change', title='Load BOM', rationale='From the CSV')
+        self.assertIsNone(error, error)
+        return result['change_id']
+
+    def lines(self, part=None):
+        part = part or self.assembly_revision.part
+        return {line.part_revision.part.full_part_number(): (line.count, line.reference)
+                for line in part.latest().assembly.subparts.select_related('part_revision__part')}
+
+    def upload(self, plaintext, csv_text, mode='add', change_id=None):
+        change_id = change_id or self.start_change(plaintext)
+        result, error = self.mcp(plaintext).call(
+            'upload_bom', assembly_part_number=self.assembly_number, csv_text=csv_text, change_id=change_id,
+            mode=mode)
+        return change_id, result, error
+
+    def load_initial_lines(self):
+        change_id, _, error = self.upload(self.apply_plaintext, self.csv_text(
+            (self.resistor.full_part_number(), 2, '"R1, R2"'), (self.capacitor.full_part_number(), 1, '')))
+        self.assertIsNone(error, error)
+        _, error = self.mcp(self.apply_plaintext).call('apply_change', change_id=change_id)
+        self.assertIsNone(error, error)
+
+    def test_stages_one_item_per_line_and_applies(self):
+        change_id, result, error = self.upload(self.apply_plaintext, self.csv_text(
+            (self.resistor.full_part_number(), 2, '"R1, R2"'), (self.capacitor.full_part_number(), 1, '')))
+
+        self.assertIsNone(error, error)
+        self.assertEqual([item['kind'] for item in result['staged']], ['add_subpart', 'add_subpart'])
+        self.assertEqual(result['items_in_change'], 2)
+        self.assertEqual(self.lines(), {})
+        self.assertEqual(Change.objects.get(pk=change_id).items.count(), 2)
+
+        applied, error = self.mcp(self.apply_plaintext).call('apply_change', change_id=change_id)
+
+        self.assertIsNone(error, error)
+        self.assertEqual(applied['status'], 'applied')
+        self.assertEqual(self.lines(), {self.resistor.full_part_number(): (2, 'R1, R2'),
+                                        self.capacitor.full_part_number(): (1, '')})
+
+    def test_add_mode_adds_to_existing_lines_and_replace_mode_makes_them_match(self):
+        self.load_initial_lines()
+        csv_text = self.csv_text((self.resistor.full_part_number(), 3, '"R3, R4, R5"'))
+
+        _, added, error = self.upload(self.write_plaintext, csv_text, mode='add')
+        self.assertIsNone(error, error)
+        self.assertEqual([(item['kind'], item['summary'].split()[0]) for item in added['staged']],
+                         [('update_subpart', 'Update')])
+        self.assertIn('count 5', added['staged'][0]['summary'])
+
+        _, replaced, error = self.upload(self.write_plaintext, csv_text, mode='replace')
+        self.assertIsNone(error, error)
+        self.assertEqual(sorted(item['kind'] for item in replaced['staged']), ['remove_subpart', 'update_subpart'])
+        self.assertTrue(any('count 3' in item['summary'] for item in replaced['staged']))
+
+        change_id = self.start_change(self.apply_plaintext)
+        self.upload(self.apply_plaintext, csv_text, mode='replace', change_id=change_id)
+        self.mcp(self.apply_plaintext).call('apply_change', change_id=change_id)
+        self.assertEqual(self.lines(), {self.resistor.full_part_number(): (3, 'R3, R4, R5')})
+
+    def test_a_csv_with_errors_stages_nothing_and_lists_the_rows(self):
+        change_id = self.start_change(self.write_plaintext)
+        csv_text = self.csv_text(
+            (self.resistor.full_part_number(), 'many', ''), (self.capacitor.full_part_number(), 'lots', ''))
+
+        _, result, error = self.upload(self.write_plaintext, csv_text, change_id=change_id)
+
+        self.assertIsNone(result)
+        self.assertIn('2 errors; nothing was staged', error)
+        self.assertIn('Row 2', error)
+        self.assertIn('Row 3', error)
+        self.assertFalse(Change.objects.get(pk=change_id).items.exists())
+
+    def test_a_csv_without_the_required_columns_is_refused(self):
+        _, result, error = self.upload(self.write_plaintext, 'description\nBoard\n')
+
+        self.assertIsNone(result)
+        self.assertIn('nothing was staged', error)
+
+    def test_a_csv_that_needs_new_parts_is_refused_and_creates_nothing(self):
+        part_count = Part.objects.filter(organization=self.organization).count()
+        csv_text = self.csv_text((self.resistor.full_part_number(), 1, ''), ('200-9999-00', 1, ''))
+
+        change_id, result, error = self.upload(self.write_plaintext, csv_text)
+
+        self.assertIsNone(result)
+        self.assertIn('200-9999-00', error)
+        self.assertIn('create_part', error)
+        self.assertEqual(Part.objects.filter(organization=self.organization).count(), part_count)
+        self.assertFalse(Change.objects.get(pk=change_id).items.exists())
+
+    def test_a_csv_that_changes_nothing_and_unknown_modes_are_refused(self):
+        self.load_initial_lines()
+        same_lines = self.csv_text((self.resistor.full_part_number(), 2, '"R1, R2"'),
+                                   (self.capacitor.full_part_number(), 1, ''))
+
+        _, _, error = self.upload(self.write_plaintext, same_lines, mode='replace')
+        self.assertIn('makes no changes', error)
+        _, _, error = self.upload(self.write_plaintext, same_lines, mode='merge')
+        self.assertIn('Valid modes: add, replace', error)
+
+    def test_a_propose_token_stages_and_cannot_apply(self):
+        change_id, result, error = self.upload(
+            self.write_plaintext, self.csv_text((self.resistor.full_part_number(), 1, '')))
+        self.assertIsNone(error, error)
+
+        _, error = self.mcp(self.write_plaintext).call('apply_change', change_id=change_id)
+        self.assertIn("'apply' scope", error)
+        _, error = self.mcp(self.write_plaintext).call('submit_change', change_id=change_id)
+        self.assertIsNone(error, error)
+        self.assertEqual(self.lines(), {})
+
+        changes.apply_change(Change.objects.get(pk=change_id), self.user)
+        self.assertEqual(self.lines(), {self.resistor.full_part_number(): (1, '')})
+
+    def test_a_released_assembly_becomes_an_engineering_change_order(self):
+        PartRevision.objects.filter(pk=self.assembly_revision.pk).update(
+            configuration=constants.CONFIGURATION_TYPE_RELEASED)
+
+        change_id, result, error = self.upload(
+            self.apply_plaintext, self.csv_text((self.resistor.full_part_number(), 4, '')))
+
+        self.assertIsNone(error, error)
+        change = Change.objects.get(pk=change_id)
+        self.assertTrue(changes.is_eco(change))
+        _, error = self.mcp(self.apply_plaintext).call('apply_change', change_id=change_id)
+        self.assertIsNone(error, error)
+        self.assertEqual(self.assembly_revision.part.revisions().count(), 2)
+        self.assertEqual(self.lines(), {self.resistor.full_part_number(): (4, '')})
+        self.assertEqual(
+            PartRevision.objects.get(pk=self.assembly_revision.pk).configuration,
+            constants.CONFIGURATION_TYPE_RELEASED)
+
+    def test_a_submitted_change_cannot_take_more_items(self):
+        change_id = self.start_change(self.write_plaintext)
+        self.upload(self.write_plaintext, self.csv_text((self.resistor.full_part_number(), 1, '')),
+                    change_id=change_id)
+        self.mcp(self.write_plaintext).call('submit_change', change_id=change_id)
+
+        _, _, error = self.upload(self.write_plaintext, self.csv_text((self.capacitor.full_part_number(), 1, '')),
+                                  change_id=change_id)
+
+        self.assertIn('items can only be staged into a draft', error)
+
+    def test_read_tokens_cannot_upload(self):
+        change_id = self.start_change(self.write_plaintext)
+
+        _, result, error = self.upload(
+            self.read_plaintext, self.csv_text((self.resistor.full_part_number(), 1, '')), change_id=change_id)
+
+        self.assertIsNone(result)
+        self.assertIn("'write' scope", error)
+        self.assertFalse(Change.objects.get(pk=change_id).items.exists())
+
+    def test_another_organization_cannot_reach_the_assembly_or_the_change(self):
+        other_user = User.objects.create_user('other', 'other@example.com', 'ghostpassword')
+        other_organization = create_a_fake_organization(other_user)
+        other_profile = other_user.bom_profile(organization=other_organization)
+        other_profile.role = constants.ROLE_TYPE_ADMIN
+        other_profile.save()
+        _, other_plaintext = APIToken.issue(other_user, other_organization, 'write',
+                                            scopes=[APIToken.SCOPE_READ, APIToken.SCOPE_WRITE])
+        csv_text = self.csv_text((self.resistor.full_part_number(), 1, ''))
+        own_change = self.start_change(self.write_plaintext)
+        other_change = self.start_change(other_plaintext)
+
+        _, _, error = self.upload(other_plaintext, csv_text, change_id=other_change)
+        self.assertIn('No part', error)
+        _, _, error = self.upload(other_plaintext, csv_text, change_id=own_change)
+        self.assertIn('No change', error)
+        self.assertFalse(Change.objects.get(pk=own_change).items.exists())
+
+
 class MCPReleaseTest(MCPTestCase):
     def setUp(self):
         super().setUp()
