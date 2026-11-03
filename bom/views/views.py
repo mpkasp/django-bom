@@ -27,7 +27,6 @@ from social_django.models import UserSocialAuth
 
 import bom.constants as constants
 from bom.csv_headers import (
-    ManufacturerPartCSVHeaders,
     PartClassesCSVHeaders,
     SellerPartCSVHeaders,
     VendorPricesCSVHeaders,
@@ -87,6 +86,7 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
+from bom.services.boms import bom_csv
 from bom.services.changes import (log_event, newer_draft_revision, part_history, proposals_for_revision, record_csv_import,
                                   record_direct_edit, release_approval_required, release_preview, release_revision,
                                   request_release_approval, revise_revision)
@@ -94,6 +94,7 @@ from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
+from bom.services.parts import revision_values
 from bom.services.search import latest_part_revisions, search_parts
 from bom.third_party_apis.base_api import BaseApiError
 from bom.third_party_apis.google_drive import has_drive_scope
@@ -975,56 +976,21 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
     else:
         layout = 'indented'
 
-    response = HttpResponse(content_type='text/csv')
-    filename = f'indabom_export_{part.full_part_number()}_{layout}'
-    response['Content-Disposition'] = f'attachment; filename="{filename}.csv'
-
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 1000)
 
     try:
-        if flat:
-            bom = part_revision.flat(top_level_quantity=qty)
-        else:
-            bom = part_revision.indented(top_level_quantity=qty, max_level=1 if single_level else None)
-    except (RuntimeError, RecursionError):
-        messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
-        bom = []
+        csv_text = bom_csv(part_revision, layout, qty, sourcing=sourcing, sourcing_detailed=sourcing_detailed)
+    except ServiceError as err:
+        messages.error(request, f"Error: {err.message} Contact info@indabom.com to resolve.")
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
     except AttributeError as err:
         messages.error(request, err)
-        bom = []
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
-    if flat:
-        csv_headers = organization.bom_flat_csv_headers()
-    else:
-        csv_headers = organization.bom_indented_csv_headers()
-
-    csv_headers_raw = csv_headers.get_default_all()
-    csv_rows = []
-    for _, item in bom.parts.items():
-        mapped_row = {}
-        raw_row = {k: smart_str(v) for k, v in item.as_dict_for_export().items()}
-        for kx, vx in raw_row.items():
-            mapped_row.update({csv_headers.get_default(kx): vx})
-
-        if sourcing_detailed:
-            for idx, sp in enumerate(item.seller_parts_for_export()):
-                if f'{ManufacturerPartCSVHeaders.all_headers_defns[0]}_{idx + 1}' not in csv_headers_raw:
-                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in ManufacturerPartCSVHeaders.all_headers_defns])
-                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in SellerPartCSVHeaders.all_headers_defns])
-                mapped_row.update({f'{k}_{idx + 1}': smart_str(v) for k, v in sp.items()})
-        elif sourcing:
-            for idx, mp in enumerate(item.manufacturer_parts_for_export()):
-                if f'{ManufacturerPartCSVHeaders.all_headers_defns[0]}_{idx + 1}' not in csv_headers_raw:
-                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in ManufacturerPartCSVHeaders.all_headers_defns])
-                mapped_row.update({f'{k}_{idx + 1}': smart_str(v) for k, v in mp.items()})
-
-        csv_rows.append(mapped_row)
-
-    writer = csv.DictWriter(response, fieldnames=csv_headers_raw)
-    writer.writeheader()
-    writer.writerows(csv_rows)
-
+    response = HttpResponse(csv_text, content_type='text/csv')
+    filename = f'indabom_export_{part.full_part_number()}_{layout}'
+    response['Content-Disposition'] = f'attachment; filename="{filename}.csv'
     return response
 
 
@@ -1584,9 +1550,7 @@ def manage_bom(request, part_id, part_revision_id):
 
     edit_url = _edit_page_url(part_id, part_revision_id)
     if request.method == 'POST':
-        before = {'description': part_revision.description,
-                  'properties': {prop.property_definition.code: prop.value_raw
-                                 for prop in part_revision.properties.select_related('property_definition')}}
+        before = revision_values(part_revision)
         part_revision_form = PartRevisionForm(request.POST, instance=part_revision, organization=organization)
         if part_revision_form.is_valid():
             part_revision_form.save()
@@ -2379,6 +2343,25 @@ def part_revision_delete(request, part_id, part_revision_id):
     messages.info(request, 'Deleted {} Rev {}.'.format(part.full_part_number(), part_revision.revision))
 
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}))
+
+
+class HelpAI(TemplateView):
+    name = 'help-ai'
+    template_name = 'bom/help-ai.html'
+
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['oauth_enabled'] = bool(settings.BOM_CONFIG.get('mcp_oauth_issuer_url'))
+        context['mcp_url'] = mcp_url()
+        return context
+
+
+def mcp_url():
+    configured = settings.BOM_CONFIG.get('mcp_resource_url')
+    if configured:
+        return configured
+    site_url = settings.BOM_CONFIG.get('site_url', '').rstrip('/')
+    return f'{site_url}/mcp' if site_url else 'https://your-server/mcp'
 
 
 class Help(TemplateView):

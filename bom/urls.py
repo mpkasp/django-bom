@@ -15,6 +15,7 @@ bom_patterns = [
     # path('bom/', views.home, name='home'),
     path('create-organization/', views.organization_create, name='organization-create'),
     path('help/', views.Help.as_view(), name=views.Help.name),
+    path('help/ai/', views.HelpAI.as_view(), name=views.HelpAI.name),
     path('search-help/', views.search_help, name='search-help'),
     path('bom-signup/', views.bom_signup, name='bom-signup'),
     path('settings/', views.bom_settings, name='settings'),

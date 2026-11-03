@@ -1,0 +1,60 @@
+{% extends 'bom/bom-base.html' %}
+{% load bom_oauth %}
+
+{% block head-title %}Authorize {{ application.name|default:"app" }}{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div class="row">
+            <div class="col s12 m10 offset-m1 l6 offset-l3">
+                {% if error %}
+                    <div class="card">
+                        <div class="card-content">
+                            <span class="card-title">Error: {{ error.error }}</span>
+                            <p>{{ error.description }}</p>
+                        </div>
+                    </div>
+                {% else %}
+                    {% oauth_access_choices as access %}
+                    <form id="authorizationForm" method="post" class="card">
+                        {% csrf_token %}
+                        {% for field in form %}
+                            {% if field.is_hidden and field.name != 'scope' %}{{ field }}{% endif %}
+                        {% endfor %}
+                        <div class="card-content">
+                            <span class="card-title">Connect {{ application.name|default:"this app" }}?</span>
+                            {% if access.organization %}
+                                <p>This app wants to access <b>{{ access.organization.name }}</b> as
+                                    <b>{{ request.user.get_username }}</b>. It never has more access than your role.</p>
+                                <p style="margin-top: 1.5rem;"><b>What may it do?</b></p>
+                                {% for choice in access.choices %}
+                                    <p>
+                                        <label>
+                                            <input class="with-gap" name="scope" type="radio" value="{{ choice.scope }}"
+                                                   {% if choice.checked %}checked{% endif %}>
+                                            <span><b>{{ choice.label }}</b><br>
+                                                <small class="grey-text text-darken-1">{{ choice.description }}</small></span>
+                                        </label>
+                                    </p>
+                                {% endfor %}
+                            {% else %}
+                                {{ form.scope.as_hidden }}
+                                <p>Join or create an organization before connecting an app.</p>
+                            {% endif %}
+                            {% if form.errors %}<p class="red-text">{{ form.errors }}</p>{% endif %}
+                        </div>
+                        <div class="card-action right-align">
+                            <button type="submit" class="btn-flat waves-effect">Cancel</button>
+                            {% if access.organization %}
+                                <button type="submit" name="allow" value="Authorize"
+                                        class="btn waves-effect waves-light btn-primary">Authorize</button>
+                            {% endif %}
+                        </div>
+                    </form>
+                    <p class="center-align grey-text">You can disconnect this app any time in
+                        <a href="{% url 'bom:settings' 'api' %}">Settings → API Tokens</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

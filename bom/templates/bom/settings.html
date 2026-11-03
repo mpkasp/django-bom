@@ -352,7 +352,8 @@
                     <h4 class="section-title"><i class="material-icons teal-text text-darken-1">vpn_key</i>API Tokens</h4>
                     <p>Tokens let an MCP client or script act as you. <b>Read</b> tokens only look things up,
                         <b>Write: propose</b> tokens stage changes for review, and <b>Write: apply</b> tokens can also
-                        apply them. A token never has more access than your role.</p>
+                        apply them. A token never has more access than your role.
+                        <a href="{% url 'bom:help-ai' %}">How to connect an AI assistant</a></p>
                     {% if new_api_token_plaintext %}
                         <div class="card-panel green lighten-5">
                             <p style="margin-top: 0;"><b>Copy your new token now. It will not be shown again.</b></p>
@@ -386,9 +387,10 @@
                             <tbody>
                             {% for api_token in api_tokens %}
                                 <tr>
-                                    <td class="text-normal">{{ api_token.name }}</td>
+                                    <td class="text-normal">{{ api_token.name }}{% if api_token.is_connection %}
+                                        <span class="chip">Connected app</span>{% endif %}</td>
                                     {% if user_can_manage_members %}<td class="text-normal">{{ api_token.user.username }}</td>{% endif %}
-                                    <td><code>{{ api_token.prefix }}</code></td>
+                                    <td>{% if api_token.is_connection %}<span class="grey-text">&mdash;</span>{% else %}<code>{{ api_token.prefix }}</code>{% endif %}</td>
                                     <td class="text-normal">{{ api_token.level_display }}</td>
                                     <td class="text-normal">{{ api_token.last_used_at|default:"Never" }}</td>
                                     <td class="text-normal">{{ api_token.expires_at|default:"Never" }}</td>

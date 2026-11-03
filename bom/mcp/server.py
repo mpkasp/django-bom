@@ -7,7 +7,7 @@ from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
-from bom.mcp.auth import Actor
+from bom.mcp.auth import Actor, ConnectionTokenVerifier, oauth_auth_settings
 from bom.permissions import BomPerms
 from bom.models import Change, ChangeItem, PartRevision, SellerPart
 from bom.services import boms, changes, parts, sourcing
@@ -21,8 +21,12 @@ READ_ONLY = ToolAnnotations(read_only_hint=True)
 WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=False)
 DESTRUCTIVE = ToolAnnotations(read_only_hint=False, destructive_hint=True)
 
+auth_settings = oauth_auth_settings()
+
 mcp = MCPServer(
     'IndaBOM',
+    auth=auth_settings,
+    token_verifier=ConnectionTokenVerifier(auth_settings.resource_server_url) if auth_settings else None,
     instructions=(
         "Tools for reading and building bills of materials in the caller's IndaBOM organization. "
         "Call get_organization first: it tells you the part numbering scheme, the valid part classes, "
@@ -31,7 +35,7 @@ mcp = MCPServer(
         "Edits are Changes: call start_change once per user intent with a title and a rationale (the why), pass "
         "its change_id to the write tools to stage items, then submit_change for review or apply_change. "
         "When the user did not say, ask whether to apply now or submit for review. get_organization shows what "
-        "this token may do (token_level)."
+        "this token may do (token_level). Agents never release revisions or approve requests; people do that."
     ),
 )
 
@@ -109,6 +113,15 @@ def price_bom(ctx: Context, part_number: str, quantity: int, revision: str | Non
         report = boms.bom_report(part_revision, quantity=max(1, quantity), flat=True)
         report['unpriced_items'] = [line for line in report.pop('items') if line['unit_cost'] is None]
         return report
+
+
+@mcp.tool(annotations=READ_ONLY)
+def export_bom_csv(ctx: Context, part_number: str, revision: str | None = None, layout: str = 'indented') -> str:
+    """The same CSV the IndaBOM Export button downloads, as text. Layout `indented` keeps the whole tree,
+    `single_level` lists only the assembly's direct lines, and `flat` merges each part into one line across the tree."""
+    with tool_call(ctx, 'export_bom_csv') as actor:
+        part_revision = parts.revision_from_number(actor.organization, part_number, revision)
+        return boms.bom_csv(part_revision, layout=layout)
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -344,3 +357,56 @@ def add_seller_part(ctx: Context, manufacturer_part_id: int | str, seller: str, 
             'minimum_pack_quantity': minimum_pack_quantity, 'lead_time_days': lead_time_days, 'nre_cost': nre_cost,
             'seller_part_number': seller_part_number, 'link': link, 'ncnr': ncnr}
         return _finish_write(actor, _write_item(actor, ChangeItem.KIND_ADD_SELLER_PART, payload, change_id))
+
+
+@mcp.tool(annotations=WRITE)
+def update_part_revision(ctx: Context, part_number: str, change_id: int, description: str | None = None,
+                         properties: dict[str, str] | None = None, revision: str | None = None) -> dict:
+    """Stage a new description and/or property values (codes from get_organization) on a part's Draft revision;
+    values left out are kept and a property given as an empty string is cleared. Only Draft revisions can be
+    edited: for a Released or In Review revision, stage revise_part and have that change applied first, then edit
+    the new Draft. Stages into `change_id` (from start_change); nothing is saved until the change is applied."""
+    with tool_call(ctx, 'update_part_revision') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        part_revision = parts.revision_from_number(actor.organization, part_number, revision)
+        if part_revision.is_immutable():
+            raise ToolError(
+                f"{part_number} rev {part_revision.revision} is {part_revision.get_configuration_display()} and "
+                f"cannot be edited. Call revise_part to create the next Draft (and have that change applied), "
+                f"then update the new Draft.")
+        payload = {'part_number': part_number, 'revision': part_revision.revision, 'description': description,
+                   'properties': properties}
+        return _write_item(actor, ChangeItem.KIND_UPDATE_PART_REVISION, payload, change_id)
+
+
+@mcp.tool(annotations=WRITE)
+def revise_part(ctx: Context, part_number: str, change_id: int) -> dict:
+    """Stage the next Draft revision of a part, copied from its latest Released or In Review revision, as the
+    Revise button does. Refused when a newer Draft already exists (the error names it). The new Draft
+    exists only once the change is applied; edit it afterwards with update_part_revision, add_subpart and the
+    other write tools. Agents never release a revision: a person does that."""
+    with tool_call(ctx, 'revise_part') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        source = changes.latest_immutable_revision(parts.part_from_number(actor.organization, part_number))
+        changes.require_revisable(source)
+        payload = {'part_number': part_number, 'revision': source.revision}
+        return _write_item(actor, ChangeItem.KIND_CREATE_PART_REVISION, payload, change_id)
+
+
+@mcp.tool(annotations=WRITE)
+def upload_bom(ctx: Context, assembly_part_number: str, csv_text: str, change_id: int, mode: str = 'add') -> dict:
+    """Stage the BOM lines of an indented-BOM CSV (the format export_bom_csv produces; columns such as part_number,
+    quantity, reference, level) into an assembly. `mode` `add` (default) adds the CSV's quantities and references
+    to the assembly's existing lines; `replace` makes the assembly's lines match the CSV and removes the rest. The
+    CSV is checked with the same import as the web upload and becomes one add_subpart, update_subpart or
+    remove_subpart item per changed line, so a reviewer can accept or reject lines individually. The CSV may only use
+    parts and revisions that already exist, and it cannot create or edit parts; a CSV with errors stages nothing and
+    the error lists each bad row. A Released assembly becomes an Engineering Change Order, as with add_subpart.
+    Stages into `change_id` (from start_change); nothing is saved until the change is applied."""
+    with tool_call(ctx, 'upload_bom') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        change = _own_change(actor, change_id)
+        items, warnings = changes.stage_bom_upload(change, assembly_part_number, csv_text, mode)
+        return {'change_id': change.id, 'number': change.number, 'url': changes.change_url(change),
+                'staged': [changes.item_summary(item) for item in items], 'warnings': warnings,
+                'items_in_change': change.items.count()}

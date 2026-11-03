@@ -184,16 +184,37 @@ Run it standalone with an ASGI server; Django is served alongside it:
 ```
 uv run uvicorn bom.asgi:application
 ```
-The server listens at `/mcp` (Streamable HTTP, stateless). In a host project, mount `bom.mcp.asgi.build_mcp_app()`
-and enter `bom.mcp.asgi.mcp_lifespan` from the host app's lifespan.
+The server listens at `/mcp` (Streamable HTTP, stateless). In a host project, add `bom.mcp.asgi.mcp_routes()` to the
+host's Starlette routes and enter `bom.mcp.asgi.mcp_lifespan` from the host app's lifespan.
 
-Every request needs a bearer token. Create one under Settings > API Tokens (the plaintext is shown once), or issue
-one for a user from the command line (the plaintext is printed once):
+Every request needs a bearer token or an OAuth sign-in. The in-app page `/help/ai/` ("Connect an AI assistant")
+walks users through both.
+
+**Sign in (recommended).** When the host runs an OAuth authorization server, connecting is one command and a browser
+sign-in; the user then picks what the assistant may do (read only, propose changes for review, or propose and apply):
+```
+claude mcp add --transport http indabom https://your-host/mcp
+```
+Then run `/mcp` in Claude Code, choose indabom and Authenticate. claude.ai, Claude Desktop and Cursor connect the same
+way. Each connected app appears in Settings > API Tokens as a *Connected app*; revoking it also revokes its OAuth tokens.
+
+To enable it, install [django-oauth-toolkit](https://django-oauth-toolkit.readthedocs.io) in the host (django-bom does
+not depend on it), list `bom` before `oauth2_provider` in `INSTALLED_APPS` so the consent template in
+`bom/templates/oauth2_provider/authorize.html` is used, and set two keys in `BOM_CONFIG`:
+- `mcp_oauth_issuer_url`: the authorization server's base URL, e.g. `https://www.example.com`.
+- `mcp_resource_url`: the public MCP URL, e.g. `https://mcp.example.com/mcp`. Tokens must be issued for this resource
+  (RFC 8707; tokens with no resource are refused), and the MCP server publishes its RFC 9728 metadata at `/.well-known/oauth-protected-resource/mcp`.
+
+Register the routes with `bom.mcp.asgi.mcp_routes()`. The toolkit needs the scopes `read`, `write` and `apply`.
+Without `mcp_oauth_issuer_url`, only pasted tokens are accepted and no OAuth metadata is published.
+
+**Paste a token.** Create one under Settings > API Tokens (the plaintext is shown once), or issue one for a user from
+the command line (the plaintext is printed once):
 ```
 uv run python manage.py create_api_token <username> --name "Claude Code" --scopes read,write
 ```
 A token acts as that user in their organization: role permissions still apply, and a `read`-only token can never write.
-Connect a client with the token in the `Authorization` header, e.g.:
+Connect a client that can set headers with the token in the `Authorization` header, e.g.:
 ```
 claude mcp add --transport http indabom http://localhost:8000/mcp --header "Authorization: Bearer <token>"
 ```
@@ -206,7 +227,7 @@ Every MCP edit is a *Change*: a bundle of staged items reviewed at `/changes/` a
 only stage and submit changes for review (propose); `read,write,apply` can also apply them
 (`create_api_token --scopes read,write,apply`). Write tools take an optional `change_id` to stage into a change from
 `start_change`; without it a propose-level token submits a one-item change request and an apply-level token applies
-it at once. Edits to Released or In Review revisions make the change an Engineering Change Order (ECO): applying it
+it at once; `update_part_revision`, `revise_part` and `upload_bom` always need a `change_id`. Edits to Released or In Review revisions make the change an Engineering Change Order (ECO): applying it
 creates a new Draft revision of each edited part (copying its assembly and properties) and a person's approval then
 releases those revisions, children before parents, and it requires a second person to apply, as do protections in `ChangeSettings` (including a cost-delta threshold). The
 review page shows validation, impact (assemblies that use the edited parts) and the unit-cost effect at 100 units,

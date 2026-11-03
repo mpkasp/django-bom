@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-bom"
-version = "1.331"
+version = "1.332"
 description = "A simple Django app to manage a bill of materials."
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
@@ -66,6 +66,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "django-hijack",
+    "django-oauth-toolkit>=3.4.1",
 ]
 
 [tool.setuptools]

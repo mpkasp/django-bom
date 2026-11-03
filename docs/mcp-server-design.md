@@ -116,8 +116,8 @@ from the implementation plan (valid token, foreign part number, expect not-found
 
 ### 6. Writes commit through the existing forms; the MCP client is the confirmation gate
 
-This is a deliberate narrowing of ai-architecture §2 ("AI proposes, Django's forms commit"),
-and the architecture doc should be amended to say so.
+This is a deliberate narrowing of the original ai-architecture §2 proposal model; §2 now describes
+what shipped.
 
 In the proposal model, the human reviews an `AIProposal` in the web UI. That fits features where
 the model acts on untrusted input (an uploaded spreadsheet) on behalf of a user who is not in the
@@ -154,27 +154,37 @@ Read (scope `read`):
 
 | tool | arguments | returns |
 |---|---|---|
-| `get_organization` | | number scheme, part-number lengths, currency, part classes with codes, sourcing provider configured? |
-| `search_parts` | `query`, `part_class?`, `limit=25` | matches on part number, synopsis, MPN, manufacturer |
+| `get_organization` | | number scheme, part-number lengths, currency, part classes and property definitions, `token_level`, whether change review is enabled |
+| `search_parts` | `query=''`, `part_class_code?`, `limit=25` | matches on part number, synopsis, MPN, manufacturer |
 | `get_part` | `part_number`, `revision?` | part, latest/requested revision, properties, manufacturer parts with seller parts |
-| `get_bom` | `part_number`, `revision?`, `flat=false`, `quantity=1` | indented or flat `PartBom`: subparts, counts, references, DNL, extended cost |
-| `where_used` | `part_number` | assemblies containing the part |
-| `price_bom` | `part_number`, `quantity` | per-line optimal seller and totals, from `PartRevision.flat()` + `SellerPart.optimal()` |
+| `get_bom` | `part_number`, `revision?`, `quantity=1`, `flat=false` | indented or flat BOM: lines, counts, references, DNL, seller, cost, totals |
+| `price_bom` | `part_number`, `quantity`, `revision?` | cost totals at the cheapest seller per line, and the lines with no price |
+| `where_used` | `part_number` | assemblies containing the part, at every level |
 | `lookup_sourcing` | `manufacturer_part_number` | live offers via the organization's configured provider (BYOK); never persisted |
-| `export_bom_csv` | `part_number`, `revision?` | the same CSV the UI exports |
+| `export_bom_csv` | `part_number`, `revision?`, `layout='indented'` | the CSV text the UI export produces; layout is `indented`, `single_level` or `flat` |
+| `get_change`, `list_changes` | `change_id`; `status='open'`, `limit=25` | a change with its items, flags and impact; changes by status |
 
-Write (scope `write`):
+Write (scope `write`; every tool stages into a Change, see [changes-design.md](changes-design.md)):
 
-| tool | form | notes |
+| tool | arguments | notes |
 |---|---|---|
-| `create_part` | `PartForm*` + `PartRevisionForm` | `part_class`, `description`, optional `number_item`/`number_variation`, optional `manufacturer`/`mpn`, optional properties; returns assigned part number |
-| `update_part_revision` | `PartRevisionForm` | draft revisions only; description and properties |
-| `create_part_revision` | `PartRevisionNewForm` | copies the latest revision as a new draft |
-| `add_subpart` | `AddSubpartForm` | `assembly_part_number`, `subpart_part_number`, `count`, `reference`, `do_not_load` |
-| `update_subpart`, `remove_subpart` | `SubpartForm` | `remove_subpart` is `destructive_hint` |
-| `add_manufacturer_part` | `ManufacturerPartForm` | creates `Manufacturer` by name if absent |
-| `add_seller_part` | `SellerPartForm` | `unit_cost`, `minimum_order_quantity`, `lead_time_days`, `nre_cost`; creates `Seller` by name if absent |
-| `upload_bom` | `BOMCSVForm` | CSV text for a parent part; the bulk path for a CAD export |
+| `start_change` | `title`, `rationale=''` | starts the Change that the other write tools stage into |
+| `submit_change`, `withdraw_change` | `change_id` | send a draft change for review; withdraw your own |
+| `apply_change` | `change_id` | needs the `apply` scope; never releases or approves |
+| `create_part` | `description`, `part_class_code?`, `number_item?`, `number_variation?`, `properties?`, `property_units?`, `manufacturer?`, `manufacturer_part_number?`, `link?`, `change_id?`, `ref=''` | applies through `PartForm*` + `PartRevisionForm`; returns the assigned part number |
+| `update_part_revision` | `part_number`, `change_id`, `description?`, `properties?`, `revision?` | Draft revisions only, through `PartRevisionForm`; a Released or In Review revision returns an error that says to call `revise_part` |
+| `revise_part` | `part_number`, `change_id` | the next Draft from the latest Released or In Review revision, as the UI's Revise; refused when a newer Draft exists |
+| `add_subpart` | `assembly_part_number`, `subpart_part_number`, `count=1`, `reference=''`, `do_not_load=false`, `assembly_revision?`, `change_id?` | `AddSubpartForm` |
+| `update_subpart`, `remove_subpart` | `assembly_part_number`, `subpart_part_number`, ..., `change_id?` | `SubpartForm`; `remove_subpart` is `destructive_hint` |
+| `upload_bom` | `assembly_part_number`, `csv_text`, `change_id`, `mode='add'` | `mode` is `add` or `replace`; previews with `BOMCSVForm` and stages one subpart item per changed line; the bulk path for a CAD export |
+| `add_manufacturer_part` | `part_number`, `manufacturer`, `manufacturer_part_number`, `link?`, `datasheet_url?`, `change_id?`, `ref=''` | `ManufacturerPartForm`; creates `Manufacturer` by name if absent |
+| `add_seller_part` | `manufacturer_part_id`, `seller`, `unit_cost`, `currency?`, `minimum_order_quantity=1`, `lead_time_days?`, `nre_cost='0'`, ..., `change_id?` | `SellerPartForm`; creates `Seller` by name if absent |
+
+`upload_bom` stages lines, not parts. The CSV is run through `BOMCSVForm` in a rolled-back transaction, and each
+added, changed or removed line becomes an `add_subpart`, `update_subpart` or `remove_subpart` item, so a reviewer
+accepts or rejects lines one at a time and a Released assembly follows the ECO path like any other subpart edit. A
+CSV that has row errors, or that needs a part or revision that does not exist yet, stages nothing and the error
+says why; create the parts first.
 
 Explicit part numbers: `create_part` accepts optional `number_item` and `number_variation`,
 exactly as `PartFormSemiIntelligent` does ("auto generated if blank"), and requires `number_item`
@@ -228,11 +238,130 @@ tools plus `create_part`, `add_subpart`, `add_manufacturer_part`, `add_seller_pa
 ASGI entrypoint and Cloud Run service in `infra/`; connected from Claude Code via header.
 Exit: a new product's parts and BOM created entirely from a chat session and visible in the UI.
 
-**Phase 2: usable by customers**
+**Phase 2: usable by customers** (spec below)
 django-oauth-toolkit authorization server and the dual `TokenVerifier`; remaining write tools;
-a docs page with client setup snippets; telemetry dashboard; amend ai-architecture §2.
+a docs page with client setup snippets; adoption milestones in the funnel export; amend
+ai-architecture §2. The BigQuery log sink and dashboard are dropped for now (see Phase 2 spec).
 Exit: a user adds IndaBOM as a claude.ai custom connector with Google sign-in and no copied token.
 
 **Phase 3**
 `purchase_package`, resources and prompts, and the REST API if integrator demand appears. The
 service layer built in Phase 1 means the REST API is a second thin surface, not a prerequisite.
+
+## Phase 2 spec
+
+Goal: onboarding is one command and a browser sign-in.
+
+```
+claude mcp add --transport http indabom https://mcp.indabom.com/mcp
+```
+
+Then `/mcp`, choose indabom, Authenticate. The browser opens IndaBOM's normal Google sign-in, then a
+consent page where the user picks what the assistant may do. claude.ai custom connectors work the same
+way. Pasted personal tokens keep working unchanged.
+
+### Split
+
+- **IndaBOM** hosts the authorization server: django-oauth-toolkit (latest 3.x) installed in the web
+  app, its views under `/o/`, RFC 8414 and RFC 9728 metadata at the domain root.
+- **django-bom** owns everything a self-hoster could reuse: the consent template, the token verifier
+  that accepts both kinds of token, connection records, the setup docs page and the new tools.
+  django-bom never imports `oauth2_provider` unless it is in `INSTALLED_APPS`, and does not depend on
+  it in `pyproject.toml`.
+
+### Authorization server settings (IndaBOM)
+
+- Authorization code with PKCE S256 only; refresh tokens on; public clients
+  (`token_endpoint_auth_method: none`). No implicit, password or client-credentials grants.
+- Open dynamic client registration (`AllowAllDCRPermission`) and Client ID Metadata Documents, so
+  Claude Code, Claude Desktop, claude.ai and Cursor register themselves.
+- Loopback redirects on any port (`ALLOW_LOCALHOST_LOOPBACK`) plus https redirects; nothing else.
+- Scopes `read`, `write`, `apply`, the same names and meanings as `APIToken` scopes.
+- Tokens are bound to the MCP resource (RFC 8707); the MCP service validates the audience.
+- Abuse limits: a per-IP throttle on `/o/register/`, and a `cleanup_oauth_clients` management command
+  that deletes dynamically registered applications with no grants or tokens after 7 days.
+- `/o/authorize/` requires login, which is the existing Google sign-in.
+
+### Consent page (django-bom)
+
+django-bom ships `templates/oauth2_provider/authorize.html`, so it overrides the toolkit's template when
+`bom` is listed before `oauth2_provider`. It shows the client's name, the organization, and one choice:
+
+| Choice | Scopes granted |
+|---|---|
+| Read only | `read` |
+| Propose changes for review | `read write` |
+| Propose and apply changes | `read write apply` |
+
+Choices the user's role or the host flags cannot use are hidden: a Viewer sees only Read; Apply needs
+`mcp_apply_enabled`; writes need `mcp_access_check` to pass (on IndaBOM, Pro). The default selection is
+the narrowest of the scopes the client requested and the user's ceiling.
+
+### Connections are `APIToken` rows
+
+The first time an OAuth access token is used, the verifier gets or creates an `APIToken` for that user,
+organization and OAuth client (`APIToken.oauth_client_id`, new, blank for pasted tokens), named after
+the client, with the granted scopes. Its `hashed_key` is random and never shown, so it can't be used as
+a pasted token. Everything downstream keeps working unchanged: `Actor`, `Change.api_token`, agent
+badges in History, `last_used_at`, and the Settings → API Tokens tab, which lists connections beside
+personal tokens. Revoking a connection there also revokes that client's OAuth access and refresh tokens
+for the user, and a revoked connection rejects its OAuth tokens.
+
+### MCP service (django-bom)
+
+- Replace `BearerTokenMiddleware` with the SDK's `token_verifier` and
+  `AuthSettings(issuer_url, resource_server_url, required_scopes=['read'], validate_token_resource=True)`
+  from `BOM_CONFIG['mcp_oauth_issuer_url']` and `BOM_CONFIG['mcp_resource_url']`. The SDK then publishes
+  RFC 9728 metadata and answers unauthenticated requests with the 401 that makes clients offer
+  Authenticate.
+- The verifier accepts a pasted `ibom_` token (resource is the MCP URL) or a toolkit access token
+  (looked up in the shared database, no introspection call; resource is the token's audience). Both
+  return an SDK `AccessToken` whose claims carry the `APIToken` id; `Actor` resolves from it.
+- Without `mcp_oauth_issuer_url` (self-hosted without the toolkit), only pasted tokens are accepted
+  and no OAuth metadata is published.
+- `mcp_access_check` and token-level enforcement are unchanged.
+
+Implementation notes (where the shipped code differs from the text above):
+
+- `BearerTokenMiddleware` is kept for hosts without `mcp_oauth_issuer_url`: the SDK's auth settings need an
+  issuer, so that mode stays pasted-tokens-only with no metadata. `Actor` reads either path.
+- A toolkit token with no RFC 8707 resource is refused rather than treated as unrestricted, so a token is only
+  ever accepted when it names this MCP URL.
+- `APIToken.revoke()` itself deletes the client's toolkit access and refresh tokens for the user, so every
+  revocation path (Settings, shell, admin) behaves the same. A grant made after a revocation creates a fresh
+  connection row; a grant made before it stays rejected.
+- The protected resource metadata route lives at the domain root, outside `/mcp`, so hosts register
+  `bom.mcp.asgi.mcp_routes()` instead of a single `Route`.
+- The consent page computes its choices in a template tag (`bom_oauth`), not in the toolkit view.
+
+### Remaining tools
+
+| Tool | Kind | Notes |
+|---|---|---|
+| `export_bom_csv` | read | `part_number`, `revision?`, `layout`: indented, single_level or flat; the same CSV as the UI |
+| `update_part_revision` | write | Draft only: description and properties; an immutable revision returns an error that says to call `revise_part` |
+| `revise_part` | write | the next Draft from a Released or In Review revision (the UI's Revise) |
+| `upload_bom` | write | `assembly_part_number`, `csv_text`, `mode` add or replace; previews through the import service and stages the result |
+
+Write tools go through Changes like the existing ones: a propose token stages items for review, an apply
+token may apply. Agents still never release or approve.
+
+### Setup docs page (django-bom)
+
+A "Connect an AI assistant" page, linked from Help and from Settings → API Tokens: the MCP URL, then
+per-client steps for Claude Code, claude.ai, Claude Desktop and Cursor (OAuth first, pasted token as the
+fallback), what each access level allows, and how to revoke.
+
+### Adoption milestones instead of a log sink (IndaBOM)
+
+The per-call log lines stay in Cloud Logging (30-day retention, searchable in Logs Explorer). The daily
+funnel export adds two milestones per user, `first_agent_connection_at` (first `APIToken`) and
+`first_agent_change_at` (first Change with an `api_token`), to `indabom_funnel.user_milestones`. A
+BigQuery log sink is worth adding only if read-tool history beyond 30 days is needed.
+
+### ai-architecture §2
+
+Amend to describe what shipped: agents write Changes through the same engine people use, staged and
+applied through the existing forms, with token levels as the ceiling and protections as the floor; there
+is no separate `AIProposal` model.
+

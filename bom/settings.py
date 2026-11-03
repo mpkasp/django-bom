@@ -62,6 +62,18 @@ try:
 except ImportError:
     pass
 
+try:
+    import oauth2_provider  # noqa: F401
+
+    INSTALLED_APPS.append('oauth2_provider')
+    OAUTH2_PROVIDER = {
+        'SCOPES': {'read': 'Read', 'write': 'Write', 'apply': 'Apply'},
+        'PKCE_REQUIRED': True,
+        'ALLOWED_REDIRECT_URI_SCHEMES': ['http', 'https'],
+    }
+except ImportError:
+    pass
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

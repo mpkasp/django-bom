@@ -24,13 +24,19 @@ another organization's parts. One layer means one place to enforce it and one pl
 
 ### 2. AI proposes, Django's forms commit
 
-No AI code path calls `.save()` on a domain model. AI writes an `AIProposal` — an
-organization-scoped record holding a proposed change as JSON, its status, and its provenance.
+No AI code path calls `.save()` on a domain model. Agents write **Changes**, the same engine people
+use to bundle and review edits: a tool stages a `ChangeItem` (an organization-scoped record of the
+proposed edit, its status and who or which token made it), and applying the change runs each item
+through the **existing forms** (`PartFormSemiIntelligent`, `SubpartForm`, `PartRevisionForm`,
+`BOMCSVForm`, …). That way `PartRevision.is_immutable()`, organization scoping, part-number validation, and
+every existing validator still run, with no second implementation to keep in sync. There is no separate
+`AIProposal` model.
 
-A human accepts a proposal, and the acceptance path runs the payload through the **existing
-forms** (`PartFormSemiIntelligent`, `SubpartForm`, `BOMCSVForm`, `PartRevisionPropertyDefinitionForm`, …).
-That way `PartRevision.is_immutable()`, organization scoping, part-number validation, and every
-existing validator still run, with no second implementation to keep in sync.
+The token sets how far an agent may go. A `read` token cannot stage anything, a `write` token stages
+and submits changes for a person to review, and an `apply` token may also apply the changes it started.
+That level is a ceiling; the protections are a floor under it. Agents never release a revision or approve
+a request, and protected changes (an Engineering Change Order, or one that trips an organization's
+protections) need a person other than the author. Each change records the token and client that wrote it.
 
 Two things fall out of this for free: an audit trail, which is not optional in a PLM context,
 and a safety story that doesn't depend on the model behaving.

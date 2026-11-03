@@ -1,3 +1,9 @@
+import csv
+import io
+
+from django.utils.encoding import smart_str
+
+from bom.csv_headers import ManufacturerPartCSVHeaders, SellerPartCSVHeaders
 from bom.forms import AddSubpartForm, SubpartForm
 from bom.models import Assembly, AssemblySubparts, Subpart
 from bom.services import parts
@@ -42,6 +48,55 @@ def bom_report(part_revision, quantity=1, flat=False):
         'items_missing_cost': bom.missing_item_costs,
         'items': items,
     }
+
+
+EXPORT_LAYOUTS = ('indented', 'single_level', 'flat')
+DEFAULT_EXPORT_QUANTITY = 1000
+
+
+def bom_csv(part_revision, layout='indented', quantity=DEFAULT_EXPORT_QUANTITY, sourcing=False,
+            sourcing_detailed=False):
+    """The CSV text of a revision's BOM that the UI export downloads. ``sourcing`` appends each line's manufacturer
+    parts and ``sourcing_detailed`` their seller parts too."""
+    if layout not in EXPORT_LAYOUTS:
+        raise ServiceError(f"Unknown layout {layout!r}. Valid layouts: {', '.join(EXPORT_LAYOUTS)}.")
+    organization = part_revision.part.organization
+    try:
+        if layout == 'flat':
+            bom = part_revision.flat(top_level_quantity=quantity)
+        else:
+            bom = part_revision.indented(top_level_quantity=quantity, max_level=1 if layout == 'single_level' else None)
+    except (RuntimeError, RecursionError):
+        raise ServiceError(f"Infinite recursion in the BOM of {part_revision.part.full_part_number()}.")
+
+    csv_headers = organization.bom_flat_csv_headers() if layout == 'flat' else organization.bom_indented_csv_headers()
+    csv_headers_raw = csv_headers.get_default_all()
+    csv_rows = []
+    for item in bom.parts.values():
+        mapped_row = {}
+        raw_row = {k: smart_str(v) for k, v in item.as_dict_for_export().items()}
+        for kx, vx in raw_row.items():
+            mapped_row.update({csv_headers.get_default(kx): vx})
+
+        if sourcing_detailed:
+            for idx, sp in enumerate(item.seller_parts_for_export()):
+                if f'{ManufacturerPartCSVHeaders.all_headers_defns[0]}_{idx + 1}' not in csv_headers_raw:
+                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in ManufacturerPartCSVHeaders.all_headers_defns])
+                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in SellerPartCSVHeaders.all_headers_defns])
+                mapped_row.update({f'{k}_{idx + 1}': smart_str(v) for k, v in sp.items()})
+        elif sourcing:
+            for idx, mp in enumerate(item.manufacturer_parts_for_export()):
+                if f'{ManufacturerPartCSVHeaders.all_headers_defns[0]}_{idx + 1}' not in csv_headers_raw:
+                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in ManufacturerPartCSVHeaders.all_headers_defns])
+                mapped_row.update({f'{k}_{idx + 1}': smart_str(v) for k, v in mp.items()})
+
+        csv_rows.append(mapped_row)
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=csv_headers_raw)
+    writer.writeheader()
+    writer.writerows(csv_rows)
+    return output.getvalue()
 
 
 def where_used(part):
