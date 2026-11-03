@@ -112,6 +112,15 @@ def price_bom(ctx: Context, part_number: str, quantity: int, revision: str | Non
 
 
 @mcp.tool(annotations=READ_ONLY)
+def export_bom_csv(ctx: Context, part_number: str, revision: str | None = None, layout: str = 'indented') -> str:
+    """The same CSV the IndaBOM Export button downloads, as text. Layout `indented` keeps the whole tree,
+    `single_level` lists only the assembly's direct lines, and `flat` merges each part into one line across the tree."""
+    with tool_call(ctx, 'export_bom_csv') as actor:
+        part_revision = parts.revision_from_number(actor.organization, part_number, revision)
+        return boms.bom_csv(part_revision, layout=layout)
+
+
+@mcp.tool(annotations=READ_ONLY)
 def where_used(ctx: Context, part_number: str) -> list[dict]:
     """Every assembly, at every level, that contains the part."""
     with tool_call(ctx, 'where_used') as actor:

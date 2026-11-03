@@ -27,7 +27,6 @@ from social_django.models import UserSocialAuth
 
 import bom.constants as constants
 from bom.csv_headers import (
-    ManufacturerPartCSVHeaders,
     PartClassesCSVHeaders,
     SellerPartCSVHeaders,
     VendorPricesCSVHeaders,
@@ -87,6 +86,7 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
+from bom.services.boms import bom_csv
 from bom.services.changes import (log_event, newer_draft_revision, part_history, proposals_for_revision, record_csv_import,
                                   record_direct_edit, release_approval_required, release_preview, release_revision,
                                   request_release_approval, revise_revision)
@@ -975,56 +975,21 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
     else:
         layout = 'indented'
 
-    response = HttpResponse(content_type='text/csv')
-    filename = f'indabom_export_{part.full_part_number()}_{layout}'
-    response['Content-Disposition'] = f'attachment; filename="{filename}.csv'
-
     qty_cache_key = str(part_id) + '_qty'
     qty = cache.get(qty_cache_key, 1000)
 
     try:
-        if flat:
-            bom = part_revision.flat(top_level_quantity=qty)
-        else:
-            bom = part_revision.indented(top_level_quantity=qty, max_level=1 if single_level else None)
-    except (RuntimeError, RecursionError):
-        messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
-        bom = []
+        csv_text = bom_csv(part_revision, layout, qty, sourcing=sourcing, sourcing_detailed=sourcing_detailed)
+    except ServiceError as err:
+        messages.error(request, f"Error: {err.message} Contact info@indabom.com to resolve.")
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
     except AttributeError as err:
         messages.error(request, err)
-        bom = []
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
-    if flat:
-        csv_headers = organization.bom_flat_csv_headers()
-    else:
-        csv_headers = organization.bom_indented_csv_headers()
-
-    csv_headers_raw = csv_headers.get_default_all()
-    csv_rows = []
-    for _, item in bom.parts.items():
-        mapped_row = {}
-        raw_row = {k: smart_str(v) for k, v in item.as_dict_for_export().items()}
-        for kx, vx in raw_row.items():
-            mapped_row.update({csv_headers.get_default(kx): vx})
-
-        if sourcing_detailed:
-            for idx, sp in enumerate(item.seller_parts_for_export()):
-                if f'{ManufacturerPartCSVHeaders.all_headers_defns[0]}_{idx + 1}' not in csv_headers_raw:
-                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in ManufacturerPartCSVHeaders.all_headers_defns])
-                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in SellerPartCSVHeaders.all_headers_defns])
-                mapped_row.update({f'{k}_{idx + 1}': smart_str(v) for k, v in sp.items()})
-        elif sourcing:
-            for idx, mp in enumerate(item.manufacturer_parts_for_export()):
-                if f'{ManufacturerPartCSVHeaders.all_headers_defns[0]}_{idx + 1}' not in csv_headers_raw:
-                    csv_headers_raw.extend([f'{h}_{idx + 1}' for h in ManufacturerPartCSVHeaders.all_headers_defns])
-                mapped_row.update({f'{k}_{idx + 1}': smart_str(v) for k, v in mp.items()})
-
-        csv_rows.append(mapped_row)
-
-    writer = csv.DictWriter(response, fieldnames=csv_headers_raw)
-    writer.writeheader()
-    writer.writerows(csv_rows)
-
+    response = HttpResponse(csv_text, content_type='text/csv')
+    filename = f'indabom_export_{part.full_part_number()}_{layout}'
+    response['Content-Disposition'] = f'attachment; filename="{filename}.csv'
     return response
 
 

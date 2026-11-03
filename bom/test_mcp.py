@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TransactionTestCase, override_settings
+from django.urls import reverse
 from starlette.testclient import TestClient
 
 from bom import constants
@@ -194,6 +195,59 @@ class MCPServerTest(MCPTestCase):
     def test_form_errors_reach_the_model(self):
         _, error = self.mcp(self.write_plaintext).call('create_part', description='x', part_class_code='999')
         self.assertIn('number_class', error)
+
+
+class MCPExportBomCsvTest(MCPTestCase):
+    def setUp(self):
+        super().setUp()
+        self.assembly = self.parts[2]
+        self.assembly_revision = self.assembly.latest()
+
+    def view_csv(self, route, **query):
+        self.client.force_login(self.user)
+        url = reverse(route, kwargs={'part_revision_id': self.assembly_revision.id})
+        response = self.client.get(url, query)
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode()
+
+    def test_layouts_match_the_ui_export(self):
+        client = self.mcp(self.read_plaintext)
+        expected = {
+            'indented': self.view_csv('bom:part-revision-export-bom'),
+            'single_level': self.view_csv('bom:part-revision-export-bom', levels=1),
+            'flat': self.view_csv('bom:part-revision-export-bom-flat'),
+        }
+
+        for layout, expected_csv in expected.items():
+            result, error = client.call(
+                'export_bom_csv', part_number=self.assembly.full_part_number(), layout=layout)
+            self.assertIsNone(error, error)
+            self.assertEqual(result, expected_csv, layout)
+        self.assertNotEqual(expected['indented'], expected['flat'])
+
+    def test_a_named_revision_and_an_unknown_layout(self):
+        client = self.mcp(self.read_plaintext)
+
+        result, error = client.call('export_bom_csv', part_number=self.assembly.full_part_number(),
+                                    revision=self.assembly_revision.revision)
+        self.assertIsNone(error, error)
+        self.assertIn(self.parts[0].full_part_number(), result)
+
+        _, error = client.call('export_bom_csv', part_number=self.assembly.full_part_number(), layout='tree')
+        self.assertIn('Valid layouts: indented, single_level, flat', error)
+        _, error = client.call('export_bom_csv', part_number=self.assembly.full_part_number(), revision='ZZ')
+        self.assertIn('no revision', error)
+
+    def test_another_organization_cannot_export(self):
+        other_user = User.objects.create_user('other', 'other@example.com', 'ghostpassword')
+        other_organization = create_a_fake_organization(other_user)
+        other_user.bom_profile(organization=other_organization)
+        _, other_plaintext = APIToken.issue(other_user, other_organization, 'read')
+
+        result, error = self.mcp(other_plaintext).call('export_bom_csv', part_number=self.assembly.full_part_number())
+
+        self.assertIsNone(result)
+        self.assertIn('No part', error)
 
 
 class MCPReleaseTest(MCPTestCase):
