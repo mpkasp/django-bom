@@ -184,16 +184,37 @@ Run it standalone with an ASGI server; Django is served alongside it:
 ```
 uv run uvicorn bom.asgi:application
 ```
-The server listens at `/mcp` (Streamable HTTP, stateless). In a host project, mount `bom.mcp.asgi.build_mcp_app()`
-and enter `bom.mcp.asgi.mcp_lifespan` from the host app's lifespan.
+The server listens at `/mcp` (Streamable HTTP, stateless). In a host project, add `bom.mcp.asgi.mcp_routes()` to the
+host's Starlette routes and enter `bom.mcp.asgi.mcp_lifespan` from the host app's lifespan.
 
-Every request needs a bearer token. Create one under Settings > API Tokens (the plaintext is shown once), or issue
-one for a user from the command line (the plaintext is printed once):
+Every request needs a bearer token or an OAuth sign-in. The in-app page `/help/ai/` ("Connect an AI assistant")
+walks users through both.
+
+**Sign in (recommended).** When the host runs an OAuth authorization server, connecting is one command and a browser
+sign-in; the user then picks what the assistant may do (read only, propose changes for review, or propose and apply):
+```
+claude mcp add --transport http indabom https://your-host/mcp
+```
+Then run `/mcp` in Claude Code, choose indabom and Authenticate. claude.ai, Claude Desktop and Cursor connect the same
+way. Each connected app appears in Settings > API Tokens as a *Connected app*; revoking it also revokes its OAuth tokens.
+
+To enable it, install [django-oauth-toolkit](https://django-oauth-toolkit.readthedocs.io) in the host (django-bom does
+not depend on it), list `bom` before `oauth2_provider` in `INSTALLED_APPS` so the consent template in
+`bom/templates/oauth2_provider/authorize.html` is used, and set two keys in `BOM_CONFIG`:
+- `mcp_oauth_issuer_url`: the authorization server's base URL, e.g. `https://www.example.com`.
+- `mcp_resource_url`: the public MCP URL, e.g. `https://mcp.example.com/mcp`. Tokens must be issued for this resource
+  (RFC 8707; tokens with no resource are refused), and the MCP server publishes its RFC 9728 metadata at `/.well-known/oauth-protected-resource/mcp`.
+
+Register the routes with `bom.mcp.asgi.mcp_routes()`. The toolkit needs the scopes `read`, `write` and `apply`.
+Without `mcp_oauth_issuer_url`, only pasted tokens are accepted and no OAuth metadata is published.
+
+**Paste a token.** Create one under Settings > API Tokens (the plaintext is shown once), or issue one for a user from
+the command line (the plaintext is printed once):
 ```
 uv run python manage.py create_api_token <username> --name "Claude Code" --scopes read,write
 ```
 A token acts as that user in their organization: role permissions still apply, and a `read`-only token can never write.
-Connect a client with the token in the `Authorization` header, e.g.:
+Connect a client that can set headers with the token in the `Authorization` header, e.g.:
 ```
 claude mcp add --transport http indabom http://localhost:8000/mcp --header "Authorization: Bearer <token>"
 ```

@@ -311,6 +311,19 @@ for the user, and a revoked connection rejects its OAuth tokens.
   and no OAuth metadata is published.
 - `mcp_access_check` and token-level enforcement are unchanged.
 
+Implementation notes (where the shipped code differs from the text above):
+
+- `BearerTokenMiddleware` is kept for hosts without `mcp_oauth_issuer_url`: the SDK's auth settings need an
+  issuer, so that mode stays pasted-tokens-only with no metadata. `Actor` reads either path.
+- A toolkit token with no RFC 8707 resource is refused rather than treated as unrestricted, so a token is only
+  ever accepted when it names this MCP URL.
+- `APIToken.revoke()` itself deletes the client's toolkit access and refresh tokens for the user, so every
+  revocation path (Settings, shell, admin) behaves the same. A grant made after a revocation creates a fresh
+  connection row; a grant made before it stays rejected.
+- The protected resource metadata route lives at the domain root, outside `/mcp`, so hosts register
+  `bom.mcp.asgi.mcp_routes()` instead of a single `Route`.
+- The consent page computes its choices in a template tag (`bom_oauth`), not in the toolkit view.
+
 ### Remaining tools
 
 | Tool | Kind | Notes |
