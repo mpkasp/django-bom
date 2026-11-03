@@ -37,6 +37,7 @@
                     <div class="part-identity-body">
                         <span class="eyebrow">Part</span>
                         <h1 class="part-number">{{ part.full_part_number }}</h1>
+                        {% if part_revision %}<div class="part-identity-synopsis">{{ part_revision.synopsis }}</div>{% endif %}
                         <div class="part-identity-meta inline-meta">
                             {% if organization.number_scheme == 'S' and part.number_class %}<span title="{{ part.number_class }}">Class {{ part.number_class.code }}</span>{% endif %}
                             {% if part.primary_manufacturer_part.manufacturer_part_number %}<span>{{ part.primary_manufacturer_part.manufacturer.name }} {{ part.primary_manufacturer_part.manufacturer_part_number }}</span>{% endif %}
@@ -58,26 +59,18 @@
                                 </select>
                             </div>
                             <span class="chip
-                                {% if part_revision.configuration == 'D' %}grey lighten-2 grey-text text-darken-2
-                                {% elif part_revision.configuration == 'I' %}amber lighten-3 black-text
-                                {% elif part_revision.configuration == 'R' %}teal darken-2 white-text
-                                {% elif part_revision.configuration == 'O' %}red darken-1 white-text
+                                {% if part_revision.configuration == 'D' %}revision-chip-draft
+                                {% elif part_revision.configuration == 'I' %}revision-chip-review
+                                {% elif part_revision.configuration == 'R' %}revision-chip-released
+                                {% elif part_revision.configuration == 'O' %}revision-chip-obsolete
                                 {% else %}grey lighten-4
                                 {% endif %}">
                                 {{ part_revision.get_configuration_display }}
                             </span>
-                            {% if revisions.count > 1 %}
-                                <div class="input-field revision-select-wrapper">
-                                    <select id="compare-revision">
-                                        <option value="" disabled selected>Compare with&hellip;</option>
-                                        {% for r in revisions.all %}{% if r.id != part_revision.id %}
-                                            <option value="{% url 'bom:part-diff' part_id=part.id revision_a_id=r.id revision_b_id=part_revision.id %}">Rev {{ r.revision }} ({{ r.get_configuration_display }})</option>
-                                        {% endif %}{% endfor %}
-                                    </select>
-                                </div>
-                            {% endif %}
                             {% if perms.bom.edit_part %}
-                                {% if part_revision.is_immutable %}
+                                {% if part_revision.is_immutable and latest_revision.id != part_revision.id and latest_revision.configuration == 'D' %}
+                                    <a class="waves-effect waves-light btn green lighten-1" href="{% url 'bom:part-info' part_id=part.id %}">Open rev {{ latest_revision.revision }}</a>
+                                {% elif part_revision.is_immutable %}
                                     <form method="post" action="{% url 'bom:part-revision-revise' part_id=part.id part_revision_id=part_revision.id %}">
                                         {% csrf_token %}
                                         <button type="submit" class="waves-effect waves-light btn green lighten-1"><i class="material-icons left">edit</i>Revise</button>
@@ -93,66 +86,56 @@
                                 <div class="manage-btn-col">
                         <a class='dropdown-trigger' href='#' data-target='dropdown-revision' aria-label="More actions"><i
                                 class="material-icons green-text text-lighten-1">more_horiz</i></a>
-                        <ul id='dropdown-revision' class='dropdown-content'>
-                            <li>
-                                <a class="green-text text-lighten-1"
-                                   href="{% url 'bom:part-revision-new' part_id=part.id %}">
-                                    <i class="material-icons green-text text-lighten-1">add</i>New revision from this one</a>
-                            </li>
+                        <ul id='dropdown-revision' class='dropdown-content part-actions-menu'>
+                            <li class="part-actions-heading" tabindex="-1">Rev {{ part_revision.revision }}</li>
                             {% with allowed=part_revision.get_allowed_transitions config='D' %}
                                 {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
-                                        <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                        <a class="{% if config not in allowed %}grey-text{% endif %}"
                                            onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                            <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">undo</i>Revert
-                                            to
-                                            Draft</a>
+                                            <i class="material-icons">undo</i>Revert to Draft</a>
                                     </li>
                                 {% endif %}
                             {% endwith %}
                             {% with allowed=part_revision.get_allowed_transitions config='I' %}
                                 {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
-                                        <a class="{% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}"
+                                        <a class="{% if config not in allowed %}grey-text{% endif %}"
                                            onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                            <i class="material-icons {% if config in allowed %}green-text lighten-1{% else %}grey-text{% endif %}">group</i>Change
-                                            to
-                                            In Review</a>
+                                            <i class="material-icons">group</i>Send to review</a>
                                     </li>
                                 {% endif %}
                             {% endwith %}
-                            {% if perms.bom.delete_revision or config in allowed and perms.bom.obsolete_revision or profile.role == 'A' and config != part_revision.configuration %}
-                            <li class="divider" tabindex="-1"></li>
-                            {% endif %}
                             {% with allowed=part_revision.get_allowed_transitions config='O' %}
                                 {% if config in allowed and perms.bom.obsolete_revision or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
-                                        <a class="{% if config in allowed %}orange-text{% else %}grey-text{% endif %}"
+                                        <a class="{% if config in allowed %}orange-text text-darken-3{% else %}grey-text{% endif %}"
                                            onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                            <i class="material-icons {% if config in allowed %}orange-text{% else %}grey-text{% endif %}">block</i>Mark
-                                            Obsolete</a>
+                                            <i class="material-icons">block</i>Mark obsolete</a>
                                     </li>
                                 {% endif %}
                             {% endwith %}
+                            {% if perms.bom.delete_revision %}
+                                <li>
+                                    <a class="red-text text-darken-1" onclick="deletePartRevision()">
+                                        <i class="material-icons">delete</i>Delete rev {{ part_revision.revision }}</a>
+                                </li>
+                            {% endif %}
+                            <li class="divider" tabindex="-1"></li>
+                            <li class="part-actions-heading" tabindex="-1">Part</li>
+                            <li>
+                                <a href="{% url 'bom:part-edit' part_id=part.id %}">
+                                    <i class="material-icons">edit</i>Change number or class</a>
+                            </li>
+                            <li>
+                                <a class="modal-trigger" data-target="part-image-modal">
+                                    <i class="material-icons">photo_camera</i>Change photo</a>
+                            </li>
                             <li class="divider" tabindex="-1"></li>
                             <li>
-                                <a class="green-text text-lighten-1" href="{% url 'bom:part-edit' part_id=part.id %}">
-                                    <i class="material-icons green-text text-lighten-1">edit</i>Edit part number and class</a>
+                                <a href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}">
+                                    <i class="material-icons">download</i>Export BOM CSV</a>
                             </li>
-                            <li>
-                                <a class="green-text text-lighten-1 modal-trigger" data-target="part-image-modal">
-                                    <i class="material-icons green-text text-lighten-1">photo_camera</i>Photo</a>
-                            </li>
-                            <li>
-                                <a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}">
-                                    <i class="material-icons green-text text-lighten-1">download</i>Export BOM CSV</a>
-                            </li>
-                            {% if perms.bom.delete_revision %}
-                            <li>
-                                <a class="red-text text-lighten-1" onclick="deletePartRevision()">
-                                    <i class="material-icons red-text text-lighten-1">delete</i>Delete</a>
-                            </li>
-                            {% endif %}
                         </ul>
                                 </div>
                             {% endif %}
@@ -164,9 +147,14 @@
                 </div>
             </div>
 
+            {% if part_revision %}
+                {% include 'bom/components/revision-status.html' %}
+            {% endif %}
+
             {% if proposals.changes %}
-                <div class="card-panel deep-purple lighten-5 printer-hide">
-                    {{ proposals.changes|length }} open change{{ proposals.changes|length|pluralize }} touch{{ proposals.changes|length|pluralize:"es," }} this revision:
+                <div class="part-status-strip part-proposals-strip printer-hide">
+                    <i class="material-icons">chat_bubble_outline</i>
+                    {{ proposals.changes|length }} open change request{{ proposals.changes|length|pluralize }} touch{{ proposals.changes|length|pluralize:"es," }} this revision:
                     {% for change in proposals.changes %}
                         <a href="{% url 'bom:change-review' number=change.number %}">#{{ change.number }} {{ change.title }}</a>{% if not forloop.last %}, {% endif %}
                     {% endfor %}
@@ -175,181 +163,115 @@
             <div class="row">
                 <div class="col s12 printer-hide">
                     <ul id="tabs" class="tabs tabs-fixed-width">
-                        <li class="tab"><a id="specs-tab" href="#specs">Specifications</a></li>
-                        <li class="tab"><a id="bom-tab" href="#bom">Bill of Materials</a></li>
-                        <li class="tab"><a id="used-tab" href="#used">Where Used</a></li>
+                        <li class="tab"><a id="specs-tab" href="#specs">Overview</a></li>
+                        <li class="tab"><a id="bom-tab" href="#bom">Bill of materials{% if part_revision.assembly %}{% with count=part_revision.assembly.subparts.count %}{% if count %} · {{ count }}{% endif %}{% endwith %}{% endif %}</a></li>
+                        <li class="tab"><a id="used-tab" href="#used">Where used{% if part_revision %}{% with count=part_revision.where_used.count %}{% if count %} · {{ count }}{% endif %}{% endwith %}{% endif %}</a></li>
                         <li class="tab"><a id="sourcing-tab" href="#sourcing">Sourcing</a></li>
                         <li class="tab"><a id="history-tab" href="#history">History</a></li>
                     </ul>
                 </div>
 
                 <div id="specs" class="col s12">
-                    <h4 class="printer-show">Specifications</h4>
-                    <br>
-                    <ul class="collection with-header">
-                        <li class="collection-header"><h5>Item Details</h5></li>
-                        <li class="collection-item">
-                            {% if organization.number_scheme == 'S' %}
-                                <div class="row">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Item Class:</div>
-                                    <div class="col s8 l10">{{ part.number_class }}</div>
-                                </div>
-                            {% endif %}
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Number:</div>
-                                <div class="col s8 l10">{{ part.full_part_number }}</div>
-                            </div>
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Synopsis:</div>
-                                <div class="col s8 l10">{{ part_revision.synopsis }}</div>
-                            </div>
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Configuration:</div>
-                                <div class="col s8 l10">{{ part_revision.get_configuration_display|default:'n/a' }}&nbsp;<i>{% if part_revision %}(as of <span id="specs-revision-timestamp"></span>
-                                    ){% endif %}
-                                </i></div>
-                            </div>
-                            {% for property in part_revision.properties.all %}
-                                <div class="row">
-                                    <div class="col s4 l2 text-right"
-                                         style="padding-left: 0px;">{{ property.property_definition.name }}:
-                                    </div>
-                                    <div class="col s8 l10">{{ property.value_raw }}{% if property.unit_definition %}
-                                        {{ property.unit_definition.symbol }}{% endif %}</div>
-                                </div>
-                            {% endfor %}
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0;">
-                                    <img title="Via Google Drive" style="width: 16px;"
-                                         src="{% static 'bom/img/google_drive_logo.png' %}">&nbsp;Files:
-                                </div>
-                                <div class="col s8 l10"><a href="{% url 'google-drive:add-folder' part_id=part.id %}" target="_blank">Open Folder</a></div>
-                            </div>
-                            <div class="row">
-                                <div id="sourcing-data-sheet-wrapper" style="{% if not part.primary_manufacturer_part.datasheet_url %}display: none; {% endif %}min-height: 22px;">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0;">
-                                        <i class="material-icons" style="font-size: 16px; vertical-align: text-bottom;">description</i>&nbsp;Datasheets
-                                    </div>
-                                    <div class="col s8 l10"><a id="sourcing-data-sheet" target="_blank"
-                                        {% if part.primary_manufacturer_part.datasheet_url %}href="{{ part.primary_manufacturer_part.datasheet_url }}"{% endif %}>View
-                                        datasheet</a></div>
-                                </div>
-                            </div>
-                            {% if part.primary_manufacturer_part.manufacturer_part_number %}
-                                <div class="row">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0;">
-                                        <i class="material-icons" style="font-size: 16px; vertical-align: text-bottom;">search</i>&nbsp;Octopart:
-                                    </div>
-                                    <div class="col s8 l10">
-                                        <a href="https://octopart.com/search?q={{ part.primary_manufacturer_part.manufacturer_part_number|urlencode }}"
-                                           target="_blank" rel="noopener">Find datasheet &amp; sourcing&nbsp;<i
-                                                class="material-icons" style="font-size: 14px;">open_in_new</i></a>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        </li>
-                        <li class="collection-header">
-                            <h5><h5 class="title">Manufacturer & Sourcing</h5></h5>
-                        </li>
-                        <li class="collection-item">
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Primary Manufacturer Part:</div>
-                                <div class="col s8 l10">{% if part.primary_manufacturer_part.link %}<a href="{{ part.primary_manufacturer_part.link }}" target="_blank">{% endif %}{{ part.primary_manufacturer_part.manufacturer.name }} - {{ part.primary_manufacturer_part.manufacturer_part_number }}{% if part.primary_manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}
-                                    {% if perms.bom.edit_part and part_revision and not part_revision.is_immutable %}
-                                        <a href="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}#manufacturer-parts">&nbsp;manage</a>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <!-- One section = the quote. Each figure is marked ⚡ when it's live from a
-                                 distributor (hover for source); your stored data shows unmarked. Live-only
-                                 extras (lead time, stock, vendor count) fill in via JS when available. -->
-                            {% if part_revision %}
-                                <div class="row printer-hide">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Quantity:</div>
-                                    <div class="col s8 l10">
-                                        <form action="{% url 'bom:part-info' part_id=part.id %}" method="post" class="quote-qty-form">
-                                            {% csrf_token %}
-                                            {{ part_info_form.quantity }}
-                                            <button type="submit" class="waves-effect waves-green btn-flat btn-icon-round quote-qty-refresh"
-                                                    title="Recalculate at this quantity"><i class="material-icons green-text">refresh</i></button>
-                                        </form>
-                                    </div>
-                                </div>
-                            {% endif %}
-                            {% if sourcing_parts %}
-                                <div class="row printer-hide" id="sourcing-fetch-row">
-                                    <div class="col s4 l2 text-right" style="padding-left: 0px;">Live Pricing:</div>
-                                    <div class="col s8 l10">
-                                        <a id="sourcing-fetch-button" class="waves-effect waves-green btn-flat"
-                                           style="padding: 0 12px;">
-                                            <i class="material-icons left green-text"
-                                               style="margin-right: 6px;">bolt</i>Get live pricing</a>
-                                        <span id="sourcing-fetch-status" class="grey-text"></span>
-                                    </div>
-                                </div>
-                            {% endif %}
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Unit Cost:</div>
-                                <div id="specs-unit-cost" class="col s8 l10"><span id="sourcing-est-cost">{{ indented_bom.unit_cost|default_if_none:'-' }}</span><i
+                    <h4 class="printer-show">Overview</h4>
+                    {% if part_revision %}
+                        <div class="overview-cards">
+                            <div class="card-panel overview-card">
+                                <span class="eyebrow">Unit cost at {{ qty }}</span>
+                                <div id="specs-unit-cost" class="overview-figure"><span id="sourcing-est-cost">{{ indented_bom.unit_cost|default_if_none:'-' }}</span><i
                                         id="sourcing-est-cost-live" class="material-icons teal-text text-darken-1 tooltipped sourcing-live-marker"
-                                        style="display: none; font-size: 14px; vertical-align: text-bottom; cursor: help;"
-                                        data-position="right" data-tooltip="">bolt</i><span id="sourcing-quote-vendor" class="grey-text"></span></div>
-                            </div>
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Quote Total NRE:</div>
-                                <div class="col s8 l10"><span id="sourcing-est-nre">{{ indented_bom.nre|default_if_none:'-' }}</span></div>
-                            </div>
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Order Total (w/ MOQs):</div>
-                                <div class="col s8 l10"><span id="sourcing-est-cost-per-order">{{ indented_bom.out_of_pocket_cost|default_if_none:'-' }}</span><i
-                                        id="sourcing-est-cost-per-order-live" class="material-icons teal-text text-darken-1 tooltipped sourcing-live-marker"
-                                        style="display: none; font-size: 14px; vertical-align: text-bottom; cursor: help;"
+                                        style="display: none; font-size: 16px; vertical-align: middle; cursor: help;"
                                         data-position="right" data-tooltip="">bolt</i></div>
+                                <div class="overview-note"><span id="sourcing-quote-vendor"></span></div>
+                                <div class="overview-note">Subparts without a cost: <span id="sourcing-missing-item-costs">{{ indented_bom.missing_item_costs }}</span></div>
+                                <form action="{% url 'bom:part-info' part_id=part.id %}" method="post" class="quote-qty-form printer-hide">
+                                    {% csrf_token %}
+                                    <label for="{{ part_info_form.quantity.id_for_label }}">Quantity</label>
+                                    {{ part_info_form.quantity }}
+                                    <button type="submit" class="waves-effect waves-green btn-flat btn-icon-round quote-qty-refresh"
+                                            title="Recalculate at this quantity"><i class="material-icons green-text">refresh</i></button>
+                                </form>
                             </div>
-                            <div class="row">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Subparts without costs:</div>
-                                <div class="col s8 l10"><span id="sourcing-missing-item-costs">{{ indented_bom.missing_item_costs }}</span></div>
+                            <div class="card-panel overview-card">
+                                <span class="eyebrow">Order total with MOQs</span>
+                                <div class="overview-figure"><span id="sourcing-est-cost-per-order">{{ indented_bom.out_of_pocket_cost|default_if_none:'-' }}</span><i
+                                        id="sourcing-est-cost-per-order-live" class="material-icons teal-text text-darken-1 tooltipped sourcing-live-marker"
+                                        style="display: none; font-size: 16px; vertical-align: middle; cursor: help;"
+                                        data-position="right" data-tooltip="">bolt</i></div>
+                                <div class="overview-note">NRE: <span id="sourcing-est-nre">{{ indented_bom.nre|default_if_none:'-' }}</span></div>
                             </div>
-                            <div class="row" id="sourcing-lead-time-wrapper" style="display: none;">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">Lead time (days):</div>
-                                <div class="col s8 l10"><span id="sourcing-lead-time"></span></div>
-                            </div>
-                            <div class="row" id="sourcing-stock-wrapper" style="display: none;">
-                                <div class="col s4 l2 text-right" style="padding-left: 0px;">In stock:</div>
-                                <div class="col s8 l10"><span id="sourcing-stock"></span></div>
-                            </div>
-                            <div class="row" id="sourcing-near-match-wrapper" style="display: none;">
-                                <div class="col s4 l2 text-right amber-text text-darken-2" style="padding-left: 0px;">Match:</div>
-                                <div class="col s8 l10 amber-text text-darken-2">Near match — pricing is for
-                                    <span id="sourcing-near-match"></span>, not the exact part number.</div>
-                            </div>
-                            <div class="row" id="sourcing-unavailable-wrapper" style="display: none;">
-                                <div class="col s4 l2 text-right amber-text text-darken-2" style="padding-left: 0px;">
-                                    <i class="material-icons" style="font-size: 16px; vertical-align: text-bottom;">info_outline</i>&nbsp;Status:
+                            <div class="card-panel overview-card">
+                                <span class="eyebrow">Primary manufacturer part</span>
+                                {% if part.primary_manufacturer_part %}
+                                    <div class="overview-value">{% if part.primary_manufacturer_part.link %}<a href="{{ part.primary_manufacturer_part.link }}" target="_blank" rel="noopener">{% endif %}{{ part.primary_manufacturer_part.manufacturer.name }} {{ part.primary_manufacturer_part.manufacturer_part_number }}{% if part.primary_manufacturer_part.link %}</a>{% endif %}</div>
+                                {% else %}
+                                    <div class="overview-value grey-text text-darken-1">None yet</div>
+                                {% endif %}
+                                <div id="sourcing-data-sheet-wrapper" class="overview-note" style="{% if not part.primary_manufacturer_part.datasheet_url %}display: none;{% endif %}">
+                                    <a id="sourcing-data-sheet" target="_blank" rel="noopener"
+                                       {% if part.primary_manufacturer_part.datasheet_url %}href="{{ part.primary_manufacturer_part.datasheet_url }}"{% endif %}>View datasheet</a>
                                 </div>
-                                <div class="col s8 l10 amber-text text-darken-2"><span id="sourcing-unavailable"></span></div>
+                                {% if part.primary_manufacturer_part.manufacturer_part_number %}
+                                    <div class="overview-note"><a href="https://octopart.com/search?q={{ part.primary_manufacturer_part.manufacturer_part_number|urlencode }}"
+                                                                  target="_blank" rel="noopener">Search Octopart</a></div>
+                                {% endif %}
+                                {% if perms.bom.edit_part and not part_revision.is_immutable %}
+                                    <div class="overview-note printer-hide"><a href="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}#manufacturer-parts">{% if part.primary_manufacturer_part %}Change{% else %}Add one{% endif %} on the Edit page</a></div>
+                                {% endif %}
                             </div>
-                            <div class="row" id="sourcing-similar-wrapper" style="display: none;">
-                                <div class="col s12 grey-text" style="font-size: 0.9em;"><span id="sourcing-similar"></span></div>
+                            <div class="card-panel overview-card">
+                                <span class="eyebrow">Files</span>
+                                <div class="overview-value">
+                                    <img alt="" style="width: 16px; vertical-align: middle;" src="{% static 'bom/img/google_drive_logo.png' %}">
+                                    <a href="{% url 'google-drive:add-folder' part_id=part.id %}" target="_blank">Open Drive folder</a>
+                                </div>
                             </div>
-                            <div class="row" id="sourcing-vendors-wrapper" style="display: none;">
-                                <div class="col s12 grey-text" style="font-size: 0.9em;"><span id="sourcing-vendors"></span></div>
-                            </div>
-                        </li>
-                    </ul>
+                        </div>
+
+                        <div class="card-panel overview-live printer-hide">
+                            {% if sourcing_parts %}
+                                <div id="sourcing-fetch-row">
+                                    <a id="sourcing-fetch-button" class="waves-effect waves-green btn-flat" style="padding: 0 12px;">
+                                        <i class="material-icons left green-text" style="margin-right: 6px;">bolt</i>Get live pricing</a>
+                                    <span id="sourcing-fetch-status" class="grey-text"></span>
+                                </div>
+                            {% endif %}
+                            <div id="sourcing-lead-time-wrapper" style="display: none;">Lead time (days): <span id="sourcing-lead-time"></span></div>
+                            <div id="sourcing-stock-wrapper" style="display: none;">In stock: <span id="sourcing-stock"></span></div>
+                            <div id="sourcing-near-match-wrapper" class="amber-text text-darken-3" style="display: none;">Near match: pricing is for
+                                <span id="sourcing-near-match"></span>, not the exact part number.</div>
+                            <div id="sourcing-unavailable-wrapper" class="amber-text text-darken-3" style="display: none;"><span id="sourcing-unavailable"></span></div>
+                            <div id="sourcing-similar-wrapper" class="grey-text text-darken-1" style="display: none;"><span id="sourcing-similar"></span></div>
+                            <div id="sourcing-vendors-wrapper" class="grey-text text-darken-1" style="display: none;"><span id="sourcing-vendors"></span></div>
+                        </div>
+
+                        <div class="card-panel overview-details">
+                            <h5>Details</h5>
+                            <dl>
+                                {% if organization.number_scheme == 'S' %}
+                                    <dt>Class</dt><dd>{{ part.number_class }}</dd>
+                                {% endif %}
+                                <dt>Description</dt><dd>{{ part_revision.description|default:'-' }}</dd>
+                                {% for property in part_revision.properties.all %}
+                                    <dt>{{ property.property_definition.name }}</dt>
+                                    <dd>{{ property.value_raw }}{% if property.unit_definition %} {{ property.unit_definition.symbol }}{% endif %}</dd>
+                                {% endfor %}
+                                <dt>State</dt><dd>{{ part_revision.get_configuration_display }} as of <span id="specs-revision-timestamp"></span></dd>
+                            </dl>
+                        </div>
+                    {% endif %}
                 </div>
 
                 <div id="bom" class="col s12">
                     <h4 class="printer-show">Bill of Materials</h4>
-                    <div id="bom-indented">
-                        <div class="text-center" style="padding-top: 8px;">
-                            <span>Indented</span> | <a onclick="showFlatBOM()" href="#">Flat</a>
+                    <div id="bom-indented" class="card-panel tab-card">
+                        <div class="view-toggle printer-hide" role="group" aria-label="BOM layout">
+                            <span class="active">Indented</span><a onclick="showFlatBOM()" href="#">Flat</a>
                         </div>
                         {% include 'bom/components/bom-indented.html' with order_by=order_by bom_items=indented_bom.parts part=part part_revision=part_revision profile=profile %}
                     </div>
-                    <div id="bom-flat" style="display: none;">
-                        <div class="text-center" style="padding-top: 8px;">
-                            <a onclick="showIndentedBOM()" href="#">Indented</a> | <span>Flat</span>
+                    <div id="bom-flat" class="card-panel tab-card" style="display: none;">
+                        <div class="view-toggle printer-hide" role="group" aria-label="BOM layout">
+                            <a onclick="showIndentedBOM()" href="#">Indented</a><span class="active">Flat</span>
                         </div>
                         {% include 'bom/components/bom-flat.html' with order_by=order_by bom_items=flat_bom.parts part=part part_revision=part_revision profile=profile %}
                     </div>
@@ -357,16 +279,15 @@
 
                 <div id="used" class="col s12">
                     <h4 class="printer-show">Where Used</h4>
-                    <div id="where-used-revision">
-                        <div class="text-center" style="padding-top: 8px;">
-                            <span>This Revision</span> | <a onclick="showWholePartWhereUsed()" href="#">All
-                            Revisions</a>
+                    <div id="where-used-revision" class="card-panel tab-card">
+                        <div class="view-toggle printer-hide" role="group" aria-label="Where used scope">
+                            <span class="active">This revision</span><a onclick="showWholePartWhereUsed()" href="#">All revisions</a>
                         </div>
                         {% include 'bom/components/where-used-tree.html' with where_used_items=where_used.items table_id='where-used-revision-table' %}
                     </div>
-                    <div id="where-used-whole-part" style="display: none;">
-                        <div class="text-center" style="padding-top: 8px;">
-                            <a onclick="showRevisionWhereUsed()" href="#">This Revision</a> | <span>All Revisions</span>
+                    <div id="where-used-whole-part" class="card-panel tab-card" style="display: none;">
+                        <div class="view-toggle printer-hide" role="group" aria-label="Where used scope">
+                            <a onclick="showRevisionWhereUsed()" href="#">This revision</a><span class="active">All revisions</span>
                         </div>
                         {% include 'bom/components/where-used-tree.html' with where_used_items=where_used_part.items table_id='where-used-whole-part-table' %}
                     </div>
@@ -374,6 +295,8 @@
 
                 <div id="history" class="col s12">
                     <h4 class="printer-show">History</h4>
+                    <div class="card-panel tab-card">
+                    {% if history_entries %}
                     <div class="responsive-table-wrapper">
                         <table class="highlight tight">
                             <thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
@@ -381,7 +304,7 @@
                             {% for entry in history_entries %}
                                 {% with change=entry.change %}
                                     <tr>
-                                        <td>{{ change.resolved_at|date:"Y-m-d H:i" }}</td>
+                                        <td class="text-nowrap">{{ change.resolved_at|date:"M j, Y H:i" }}</td>
                                         <td>
                                             {% if change.api_token %}
                                                 <span class="chip">{% if change.agent_client %}{{ change.agent_client }} &middot; {% endif %}{{ change.api_token.name }}</span> for {{ change.author.username }}
@@ -397,16 +320,18 @@
                                                 {{ change.title }}
                                             {% endif %}
                                             {% if entry.diff_revision_ids %}
-                                                <a href="{% url 'bom:part-diff' part_id=part.id revision_a_id=entry.diff_revision_ids.0 revision_b_id=entry.diff_revision_ids.1 %}">Compare</a>
+                                                &middot; <a href="{% url 'bom:part-diff' part_id=part.id revision_a_id=entry.diff_revision_ids.0 revision_b_id=entry.diff_revision_ids.1 %}">Compare</a>
                                             {% endif %}
                                         </td>
                                     </tr>
                                 {% endwith %}
-                            {% empty %}
-                                <tr><td colspan="3" class="center-align grey-text">No history yet.</td></tr>
                             {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                    {% else %}
+                        <p class="empty-state">No history yet. Edits, new revisions and releases will appear here.</p>
+                    {% endif %}
                     </div>
                 </div>
 
@@ -418,12 +343,8 @@
                             <a href="{% url 'bom:change-review' number=item.change.number %}">Change #{{ item.change.number }}</a></p>
                     {% endfor %}
                     {% if perms.bom.manage_sourcing %}
-                        <div class="row" style="padding-top: 16px;">
-                            <div class="col s12 center-align">
-                                <a class="waves-effect waves-green btn-flat"
-                                   href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}" style="margin: 10px;">Add Manufacturer Part</a>
-                            </div>
-                        </div>
+                        <a class="waves-effect waves-green btn-flat green-text text-darken-2 tab-add-action"
+                           href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}"><i class="material-icons left">add</i>Add manufacturer part</a>
                     {% endif %}
                 </div>
             </div>
@@ -532,10 +453,6 @@
         var selectRevisionSelectedIndex = 1;
         $(document).ready(function () {
             selectRevisionSelectedIndex = $("#select-revision")[0].selectedIndex;
-        });
-
-        $("#compare-revision").on('change', function () {
-            window.location.href = this.value;
         });
 
         $("#select-revision").on('change', function () {

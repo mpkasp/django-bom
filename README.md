@@ -231,7 +231,7 @@ the part (Draft ones follow automatically, Released ones can be revised with che
 transaction. **Request approval** in that dialog opens a change request instead; approving it releases the revisions.
 A request that releases revisions is an Engineering Change Order. Every direct edit and release is recorded as an
 unnumbered Change on the part page's **History** tab and under the **History** filter at `/changes/`; the **Requests**
-nav item counts open change requests. **Compare with...** opens a diff of two revisions. Design: [docs/editing-design.md](docs/editing-design.md).
+nav item counts open change requests. A status strip under the part header says where the revision stands, and **Compare with rev N** opens a diff against the previous revision. Design: [docs/editing-design.md](docs/editing-design.md).
 
 ## Contributing
 

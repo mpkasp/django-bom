@@ -216,3 +216,219 @@ a.part-thumb-empty:hover {
     min-width: 36px;
     padding: 0 8px;
 }
+.part-identity-synopsis {
+    font-size: 1.1rem;
+    color: #424242;
+    margin-bottom: 2px;
+}
+
+.chip.revision-chip-draft {
+    background: #fff3cd;
+    color: #6d4c00;
+}
+
+.chip.revision-chip-review {
+    background: #e3e8fb;
+    color: #283593;
+}
+
+.chip.revision-chip-released {
+    background: #dcefdf;
+    color: #1b5e20;
+}
+
+.chip.revision-chip-obsolete {
+    background: #eeeeee;
+    color: #616161;
+}
+
+.part-status-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 0 0 12px;
+    padding: 10px 16px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.part-status-strip .chip {
+    margin: 0;
+}
+
+.part-status-strip > .material-icons {
+    color: #757575;
+}
+
+.part-status-strip .part-status-action {
+    margin-left: auto;
+    font-weight: 500;
+}
+
+.part-proposals-strip {
+    background: #eef1fb;
+    border-color: #d5dbf5;
+    color: #283593;
+}
+
+.part-proposals-strip > .material-icons {
+    color: #283593;
+}
+
+.part-actions-menu {
+    min-width: 240px;
+}
+
+.part-actions-menu li > a {
+    color: #212121;
+}
+
+.part-actions-menu li > a > i.material-icons {
+    color: #757575;
+}
+
+.part-actions-menu li.part-actions-heading {
+    min-height: 0;
+    padding: 10px 16px 2px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #757575;
+    cursor: default;
+}
+
+.part-actions-menu li.part-actions-heading:hover {
+    background: none;
+}
+
+.overview-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 4px;
+}
+
+.overview-card.card-panel {
+    margin: 0;
+    padding: 16px 20px;
+}
+
+.overview-figure {
+    font-size: 1.8rem;
+    margin: 6px 0 2px;
+}
+
+.overview-value {
+    font-size: 1.05rem;
+    margin: 8px 0 4px;
+    word-break: break-word;
+}
+
+.overview-note {
+    font-size: 0.9rem;
+    color: #616161;
+    margin-top: 2px;
+}
+
+.overview-card .quote-qty-form {
+    margin-top: 8px;
+}
+
+.overview-card .quote-qty-form label {
+    font-size: 0.9rem;
+    color: #616161;
+}
+
+.overview-live.card-panel {
+    margin: 16px 0 0;
+    padding: 8px 16px;
+}
+
+.overview-live.card-panel:not(:has(> :not([style*="display: none"]))) {
+    display: none;
+}
+
+.overview-details.card-panel {
+    margin: 16px 0 0;
+    padding: 16px 20px;
+}
+
+.overview-details h5 {
+    margin: 0 0 12px;
+}
+
+.overview-details dl {
+    display: grid;
+    grid-template-columns: minmax(120px, 180px) 1fr;
+    gap: 8px 16px;
+    margin: 0;
+}
+
+.overview-details dt {
+    color: #616161;
+}
+
+.overview-details dd {
+    margin: 0;
+}
+
+.part-info .tabs {
+    background: transparent;
+}
+
+.tab-card.card-panel {
+    margin: 4px 0 0;
+    padding: 12px 16px 16px;
+}
+
+.view-toggle {
+    display: inline-flex;
+    border: 1px solid #c8d3ca;
+    border-radius: 18px;
+    overflow: hidden;
+    margin: 4px 0 4px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.view-toggle > a,
+.view-toggle > span {
+    padding: 6px 16px;
+    line-height: 20px;
+}
+
+.view-toggle > a {
+    color: #616161;
+}
+
+.view-toggle > a:hover {
+    background: #f1f8f2;
+}
+
+.view-toggle > .active {
+    background: #e3f1e5;
+    color: #1b5e20;
+}
+
+.view-toggle > * + * {
+    border-left: 1px solid #c8d3ca;
+}
+
+.empty-state {
+    margin: 24px 0;
+    text-align: center;
+    color: #616161;
+}
+
+.text-nowrap {
+    white-space: nowrap;
+}
+
+.tab-add-action {
+    margin-top: 8px;
+}
+
+#sourcing > .mfr-part-card:first-of-type {
+    margin-top: 4px;
+}

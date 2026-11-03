@@ -1,3 +1,4 @@
+{% if where_used_items %}
 <div class="responsive-table-wrapper">
     <table id="{{ table_id }}" class="highlight part-list tight single-line">
         <thead>
@@ -25,16 +26,13 @@
                 <td class="text-normal">{{ item.part.primary_manufacturer_part.manufacturer.name }}</td>
                 <td class="text-normal">{{ item.part.primary_manufacturer_part.manufacturer_part_number }}</td>
             </tr>
-        {% empty %}
-            <tr>
-                <td colspan="99" style="text-align: center; padding: 40px; color: #757575;">
-                    <i>This part is not currently used in any of your other parts.</i>
-                </td>
-            </tr>
         {% endfor %}
         </tbody>
     </table>
 </div>
+{% else %}
+    <p class="empty-state">This part isn't used in any other part yet.</p>
+{% endif %}
 
 <script>
     $(document).ready(function() {

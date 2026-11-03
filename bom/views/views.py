@@ -871,6 +871,8 @@ def part_info(request, part_id, part_revision_id=None):
         selected_rev_is_latest = False
 
     revisions = PartRevision.objects.filter(part=part_id).order_by('-id')
+    latest_revision = part.latest()
+    previous_revision = revisions.filter(id__lt=part_revision.id).first() if part_revision else None
 
     if part.organization != organization:
         messages.error(request, "Can't access a part that is not yours!")

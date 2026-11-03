@@ -44,8 +44,8 @@ Port from the unmerged PR #190 branch `changes-simplify-editing` (do not merge i
 3. **Revise.** On an immutable revision the header's primary button is **Revise** (POST): it calls
    `parts.create_next_revision`, records History, and redirects to the Edit page (Phase B; until
    then, the existing manage BOM page) for the new Draft. Refuse if the part already has a newer
-   Draft revision, linking to it instead. "New revision" for Draft parts moves into the overflow
-   menu.
+   Draft revision, linking to it instead. The old "New revision" form is no longer linked from the
+   part page (see Part page).
 4. **Release dialog** (`/part/<id>/rev/<rev_id>/release/`, replacing the current release
    confirmation page): shows the diff against the previous revision (reuse `bom/services/diffs.py`
    and the `changes/components/change-items.html` component), unit cost before and after at the
@@ -76,8 +76,8 @@ building a new multi-form page.
 3. The page is only reachable for non-immutable revisions; an immutable revision's Edit link is
    replaced by Revise everywhere.
 4. Part page header: one primary button, **Edit** on Draft and **Revise** on Released or In Review,
-   plus **Release…** on Draft, plus an overflow menu (new revision from this one, review, obsolete,
-   delete, part identity, photo, exports). The separate "Edit part", "Manage Revision > Edit",
+   plus **Release…** on Draft, plus an overflow menu (review, obsolete, delete, part identity,
+   photo, exports). The separate "Edit part", "Manage Revision > Edit",
    "[change]" link beside the primary manufacturer part, and the BOM tab's "Edit BOM" all go to the
    one Edit page. Old URLs keep working (redirect to the Edit page where they were edit forms).
 5. Before saving the revision form, check the revision is still editable (it may have been
@@ -147,6 +147,25 @@ building a new multi-form page.
   `docs/changes-testing.md` (replace staging-mode and Start-a-change tests with History, Revise,
   Release dialog, Request approval, Approve and release, setting matrix), README, and the
   in-product help text that mentions changes.
+
+## Part page (shipped)
+
+- The header shows the part number with the revision's synopsis beneath it. On the right are the
+  revision selector, a state chip, one primary button (**Edit**, **Revise**, or **Open rev N** when an
+  older Released revision is shown and a newer Draft exists) and **Release…**.
+- A status strip under the header says where the revision stands: Released and read-only, a Draft
+  that replaces Released rev N ("Rev N stays in use until you release"), a first Draft, or an older
+  revision with a link to the latest. **Compare with rev N** links the diff against the previous
+  revision; the header's "Compare with…" select is gone.
+- The overflow menu is grouped: this revision (Revert to Draft, Send to review, Mark obsolete,
+  Delete), the part (Change number or class, Change photo), and Export BOM CSV. "New revision from
+  this one" is removed: it duplicated Revise, copied the latest revision rather than the shown one,
+  and could create a second Draft. The `part-revision-new` view remains for parts with no revision.
+- The Specifications tab is now **Overview**: cards for unit cost at the quote quantity, order
+  total with MOQs, the primary manufacturer part and the Drive folder, a live-pricing strip shown
+  only when there is something in it, and a Details card (class, description, properties, state).
+  Element ids used by the live-pricing script are unchanged.
+- The Bill of Materials and Where Used tabs show counts.
 
 ## Known gaps
 

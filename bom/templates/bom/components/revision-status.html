@@ -1,0 +1,24 @@
+<div class="part-status-strip printer-hide">
+    {% if part_revision.id != latest_revision.id %}
+        <i class="material-icons">history</i>
+        <span>You're viewing rev {{ part_revision.revision }}, which is {{ part_revision.get_configuration_display }}. The latest is
+            <a href="{% url 'bom:part-info' part_id=part.id %}">rev {{ latest_revision.revision }} ({{ latest_revision.get_configuration_display }})</a>.</span>
+    {% elif part_revision.is_immutable %}
+        <i class="material-icons">lock_outline</i>
+        <span>Rev {{ part_revision.revision }} is {{ part_revision.get_configuration_display }} and read-only.{% if perms.bom.edit_part %} Revise it to start rev {{ part_revision.next_revision }} as a Draft.{% endif %}</span>
+    {% elif part_revision.configuration == 'O' %}
+        <i class="material-icons">block</i>
+        <span>Rev {{ part_revision.revision }} is Obsolete.</span>
+    {% elif previous_revision.configuration == 'R' %}
+        <span class="chip revision-chip-released">Rev {{ previous_revision.revision }} Released</span>
+        <i class="material-icons part-status-arrow">arrow_forward</i>
+        <span class="chip revision-chip-draft">Rev {{ part_revision.revision }} {{ part_revision.get_configuration_display }}</span>
+        <span>Rev {{ previous_revision.revision }} stays in use until you release rev {{ part_revision.revision }}.</span>
+    {% else %}
+        <i class="material-icons">edit_note</i>
+        <span>Rev {{ part_revision.revision }} is a Draft. Edit it freely, then release it when it's ready.</span>
+    {% endif %}
+    {% if previous_revision %}
+        <a class="part-status-action" href="{% url 'bom:part-diff' part_id=part.id revision_a_id=previous_revision.id revision_b_id=part_revision.id %}">Compare with rev {{ previous_revision.revision }}</a>
+    {% endif %}
+</div>

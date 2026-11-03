@@ -157,8 +157,8 @@ inline `confirm()` pattern for irreversible actions.
   separate "Release rev N" step.
 - Part page: banner "N open changes touch this revision" linking to the review page; proposed
   lines ghosted inside the existing BOM component with a "Proposed" chip (Phase 2); a "History" tab
-  (formerly "Changes") listing direct edits, releases and applied requests, newest first (Phase 4); a "Compare with..." select that opens the
-  revision diff (Phase 4).
+  (formerly "Changes") listing direct edits, releases and applied requests, newest first (Phase 4); a "Compare with rev N" link in the
+  status strip that opens the revision diff (Phase 4; see editing-design.md, Part page).
 - Settings: API tokens tab (create token with level, list, revoke) and a Protections section on the
   organization tab (Admins): the Released protection shown as always on with the ECO explanation,
   plus the two ChangeSettings switches.
@@ -186,7 +186,7 @@ Phases 1 to 4 are implemented on the `changes` branch (django-bom 1.320 to 1.323
    revisions for selected" creates a next Draft revision of each (`create_next_revision`) with its lines for the
    replaced revisions pointed at the new ones, recorded in `Change.cascade`. A fifth part-page tab, "Changes",
    lists submitted changes that target the part or produced it, applied first. The revision diff view
-   (`/part/<id>/diff/<rev_a>/<rev_b>/`, "Compare with..." on the part page) compares revision fields, properties and
+   (`/part/<id>/diff/<rev_a>/<rev_b>/`, "Compare with rev N" on the part page) compares revision fields, properties and
    direct BOM lines keyed by subpart number and do-not-load, rendered through the shared change-items component.
    `get_change` returns `impact`, `is_eco`, `is_stale` and `is_protected`; `list_changes` returns `is_eco`.
    Agent-written summaries stay out of scope until the AI provider layer exists.
