@@ -3,18 +3,10 @@
 {% load static %}
 {% load materializecss %}
 
-{% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
+{% block head-title %}{{ title }}{% endblock %}
 
 {% block main %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/dashboard.css' %}"/>
-{% endblock %}
-
-{% block bom-menu %}
-    {% include 'bom/dashboard-menu.html' %}
-{% endblock %}
-
-{% block bom-menu-mobile %}
-    {% include 'bom/dashboard-menu.html' with upload_id='-mobile' %}
 {% endblock %}
 
 {% block content %}
@@ -40,7 +32,7 @@
                 </div>
                 <div class="col s12 m2 text-center">
                     <button type="submit" class="waves-effect waves-green btn btn-primary input-field" name="action">
-                        Submit
+                        Search
                     </button>
                     <a class="waves-effect waves-green btn-flat input-field btn-icon-round tooltipped" data-position="bottom" data-tooltip="Help with search" href="{% url 'bom:search-help' %}"><i
                             class="material-icons">help</i></a>
@@ -53,45 +45,39 @@
         <form id="actionForm" name="action-form" action="{% url 'bom:home' %}" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="row actions-row" style="margin-bottom: 0;">
-                <div class="col s6 no-padding">
+                <div class="col s8 no-padding">
+                    <span class="part-count grey-text action-checkbox-show">{{ part_revs.paginator.count }} part{{ part_revs.paginator.count|pluralize }}</span>
                     {% if profile.role == 'A' %}
-                        <div class="row action-checkbox-hide" style="margin: 0; padding: 0; display: none;">
-                            <div class="col s10 m6">
-                                <select name="part-action">
-                                    <option value="" disabled selected>Choose your action</option>
-                                    <option name="submit-part-delete">Delete</option>
-                                </select>
-                                <label>Action</label>
-                            </div>
-                            <div class="col s12 m4" style="margin: 8px 0;">
-                                <button class="waves-effect waves-light btn btn-primary" type="submit" name="actions"
-                                        onclick="return this.form.elements['part-action'].value !== 'Delete' || confirm('Are you sure you want to delete the selected parts?\n\nAll of their revisions will also be permanently deleted. This can\'t be undone.')">
-                                    Go
-                                </button>
-                                <span><a class="btn-flat waves-green" href="#" onclick="disableActionCheckboxColumn()">Hide</a></span>
-                            </div>
+                        <div class="action-checkbox-hide" style="display: none;">
+                            <button class="waves-effect waves-light btn red lighten-1" type="submit" name="part-action" value="Delete"
+                                    onclick="return confirmDeleteSelectedParts()"><i class="material-icons left">delete</i>Delete selected</button>
+                            <a class="btn-flat waves-effect" href="#" onclick="disableActionCheckboxColumn()">Cancel</a>
                         </div>
-                        <span><a class="btn-flat action-checkbox-show" href="#" onclick="enableActionCheckboxColumn()">Actions</a></span>
                     {% endif %}
                 </div>
-                <div class="col s6 right-align">
-                    {% if perms.bom.create_part %}
-                        <a class="btn-flat waves-effect waves-green" href="{% url 'bom:import' %}"><i class="material-icons left">upload_file</i>Import</a>
+                <div class="col s4 right-align list-tools">
+                    {% if profile.role == 'A' %}
+                        <a class="action-checkbox-show tooltipped" href="#" onclick="enableActionCheckboxColumn()" data-position="top" data-tooltip="Select parts" aria-label="Select parts"><i
+                                class="material-icons green-text text-lighten-1">checklist</i></a>
                     {% endif %}
-                    <a class="btn-flat waves-effect waves-green dropdown-trigger-export" href="#" data-target="export-menu"><i class="material-icons left">download</i>Export<i class="material-icons right">arrow_drop_down</i></a>
-                    <ul id="export-menu" class="dropdown-content export-menu">
+                    <a class="dropdown-trigger-list tooltipped" href="#" data-target="list-menu" data-position="top" data-tooltip="Import and export" aria-label="Import and export"><i
+                            class="material-icons green-text text-lighten-1">more_horiz</i></a>
+                    <ul id="list-menu" class="dropdown-content list-menu">
+                        {% if perms.bom.create_part %}
+                            <li><a class="green-text text-lighten-1" href="{% url 'bom:import' %}">
+                                <i class="material-icons green-text text-lighten-1">upload_file</i>Import CSV&hellip;
+                                <small class="grey-text">Add or update parts, vendor prices or a BOM</small></a>
+                            </li>
+                            <li class="divider" tabindex="-1"></li>
+                        {% endif %}
                         <li><a class="green-text text-lighten-1" href="{% url 'bom:home' %}?download=1{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">
-                            <i class="material-icons green-text text-lighten-1">table_view</i>{% if part_class or query %}Parts shown{% else %}All parts{% endif %} ({{ part_revs.paginator.count }})
+                            <i class="material-icons green-text text-lighten-1">download</i>{% if part_class or query %}Export parts shown{% else %}Export all parts{% endif %} ({{ part_revs.paginator.count }})
                             <small class="grey-text">{% if part_class or query %}Matches the current search and part class{% else %}Every part in your organization{% endif %}</small></a>
                         </li>
                         <li><a class="green-text text-lighten-1" href="{% url 'bom:export-vendor-prices' %}">
-                            <i class="material-icons green-text text-lighten-1">sell</i>All vendor prices
+                            <i class="material-icons green-text text-lighten-1">download</i>Export all vendor prices
                             <small class="grey-text">Every price break for every part</small></a>
                         </li>
-                        {% if perms.bom.create_part %}
-                            <li class="divider" tabindex="-1"></li>
-                            <li class="export-menu-note grey-text">Edit either file and <a href="{% url 'bom:import' %}">import</a> it to update IndaBOM.</li>
-                        {% endif %}
                     </ul>
                 </div>
             </div>
@@ -255,7 +241,7 @@
                     coverTrigger: false
                 }
             );
-            $('.dropdown-trigger-export').dropdown({
+            $('.dropdown-trigger-list').dropdown({
                 constrainWidth: false,
                 alignment: 'right',
                 coverTrigger: false
@@ -277,6 +263,15 @@
             $(".action-checkbox-column").hide();
             $(".action-checkbox-hide").hide();
             $(".action-checkbox-show").show();
+        }
+
+        function confirmDeleteSelectedParts() {
+            const count = $('.checkbox-array:checked').length;
+            if (count === 0) {
+                alert('Select the parts to delete first.');
+                return false;
+            }
+            return confirm(`Delete ${count} part${count === 1 ? '' : 's'}?\n\nAll of their revisions will also be permanently deleted. This can't be undone.`);
         }
     </script>
 

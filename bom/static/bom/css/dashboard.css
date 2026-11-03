@@ -1,21 +1,27 @@
-.export-menu small {
+.actions-row {
+    display: flex;
+    align-items: center;
+}
+
+.part-count {
+    line-height: 40px;
+}
+
+.list-tools > a {
+    display: inline-flex;
+    padding: 8px;
+    border-radius: 50%;
+}
+
+.list-tools > a:hover {
+    background: rgba(128, 128, 128, 0.15);
+}
+
+.list-menu small {
     display: block;
     margin-left: 48px;
     font-size: 0.8rem;
     line-height: 1.2rem;
-}
-
-.export-menu li.export-menu-note {
-    padding: 8px 16px;
-    font-size: 0.85rem;
-    line-height: 1.3rem;
-    min-height: 0;
-}
-
-.export-menu li.export-menu-note a {
-    display: inline;
-    padding: 0;
-    font-size: inherit;
 }
 
 @media print {
