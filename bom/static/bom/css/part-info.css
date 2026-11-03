@@ -182,17 +182,6 @@ a.part-thumb-empty:hover {
     flex-wrap: wrap;
 }
 
-.revision-select-wrapper {
-    margin: 0;
-    min-width: 150px;
-}
-
-.revision-select-wrapper.input-field,
-.revision-select-wrapper .select-wrapper {
-    margin-top: 0;
-    margin-bottom: 0;
-}
-
 .manage-btn-col {
     margin: 0;
 }
@@ -222,22 +211,22 @@ a.part-thumb-empty:hover {
     margin-bottom: 2px;
 }
 
-.chip.revision-chip-draft {
+.revision-chip-draft {
     background: #fff3cd;
     color: #6d4c00;
 }
 
-.chip.revision-chip-review {
+.revision-chip-review {
     background: #e3e8fb;
     color: #283593;
 }
 
-.chip.revision-chip-released {
+.revision-chip-released {
     background: #dcefdf;
     color: #1b5e20;
 }
 
-.chip.revision-chip-obsolete {
+.revision-chip-obsolete {
     background: #eeeeee;
     color: #616161;
 }
@@ -281,14 +270,6 @@ a.part-thumb-empty:hover {
     min-width: 240px;
 }
 
-.part-actions-menu li > a {
-    color: #212121;
-}
-
-.part-actions-menu li > a > i.material-icons {
-    color: #757575;
-}
-
 .part-actions-menu li.part-actions-heading {
     min-height: 0;
     padding: 10px 16px 2px;
@@ -298,8 +279,46 @@ a.part-thumb-empty:hover {
     cursor: default;
 }
 
-.part-actions-menu li.part-actions-heading:hover {
-    background: none;
+/* Hosts may give every menu item a hover background with !important; headings aren't clickable. */
+.part-actions-menu li.part-actions-heading:hover,
+.part-actions-menu li.part-actions-heading.active {
+    background: none !important;
+}
+
+.revision-picker {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 6px 0 14px;
+    border-radius: 18px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.revision-menu li > a > small {
+    display: inline;
+    margin-left: 8px;
+}
+
+.sourcing-empty.card-panel {
+    padding: 32px 16px;
+    text-align: center;
+}
+
+.sourcing-empty > .material-icons {
+    font-size: 40px;
+    color: #9e9e9e;
+}
+
+.sourcing-empty-title {
+    margin: 8px 0 4px;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.sourcing-empty p.grey-text {
+    max-width: 440px;
+    margin: 0 auto 20px;
 }
 
 .overview-cards {
@@ -425,10 +444,7 @@ a.part-thumb-empty:hover {
     white-space: nowrap;
 }
 
-.tab-add-action {
-    margin-top: 8px;
-}
-
-#sourcing > .mfr-part-card:first-of-type {
+#sourcing > .mfr-part-card:first-of-type,
+#sourcing > .table-toolbar + .mfr-part-card {
     margin-top: 4px;
 }

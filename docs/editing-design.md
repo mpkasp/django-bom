@@ -78,8 +78,9 @@ building a new multi-form page.
 4. Part page header: one primary button, **Edit** on Draft and **Revise** on Released or In Review,
    plus **Release…** on Draft, plus an overflow menu (review, obsolete, delete, part identity,
    photo, exports). The separate "Edit part", "Manage Revision > Edit",
-   "[change]" link beside the primary manufacturer part, and the BOM tab's "Edit BOM" all go to the
-   one Edit page. Old URLs keep working (redirect to the Edit page where they were edit forms).
+   "[change]" link beside the primary manufacturer part all go to the one Edit page. The BOM tab has
+   no edit or import actions of its own; its toolbar holds the layout toggle, expand/collapse and
+   **Export**. Old URLs keep working (redirect to the Edit page where they were edit forms).
 5. Before saving the revision form, check the revision is still editable (it may have been
    released in another tab) and show a clear error instead of a 500.
 6. Vendor rows on the Sourcing tab stay as they are (supply data, edited directly, recorded in
@@ -151,7 +152,8 @@ building a new multi-form page.
 ## Part page (shipped)
 
 - The header shows the part number with the revision's synopsis beneath it. On the right are the
-  revision selector, a state chip, one primary button (**Edit**, **Revise**, or **Open rev N** when an
+  revision picker (one pill reading "Rev N · State", tinted by state, opening a menu of revisions),
+  one primary button (**Edit**, **Revise**, or **Open rev N** when an
   older Released revision is shown and a newer Draft exists) and **Release…**.
 - A status strip under the header says where the revision stands: Released and read-only, a Draft
   that replaces Released rev N ("Rev N stays in use until you release"), a first Draft, or an older

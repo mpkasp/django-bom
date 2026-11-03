@@ -16,27 +16,27 @@
                 <span class="eyebrow">{{ organization.name }}</span>
                 <div class="part-list-title-row">
                     <h1 class="part-list-title">Parts</h1>
-                    <a class="part-list-menu-trigger dropdown-trigger-list" href="#" data-target="list-menu" aria-label="More actions"><i class="material-icons">more_vert</i></a>
+                    <a class="icon-button dropdown-trigger-list" href="#" data-target="list-menu" aria-label="More actions"><i class="material-icons">more_vert</i></a>
                     <ul id="list-menu" class="dropdown-content list-menu">
                         {% if profile.role == 'A' %}
-                            <li><a class="green-text text-lighten-1" href="#" onclick="startPartSelection(); return false;">
-                                <i class="material-icons green-text text-lighten-1">checklist</i>Select parts
+                            <li><a href="#" onclick="startPartSelection(); return false;">
+                                <i class="material-icons">checklist</i>Select parts
                                 <small class="grey-text">Delete several parts at once</small></a>
                             </li>
                             <li class="divider" tabindex="-1"></li>
                         {% endif %}
                         {% if perms.bom.create_part %}
-                            <li><a class="green-text text-lighten-1" href="{% url 'bom:import' %}">
-                                <i class="material-icons green-text text-lighten-1">upload_file</i>Import CSV&hellip;
+                            <li><a href="{% url 'bom:import' %}">
+                                <i class="material-icons">upload_file</i>Import CSV&hellip;
                                 <small class="grey-text">Add or update parts, vendor prices or a BOM</small></a>
                             </li>
                         {% endif %}
-                        <li><a class="green-text text-lighten-1" href="{% url 'bom:home' %}?download=1{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">
-                            <i class="material-icons green-text text-lighten-1">download</i>{% if part_class or query %}Export parts shown{% else %}Export all parts{% endif %} ({{ part_revs.paginator.count }})
+                        <li><a href="{% url 'bom:home' %}?download=1{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">
+                            <i class="material-icons">download</i>{% if part_class or query %}Export parts shown{% else %}Export all parts{% endif %} ({{ part_revs.paginator.count }})
                             <small class="grey-text">{% if part_class or query %}Matches the current search and part class{% else %}Every part in your organization{% endif %}</small></a>
                         </li>
-                        <li><a class="green-text text-lighten-1" href="{% url 'bom:export-vendor-prices' %}">
-                            <i class="material-icons green-text text-lighten-1">download</i>Export all vendor prices
+                        <li><a href="{% url 'bom:export-vendor-prices' %}">
+                            <i class="material-icons">download</i>Export all vendor prices
                             <small class="grey-text">Every price break for every part</small></a>
                         </li>
                     </ul>
@@ -47,7 +47,7 @@
                     <span id="selected-count"></span>
                     <button form="actionForm" class="waves-effect waves-light btn red lighten-1" type="submit" name="part-action" value="Delete"
                             onclick="return confirmDeleteSelectedParts()"><i class="material-icons left">delete</i>Delete</button>
-                    <a class="list-action waves-effect" href="#" onclick="stopPartSelection(); return false;">Done</a>
+                    <a class="btn-outline waves-effect" href="#" onclick="stopPartSelection(); return false;">Done</a>
                 </div>
             {% endif %}
         </div>
@@ -130,30 +130,27 @@
                                     <ul id='part-menu-{{ part_rev.id }}' class='dropdown-content'>
                                         {% if not part_rev.is_immutable %}
                                             <li>
-                                                <a class="green-text text-lighten-1" href="{% url 'bom:part-edit-revision' part_id=part_rev.part.id part_revision_id=part_rev.id %}">
-                                                    <i class="material-icons green-text text-lighten-1">edit</i>Edit</a>
+                                                <a href="{% url 'bom:part-edit-revision' part_id=part_rev.part.id part_revision_id=part_rev.id %}">
+                                                    <i class="material-icons">edit</i>Edit</a>
                                             </li>
                                         {% endif %}
                                         <li>
-                                            <a class="green-text text-lighten-1" href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=used">
-                                                <i class="material-icons green-text text-lighten-1">my_location</i>Where Used</a>
+                                            <a href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=used">
+                                                <i class="material-icons">my_location</i>Where Used</a>
                                         </li>
                                         <li>
-                                            <a class="green-text text-lighten-1" href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=sourcing">
-                                                <i class="material-icons green-text text-lighten-1">local_airport</i>Sourcing</a>
+                                            <a href="{% url 'bom:part-info' part_id=part_rev.part.id %}?tab_anchor=sourcing">
+                                                <i class="material-icons">local_airport</i>Sourcing</a>
                                         </li>
                                         <li class="divider" tabindex="-1"></li>
-                                        <li><a class="green-text text-lighten-1"
-                                               href="{% url 'bom:part-revision-export-bom' part_revision_id=part_rev.id %}"><i
-                                                class="material-icons green-text text-lighten-1">download</i>Export BOM (indented)</a>
+                                        <li><a href="{% url 'bom:part-revision-export-bom' part_revision_id=part_rev.id %}"><i
+                                                class="material-icons">download</i>Export BOM (indented)</a>
                                         </li>
-                                        <li><a class="green-text text-lighten-1"
-                                               href="{% url 'bom:part-revision-export-bom' part_revision_id=part_rev.id %}?levels=1"><i
-                                                class="material-icons green-text text-lighten-1">download</i>Export BOM (single level)</a>
+                                        <li><a href="{% url 'bom:part-revision-export-bom' part_revision_id=part_rev.id %}?levels=1"><i
+                                                class="material-icons">download</i>Export BOM (single level)</a>
                                         </li>
-                                        <li><a class="green-text text-lighten-1"
-                                               href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_rev.id %}"><i
-                                                class="material-icons green-text text-lighten-1">download</i>Export BOM (flat)</a>
+                                        <li><a href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_rev.id %}"><i
+                                                class="material-icons">download</i>Export BOM (flat)</a>
                                         </li>
                                     </ul>
                                 </td>

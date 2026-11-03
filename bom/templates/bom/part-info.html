@@ -49,24 +49,16 @@
                     {% if part_revision %}
                         <span class="eyebrow">Revision</span>
                         <div class="revision-selector-row">
-                            <div class="input-field revision-select-wrapper">
-                                <select id="select-revision">
-                                    {% for r in revisions.all %}
-                                        <!--@formatter:off-->
-                                        <option {% if part_revision.id == r.id %}selected{% endif %} value="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}{% endif %}">Rev {{ r.revision }}{% if part_revision.id != r.id %} ({{ r.get_configuration_display }}){% endif %}</option>
-                                        <!--@formatter:on-->
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <span class="chip
-                                {% if part_revision.configuration == 'D' %}revision-chip-draft
-                                {% elif part_revision.configuration == 'I' %}revision-chip-review
-                                {% elif part_revision.configuration == 'R' %}revision-chip-released
-                                {% elif part_revision.configuration == 'O' %}revision-chip-obsolete
-                                {% else %}grey lighten-4
-                                {% endif %}">
-                                {{ part_revision.get_configuration_display }}
-                            </span>
+                            <a class="revision-picker dropdown-trigger-revision {% if part_revision.configuration == 'D' %}revision-chip-draft{% elif part_revision.configuration == 'I' %}revision-chip-review{% elif part_revision.configuration == 'R' %}revision-chip-released{% else %}revision-chip-obsolete{% endif %}" href="#" data-target="revision-menu"
+                               aria-label="Choose a revision">Rev {{ part_revision.revision }} &middot; {{ part_revision.get_configuration_display }}<i class="material-icons">arrow_drop_down</i></a>
+                            <ul id="revision-menu" class="dropdown-content revision-menu">
+                                {% for r in revisions.all %}
+                                    <li{% if part_revision.id == r.id %} class="active"{% endif %}>
+                                        <a href="{% if r == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=r.id %}{% endif %}">Rev {{ r.revision }}
+                                            <small class="grey-text">{{ r.get_configuration_display }}</small></a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
                             {% if perms.bom.edit_part %}
                                 {% if part_revision.is_immutable and latest_revision.id != part_revision.id and latest_revision.configuration == 'D' %}
                                     <a class="waves-effect waves-light btn green lighten-1" href="{% url 'bom:part-info' part_id=part.id %}">Open rev {{ latest_revision.revision }}</a>
@@ -91,27 +83,23 @@
                             {% with allowed=part_revision.get_allowed_transitions config='D' %}
                                 {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
-                                        <a class="{% if config not in allowed %}grey-text{% endif %}"
-                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                            <i class="material-icons">undo</i>Revert to Draft</a>
+                                        <a onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
+                                            <i class="material-icons">undo</i>Revert to Draft{% if config not in allowed %}<small class="grey-text">Admin override</small>{% endif %}</a>
                                     </li>
                                 {% endif %}
                             {% endwith %}
-                            {% with allowed=part_revision.get_allowed_transitions config='I' %}
-                                {% if config in allowed or profile.role == 'A' and config != part_revision.configuration %}
-                                    <li>
-                                        <a class="{% if config not in allowed %}grey-text{% endif %}"
-                                           onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                            <i class="material-icons">group</i>Send to review</a>
-                                    </li>
-                                {% endif %}
-                            {% endwith %}
+                            {% if 'I' in part_revision.get_allowed_transitions %}
+                                <li>
+                                    <a onclick="changePartRevision('I', true)">
+                                        <i class="material-icons">group</i>Send to review</a>
+                                </li>
+                            {% endif %}
                             {% with allowed=part_revision.get_allowed_transitions config='O' %}
                                 {% if config in allowed and perms.bom.obsolete_revision or profile.role == 'A' and config != part_revision.configuration %}
                                     <li>
-                                        <a class="{% if config in allowed %}orange-text text-darken-3{% else %}grey-text{% endif %}"
+                                        <a class="orange-text text-darken-3"
                                            onclick="changePartRevision('{{ config }}', {% if config in allowed %}true{% else %}false{% endif %})">
-                                            <i class="material-icons">block</i>Mark obsolete</a>
+                                            <i class="material-icons">block</i>Mark obsolete{% if config not in allowed %}<small class="grey-text">Admin override</small>{% endif %}</a>
                                     </li>
                                 {% endif %}
                             {% endwith %}
@@ -264,30 +252,28 @@
                 <div id="bom" class="col s12">
                     <h4 class="printer-show">Bill of Materials</h4>
                     <div id="bom-indented" class="card-panel tab-card">
-                        <div class="view-toggle printer-hide" role="group" aria-label="BOM layout">
-                            <span class="active">Indented</span><a onclick="showFlatBOM()" href="#">Flat</a>
-                        </div>
-                        {% include 'bom/components/bom-indented.html' with order_by=order_by bom_items=indented_bom.parts part=part part_revision=part_revision profile=profile %}
+                        {% include 'bom/components/bom-indented.html' with order_by=order_by bom_items=indented_bom.parts part=part part_revision=part_revision profile=profile layout_toggle=True %}
                     </div>
                     <div id="bom-flat" class="card-panel tab-card" style="display: none;">
-                        <div class="view-toggle printer-hide" role="group" aria-label="BOM layout">
-                            <a onclick="showIndentedBOM()" href="#">Indented</a><span class="active">Flat</span>
-                        </div>
-                        {% include 'bom/components/bom-flat.html' with order_by=order_by bom_items=flat_bom.parts part=part part_revision=part_revision profile=profile %}
+                        {% include 'bom/components/bom-flat.html' with order_by=order_by bom_items=flat_bom.parts part=part part_revision=part_revision profile=profile layout_toggle=True %}
                     </div>
                 </div>
 
                 <div id="used" class="col s12">
                     <h4 class="printer-show">Where Used</h4>
                     <div id="where-used-revision" class="card-panel tab-card">
-                        <div class="view-toggle printer-hide" role="group" aria-label="Where used scope">
-                            <span class="active">This revision</span><a onclick="showWholePartWhereUsed()" href="#">All revisions</a>
+                        <div class="table-toolbar printer-hide">
+                            <div class="view-toggle" role="group" aria-label="Where used scope">
+                                <span class="active">This revision</span><a onclick="showWholePartWhereUsed()" href="#">All revisions</a>
+                            </div>
                         </div>
                         {% include 'bom/components/where-used-tree.html' with where_used_items=where_used.items table_id='where-used-revision-table' %}
                     </div>
                     <div id="where-used-whole-part" class="card-panel tab-card" style="display: none;">
-                        <div class="view-toggle printer-hide" role="group" aria-label="Where used scope">
-                            <a onclick="showRevisionWhereUsed()" href="#">This revision</a><span class="active">All revisions</span>
+                        <div class="table-toolbar printer-hide">
+                            <div class="view-toggle" role="group" aria-label="Where used scope">
+                                <a onclick="showRevisionWhereUsed()" href="#">This revision</a><span class="active">All revisions</span>
+                            </div>
                         </div>
                         {% include 'bom/components/where-used-tree.html' with where_used_items=where_used_part.items table_id='where-used-whole-part-table' %}
                     </div>
@@ -337,15 +323,34 @@
 
                 <div id="sourcing" class="col s12">
                     <h4 class="printer-show">Sourcing</h4>
-                    {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=part.manufacturer_parts part_revision=part_revision profile=profile show_manufacturer=True %}
-                    {% for item in proposals.seller_items %}
-                        <p style="opacity: 0.6;"><span class="chip">Proposed</span> {{ item.summary }}
-                            <a href="{% url 'bom:change-review' number=item.change.number %}">Change #{{ item.change.number }}</a></p>
-                    {% endfor %}
-                    {% if perms.bom.manage_sourcing %}
-                        <a class="waves-effect waves-light btn btn-primary tab-add-action"
-                           href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}"><i class="material-icons left">add</i>Add manufacturer part</a>
-                    {% endif %}
+                    {% with manufacturer_parts=part.manufacturer_parts %}
+                        {% if manufacturer_parts %}
+                            {% if perms.bom.manage_sourcing %}
+                                <div class="table-toolbar printer-hide">
+                                    <div class="table-toolbar-start"></div>
+                                    <div class="table-toolbar-end">
+                                        <a class="btn-outline waves-effect"
+                                           href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}"><i class="material-icons">add</i>Add manufacturer part</a>
+                                    </div>
+                                </div>
+                            {% endif %}
+                            {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=manufacturer_parts part_revision=part_revision profile=profile show_manufacturer=True %}
+                        {% else %}
+                            <div class="card-panel tab-card sourcing-empty">
+                                <i class="material-icons">storefront</i>
+                                <p class="sourcing-empty-title">No manufacturer parts yet</p>
+                                <p class="grey-text">Add the manufacturer part numbers this part can be bought as, then add vendors and prices to each.</p>
+                                {% if perms.bom.manage_sourcing %}
+                                    <a class="waves-effect waves-light btn btn-primary"
+                                       href="{% url 'bom:part-add-manufacturer-part' part_id=part.id %}"><i class="material-icons left">add</i>Add manufacturer part</a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        {% for item in proposals.seller_items %}
+                            <p style="opacity: 0.6;"><span class="chip">Proposed</span> {{ item.summary }}
+                                <a href="{% url 'bom:change-review' number=item.change.number %}">Change #{{ item.change.number }}</a></p>
+                        {% endfor %}
+                    {% endwith %}
                 </div>
             </div>
         </div>
@@ -429,6 +434,11 @@
                     coverTrigger: false
                 }
             );
+            $('.dropdown-trigger-revision').dropdown({
+                constrainWidth: false,
+                alignment: 'left',
+                coverTrigger: false
+            });
 
             {% if not tab_anchor %}
                 if (window.localStorage['part-info-last-anchor']) {
@@ -445,25 +455,6 @@
     <script>
         $(function () {
             $('.responsive-table-wrapper').floatingScrollbar();
-        });
-    </script>
-
-    <!-- For revision selector logic -->
-    <script>
-        var selectRevisionSelectedIndex = 1;
-        $(document).ready(function () {
-            selectRevisionSelectedIndex = $("#select-revision")[0].selectedIndex;
-        });
-
-        $("#select-revision").on('change', function () {
-            var url = $(this)[0].value;
-            var selectedIndex = $(this)[0].selectedIndex;
-            if (selectedIndex === 0) {
-                var value = "{% if revision == part.latest %}{% url 'bom:part-info' part_id=part.id %}{% else %}{% url 'bom:part-info-history' part_id=part.id part_revision_id=part_revision.id %}{% endif %}";
-                $("#select-revision")[0].selectedIndex = selectRevisionSelectedIndex;
-                $("#select-revision").formSelect();
-            }
-            window.location.href = url;
         });
     </script>
 

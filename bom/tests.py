@@ -344,7 +344,8 @@ class TestBOM(TransactionTestCase):
         self.assertIn('2', [row['level'] for row in indented_rows])
 
         response = self.client.get(export_url + '?levels=1')
-        self.assertIn('_single_level.csv', response['Content-Disposition'])
+        self.assertEqual(response['Content-Disposition'],
+                         f'attachment; filename="indabom_export_{p3.full_part_number()}_rev{p3.latest().revision}_single_level.csv"')
         rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8'))))
         self.assertEqual(rows, [row for row in indented_rows if row['level'] in ('0', '1')])
 

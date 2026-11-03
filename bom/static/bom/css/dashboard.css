@@ -13,17 +13,6 @@
     gap: 4px;
 }
 
-.part-list-menu-trigger {
-    display: inline-flex;
-    padding: 6px;
-    border-radius: 50%;
-    color: #9e9e9e;
-}
-
-.part-list-menu-trigger:hover {
-    background: rgba(128, 128, 128, 0.15);
-}
-
 .part-list-title {
     margin: 0;
     font-size: 2rem;
@@ -38,22 +27,6 @@
 
 .part-list-actions[hidden] {
     display: none;
-}
-
-.list-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 36px;
-    padding: 0 14px;
-    border: 1px solid rgba(128, 128, 128, 0.4);
-    border-radius: 18px;
-    color: #43a047;
-    font-weight: 500;
-}
-
-.list-action:hover {
-    background: rgba(102, 187, 106, 0.12);
 }
 
 .part-list-filters {
@@ -114,13 +87,6 @@
 .part-list table td.checkbox-column {
     width: 40px;
     padding-right: 0;
-}
-
-.list-menu small {
-    display: block;
-    margin-left: 48px;
-    font-size: 0.8rem;
-    line-height: 1.2rem;
 }
 
 @media print {

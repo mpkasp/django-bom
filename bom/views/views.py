@@ -989,8 +989,8 @@ def part_export_bom(request, part_id=None, part_revision_id=None, flat=False, so
         return HttpResponseRedirect(request.META.get('HTTP_REFERER'), '/')
 
     response = HttpResponse(csv_text, content_type='text/csv')
-    filename = f'indabom_export_{part.full_part_number()}_{layout}'
-    response['Content-Disposition'] = f'attachment; filename="{filename}.csv'
+    filename = f'indabom_export_{part.full_part_number()}_rev{part_revision.revision}_{layout}'
+    response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
     return response
 
 
