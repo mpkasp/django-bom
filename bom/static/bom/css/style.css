@@ -141,21 +141,24 @@ td, tr {
 }
 
 .tabs .tab a {
-    /*@extend .green .lighten-3;*/
-    color: #a5d6a7;
+    color: #616161;
+    font-weight: 500;
+    text-transform: none;
+    font-size: 15px;
 }
 
 .tabs .tab a:hover, .tabs .tab a.active {
     background-color: transparent;
-    color: #66bb6a;
+    color: #2e7d32;
 }
 
 .tabs .tab.disabled a, .tabs .tab.disabled a:hover {
-    color: rgba(165, 214, 167, 0.5);
+    color: #bdbdbd;
 }
 
 .tabs .indicator {
-    background-color: #66bb6a;
+    background-color: #43a047;
+    height: 3px;
 }
 
 .tabs .tab a:focus, .tabs .tab a:focus.active {
