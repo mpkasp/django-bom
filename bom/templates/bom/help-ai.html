@@ -1,0 +1,75 @@
+{% extends 'bom/bom-base.html' %}
+
+{% block head-title %}Connect an AI assistant{% endblock %}
+
+{% block content %}
+    <div class="container" style="font-size: 16px;">
+        <h1 class="text-center">Connect an AI assistant</h1>
+        <div class="row">
+            <article class="col s12 m8 offset-m2">
+
+                <div class="section">
+                    <p>An assistant such as Claude can search your parts, read BOMs and propose changes through
+                        IndaBOM's MCP server. It acts as you, in your organization, and never has more access than your
+                        role. Agents never release revisions or approve requests.</p>
+                    <p>The server address is:</p>
+                    <pre style="overflow-x: auto;"><code id="mcp-url">{{ mcp_url }}</code></pre>
+                </div>
+
+                {% if oauth_enabled %}
+                    <div class="section">
+                        <h3>Sign in from your assistant</h3>
+                        <p>Add the server, then sign in. Your browser opens, you sign in to IndaBOM as usual, and a
+                            page asks what the assistant may do. No token to copy.</p>
+                        <h5>Claude Code</h5>
+                        <pre style="overflow-x: auto;"><code>claude mcp add --transport http indabom {{ mcp_url }}</code></pre>
+                        <p>Then run <code>/mcp</code> inside Claude Code, choose <b>indabom</b> and select
+                            <b>Authenticate</b>.</p>
+                        <h5>claude.ai and Claude Desktop</h5>
+                        <p>Open <b>Settings → Connectors</b>, choose <b>Add custom connector</b>, enter the address
+                            above, then connect and sign in.</p>
+                        <h5>Cursor</h5>
+                        <p>Add this to <code>~/.cursor/mcp.json</code>, then choose <b>Connect</b> next to indabom in
+                            Cursor's MCP settings.</p>
+                        <pre style="overflow-x: auto;"><code>{"mcpServers": {"indabom": {"url": "{{ mcp_url }}"}}}</code></pre>
+                    </div>
+                {% endif %}
+
+                <div class="section">
+                    <h3>{% if oauth_enabled %}Or paste a token{% else %}Connect with a token{% endif %}</h3>
+                    <p>Create a token in <a href="{% url 'bom:settings' 'api' %}">Settings → API Tokens</a>, copy it
+                        when it is shown (it is shown once), and give it to your client. This works with clients that
+                        let you set a header, such as Claude Code and Cursor.{% if oauth_enabled %} Connectors in
+                        claude.ai and Claude Desktop need the sign-in method above.{% else %} Connectors in claude.ai
+                        and Claude Desktop cannot send a header, so they cannot use a token.{% endif %}</p>
+                    <h5>Claude Code</h5>
+                    <pre style="overflow-x: auto;"><code>claude mcp add --transport http indabom {{ mcp_url }} --header "Authorization: Bearer &lt;token&gt;"</code></pre>
+                    <h5>Cursor</h5>
+                    <pre style="overflow-x: auto;"><code>{"mcpServers": {"indabom": {"url": "{{ mcp_url }}", "headers": {"Authorization": "Bearer &lt;token&gt;"}}}}</code></pre>
+                </div>
+
+                <div class="section">
+                    <h3>What the assistant may do</h3>
+                    <ul class="browser-default">
+                        <li><strong>Read only</strong>: look up parts, BOMs and where parts are used.</li>
+                        <li><strong>Propose changes for review</strong>: also stage changes that a person reviews
+                            and applies.</li>
+                        <li><strong>Propose and apply changes</strong>: also apply changes directly.
+                            Viewers can only choose Read only.</li>
+                    </ul>
+                    <p>{% if oauth_enabled %}You choose the level when you sign in. A token's level is set when you
+                        create it.{% else %}A token's level is set when you create it.{% endif %}
+                        Applying changes may be unavailable for your organization.</p>
+                </div>
+
+                <div class="section">
+                    <h3>Disconnecting</h3>
+                    <p>Revoke the connection or token in <a href="{% url 'bom:settings' 'api' %}">Settings → API
+                        Tokens</a>. The assistant stops working at once.{% if oauth_enabled %} Connected apps are
+                        labeled as such; to reconnect, sign in from the assistant again.{% endif %}</p>
+                </div>
+
+            </article>
+        </div>
+    </div>
+{% endblock %}

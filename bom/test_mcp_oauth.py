@@ -264,3 +264,50 @@ class ConsentPageTest(OAuthMCPTestCase):
         response = self.consent_page()
         self.assertNotContains(response, 'name="allow"')
         self.assertContains(response, 'organization')
+
+
+@override_settings(ROOT_URLCONF='bom.test_oauth_urls')
+class ConnectionManagementTest(OAuthMCPTestCase):
+    def setUp(self):
+        super().setUp()
+        self.application = self.make_application('Cursor')
+        self.mcp(self.make_toolkit_token(self.application, scope='read write')).rpc('tools/list')
+        self.connection = APIToken.objects.get(oauth_client_id=self.application.client_id)
+        self.client.force_login(self.user)
+
+    def test_api_tokens_tab_labels_connected_apps(self):
+        response = self.client.get('/settings/api/')
+        self.assertContains(response, 'Cursor')
+        self.assertContains(response, 'Connected app', count=1)
+
+    def test_revoking_in_settings_revokes_the_clients_tokens(self):
+        plaintext = self.make_toolkit_token(self.application)
+        response = self.client.post('/settings/api/', {'submit-revoke-token': '', 'token_id': self.connection.id})
+        self.assertEqual(response.status_code, 200)
+        self.connection.refresh_from_db()
+        self.assertIsNotNone(self.connection.revoked_at)
+        self.assertFalse(AccessToken.objects.filter(application=self.application).exists())
+        self.assertEqual(self.mcp(plaintext).rpc('tools/list').status_code, 401)
+
+
+class HelpAIPageTest(OAuthMCPTestCase):
+    def test_explains_sign_in_when_oauth_is_configured(self):
+        config = {**settings.BOM_CONFIG, 'mcp_oauth_issuer_url': ISSUER_URL, 'mcp_resource_url': RESOURCE_URL}
+        with override_settings(BOM_CONFIG=config):
+            response = self.client.get('/help/ai/')
+        self.assertContains(response, f'claude mcp add --transport http indabom {RESOURCE_URL}')
+        self.assertContains(response, 'Authenticate')
+        self.assertContains(response, 'Add custom connector')
+        self.assertContains(response, 'Or paste a token')
+
+    def test_explains_tokens_only_without_oauth(self):
+        config = {**settings.BOM_CONFIG, 'site_url': 'https://bom.example.com/'}
+        with override_settings(BOM_CONFIG=config):
+            response = self.client.get('/help/ai/')
+        self.assertContains(response, 'https://bom.example.com/mcp')
+        self.assertContains(response, 'Authorization: Bearer')
+        self.assertNotContains(response, 'Add custom connector')
+        self.assertNotContains(response, 'Authenticate')
+
+    def test_help_links_to_the_page(self):
+        self.assertContains(self.client.get('/help/'), '/help/ai/')

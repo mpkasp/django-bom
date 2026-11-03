@@ -2381,6 +2381,25 @@ def part_revision_delete(request, part_id, part_revision_id):
     return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part.id}))
 
 
+class HelpAI(TemplateView):
+    name = 'help-ai'
+    template_name = 'bom/help-ai.html'
+
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['oauth_enabled'] = bool(settings.BOM_CONFIG.get('mcp_oauth_issuer_url'))
+        context['mcp_url'] = mcp_url()
+        return context
+
+
+def mcp_url():
+    configured = settings.BOM_CONFIG.get('mcp_resource_url')
+    if configured:
+        return configured
+    site_url = settings.BOM_CONFIG.get('site_url', '').rstrip('/')
+    return f'{site_url}/mcp' if site_url else 'https://your-server/mcp'
+
+
 class Help(TemplateView):
     name = 'help'
     template_name = f'bom/{name}.html'
