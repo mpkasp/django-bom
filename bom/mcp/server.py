@@ -353,3 +353,37 @@ def add_seller_part(ctx: Context, manufacturer_part_id: int | str, seller: str, 
             'minimum_pack_quantity': minimum_pack_quantity, 'lead_time_days': lead_time_days, 'nre_cost': nre_cost,
             'seller_part_number': seller_part_number, 'link': link, 'ncnr': ncnr}
         return _finish_write(actor, _write_item(actor, ChangeItem.KIND_ADD_SELLER_PART, payload, change_id))
+
+
+@mcp.tool(annotations=WRITE)
+def update_part_revision(ctx: Context, part_number: str, change_id: int, description: str | None = None,
+                         properties: dict[str, str] | None = None, revision: str | None = None) -> dict:
+    """Stage a new description and/or property values (codes from get_organization) on a part's Draft revision;
+    values left out are kept and a property given as an empty string is cleared. Only Draft revisions can be
+    edited: for a Released or In Review revision, stage revise_part and have that change applied first, then edit
+    the new Draft. Stages into `change_id` (from start_change); nothing is saved until the change is applied."""
+    with tool_call(ctx, 'update_part_revision') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        part_revision = parts.revision_from_number(actor.organization, part_number, revision)
+        if part_revision.is_immutable():
+            raise ToolError(
+                f"{part_number} rev {part_revision.revision} is {part_revision.get_configuration_display()} and "
+                f"cannot be edited. Call revise_part to create the next Draft (and have that change applied), "
+                f"then update the new Draft.")
+        payload = {'part_number': part_number, 'revision': part_revision.revision, 'description': description,
+                   'properties': properties}
+        return _write_item(actor, ChangeItem.KIND_UPDATE_PART_REVISION, payload, change_id)
+
+
+@mcp.tool(annotations=WRITE)
+def revise_part(ctx: Context, part_number: str, change_id: int) -> dict:
+    """Stage the next Draft revision of a part, copied from its latest Released or In Review revision, as the
+    Revise button does. Refused when a newer Draft already exists (the error names it). The new Draft
+    exists only once the change is applied; edit it afterwards with update_part_revision, add_subpart and the
+    other write tools. Agents never release a revision: a person does that."""
+    with tool_call(ctx, 'revise_part') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        source = changes.latest_immutable_revision(parts.part_from_number(actor.organization, part_number))
+        changes.require_revisable(source)
+        payload = {'part_number': part_number, 'revision': source.revision}
+        return _write_item(actor, ChangeItem.KIND_CREATE_PART_REVISION, payload, change_id)

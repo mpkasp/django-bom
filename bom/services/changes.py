@@ -34,6 +34,8 @@ STAGEABLE_KINDS = (
     ChangeItem.KIND_REMOVE_SUBPART,
     ChangeItem.KIND_ADD_MANUFACTURER_PART,
     ChangeItem.KIND_ADD_SELLER_PART,
+    ChangeItem.KIND_UPDATE_PART_REVISION,
+    ChangeItem.KIND_CREATE_PART_REVISION,
 )
 ITEM_PERMISSIONS = {
     ChangeItem.KIND_CREATE_PART: BomPerms.CREATE_PART,
@@ -42,6 +44,8 @@ ITEM_PERMISSIONS = {
     ChangeItem.KIND_REMOVE_SUBPART: BomPerms.EDIT_PART,
     ChangeItem.KIND_ADD_MANUFACTURER_PART: BomPerms.MANAGE_SOURCING,
     ChangeItem.KIND_ADD_SELLER_PART: BomPerms.MANAGE_SOURCING,
+    ChangeItem.KIND_UPDATE_PART_REVISION: BomPerms.EDIT_PART,
+    ChangeItem.KIND_CREATE_PART_REVISION: BomPerms.EDIT_PART,
     ChangeItem.KIND_RELEASE_REVISION: BomPerms.RELEASE_REVISION,
 }
 
@@ -667,6 +671,11 @@ def revert_change(change, user):
                     left_in_place.append(f"Item {item.position} ({item.summary}) cannot be reverted; revise instead.")
                 elif item.kind == ChangeItem.KIND_CREATE_PART:
                     left_in_place.append(f"{item.result['part_number']} was created and is left in place.")
+                elif item.kind == ChangeItem.KIND_CREATE_PART_REVISION:
+                    left_in_place.append(f"Revision {item.result['revision']} of {item.payload['part_number']} was "
+                                         f"created and is left in place.")
+                elif item.kind == ChangeItem.KIND_UPDATE_PART_REVISION:
+                    stage_item(counter, item.kind, _restore_revision_payload(item))
                 elif item.kind == ChangeItem.KIND_ADD_SELLER_PART:
                     seller_part_ids.append(item.result['seller_part_id'])
                 elif item.kind == ChangeItem.KIND_ADD_MANUFACTURER_PART:
@@ -698,6 +707,14 @@ def revert_change(change, user):
         SellerPart.objects.filter(id__in=seller_part_ids).delete()
         ManufacturerPart.objects.filter(id__in=manufacturer_part_ids).delete()
         return counter
+
+
+def _restore_revision_payload(item):
+    revision = PartRevision.objects.get(pk=item.result['part_revision_id'])
+    properties = {code: '' for code in parts.revision_values(revision)['properties']}
+    properties.update(item.before['properties'])
+    return {'part_number': item.payload['part_number'], 'revision': revision.revision,
+            'description': item.before['description'], 'properties': properties}
 
 
 def _counter_item(item):
@@ -891,18 +908,31 @@ def newer_draft_revision(part_revision):
         configuration=CONFIGURATION_TYPE_DRAFT, id__gt=part_revision.id).order_by('id').first()
 
 
-def revise_revision(part_revision, user):
-    """The next Draft revision made from an immutable one, recorded in History."""
-    organization = part_revision.part.organization
+def require_revisable(part_revision):
     label = f"{part_revision.part.full_part_number()} rev {part_revision.revision}"
-    if not user.has_perm(BomPerms.EDIT_PART, organization):
-        raise ServiceError(f"{user.username} cannot revise parts in {organization.name}.")
     if not part_revision.is_immutable():
         raise ServiceError(f"{label} is a Draft; edit it directly.")
     newer_draft = newer_draft_revision(part_revision)
     if newer_draft is not None:
         raise ServiceError(f"{part_revision.part.full_part_number()} already has a newer Draft, "
                            f"rev {newer_draft.revision}.")
+
+
+def latest_immutable_revision(part):
+    part_revision = part.revisions().filter(configuration__in=PartRevision.IMMUTABLE_STATES).order_by('-id').first()
+    if part_revision is None:
+        raise ServiceError(f"{part.full_part_number()} has no Released or In Review revision to revise; "
+                           f"edit its Draft directly.")
+    return part_revision
+
+
+def revise_revision(part_revision, user):
+    """The next Draft revision made from an immutable one, recorded in History."""
+    organization = part_revision.part.organization
+    label = f"{part_revision.part.full_part_number()} rev {part_revision.revision}"
+    if not user.has_perm(BomPerms.EDIT_PART, organization):
+        raise ServiceError(f"{user.username} cannot revise parts in {organization.name}.")
+    require_revisable(part_revision)
     with transaction.atomic():
         new_revision = parts.create_next_revision(part_revision)
         record_direct_edit(
@@ -1072,6 +1102,29 @@ def _prepare_add_seller_part(organization, payload, validate):
         f"{manufacturer_part.manufacturer_part_number} of {manufacturer_part.part.full_part_number()}"))
 
 
+def _prepare_update_part_revision(organization, payload, validate):
+    payload = dict(payload)
+    part_number = payload.pop('part_number', '')
+    prepared = {'summary': f"Update description and properties of {part_number}"}
+    if not validate:
+        return prepared
+    part_revision = parts.revision_from_number(organization, part_number, payload.pop('revision', None))
+    before = parts.revision_values(part_revision)
+    _call(parts.bind_revision_update, organization, part_revision, **payload)
+    return dict(prepared, part=part_revision.part, part_revision=part_revision, before=before,
+                summary=f"{prepared['summary']} rev {part_revision.revision}")
+
+
+def _prepare_create_part_revision(organization, payload, validate):
+    part_number = payload.get('part_number', '')
+    prepared = {'summary': f"Revise {part_number}"}
+    if not validate:
+        return prepared
+    source = parts.revision_from_number(organization, part_number, payload.get('revision'))
+    require_revisable(source)
+    return dict(prepared, part=source.part, summary=f"{prepared['summary']} rev {source.revision}")
+
+
 def _apply_create_part(organization, payload):
     part_revision = _call(parts.create_part, organization, **payload)
     return {'part_id': part_revision.part_id, 'part_number': part_revision.part.full_part_number(),
@@ -1119,6 +1172,23 @@ def _apply_add_seller_part(organization, payload):
     return {'seller_part_id': seller_part.id}
 
 
+def _apply_update_part_revision(organization, payload):
+    payload = dict(payload)
+    payload.pop('assembly_revision', None)
+    part_revision = parts.revision_from_number(
+        organization, payload.pop('part_number', ''), payload.pop('revision', None))
+    _call(parts.update_revision, organization, part_revision, **payload)
+    return {'part_id': part_revision.part_id, 'part_revision_id': part_revision.id}
+
+
+def _apply_create_part_revision(organization, payload):
+    source = parts.revision_from_number(organization, payload.get('part_number', ''), payload.get('revision'))
+    require_revisable(source)
+    new_revision = parts.create_next_revision(source)
+    return {'part_id': source.part_id, 'part_revision_id': new_revision.id, 'revision': new_revision.revision,
+            'source_revision_id': source.id}
+
+
 _PREPARERS = {
     ChangeItem.KIND_CREATE_PART: _prepare_create_part,
     ChangeItem.KIND_ADD_SUBPART: _prepare_add_subpart,
@@ -1126,6 +1196,8 @@ _PREPARERS = {
     ChangeItem.KIND_REMOVE_SUBPART: _prepare_remove_subpart,
     ChangeItem.KIND_ADD_MANUFACTURER_PART: _prepare_add_manufacturer_part,
     ChangeItem.KIND_ADD_SELLER_PART: _prepare_add_seller_part,
+    ChangeItem.KIND_UPDATE_PART_REVISION: _prepare_update_part_revision,
+    ChangeItem.KIND_CREATE_PART_REVISION: _prepare_create_part_revision,
 }
 _APPLIERS = {
     ChangeItem.KIND_CREATE_PART: _apply_create_part,
@@ -1134,4 +1206,6 @@ _APPLIERS = {
     ChangeItem.KIND_REMOVE_SUBPART: _apply_remove_subpart,
     ChangeItem.KIND_ADD_MANUFACTURER_PART: _apply_add_manufacturer_part,
     ChangeItem.KIND_ADD_SELLER_PART: _apply_add_seller_part,
+    ChangeItem.KIND_UPDATE_PART_REVISION: _apply_update_part_revision,
+    ChangeItem.KIND_CREATE_PART_REVISION: _apply_create_part_revision,
 }

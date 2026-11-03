@@ -94,6 +94,7 @@ from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
+from bom.services.parts import revision_values
 from bom.services.search import latest_part_revisions, search_parts
 from bom.third_party_apis.base_api import BaseApiError
 from bom.third_party_apis.google_drive import has_drive_scope
@@ -1549,9 +1550,7 @@ def manage_bom(request, part_id, part_revision_id):
 
     edit_url = _edit_page_url(part_id, part_revision_id)
     if request.method == 'POST':
-        before = {'description': part_revision.description,
-                  'properties': {prop.property_definition.code: prop.value_raw
-                                 for prop in part_revision.properties.select_related('property_definition')}}
+        before = revision_values(part_revision)
         part_revision_form = PartRevisionForm(request.POST, instance=part_revision, organization=organization)
         if part_revision_form.is_valid():
             part_revision_form.save()
