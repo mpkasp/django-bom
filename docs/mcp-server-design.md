@@ -116,8 +116,8 @@ from the implementation plan (valid token, foreign part number, expect not-found
 
 ### 6. Writes commit through the existing forms; the MCP client is the confirmation gate
 
-This is a deliberate narrowing of ai-architecture §2 ("AI proposes, Django's forms commit"),
-and the architecture doc should be amended to say so.
+This is a deliberate narrowing of the original ai-architecture §2 proposal model; §2 now describes
+what shipped.
 
 In the proposal model, the human reviews an `AIProposal` in the web UI. That fits features where
 the model acts on untrusted input (an uploaded spreadsheet) on behalf of a user who is not in the
@@ -154,27 +154,37 @@ Read (scope `read`):
 
 | tool | arguments | returns |
 |---|---|---|
-| `get_organization` | | number scheme, part-number lengths, currency, part classes with codes, sourcing provider configured? |
-| `search_parts` | `query`, `part_class?`, `limit=25` | matches on part number, synopsis, MPN, manufacturer |
+| `get_organization` | | number scheme, part-number lengths, currency, part classes and property definitions, `token_level`, whether change review is enabled |
+| `search_parts` | `query=''`, `part_class_code?`, `limit=25` | matches on part number, synopsis, MPN, manufacturer |
 | `get_part` | `part_number`, `revision?` | part, latest/requested revision, properties, manufacturer parts with seller parts |
-| `get_bom` | `part_number`, `revision?`, `flat=false`, `quantity=1` | indented or flat `PartBom`: subparts, counts, references, DNL, extended cost |
-| `where_used` | `part_number` | assemblies containing the part |
-| `price_bom` | `part_number`, `quantity` | per-line optimal seller and totals, from `PartRevision.flat()` + `SellerPart.optimal()` |
+| `get_bom` | `part_number`, `revision?`, `quantity=1`, `flat=false` | indented or flat BOM: lines, counts, references, DNL, seller, cost, totals |
+| `price_bom` | `part_number`, `quantity`, `revision?` | cost totals at the cheapest seller per line, and the lines with no price |
+| `where_used` | `part_number` | assemblies containing the part, at every level |
 | `lookup_sourcing` | `manufacturer_part_number` | live offers via the organization's configured provider (BYOK); never persisted |
-| `export_bom_csv` | `part_number`, `revision?` | the same CSV the UI exports |
+| `export_bom_csv` | `part_number`, `revision?`, `layout='indented'` | the CSV text the UI export produces; layout is `indented`, `single_level` or `flat` |
+| `get_change`, `list_changes` | `change_id`; `status='open'`, `limit=25` | a change with its items, flags and impact; changes by status |
 
-Write (scope `write`):
+Write (scope `write`; every tool stages into a Change, see [changes-design.md](changes-design.md)):
 
-| tool | form | notes |
+| tool | arguments | notes |
 |---|---|---|
-| `create_part` | `PartForm*` + `PartRevisionForm` | `part_class`, `description`, optional `number_item`/`number_variation`, optional `manufacturer`/`mpn`, optional properties; returns assigned part number |
-| `update_part_revision` | `PartRevisionForm` | draft revisions only; description and properties |
-| `create_part_revision` | `PartRevisionNewForm` | copies the latest revision as a new draft |
-| `add_subpart` | `AddSubpartForm` | `assembly_part_number`, `subpart_part_number`, `count`, `reference`, `do_not_load` |
-| `update_subpart`, `remove_subpart` | `SubpartForm` | `remove_subpart` is `destructive_hint` |
-| `add_manufacturer_part` | `ManufacturerPartForm` | creates `Manufacturer` by name if absent |
-| `add_seller_part` | `SellerPartForm` | `unit_cost`, `minimum_order_quantity`, `lead_time_days`, `nre_cost`; creates `Seller` by name if absent |
-| `upload_bom` | `BOMCSVForm` | CSV text for a parent part; the bulk path for a CAD export |
+| `start_change` | `title`, `rationale=''` | starts the Change that the other write tools stage into |
+| `submit_change`, `withdraw_change` | `change_id` | send a draft change for review; withdraw your own |
+| `apply_change` | `change_id` | needs the `apply` scope; never releases or approves |
+| `create_part` | `description`, `part_class_code?`, `number_item?`, `number_variation?`, `properties?`, `property_units?`, `manufacturer?`, `manufacturer_part_number?`, `link?`, `change_id?`, `ref=''` | applies through `PartForm*` + `PartRevisionForm`; returns the assigned part number |
+| `update_part_revision` | `part_number`, `change_id`, `description?`, `properties?`, `revision?` | Draft revisions only, through `PartRevisionForm`; a Released or In Review revision returns an error that says to call `revise_part` |
+| `revise_part` | `part_number`, `change_id` | the next Draft from the latest Released or In Review revision, as the UI's Revise; refused when a newer Draft exists |
+| `add_subpart` | `assembly_part_number`, `subpart_part_number`, `count=1`, `reference=''`, `do_not_load=false`, `assembly_revision?`, `change_id?` | `AddSubpartForm` |
+| `update_subpart`, `remove_subpart` | `assembly_part_number`, `subpart_part_number`, ..., `change_id?` | `SubpartForm`; `remove_subpart` is `destructive_hint` |
+| `upload_bom` | `assembly_part_number`, `csv_text`, `change_id`, `mode='add'` | `mode` is `add` or `replace`; previews with `BOMCSVForm` and stages one subpart item per changed line; the bulk path for a CAD export |
+| `add_manufacturer_part` | `part_number`, `manufacturer`, `manufacturer_part_number`, `link?`, `datasheet_url?`, `change_id?`, `ref=''` | `ManufacturerPartForm`; creates `Manufacturer` by name if absent |
+| `add_seller_part` | `manufacturer_part_id`, `seller`, `unit_cost`, `currency?`, `minimum_order_quantity=1`, `lead_time_days?`, `nre_cost='0'`, ..., `change_id?` | `SellerPartForm`; creates `Seller` by name if absent |
+
+`upload_bom` stages lines, not parts. The CSV is run through `BOMCSVForm` in a rolled-back transaction, and each
+added, changed or removed line becomes an `add_subpart`, `update_subpart` or `remove_subpart` item, so a reviewer
+accepts or rejects lines one at a time and a Released assembly follows the ECO path like any other subpart edit. A
+CSV that has row errors, or that needs a part or revision that does not exist yet, stages nothing and the error
+says why; create the parts first.
 
 Explicit part numbers: `create_part` accepts optional `number_item` and `number_variation`,
 exactly as `PartFormSemiIntelligent` does ("auto generated if blank"), and requires `number_item`

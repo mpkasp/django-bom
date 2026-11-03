@@ -206,7 +206,7 @@ Every MCP edit is a *Change*: a bundle of staged items reviewed at `/changes/` a
 only stage and submit changes for review (propose); `read,write,apply` can also apply them
 (`create_api_token --scopes read,write,apply`). Write tools take an optional `change_id` to stage into a change from
 `start_change`; without it a propose-level token submits a one-item change request and an apply-level token applies
-it at once. Edits to Released or In Review revisions make the change an Engineering Change Order (ECO): applying it
+it at once; `update_part_revision`, `revise_part` and `upload_bom` always need a `change_id`. Edits to Released or In Review revisions make the change an Engineering Change Order (ECO): applying it
 creates a new Draft revision of each edited part (copying its assembly and properties) and a person's approval then
 releases those revisions, children before parents, and it requires a second person to apply, as do protections in `ChangeSettings` (including a cost-delta threshold). The
 review page shows validation, impact (assemblies that use the edited parts) and the unit-cost effect at 100 units,
