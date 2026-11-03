@@ -45,7 +45,9 @@ def _transport_security():
     allowed_hosts = list(getattr(settings, 'ALLOWED_HOSTS', []))
     if '*' in allowed_hosts:
         return TransportSecuritySettings(enable_dns_rebinding_protection=False)
-    hosts = [f"{host.lstrip('.')}:*" for host in allowed_hosts] + ['localhost:*', '127.0.0.1:*']
+    # The SDK's "host:*" pattern only matches a Host header that carries a port, and proxies like Cloud Run send none.
+    hosts = [pattern for host in allowed_hosts for pattern in (host.lstrip('.'), f"{host.lstrip('.')}:*")]
+    hosts += ['localhost:*', '127.0.0.1:*']
     return TransportSecuritySettings(
         enable_dns_rebinding_protection=True, allowed_hosts=hosts,
         allowed_origins=[f"https://{host}" for host in allowed_hosts] + ['http://localhost:*', 'http://127.0.0.1:*'])
