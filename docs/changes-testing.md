@@ -175,7 +175,7 @@ single member for the role matrix.
 
 Use the smallest lever that stops the problem.
 
-1. Stop agent writes: revoke the API tokens in Settings > API Tokens, or turn off `mcp_apply_enabled` for the organization.
+1. Stop agent writes: revoke them in Settings > Connected apps, or turn off `mcp_apply_enabled` for the organization.
 2. Stop approval gating: untick "Require approval to release" in Settings > Organization, or switch
    `release_approval_enabled` off in the IndaBOM flag wiring. Editors can release directly again.
 3. Hide review: switch `changes_review_enabled` off. The Requests nav item and `/changes/` disappear; Edit, Revise,

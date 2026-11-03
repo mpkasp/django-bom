@@ -260,17 +260,20 @@
                 </div>
 
                 <div class="section">
-                    <h3 id="ai-agents">AI Agents and API Tokens</h3>
+                    <h3 id="ai-agents">AI Agents and Connected Apps</h3>
                     <p>An AI assistant such as Claude can search parts, build BOMs and propose changes through
-                        IndaBOM's MCP server. Create a token in <a href="{% url 'bom:settings' 'api' %}">Settings → API
-                        Tokens</a> and add it to your MCP client. A token never has more access than your role:</p>
+                        IndaBOM's MCP server. Add the server to your assistant and sign in; you then choose what it may
+                        do, and it never gets more access than your role:</p>
                     <ul class="browser-default">
-                        <li><strong>Read</strong> tokens only look things up.</li>
-                        <li><strong>Write: propose</strong> tokens open change requests for a person to review.</li>
-                        <li><strong>Write: apply</strong> tokens can also edit Draft revisions and make new revisions
+                        <li><strong>Read only</strong>: look things up.</li>
+                        <li><strong>Propose changes</strong>: open change requests for a person to review.</li>
+                        <li><strong>Propose and apply</strong>: also edit Draft revisions and make new revisions
                             directly.
                         </li>
                     </ul>
+                    <p>Every assistant you connect is listed in <a href="{% url 'bom:settings' 'api' %}">Settings →
+                        Connected apps</a>, where you can revoke it. Scripts and tools that can't sign in use a personal
+                        access token from the same page, with the same three levels.</p>
                     <p>Agents never release revisions or approve requests. A person always does that.</p>
                     <p>See <a href="{% url 'bom:help-ai' %}">Connect an AI assistant</a> for step-by-step setup.</p>
                 </div>

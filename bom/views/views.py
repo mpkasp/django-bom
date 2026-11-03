@@ -632,6 +632,8 @@ def bom_settings(request, tab_anchor=None):
     if not user_can_manage_members:
         api_tokens = api_tokens.filter(user=user)
     api_tokens = api_tokens.filter(revoked_at__isnull=True)
+    connected_apps = api_tokens.exclude(oauth_client_id='')
+    personal_api_tokens = api_tokens.filter(oauth_client_id='')
     if user_can_manage_members:
         change_settings_form = ChangeSettingsForm(
             instance=ChangeSettings.objects.filter(organization=organization).first()

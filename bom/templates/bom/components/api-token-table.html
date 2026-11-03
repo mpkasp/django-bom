@@ -1,0 +1,37 @@
+<div class="responsive-table-wrapper">
+    <table class="highlight part-list tight single-line api-tokens-table">
+        <thead>
+        <tr>
+            <th>Name</th>
+            {% if user_can_manage_members %}<th>User</th>{% endif %}
+            {% if not connections %}<th>Prefix</th>{% endif %}
+            <th>Access</th>
+            <th>Last used</th>
+            {% if not connections %}<th>Expires</th>{% endif %}
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for api_token in tokens %}
+            <tr>
+                <td class="text-normal">{{ api_token.name }}</td>
+                {% if user_can_manage_members %}<td class="text-normal">{{ api_token.user.username }}</td>{% endif %}
+                {% if not connections %}<td><code>{{ api_token.prefix }}</code></td>{% endif %}
+                <td class="text-normal">{{ api_token.level_display }}</td>
+                <td class="text-normal">{{ api_token.last_used_at|default:"Never" }}</td>
+                {% if not connections %}<td class="text-normal">{{ api_token.expires_at|default:"Never" }}</td>{% endif %}
+                <td class="text-normal right-align">
+                    <form action="{% url 'bom:settings' tab_anchor='api' %}" method="post"
+                          onsubmit="return confirm('Revoke {{ api_token.name|escapejs }}? It will stop working right away.');">
+                        {% csrf_token %}
+                        <input type="hidden" name="token_id" value="{{ api_token.id }}">
+                        <button class="btn-flat red-text text-darken-1" type="submit" name="submit-revoke-token">Revoke</button>
+                    </form>
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="7" class="center-align grey-text">{{ empty_message }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
