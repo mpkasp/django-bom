@@ -170,7 +170,7 @@ def home(request):
         return HttpResponseRedirect(reverse('bom:organization-create'))
 
     query = request.GET.get('q', '')
-    title = f'{organization.name}\'s'
+    head_title = f'{organization.name}\'s'
 
     # Note that posting a PartClass selection does not include a named parameter in
     # the POST, so this case is the de facto "else" clause.
@@ -198,9 +198,9 @@ def home(request):
         part_class = None
 
     if part_class or query:
-        title += f' - Search Results'
+        head_title += ' - Search Results'
     else:
-        title += f' Part List'
+        head_title += ' Part List'
 
     if part_class:
         parts = Part.objects.filter(Q(organization=organization) & Q(number_class__code=part_class.code))
