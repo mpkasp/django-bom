@@ -98,6 +98,14 @@ class MCPServerTest(MCPTestCase):
         self.read_token.refresh_from_db()
         self.assertIsNotNone(self.read_token.last_used_at)
 
+    @override_settings(ALLOWED_HOSTS=['mcp.example.com'])
+    def test_allows_configured_hosts_with_or_without_a_port(self):
+        with TestClient(build_application()) as http:
+            client = MCPClient(http, self.read_plaintext)
+            for host, expected_status in [('mcp.example.com', 200), ('mcp.example.com:443', 200), ('evil.example.com', 421)]:
+                http.headers['Host'] = host
+                self.assertEqual(client.rpc('tools/list').status_code, expected_status, host)
+
     def test_get_organization(self):
         result, error = self.mcp(self.read_plaintext).call('get_organization')
         self.assertIsNone(error)
