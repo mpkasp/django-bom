@@ -1127,6 +1127,33 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(revision.properties.get(property_definition=voltage).value_raw, '5')
         self.assertEqual(Part.objects.filter(organization=self.organization).count(), 2)
 
+    def test_export_part_list_puts_each_vendor_price_under_its_own_manufacturer_part(self):
+        part, = self._create_parts(1)
+        alternate = self._create_manufacturer_part(part, 'MPN-ALT', manufacturer_name='Yageo')
+        primary = self._create_manufacturer_part(part, 'MPN-PRIMARY')
+        for manufacturer_part, seller_name, unit_cost in ((primary, 'Arrow', '1.25'), (alternate, 'Digi-Key', '0.75')):
+            SellerPart.objects.create(manufacturer_part=manufacturer_part, unit_cost=Money(unit_cost, 'USD'),
+                                      seller=Seller.objects.create(organization=self.organization, name=seller_name),
+                                      nre_cost=Money(0, 'USD'), minimum_order_quantity=1)
+
+        exported = self.client.get(reverse('bom:export-part-list')).content
+        rows = list(csv.DictReader(io.StringIO(exported.decode())))
+        self.assertEqual({row['seller']: (row['manufacturer_name'], row['manufacturer_part_number']) for row in rows},
+                         {'Arrow': ('Murata', 'MPN-PRIMARY'), 'Digi-Key': ('Yageo', 'MPN-ALT')})
+
+        preview = self.client.post(reverse('bom:upload-parts'),
+                                   {'file': SimpleUploadedFile('parts.csv', exported, content_type='text/csv')})
+        self.assertEqual(preview.context['changes'],
+                         {'created': [], 'updated': [], 'unchanged': 2, 'sellers_created': [], 'manufacturer_parts_created': []})
+
+        ManufacturerPart.objects.filter(part=part).delete()
+        self._import_file(reverse('bom:upload-parts'), {'file': SimpleUploadedFile('parts.csv', exported, content_type='text/csv')})
+        part.refresh_from_db()
+        self.assertEqual(part.primary_manufacturer_part.manufacturer_part_number, 'MPN-PRIMARY')
+        self.assertEqual({(seller_part.seller.name, seller_part.manufacturer_part.manufacturer_part_number, seller_part.unit_cost.amount)
+                          for seller_part in part.seller_parts()},
+                         {('Arrow', 'MPN-PRIMARY', Decimal('1.25')), ('Digi-Key', 'MPN-ALT', Decimal('0.75'))})
+
     def test_upload_bom_keeps_missing_lines_when_a_row_is_skipped(self):
         drive, wire, cable = self._create_parts(3)
         self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': drive.id}),
