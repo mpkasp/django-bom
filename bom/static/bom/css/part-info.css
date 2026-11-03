@@ -306,7 +306,7 @@ a.part-thumb-empty:hover {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
-    margin-top: 16px;
+    margin-top: 4px;
 }
 
 .overview-card.card-panel {
@@ -427,4 +427,8 @@ a.part-thumb-empty:hover {
 
 .tab-add-action {
     margin-top: 8px;
+}
+
+#sourcing > .mfr-part-card:first-of-type {
+    margin-top: 4px;
 }
