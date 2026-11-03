@@ -63,7 +63,7 @@
     }
 
     .add-vendor-link:hover {
-        background-color: #f5f5f5;
+        background-color: rgba(128, 128, 128, 0.12);
     }
 
     .add-vendor-link .material-icons {
@@ -138,9 +138,8 @@
                     <a class='dropdown-trigger-manufacturer' href='#' data-target='dropdown{{ manufacturer_part.id }}'>
                         <i class="material-icons green-text text-lighten-1">more_vert</i></a>
                     <ul id='dropdown{{ manufacturer_part.id }}' class='dropdown-content'>
-                        <li><a class="green-text text-lighten-1"
-                               href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}"><i
-                                class="material-icons green-text text-lighten-1">edit</i>edit</a></li>
+                        <li><a href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}"><i
+                                class="material-icons">edit</i>edit</a></li>
                         <li class="divider" tabindex="-1"></li>
                         <li><a class="red-text text-lighten-1"
                                href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}"

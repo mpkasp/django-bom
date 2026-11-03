@@ -1,54 +1,26 @@
 {# To include this widget, make sure to pass: `parts`, `order_by`, `part`, `part_revision`, `profile` variables  - TODO Could remove part if we pass part revision #}
 {% load static %}
 
-<div class="row printer-hide" style="padding-top: 16px;">
-    <div class="col s6">
-        <a class="waves-effect waves-green btn-flat btn-icon-round button-reset-filter-flat tooltipped" data-position="bottom" data-tooltip="Reset filter" onclick="refreshTableSorterFlat()"><i
-                class="material-icons">refresh</i></a>
+<div class="table-toolbar printer-hide">
+    <div class="table-toolbar-start">
+        {% if layout_toggle %}
+            <div class="view-toggle" role="group" aria-label="BOM layout">
+                <a onclick="showIndentedBOM()" href="#">Indented</a><span class="active">Flat</span>
+            </div>
+        {% endif %}
+        <a class="icon-button button-reset-filter-flat tooltipped" href="#" data-position="bottom" data-tooltip="Reset sort" aria-label="Reset sort" onclick="return refreshTableSorterFlat()"><i class="material-icons">restart_alt</i></a>
     </div>
-    <div class="col s6 right-align">
+    <div class="table-toolbar-end">
         {% if manage and perms.bom.edit_part %}
-            <a class="waves-effect waves-green btn-flat red-text"
+            <a class="btn-outline btn-outline-danger waves-effect"
                href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
-               onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts
-            </a>
-        {% else %}
-            <!-- Dropdown Trigger -->
-            <button class="dropdown-trigger-flat waves-effect waves-green btn-flat" href='#' data-target='manage-bom-{{ part.id }}-flat'>
-                <i class="material-icons right">arrow_drop_down</i>Manage
-            </button>
-            <!-- Dropdown Structure -->
-            <ul id='manage-bom-{{ part.id }}-flat' class='dropdown-content'>
-                {% if perms.bom.edit_part %}
-                    <li>{% if part_revision and not part_revision.is_immutable %}
-                        <a class="green-text text-lighten-1" href="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}">
-                            <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
-                    {% else %}
-                        <a class="grey-text text-lighten-1" onclick="alert('Can\'t edit a released part!')"><i class="material-icons grey-text text-lighten-1">edit</i>Edit BOM</a>
-                    {% endif %}
-                    </li>
-                    <li>{% if part_revision and not part_revision.is_immutable %}
-                        <a class="green-text text-lighten-1" href="{% url 'bom:import' %}?type=bom&parent={{ part.full_part_number|urlencode }}">
-                            <i class="material-icons green-text text-lighten-1">upload_file</i>Import BOM from CSV…</a>
-                    {% else %}
-                        <a class="grey-text text-lighten-1" onclick="alert('Can\'t import into a released part!')"><i class="material-icons grey-text text-lighten-1">upload_file</i>Import BOM from CSV…</a>
-                    {% endif %}
-                    </li>
-                    <li class="divider" tabindex="-1"></li>
-                {% endif %}
-                {% if part_revision %}
-                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_revision.id %}">
-                        <i class="material-icons green-text text-lighten-1">download</i>Export CSV</a>
-                    </li>
-                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom-flat-sourcing' part_revision_id=part_revision.id %}">
-                        <i class="material-icons green-text text-lighten-1">download</i>Export CSV with sourcing</a>
-                    </li>
-                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom-flat-sourcing-detailed' part_revision_id=part_revision.id %}">
-                        <i class="material-icons green-text text-lighten-1">download</i>Export CSV with detailed sourcing</a>
-                    </li>
-                {% else %}
-                    <li><a class="green-text text-lighten-1 disabled" href=""><i class="material-icons green-text text-lighten-1">download</i>Export CSV</a></li>
-                {% endif %}
+               onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove all subparts</a>
+        {% elif part_revision %}
+            <a class="btn-outline waves-effect dropdown-trigger-flat" href="#" data-target="export-bom-{{ part.id }}-flat"><i class="material-icons">download</i>Export<i class="material-icons">arrow_drop_down</i></a>
+            <ul id="export-bom-{{ part.id }}-flat" class="dropdown-content">
+                <li><a href="{% url 'bom:part-revision-export-bom-flat' part_revision_id=part_revision.id %}">CSV</a></li>
+                <li><a href="{% url 'bom:part-revision-export-bom-flat-sourcing' part_revision_id=part_revision.id %}">CSV with sourcing</a></li>
+                <li><a href="{% url 'bom:part-revision-export-bom-flat-sourcing-detailed' part_revision_id=part_revision.id %}">CSV with detailed sourcing</a></li>
             </ul>
         {% endif %}
     </div>

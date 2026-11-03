@@ -7,59 +7,29 @@
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/tablesorter-theme.materialize.css' %}"/>
 {% endblock %}
 
-<div class="row printer-hide" style="padding-top: 16px;">
-    <div class="col s6">
-        <a class="waves-effect waves-green btn-flat btn-icon-round button-expand tooltipped" data-position="bottom" data-tooltip="Expand BOM" onclick="expandTree()"><i class="material-icons">unfold_more</i></a>
-        <a class="waves-effect waves-green btn-flat btn-icon-round button-collapse tooltipped" data-position="bottom" data-tooltip="Collapse BOM" onclick="collapseTree()"><i class="material-icons">unfold_less</i></a>
-        <a class="waves-effect waves-green btn-flat btn-icon-round button-reset-filter-indented tooltipped" data-position="bottom" data-tooltip="Reset filter" onclick="refreshTableSorterIndented()"><i
-                class="material-icons">refresh</i></a>
+<div class="table-toolbar printer-hide">
+    <div class="table-toolbar-start">
+        {% if layout_toggle %}
+            <div class="view-toggle" role="group" aria-label="BOM layout">
+                <span class="active">Indented</span><a onclick="showFlatBOM()" href="#">Flat</a>
+            </div>
+        {% endif %}
+        <a class="icon-button button-expand tooltipped" href="#" data-position="bottom" data-tooltip="Expand all" aria-label="Expand all" onclick="return expandTree()"><i class="material-icons">unfold_more</i></a>
+        <a class="icon-button button-collapse tooltipped" href="#" data-position="bottom" data-tooltip="Collapse all" aria-label="Collapse all" onclick="return collapseTree()"><i class="material-icons">unfold_less</i></a>
+        <a class="icon-button button-reset-filter-indented tooltipped" href="#" data-position="bottom" data-tooltip="Reset sort" aria-label="Reset sort" onclick="return refreshTableSorterIndented()"><i class="material-icons">restart_alt</i></a>
     </div>
-    <div class="col s6 right-align">
+    <div class="table-toolbar-end">
         {% if manage and perms.bom.edit_part %}
-            <a class="btn waves-effect waves-green btn-flat red-text"
+            <a class="btn-outline btn-outline-danger waves-effect"
                href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
-               onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove All Subparts</a>
-        {% else %}
-            <!-- Dropdown Trigger -->
-            <button class="dropdown-trigger-indented waves-effect waves-green btn-flat"
-                    data-target='manage-bom-{{ part.id }}-indented'>
-                <i class="material-icons right">arrow_drop_down</i>Manage
-            </button>
-            <!-- Dropdown Structure -->
-            <ul id='manage-bom-{{ part.id }}-indented' class='dropdown-content'>
-                {% if perms.bom.edit_part %}
-                    <li>{% if part_revision and not part_revision.is_immutable %}
-                        <a class="green-text text-lighten-1" href="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}">
-                            <i class="material-icons green-text text-lighten-1">edit</i>Edit BOM</a>
-                    {% else %}
-                        <a class="grey-text text-lighten-1" onclick="alert('Can\'t edit a released part!')"><i class="material-icons grey-text text-lighten-1">edit</i>Edit BOM</a>
-                    {% endif %}
-                    </li>
-                    <li>{% if part_revision and not part_revision.is_immutable %}
-                        <a class="green-text text-lighten-1" href="{% url 'bom:import' %}?type=bom&parent={{ part.full_part_number|urlencode }}">
-                            <i class="material-icons green-text text-lighten-1">upload_file</i>Import BOM from CSV…</a>
-                    {% else %}
-                        <a class="grey-text text-lighten-1" onclick="alert('Can\'t import into a released part!')"><i class="material-icons grey-text text-lighten-1">upload_file</i>Import BOM from CSV…</a>
-                    {% endif %}
-                    </li>
-                    <li class="divider" tabindex="-1"></li>
-                {% endif %}
-                {% if part_revision %}
-                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}">
-                        <i class="material-icons green-text text-lighten-1">download</i>Export CSV</a>
-                    </li>
-                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}?levels=1">
-                        <i class="material-icons green-text text-lighten-1">download</i>Export CSV (single level)</a>
-                    </li>
-                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom-sourcing' part_revision_id=part_revision.id %}">
-                        <i class="material-icons green-text text-lighten-1">download</i>Export CSV with sourcing</a>
-                    </li>
-                    <li><a class="green-text text-lighten-1" href="{% url 'bom:part-revision-export-bom-sourcing-detailed' part_revision_id=part_revision.id %}">
-                        <i class="material-icons green-text text-lighten-1">download</i>Export CSV with detailed sourcing</a>
-                    </li>
-                {% else %}
-                    <li><a class="green-text text-lighten-1 disabled" href=""><i class="material-icons green-text text-lighten-1">download</i>Export CSV</a></li>
-                {% endif %}
+               onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove all subparts</a>
+        {% elif part_revision %}
+            <a class="btn-outline waves-effect dropdown-trigger-indented" href="#" data-target="export-bom-{{ part.id }}-indented"><i class="material-icons">download</i>Export<i class="material-icons">arrow_drop_down</i></a>
+            <ul id="export-bom-{{ part.id }}-indented" class="dropdown-content">
+                <li><a href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}">CSV</a></li>
+                <li><a href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}?levels=1">CSV, single level</a></li>
+                <li><a href="{% url 'bom:part-revision-export-bom-sourcing' part_revision_id=part_revision.id %}">CSV with sourcing</a></li>
+                <li><a href="{% url 'bom:part-revision-export-bom-sourcing-detailed' part_revision_id=part_revision.id %}">CSV with detailed sourcing</a></li>
             </ul>
         {% endif %}
     </div>
@@ -140,9 +110,8 @@
                            data-target='dropdown{{ subpart.subpart.id }}'><i class="material-icons left green-text">more_horiz</i></a>
                         <!-- Dropdown Structure -->
                         <ul id='dropdown{{ subpart.subpart.id }}' class='dropdown-content'>
-                            <li><a class="green-text text-lighten-1"
-                                   href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}"><i
-                                    class="material-icons green-text text-lighten-1">edit</i>Edit or Change
+                            <li><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}"><i
+                                    class="material-icons">edit</i>Edit or Change
                                 Rev</a>
                             <li class="divider" tabindex="-1"></li>
                             <li><a class="red-text text-lighten-1"
