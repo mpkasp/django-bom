@@ -1189,6 +1189,7 @@ class APIToken(models.Model):
     prefix = models.CharField(max_length=PREFIX_LEN, db_index=True)
     hashed_key = models.CharField(max_length=64, unique=True)
     scopes = models.CharField(max_length=64, default=SCOPE_READ)  # comma-separated
+    oauth_client_id = models.CharField(max_length=128, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
@@ -1212,6 +1213,26 @@ class APIToken(models.Model):
             scopes=','.join(scopes), expires_at=expires_at,
         )
         return token, plaintext
+
+    @classmethod
+    def connect(cls, user, organization, oauth_client_id, name, scopes, granted_at):
+        """The active connection record for an OAuth client, created on first use.
+
+        Returns ``None`` when the client's latest connection was revoked after ``granted_at``. Its hashed key is
+        random and never revealed, so a connection cannot be used as a pasted token.
+        """
+        connections = cls.objects.filter(user=user, organization=organization, oauth_client_id=oauth_client_id)
+        connection = connections.select_related('user', 'organization').order_by('-created_at', '-id').first()
+        if connection is not None and connection.revoked_at is not None and connection.revoked_at >= granted_at:
+            return None
+        if connection is None or connection.revoked_at is not None:
+            connection = cls.objects.create(
+                user=user, organization=organization, oauth_client_id=oauth_client_id, name=name[:128],
+                prefix='', hashed_key=cls.hash_plaintext(secrets.token_urlsafe(32)), scopes=','.join(scopes))
+        elif connection.scope_list() != list(scopes):
+            connection.scopes = ','.join(scopes)
+            connection.save(update_fields=['scopes'])
+        return connection
 
     @classmethod
     def authenticate(cls, plaintext):
@@ -1243,9 +1264,24 @@ class APIToken(models.Model):
             return self.LEVELS[2][1]
         return self.LEVELS[1][1] if self.has_scope(self.SCOPE_WRITE) else self.LEVELS[0][1]
 
+    def is_connection(self):
+        return bool(self.oauth_client_id)
+
     def revoke(self):
         self.revoked_at = timezone.now()
         self.save(update_fields=['revoked_at'])
+        if self.is_connection():
+            self._delete_oauth_grants()
+
+    def _delete_oauth_grants(self):
+        """Remove the client's access and refresh tokens for this user, when django-oauth-toolkit is installed."""
+        if 'oauth2_provider' not in settings.INSTALLED_APPS:
+            return
+        from oauth2_provider.models import get_access_token_model, get_application_model, get_refresh_token_model
+
+        applications = get_application_model().objects.filter(client_id=self.oauth_client_id)
+        get_refresh_token_model().objects.filter(user=self.user, application__in=applications).delete()
+        get_access_token_model().objects.filter(user=self.user, application__in=applications).delete()
 
     def __str__(self):
         return f"{self.name} ({self.PLAINTEXT_PREFIX}{self.prefix}…)"
