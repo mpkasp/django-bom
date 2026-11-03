@@ -303,7 +303,7 @@ The first time an OAuth access token is used, the verifier gets or creates an `A
 organization and OAuth client (`APIToken.oauth_client_id`, new, blank for pasted tokens), named after
 the client, with the granted scopes. Its `hashed_key` is random and never shown, so it can't be used as
 a pasted token. Everything downstream keeps working unchanged: `Actor`, `Change.api_token`, agent
-badges in History, `last_used_at`, and the Settings → API Tokens tab, which lists connections beside
+badges in History, `last_used_at`, and the Settings → Connected apps tab (formerly API Tokens), which lists connections above
 personal tokens. Revoking a connection there also revokes that client's OAuth access and refresh tokens
 for the user, and a revoked connection rejects its OAuth tokens.
 
@@ -348,7 +348,7 @@ token may apply. Agents still never release or approve.
 
 ### Setup docs page (django-bom)
 
-A "Connect an AI assistant" page, linked from Help and from Settings → API Tokens: the MCP URL, then
+A "Connect an AI assistant" page, linked from Help and from Settings → Connected apps: the MCP URL, then
 per-client steps for Claude Code, claude.ai, Claude Desktop and Cursor (OAuth first, pasted token as the
 fallback), what each access level allows, and how to revoke.
 

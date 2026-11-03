@@ -275,10 +275,15 @@ class ConnectionManagementTest(OAuthMCPTestCase):
         self.connection = APIToken.objects.get(oauth_client_id=self.application.client_id)
         self.client.force_login(self.user)
 
-    def test_api_tokens_tab_labels_connected_apps(self):
+    def test_settings_lists_connected_apps_apart_from_personal_tokens(self):
+        personal_token, _ = APIToken.issue(self.connection.user, self.connection.organization, 'CI script')
+
         response = self.client.get('/settings/api/')
-        self.assertContains(response, 'Cursor')
-        self.assertContains(response, 'Connected app', count=1)
+
+        self.assertContains(response, 'Connected apps')
+        self.assertEqual(list(response.context['connected_apps']), [self.connection])
+        self.assertIn(personal_token, response.context['personal_api_tokens'])
+        self.assertNotIn(self.connection, response.context['personal_api_tokens'])
 
     def test_revoking_in_settings_revokes_the_clients_tokens(self):
         plaintext = self.make_toolkit_token(self.application)

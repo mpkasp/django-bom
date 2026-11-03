@@ -34,7 +34,7 @@
                     <i class="material-icons">straighten</i>Units & Quantities
                 </a>
                 <a href="#api" class="collection-item" id="api-nav">
-                    <i class="material-icons">vpn_key</i>API Tokens
+                    <i class="material-icons">vpn_key</i>Connected apps
                 </a>
                 {% if perms.bom.manage_schema %}
                 <a href="#part-number" class="collection-item" id="part-number-nav">
@@ -349,66 +349,37 @@
 
             <div id="api" class="settings-section">
                 <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">vpn_key</i>API Tokens</h4>
-                    <p>Tokens let an MCP client or script act as you. <b>Read</b> tokens only look things up,
-                        <b>Write: propose</b> tokens stage changes for review, and <b>Write: apply</b> tokens can also
-                        apply them. A token never has more access than your role.
-                        <a href="{% url 'bom:help-ai' %}">How to connect an AI assistant</a></p>
-                    {% if new_api_token_plaintext %}
-                        <div class="card-panel green lighten-5">
-                            <p style="margin-top: 0;"><b>Copy your new token now. It will not be shown again.</b></p>
-                            <code style="word-break: break-all;">{{ new_api_token_plaintext }}</code>
-                        </div>
-                    {% endif %}
-                    <form name="create-token" action="{% url 'bom:settings' tab_anchor='api' %}" method="post">
-                        {% csrf_token %}
-                        <div class="row">
-                            {{ api_token_form.name|materializecss:'s12 l4' }}
-                            {{ api_token_form.level|materializecss:'s12 l3' }}
-                            {{ api_token_form.expires_at|materializecss:'s12 l3' }}
-                            <div class="col s12 l2 right-align">
-                                <button class="waves-effect waves-light btn btn-primary" type="submit" name="submit-create-token">Create</button>
+                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">vpn_key</i>Connected apps</h4>
+                    <p>AI assistants such as Claude connect by signing in and act as you, never with more access than
+                        your role. <a href="{% url 'bom:help-ai' %}">Connect an AI assistant</a></p>
+                    {% include 'bom/components/api-token-table.html' with tokens=connected_apps connections=True empty_message='No connected apps yet.' %}
+                </div>
+
+                <div class="section">
+                    <details class="personal-tokens"{% if new_api_token_plaintext or api_token_form.errors %} open{% endif %}>
+                        <summary><h5>Personal access tokens</h5>
+                            <span class="grey-text text-darken-1">For scripts and tools that can't sign in.</span></summary>
+                        <p><b>Read</b> tokens only look things up, <b>Write: propose</b> tokens stage changes for review,
+                            and <b>Write: apply</b> tokens can also apply them.</p>
+                        {% if new_api_token_plaintext %}
+                            <div class="card-panel green lighten-5">
+                                <p style="margin-top: 0;"><b>Copy your new token now. It will not be shown again.</b></p>
+                                <code style="word-break: break-all;">{{ new_api_token_plaintext }}</code>
                             </div>
-                        </div>
-                    </form>
-                    <div class="responsive-table-wrapper">
-                        <table id="api-tokens-table" class="highlight part-list tight single-line">
-                            <thead>
-                            <tr>
-                                <th>Name</th>
-                                {% if user_can_manage_members %}<th>User</th>{% endif %}
-                                <th>Prefix</th>
-                                <th>Level</th>
-                                <th>Last used</th>
-                                <th>Expires</th>
-                                <th></th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {% for api_token in api_tokens %}
-                                <tr>
-                                    <td class="text-normal">{{ api_token.name }}{% if api_token.is_connection %}
-                                        <span class="chip">Connected app</span>{% endif %}</td>
-                                    {% if user_can_manage_members %}<td class="text-normal">{{ api_token.user.username }}</td>{% endif %}
-                                    <td>{% if api_token.is_connection %}<span class="grey-text">&mdash;</span>{% else %}<code>{{ api_token.prefix }}</code>{% endif %}</td>
-                                    <td class="text-normal">{{ api_token.level_display }}</td>
-                                    <td class="text-normal">{{ api_token.last_used_at|default:"Never" }}</td>
-                                    <td class="text-normal">{{ api_token.expires_at|default:"Never" }}</td>
-                                    <td class="text-normal">
-                                        <form action="{% url 'bom:settings' tab_anchor='api' %}" method="post"
-                                              onsubmit="return confirm('Revoke token {{ api_token.name|escapejs }}? Clients using it will stop working.');">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="token_id" value="{{ api_token.id }}">
-                                            <button class="btn-flat red-text" type="submit" name="submit-revoke-token">Revoke</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            {% empty %}
-                                <tr><td colspan="7" class="center-align grey-text">No active tokens.</td></tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                        {% endif %}
+                        <form name="create-token" action="{% url 'bom:settings' tab_anchor='api' %}" method="post">
+                            {% csrf_token %}
+                            <div class="row">
+                                {{ api_token_form.name|materializecss:'s12 l4' }}
+                                {{ api_token_form.level|materializecss:'s12 l3' }}
+                                {{ api_token_form.expires_at|materializecss:'s12 l3' }}
+                                <div class="col s12 l2 right-align">
+                                    <button class="waves-effect waves-light btn btn-primary" type="submit" name="submit-create-token">Create</button>
+                                </div>
+                            </div>
+                        </form>
+                        {% include 'bom/components/api-token-table.html' with tokens=personal_api_tokens connections=False empty_message='No personal tokens.' %}
+                    </details>
                 </div>
             </div>
 

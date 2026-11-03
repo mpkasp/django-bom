@@ -37,7 +37,7 @@
 
                 <div class="section">
                     <h3>{% if oauth_enabled %}Or paste a token{% else %}Connect with a token{% endif %}</h3>
-                    <p>Create a token in <a href="{% url 'bom:settings' 'api' %}">Settings → API Tokens</a>, copy it
+                    <p>Create a token in <a href="{% url 'bom:settings' 'api' %}">Settings → Connected apps</a> under Personal access tokens, copy it
                         when it is shown (it is shown once), and give it to your client. This works with clients that
                         let you set a header, such as Claude Code and Cursor.{% if oauth_enabled %} Connectors in
                         claude.ai and Claude Desktop need the sign-in method above.{% else %} Connectors in claude.ai
