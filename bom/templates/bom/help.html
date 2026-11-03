@@ -136,6 +136,9 @@
 
                 <div class="section">
                     <h3>Creating &amp; Editing Parts</h3>
+                    <p>A part's page opens on <strong>Overview</strong>, with its cost at the quote quantity, primary
+                        manufacturer part, files and details. The other tabs are <strong>Bill of materials</strong>,
+                        <strong>Where used</strong>, <strong>Sourcing</strong> and <strong>History</strong>.</p>
                     <p>Parts can be created individually via the Create Part form (the <strong>+</strong> button on the
                         Home page) or in bulk via CSV import (see <a href="#uploading-parts">Importing Parts</a>).</p>
                     <p>Each part has a <strong>primary manufacturer part</strong>, which is used for cost estimation and
@@ -290,9 +293,10 @@
 
                 <div class="section">
                     <h3>Where Used</h3>
-                    <p>The <strong>Where Used</strong> tab on the Part Info page shows every assembly that contains the
+                    <p>The <strong>Where used</strong> tab on the Part Info page shows every assembly that contains the
                         part, including indirect parents (assemblies that contain assemblies that contain the part).
-                        This makes it easy to understand the impact of a part change.</p>
+                        Switch between <strong>This revision</strong> and <strong>All revisions</strong> at the top of
+                        the tab. This makes it easy to understand the impact of a part change.</p>
                 </div>
 
                 <div class="divider"></div>
@@ -346,7 +350,7 @@
 
                 <div class="section">
                     <h3 id="downloading-a-bom">Downloading a BOM</h3>
-                    <p>BOM exports are available from the Part Info page's <strong>Bill of Materials</strong> tab under the <strong>Manage</strong> menu, and
+                    <p>BOM exports are available from the Part Info page's <strong>Bill of materials</strong> tab under the <strong>Manage</strong> menu, and
                         from the Home / Search Results pages via the per-part dropdown. Export options include:</p>
                     <ul class="browser-default">
                         <li>Indented, single-level, or flat layout. Single level lists only the assembly's direct
@@ -398,13 +402,15 @@
                         </li>
                         <li>Enable sourcing for each relevant part class in <a href="{% url 'bom:settings' 'indabom' %}">Settings → Part Classes</a>.</li>
                     </ol>
-                    <p>Live pricing is fetched once on page load and shown with provider attribution, a deep link to the
-                        distributor, and an as-of timestamp. It is never stored — it appears in several places:</p>
+                    <p>Click <strong>Get live pricing</strong> on a part's <strong>Overview</strong> tab to fetch it.
+                        Live figures are marked with a lightning bolt, with provider attribution, a deep link to the
+                        distributor, and an as-of timestamp. They are never stored, and they update:</p>
                     <ul class="browser-default">
-                        <li><strong>Part Info → Sourcing tab</strong>: live pricing fetched on page load.</li>
-                        <li><strong>Part Info → Bill of Materials tab</strong>: cost column updated inline; changing the
-                            quote quantity re-prices the sourced lines.
+                        <li><strong>Overview</strong>: unit cost and order total at the quote quantity, plus lead time
+                            and stock when available.
                         </li>
+                        <li><strong>Bill of materials</strong>: the cost columns of the sourced lines.</li>
+                        <li><strong>Sourcing</strong>: live vendor offers alongside your stored ones.</li>
                     </ul>
                     <p>Parts are matched by MPN and manufacturer name (or by MPN alone if no manufacturer is set).</p>
                 </div>
@@ -467,8 +473,8 @@
                     <h2>Google Drive Integration</h2>
                     <p>Connect your Google account in <a href="{% url 'bom:settings' 'organization' %}">Settings →
                         Organization</a> to enable Google Drive integration. Once connected, each part gets a dedicated
-                        Google Drive folder for storing datasheets, drawings, and other files. Clicking the Drive icon
-                        on a Part Info page opens the folder directly, creating it if it doesn't exist.</p>
+                        Google Drive folder for storing datasheets, drawings, and other files. Click <strong>Open Drive
+                        folder</strong> on a part's Overview tab to open it, creating it if it doesn't exist.</p>
                 </div>
 
             </article>
