@@ -1,17 +1,49 @@
 <div class="mcp-quickstart">
-    <dl>
-        <dt>Server address</dt>
-        <dd><code>{{ mcp_url }}</code>
-            <button type="button" class="btn-flat btn-small copy-button" data-copy="{{ mcp_url }}">Copy</button></dd>
-        <dt>Claude</dt>
-        <dd>Open <b>Settings → Connectors</b>, choose <b>Add custom connector</b> and paste the address.</dd>
-        <dt>Claude Code</dt>
-        <dd><code>claude mcp add --transport http indabom {{ mcp_url }}</code>
-            <button type="button" class="btn-flat btn-small copy-button"
-                    data-copy="claude mcp add --transport http indabom {{ mcp_url }}">Copy</button><br>
-            then run <code>/mcp</code>, choose <b>indabom</b> and select <b>Authenticate</b>.</dd>
-        <dt>Cursor and VS Code</dt>
-        <dd><a class="btn btn-small btn-primary" href="{{ install_links.cursor }}">Add to Cursor</a>
-            <a class="btn btn-small btn-primary" href="{{ install_links.vscode }}">Add to VS Code</a></dd>
-    </dl>
+    {# Radio inputs precede the tab labels and panels so CSS alone can switch clients. #}
+    <input type="radio" name="mcp-client" id="mcp-client-claude" checked>
+    <input type="radio" name="mcp-client" id="mcp-client-claude-code">
+    <input type="radio" name="mcp-client" id="mcp-client-cursor">
+    <input type="radio" name="mcp-client" id="mcp-client-vscode">
+    <input type="radio" name="mcp-client" id="mcp-client-other">
+
+    <div class="view-toggle" role="group" aria-label="Assistant">
+        <label for="mcp-client-claude">Claude</label>
+        <label for="mcp-client-claude-code">Claude Code</label>
+        <label for="mcp-client-cursor">Cursor</label>
+        <label for="mcp-client-vscode">VS Code</label>
+        <label for="mcp-client-other">Other</label>
+    </div>
+
+    <div class="mcp-client-panel" id="mcp-panel-claude">
+        <ol>
+            <li>In claude.ai or Claude Desktop, open <b>Settings → Connectors</b> and choose <b>Add custom connector</b>.</li>
+            <li>Paste this address:
+                {% include 'bom/components/copy-field.html' with value=mcp_url %}</li>
+            <li>Select <b>Connect</b> and sign in to IndaBOM.</li>
+        </ol>
+    </div>
+
+    <div class="mcp-client-panel" id="mcp-panel-claude-code">
+        <ol>
+            <li>Run:
+                {% include 'bom/components/copy-field.html' with value='claude mcp add --transport http indabom '|add:mcp_url %}</li>
+            <li>In Claude Code, run <code>/mcp</code>, choose <b>indabom</b> and select <b>Authenticate</b>.</li>
+        </ol>
+    </div>
+
+    <div class="mcp-client-panel" id="mcp-panel-cursor">
+        <p>Cursor opens and asks you to confirm, then sign in to IndaBOM when it asks.</p>
+        <a class="btn btn-primary" href="{{ install_links.cursor }}">Add to Cursor</a>
+    </div>
+
+    <div class="mcp-client-panel" id="mcp-panel-vscode">
+        <p>VS Code opens and asks you to confirm, then sign in to IndaBOM when it asks.</p>
+        <a class="btn btn-primary" href="{{ install_links.vscode }}">Add to VS Code</a>
+    </div>
+
+    <div class="mcp-client-panel" id="mcp-panel-other">
+        <p>Any MCP client that supports sign-in can connect with this address:</p>
+        {% include 'bom/components/copy-field.html' with value=mcp_url %}
+        <p>For tokens and other setups, see <a href="{% url 'bom:help-ai' %}">Connect an AI assistant</a>.</p>
+    </div>
 </div>

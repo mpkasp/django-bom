@@ -441,7 +441,7 @@ a.anchor {
 
 .settings-nav {
     padding: 0 !important;
-    border-right: 1px solid #e0e0e0;
+    border-right: 1px solid var(--color-background-surface, #e0e0e0);
     min-height: 70vh;
 }
 
@@ -463,19 +463,27 @@ a.anchor {
     padding: 12px 20px;
     display: flex;
     align-items: center;
-    color: #5f6368;
+    margin-right: 12px;
+    border-radius: 0 20px 20px 0;
+    background-color: transparent;
+    color: var(--color-text-grey, #5f6368);
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
 .settings-nav .collection .collection-item:hover {
-    background-color: #f1f3f4;
+    background-color: var(--color-background-surface-hover, #f1f3f4);
 }
 
+/* A translucent green reads as a tint on both the light and dark page backgrounds. */
 .settings-nav .collection .collection-item.active {
-    background-color: rgba(165, 214, 167, 0.5);
-    color: #000000;
+    background-color: rgba(102, 187, 106, 0.3);
+    color: var(--color-text, #000000);
     font-weight: 500;
+}
+
+.settings-nav .collection .collection-item.active .material-icons {
+    color: var(--color-primary, #2e7d32);
 }
 
 .settings-nav .collection .collection-item .material-icons {
@@ -490,7 +498,7 @@ a.anchor {
 @media only screen and (max-width: 992px) {
     .settings-nav {
         border-right: none;
-        border-bottom: 1px solid #e0e0e0;
+        border-bottom: 1px solid var(--color-background-surface, #e0e0e0);
         min-height: auto;
     }
 
@@ -661,6 +669,46 @@ a.anchor {
     gap: 4px;
 }
 
+/* Segmented control for switching views: BOM layout, where-used scope and MCP clients. */
+.view-toggle {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 20px;
+    background: var(--color-background-surface, #eeeeee);
+    font-size: 14px;
+}
+
+.view-toggle > a,
+.view-toggle > span,
+.view-toggle > label {
+    padding: 5px 14px;
+    border-radius: 17px;
+    line-height: 20px;
+    font-size: 14px;
+    color: var(--color-text-grey, #616161);
+    cursor: pointer;
+}
+
+.view-toggle > a:hover,
+.view-toggle > label:hover {
+    color: var(--color-text, #212121);
+}
+
+.view-toggle > .active,
+#mcp-client-claude:checked ~ .view-toggle label[for=mcp-client-claude],
+#mcp-client-claude-code:checked ~ .view-toggle label[for=mcp-client-claude-code],
+#mcp-client-cursor:checked ~ .view-toggle label[for=mcp-client-cursor],
+#mcp-client-vscode:checked ~ .view-toggle label[for=mcp-client-vscode],
+#mcp-client-other:checked ~ .view-toggle label[for=mcp-client-other] {
+    background: var(--color-background, #ffffff);
+    color: var(--color-text, #212121);
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    cursor: default;
+}
+
 .table-toolbar .view-toggle {
     margin-right: 8px;
 }
@@ -736,33 +784,86 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     margin: 0 8px 0 0;
 }
 
-.mcp-quickstart dl {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: 12px 24px;
-    align-items: baseline;
-    margin: 0 0 8px 0;
+/* Colors come from IndaBOM's theme variables when present, so the panel follows its light and dark modes. */
+.mcp-quickstart {
+    border: 1px solid var(--color-background-surface, #e0e0e0);
+    border-radius: 12px;
+    padding: 16px 20px 20px;
+    max-width: 760px;
 }
 
-.mcp-quickstart dt {
-    font-weight: 500;
+.mcp-quickstart > input[type=radio] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
 }
 
-.mcp-quickstart dd {
+.mcp-quickstart > .view-toggle {
+    margin-bottom: 16px;
+}
+
+.mcp-client-panel {
+    display: none;
+}
+
+.mcp-client-panel ol {
     margin: 0;
+    padding-left: 20px;
 }
 
-.mcp-quickstart code {
-    word-break: break-all;
+.mcp-client-panel li + li {
+    margin-top: 12px;
 }
 
-@media only screen and (max-width: 600px) {
-    .mcp-quickstart dl {
-        grid-template-columns: 1fr;
-        gap: 4px;
-    }
+.mcp-client-panel p {
+    margin: 0 0 12px 0;
+}
 
-    .mcp-quickstart dt:not(:first-child) {
-        margin-top: 12px;
-    }
+#mcp-client-claude:checked ~ #mcp-panel-claude,
+#mcp-client-claude-code:checked ~ #mcp-panel-claude-code,
+#mcp-client-cursor:checked ~ #mcp-panel-cursor,
+#mcp-client-vscode:checked ~ #mcp-panel-vscode,
+#mcp-client-other:checked ~ #mcp-panel-other {
+    display: block;
+}
+
+.mcp-quickstart > input[type=radio]:focus-visible ~ .view-toggle {
+    outline: 2px solid var(--color-primary, #00695c);
+    outline-offset: 2px;
+}
+
+.copy-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 4px 4px 4px 12px;
+    border: 1px solid var(--color-background-surface, #e0e0e0);
+    border-radius: 8px;
+    background: var(--color-background-surface-hover, #f5f5f5);
+}
+
+.copy-field code {
+    flex: 1;
+    overflow-wrap: anywhere;
+    background: none;
+}
+
+.copy-button {
+    display: flex;
+    padding: 6px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    cursor: pointer;
+    color: var(--color-text-grey, #757575);
+}
+
+.copy-button:hover {
+    background: var(--color-background-surface, #e0e0e0);
+    color: var(--color-text, #212121);
+}
+
+.copy-button .material-icons {
+    font-size: 18px;
 }
