@@ -12,6 +12,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import Prefetch, prefetch_related_objects
 from django.utils import timezone
 from django.utils.text import slugify
 from djmoney.contrib.exchange.exceptions import MissingRate
@@ -695,16 +696,48 @@ class PartRevision(models.Model):
                     return prop.value_raw
         return None
 
+    def bom_tree(self, max_level=None):
+        """Loads this revision's BOM a level at a time: the subparts under each assembly id, and the seller parts of
+        each part, so building a BOM costs a few queries per level instead of several per line."""
+        subparts_by_assembly_id = {}
+        assembly_ids = {self.assembly_id} - {None}
+        level = 0
+        while assembly_ids and (max_level is None or level < max_level):
+            subparts_by_assembly_id.update({assembly_id: [] for assembly_id in assembly_ids})
+            assembly_subparts = AssemblySubparts.objects.filter(assembly_id__in=assembly_ids).select_related(
+                'subpart__part_revision__part__organization',
+                'subpart__part_revision__part__number_class',
+                'subpart__part_revision__part__primary_manufacturer_part__manufacturer',
+            ).order_by('subpart_id')
+            next_assembly_ids = set()
+            for assembly_subpart in assembly_subparts:
+                subpart = assembly_subpart.subpart
+                subparts_by_assembly_id[assembly_subpart.assembly_id].append(subpart)
+                if subpart.part_revision is not None:
+                    next_assembly_ids.add(subpart.part_revision.assembly_id)
+            # Already-loaded assemblies are skipped so a circular BOM still ends here and fails later with RecursionError.
+            assembly_ids = next_assembly_ids - subparts_by_assembly_id.keys() - {None}
+            level += 1
+
+        parts = [self.part] + [subpart.part_revision.part for subparts in subparts_by_assembly_id.values()
+                               for subpart in subparts if subpart.part_revision is not None]
+        prefetch_related_objects(parts, Prefetch(
+            'manufacturerpart_set', queryset=ManufacturerPart.objects.select_related('manufacturer')))
+        seller_parts_by_part_id = {part.id: [] for part in parts}
+        for seller_part in SellerPart.objects.filter(manufacturer_part__part__in=seller_parts_by_part_id.keys())\
+                .select_related('seller', 'manufacturer_part__manufacturer', 'manufacturer_part__part__organization'):
+            seller_parts_by_part_id[seller_part.manufacturer_part.part_id].append(seller_part)
+        return subparts_by_assembly_id, seller_parts_by_part_id
+
     def indented(self, top_level_quantity=100, max_level=None):
+        subparts_by_assembly_id, seller_parts_by_part_id = self.bom_tree(max_level=max_level)
+
         def indented_given_bom(bom, part_revision, parent_id=None, parent=None, qty=1, parent_qty=1, indent_level=0, subpart=None, reference='', do_not_load=False):
             bom_item_id = (parent_id or '') + (str(part_revision.id) + '-dnl' if do_not_load else str(part_revision.id))
             extended_quantity = parent_qty * qty
             total_extended_quantity = top_level_quantity * extended_quantity
 
-            try:
-                seller_part = part_revision.part.optimal_seller(quantity=total_extended_quantity)
-            except AttributeError:
-                seller_part = None
+            seller_part = SellerPart.optimal(seller_parts_by_part_id[part_revision.part_id], int(total_extended_quantity))
 
             bom.append_item_and_update(PartIndentedBomItem(
                 bom_id=bom_item_id,
@@ -724,16 +757,12 @@ class PartRevision(models.Model):
             indent_level = indent_level + 1
             if max_level is not None and indent_level > max_level:
                 return
-            if part_revision is None or part_revision.assembly is None or part_revision.assembly.subparts.count() == 0:
-                return
-            else:
-                parent_qty *= qty
-                # TODO: Cache Me!
-                for sp in part_revision.assembly.subparts.all():
-                    qty = sp.count
-                    reference = sp.reference
-                    indented_given_bom(bom, sp.part_revision, parent_id=bom_item_id, parent=part_revision, qty=qty, parent_qty=parent_qty,
-                                       indent_level=indent_level, subpart=sp, reference=reference, do_not_load=sp.do_not_load)
+            parent_qty *= qty
+            for sp in subparts_by_assembly_id.get(part_revision.assembly_id, []):
+                qty = sp.count
+                reference = sp.reference
+                indented_given_bom(bom, sp.part_revision, parent_id=bom_item_id, parent=part_revision, qty=qty, parent_qty=parent_qty,
+                                   indent_level=indent_level, subpart=sp, reference=reference, do_not_load=sp.do_not_load)
 
         bom = PartBom(part_revision=self, quantity=top_level_quantity)
         indented_given_bom(bom, self)
@@ -741,14 +770,13 @@ class PartRevision(models.Model):
         return bom
 
     def flat(self, top_level_quantity=100, sort=False):
+        subparts_by_assembly_id, seller_parts_by_part_id = self.bom_tree()
+
         def flat_given_bom(bom, part_revision, parent=None, qty=1, parent_qty=1, subpart=None, reference=''):
             extended_quantity = parent_qty * qty
             total_extended_quantity = top_level_quantity * extended_quantity
 
-            try:
-                seller_part = part_revision.part.optimal_seller(quantity=total_extended_quantity)
-            except AttributeError:
-                seller_part = None
+            seller_part = SellerPart.optimal(seller_parts_by_part_id[part_revision.part_id], int(total_extended_quantity))
 
             try:
                 do_not_load = subpart.do_not_load
@@ -767,14 +795,11 @@ class PartRevision(models.Model):
                 seller_part=seller_part,
             ))
 
-            if part_revision is None or part_revision.assembly is None or part_revision.assembly.subparts.count() == 0:
-                return
-            else:
-                parent_qty *= qty
-                for sp in part_revision.assembly.subparts.all():
-                    qty = sp.count
-                    reference = sp.reference
-                    flat_given_bom(bom, sp.part_revision, parent=part_revision, qty=qty, parent_qty=parent_qty, subpart=sp, reference=reference)
+            parent_qty *= qty
+            for sp in subparts_by_assembly_id.get(part_revision.assembly_id, []):
+                qty = sp.count
+                reference = sp.reference
+                flat_given_bom(bom, sp.part_revision, parent=part_revision, qty=qty, parent_qty=parent_qty, subpart=sp, reference=reference)
 
         flat_bom = PartBom(part_revision=self, quantity=top_level_quantity)
         flat_given_bom(flat_bom, self)

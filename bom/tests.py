@@ -3504,6 +3504,28 @@ class TestQueryCountDoesNotGrowWithRows(TestCase):
     def test_settings(self):
         self.assertQueryCountConstant(reverse('bom:settings'))
 
+    def test_part_info_bom(self):
+        part_revision = self.assembly_part.latest()
+        seller = Seller.objects.create(name='Digi', organization=self.organization)
+
+        def add_subparts(count):
+            for _ in range(count):
+                subassembly_part = self.create_part_with_revision()
+                part_revision.assembly.subparts.add(create_a_fake_subpart(subassembly_part.latest(), count=2))
+                leaf_part = self.create_part_with_revision()
+                subassembly_part.latest().assembly.subparts.add(create_a_fake_subpart(leaf_part.latest(), count=3))
+                for part in (subassembly_part, leaf_part):
+                    ManufacturerPart.objects.create(part=part, manufacturer=self.manufacturer,
+                                                    manufacturer_part_number=f'ALT-{part.id}')
+                    create_a_fake_seller_part(seller, part.primary_manufacturer_part, 1, 1, 1, 7, nre_cost=0)
+
+        url = reverse('bom:part-info-history',
+                      kwargs={'part_id': self.assembly_part.id, 'part_revision_id': part_revision.id})
+        add_subparts(3)
+        query_count_with_few_subparts = self.query_count(url)
+        add_subparts(3)
+        self.assertEqual(self.query_count(url), query_count_with_few_subparts)
+
     def test_optimal_seller(self):
         part = self.create_part_with_revision()
         seller = Seller.objects.create(name='Digi', organization=self.organization)
