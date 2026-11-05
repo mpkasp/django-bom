@@ -92,7 +92,7 @@ class PartBom(AsDictModel):
         sourcing_items = {}
         for bom_id, item in self.parts.items():
             if item.part.id not in sourcing_items and item.part.number_class.sourcing_enabled:
-                for manufacturer_part in item.part.manufacturer_parts():
+                for manufacturer_part in item.part.manufacturerpart_set.all():
                     sourcing_items.update({bom_id: manufacturer_part})
                     if not manufacturer_part.sourcing_disable:
                         sourcing_items.update({bom_id: manufacturer_part})

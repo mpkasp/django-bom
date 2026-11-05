@@ -95,8 +95,8 @@
                 {% endif %}
                 <td class="text-normal">{{ subpart.part_revision.revision }}</td>
                 <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}
-                    {% if subpart.part.manufacturer_parts.count > 1 %}
-                        <i>(+{{ subpart.part.manufacturer_parts.count }})</i>{% endif %}</td>
+                    {% with manufacturer_part_count=subpart.part.manufacturerpart_set.all|length %}{% if manufacturer_part_count > 1 %}
+                        <i>(+{{ manufacturer_part_count }})</i>{% endif %}{% endwith %}</td>
                 <td class="text-normal">{% if subpart.part.primary_manufacturer_part.link %}<a href="{{ subpart.part.primary_manufacturer_part.link }}" target="_blank">{% endif %}{{ subpart.part.primary_manufacturer_part.manufacturer_part_number }}{% if subpart.part.primary_manufacturer_part.link %}&nbsp;<i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}</td>
                 <td class="text-normal" id="bom-indented-ext-qty-{{ subpart.part_revision.id }}">{{ subpart.total_extended_quantity | default:"-" }}</td>
                 <td class="text-normal" id="bom-indented-order-qty-{{ subpart.part_revision.id }}">{{ subpart.order_quantity | default:"-" }}</td>
