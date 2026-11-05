@@ -130,6 +130,14 @@ BOM_CONFIG = {
 
 where `base.html` is your base template.
 
+## Theming and style
+
+django-bom styles itself with Materialize plus a small `style.css` whose colors are CSS custom
+properties (`--color-primary`, `--color-text-grey`, ...). A host project overrides them in a
+stylesheet loaded after `bom/css/style.css`; no template or selector overrides are needed for a
+re-color. Patterns, tokens and the checklist for UI changes are in
+[docs/style-guide.md](docs/style-guide.md).
+
 ## Importing and exporting
 Every export is a valid import: edit a CSV that BOM gave you and upload it on the **Import** page (`/import/`).
 Rows that match existing records update the fields they provide, blank cells leave values alone, and nothing is
