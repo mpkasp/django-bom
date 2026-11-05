@@ -1,7 +1,7 @@
 from bom.constants import ROLE_TYPE_VIEWER
 from bom.mcp.auth import access_denial
 from bom.models import APIToken
-from bom.services.flags import mcp_apply_enabled
+from bom.services.flags import changes_review_enabled, mcp_apply_enabled
 
 READ, WRITE, APPLY = APIToken.SCOPE_READ, APIToken.SCOPE_WRITE, APIToken.SCOPE_APPLY
 
@@ -36,5 +36,8 @@ def _may_grant(user, organization, scopes):
     if WRITE in scopes and user.bom_profile().role == ROLE_TYPE_VIEWER:
         return False
     if APPLY in scopes and not mcp_apply_enabled(organization):
+        return False
+    # Without review, nothing could act on a proposal, so proposing is only offered alongside applying.
+    if WRITE in scopes and APPLY not in scopes and not changes_review_enabled(organization):
         return False
     return not (WRITE in scopes and access_denial(organization, user, list(scopes)))

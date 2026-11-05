@@ -231,6 +231,15 @@ class ConsentPageTest(OAuthMCPTestCase):
         self.assertEqual(radio_scopes(response), ['read', 'read write'])
         self.assertEqual(checked_scope(response), 'read write')
 
+    def test_propose_only_is_hidden_when_change_review_is_off(self):
+        config = {**settings.BOM_CONFIG, 'changes_review_enabled': False}
+        with override_settings(BOM_CONFIG=config):
+            response = self.consent_page()
+            proposal_request = self.consent_page('read write')
+        self.assertEqual(radio_scopes(response), ['read', 'read write apply'])
+        self.assertEqual(checked_scope(response), 'read write apply')
+        self.assertEqual(checked_scope(proposal_request), 'read')
+
     def test_writes_are_hidden_when_the_access_check_denies_them(self):
         config = {**settings.BOM_CONFIG, 'mcp_access_check': deny_everything}
         with override_settings(BOM_CONFIG=config):
