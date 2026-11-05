@@ -294,7 +294,8 @@ django-bom ships `templates/oauth2_provider/authorize.html`, so it overrides the
 | Propose and apply changes | `read write apply` |
 
 Choices the user's role or the host flags cannot use are hidden: a Viewer sees only Read; Apply needs
-`mcp_apply_enabled`; writes need `mcp_access_check` to pass (on IndaBOM, Pro). The default selection is
+`mcp_apply_enabled`; Propose without Apply needs `changes_review_enabled`, since nothing could act on a
+proposal otherwise; writes need `mcp_access_check` to pass. The default selection is
 the narrowest of the scopes the client requested and the user's ceiling.
 
 ### Connections are `APIToken` rows
