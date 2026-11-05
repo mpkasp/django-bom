@@ -866,3 +866,43 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 .copy-button .material-icons {
     font-size: 18px;
 }
+
+/* OAuth consent page */
+.consent {
+    max-width: 480px;
+    margin: 32px auto;
+}
+
+/* Materialize's card sections keep square corners, so clip them to the host's rounded card. */
+.consent .card {
+    overflow: hidden;
+}
+
+.consent p {
+    font-size: 1rem;
+}
+
+.consent .card-content .consent-question {
+    margin: 24px 0 8px;
+}
+
+.consent .card-content .consent-choice {
+    margin: 0 0 12px;
+}
+
+/* Materialize fixes radio labels to one 25px line; let the helper text wrap underneath. */
+.consent .consent-choice [type="radio"] + span {
+    display: block;
+    height: auto;
+}
+
+.consent .consent-choice-help {
+    display: block;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.consent .consent-note {
+    font-size: 0.875rem;
+    margin: 0;
+}
