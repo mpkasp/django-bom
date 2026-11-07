@@ -9,7 +9,7 @@ from django.urls import reverse
 from bom import constants
 from bom.helpers import create_a_fake_organization, create_some_fake_parts, create_user_and_organization
 from bom.models import Change, ChangeItem, ChangeSettings, ManufacturerPart, Part, PartRevision, SellerPart
-from bom.services import boms, changes, parts
+from bom.services import boms, change_display, changes, parts
 from bom.services.errors import ServiceError
 from bom.test_mcp import MCPTestCase
 
@@ -590,7 +590,7 @@ class ChangesViewTest(TestCase):
 
     def test_review_page_renders_and_apply_post_applies(self):
         response = self.client.get(self.review_url())
-        self.assertContains(response, 'Create part')
+        self.assertContains(response, 'New part')
         self.assertContains(response, 'Any Editor or Admin can apply')
 
         response = self.client.post(self.review_url('change-apply'), follow=True)
@@ -620,7 +620,7 @@ class ChangesViewTest(TestCase):
             'subpart_part_number': cap.full_part_number(), 'count': 1})
         url = reverse('bom:change-review', kwargs={'number': change.number})
         response = self.client.get(url)
-        self.assertContains(response, '0 errors, 0 warnings')
+        self.assertContains(response, 'No problems found')
         self.assertContains(response, 'Cost per unit at 100')
         self.assertNotContains(response, 'Rebase')
 
@@ -633,6 +633,41 @@ class ChangesViewTest(TestCase):
         self.assertContains(self.client.get(url), 'Revert')
         self.client.post(reverse('bom:change-revert', kwargs={'number': change.number}))
         self.assertFalse(assembly.assembly.subparts.filter(part_revision__part=cap).exists())
+
+    def test_review_page_reads_as_a_bom_diff_with_inline_reasons(self):
+        cap = self.new_cap()
+        assembly = self.parts[2].latest()
+        change = changes.start_change(self.organization, self.user, 'Add line')
+        changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': assembly.part.full_part_number(),
+            'subpart_part_number': cap.full_part_number(), 'count': 1, 'reference': 'C9'})
+        changes.submit_change(change, self.user)
+
+        response = self.client.get(reverse('bom:change-review', kwargs={'number': change.number}))
+
+        self.assertContains(response, 'Add line')
+        self.assertContains(response, f'>{assembly.part.full_part_number()}</a>')
+        self.assertContains(response, 'Bill of materials')
+        self.assertContains(response, 'Other cap')
+        self.assertContains(response, 'C9')
+        self.assertContains(response, '<td class="right-align">1</td>', html=False)
+        self.assertNotContains(response, 'subpart_part_number')
+        self.assertNotContains(response, 'prompt(')
+        self.assertContains(response, 'name="reason" class="browser-default" required')
+        self.assertContains(response, 'Leave out')
+        self.assertContains(response, 'Apply 1 edit')
+
+    def test_review_page_shows_before_and_after_for_part_details(self):
+        revision = self.new_cap().latest()
+        change = changes.start_change(self.organization, self.user, 'Rename')
+        changes.stage_item(change, ChangeItem.KIND_UPDATE_PART_REVISION, {
+            'part_number': revision.part.full_part_number(), 'description': 'Renamed part'})
+
+        response = self.client.get(reverse('bom:change-review', kwargs={'number': change.number}))
+
+        self.assertContains(response, 'Edit part details')
+        self.assertContains(response, f'<span class="change-old">{revision.description}</span>', html=False)
+        self.assertContains(response, '<span class="change-new-value">Renamed part</span>', html=False)
 
     def test_approved_eco_releases_what_it_created(self):
         assembly = self.parts[2].latest()
@@ -790,3 +825,15 @@ class ChangesViewTest(TestCase):
         self.assertTrue(item.payload['changes_digest'])
         with self.assertRaises(ServiceError):
             changes.apply_change(change, self.user)
+
+
+class ChangeDisplayTest(TestCase):
+    def test_quantities_drop_trailing_zeros(self):
+        self.assertEqual([change_display.quantity(value) for value in (1.0, '2.50', 3)], ['1', '2.5', '3'])
+
+    def test_money_shows_cents_unless_the_price_has_fractions_of_a_cent(self):
+        self.assertEqual(change_display.money(Decimal('3.33000'), 'USD'), '$3.33')
+        self.assertEqual(change_display.money(Decimal('0.2'), 'USD'), '$0.20')
+        self.assertEqual(change_display.money(Decimal('0.0123'), 'USD'), '$0.0123')
+        self.assertEqual(change_display.money(Decimal('-1.5'), 'EUR'), '-1.50 EUR')
+        self.assertIsNone(change_display.money(None, 'USD'))

@@ -1,0 +1,21 @@
+{% with item=entry.item %}
+    {% if item.reject_reason %}<p class="change-left-out-reason">Left out: {{ item.reject_reason }}</p>{% endif %}
+    {% if can_review and is_pending and item.kind != 'csv_import' %}
+        {% if entry.is_left_out %}
+            <form method="post" action="{% url 'bom:change-item-status' number=change.number item_id=item.id %}">{% csrf_token %}
+                <input type="hidden" name="status" value="accepted">
+                <button class="btn-flat btn-small" type="submit">Include again</button>
+            </form>
+        {% else %}
+            <details class="change-leave-out">
+                <summary class="btn-flat btn-small">Leave out…</summary>
+                <form method="post" action="{% url 'bom:change-item-status' number=change.number item_id=item.id %}">{% csrf_token %}
+                    <input type="hidden" name="status" value="rejected">
+                    <label for="leave-out-{{ item.id }}">Why leave this edit out?</label>
+                    <input id="leave-out-{{ item.id }}" class="browser-default" type="text" name="reason" required>
+                    <button class="btn-flat btn-small red-text" type="submit">Leave out</button>
+                </form>
+            </details>
+        {% endif %}
+    {% endif %}
+{% endwith %}

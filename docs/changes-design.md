@@ -147,14 +147,16 @@ inline `confirm()` pattern for irreversible actions.
   base, age; ECO chip; a History filter lists direct edits), Author (agent chip "client · token name" + "for <user>", or user), Items
   (counts by kind), Affects, Cost Δ (Phase 2), Status. The nav item is "Requests", counting open change requests,
   hidden when there are none unless on the page; direct edits never count. The default filter is open requests.
-- `/changes/<number>/` review: header (number, ECO chip + one-line reason, status, stale chip, base
-  revision, Open in chat link when `api_token`), rationale card with provenance line, items grouped
-  by kind with per-item accept/reject toggles (reject asks for a reason), old → new diff from
-  `before`/`payload`, flags for protected fields. Right rail: Validation (errors/warnings from
-  re-validation), Impact and Cost (Phase 2), Approval (who may approve; author/admin/single-member
-  messaging). Footer: Approve N accepted (applies, then releases the revisions it creates), Apply as admin (Admins on protected changes, with confirm),
-  Reject all (reason), Withdraw (author), Rebase (when stale). Release is part of Approve, so there is no
-  separate "Release rev N" step.
+- `/changes/<number>/` review (rendered by `bom/services/change_display.py`): header with the change's title,
+  status, number, ECO and stale chips, "Proposed by <connection> for <user>" byline, and the actions beside the
+  title: Approve or Apply N edits (applies, then releases the revisions it creates), Apply as admin (Admins on
+  protected changes, with confirm), Rebase (when stale), Reject… (an inline reason box, required), Withdraw
+  (author), and the approval rule. A "Why" card holds the rationale. Items are grouped by the part they touch:
+  BOM edits as diff rows (reference, part number and name, quantity old → new; green adds, red removes),
+  part details and prices as before → after fields, new parts as a field list, revisions and releases as a
+  sentence. Each edit has Leave out… (with a reason) or Include again. Right rail: cost per unit at the quote
+  quantity, where it's used, and checks (validation errors and warnings). Release is part of Approve, so there
+  is no separate "Release rev N" step.
 - Part page: banner "N open changes touch this revision" linking to the review page; proposed
   lines ghosted inside the existing BOM component with a "Proposed" chip (Phase 2); a "History" tab
   (formerly "Changes") listing direct edits, releases and applied requests, newest first (Phase 4); a "Compare with rev N" link in the
