@@ -1,0 +1,62 @@
+{% for section in sections %}
+    <div class="card-panel change-part">
+        <div class="change-part-head">
+            {% if section.kind == 'new_part' %}
+                <span class="chip change-new">New part</span>
+                <span>{{ section.entries.0.title }}</span>
+                {% if section.entries.0.part_number %}<span class="grey-text">created as {{ section.entries.0.part_number }}</span>{% endif %}
+            {% elif section.part %}
+                <a href="{% url 'bom:part-info' part_id=section.part.id %}">{{ section.part.full_part_number }}</a>
+                {% if section.part_revision %}
+                    <span>{{ section.part_revision.description }}</span>
+                    <span class="chip">Rev {{ section.part_revision.revision }} &middot; {{ section.part_revision.get_configuration_display }}</span>
+                {% endif %}
+            {% endif %}
+            <span class="change-part-kind grey-text">{{ section.heading }}</span>
+        </div>
+
+        {% if section.kind == 'bom' %}
+            <div class="responsive-table-wrapper">
+                <table class="change-bom">
+                    <thead><tr><th>Ref</th><th>Part</th><th>Description</th><th class="right-align">Qty</th><th></th></tr></thead>
+                    <tbody>
+                    {% for entry in section.entries %}
+                        <tr class="change-{{ entry.state }}{% if entry.is_left_out %} change-left-out{% endif %}">
+                            <td><span class="change-sign">{% if entry.state == 'add' %}+{% elif entry.state == 'remove' %}&minus;{% endif %}</span>
+                                {% if entry.reference_before is not None and entry.reference_before != entry.reference %}<span class="change-old">{{ entry.reference_before|default:"none" }}</span> {% endif %}{{ entry.reference }}</td>
+                            <td class="change-mono">{% if entry.part_id %}<a href="{% url 'bom:part-info' part_id=entry.part_id %}">{{ entry.part_number }}</a>{% else %}{{ entry.part_number }}{% endif %}</td>
+                            <td>{{ entry.name }}{% if entry.detail %}<br><small class="grey-text">{{ entry.detail }}</small>{% endif %}</td>
+                            <td class="right-align">{% if entry.quantity_before is not None %}<span class="change-old">{{ entry.quantity_before }}</span> <span class="change-new-value">{{ entry.quantity }}</span>{% else %}{{ entry.quantity }}{% endif %}</td>
+                            <td class="right-align">{% include 'bom/changes/components/change-item-review.html' %}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% elif section.kind == 'note' %}
+            {% for entry in section.entries %}
+                <div class="change-note{% if entry.is_left_out %} change-left-out{% endif %}">
+                    <p>{{ entry.text }}</p>
+                    {% include 'bom/changes/components/change-item-review.html' %}
+                </div>
+            {% endfor %}
+        {% else %}
+            {% for entry in section.entries %}
+                <div class="change-fields{% if entry.is_left_out %} change-left-out{% endif %}">
+                    {% if section.kind != 'new_part' and section.heading != entry.label %}<p class="change-label">{{ entry.label }}</p>{% endif %}
+                    {% if entry.fields %}
+                        <dl>
+                            {% for label, before, after in entry.fields %}
+                                <dt>{{ label }}</dt>
+                                <dd>{% if section.kind == 'new_part' or entry.is_addition %}{{ after }}{% else %}{% if before is not None and before != '' %}<span class="change-old">{{ before }}</span> &rarr; {% else %}<span class="grey-text">empty</span> &rarr; {% endif %}{% if after is None or after == '' %}<span class="grey-text">cleared</span>{% else %}<span class="change-new-value">{{ after }}</span>{% endif %}{% endif %}</dd>
+                            {% endfor %}
+                        </dl>
+                    {% else %}
+                        <p>{{ entry.text }}</p>
+                    {% endif %}
+                    {% include 'bom/changes/components/change-item-review.html' %}
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+{% endfor %}

@@ -243,10 +243,12 @@
                         agents open them through the MCP server. A request that releases a revision, or changes a
                         Released one, is labelled an <strong>Engineering Change Order (ECO)</strong>.</p>
                     <p>The <strong>Requests</strong> item in the navigation bar counts open requests and is hidden when
-                        there are none. A request's page shows each proposed edit, the assemblies it affects and the change
-                        in unit cost. From there you can:</p>
+                        there are none. A request's page shows each proposed edit as a change to the part's BOM or details
+                        (old values struck through, new ones highlighted), the assemblies it affects and the change in
+                        unit cost. From there you can:</p>
                     <ul class="browser-default">
-                        <li><strong>Approve</strong> (or <strong>Apply</strong>) the accepted items. An ECO's new
+                        <li><strong>Leave out</strong> single edits you don't want, with a reason.</li>
+                        <li><strong>Approve</strong> (or <strong>Apply</strong>) the remaining edits. An ECO's new
                             revisions are released in the same step, and nothing is saved if any part of it fails.
                         </li>
                         <li><strong>Reject</strong> the request, or <strong>Withdraw</strong> it if you opened it.</li>

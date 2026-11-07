@@ -942,3 +942,315 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     font-size: 0.875rem;
     margin: 0;
 }
+
+/* Change request page: rgba tints so additions, removals and changes read on light and dark backgrounds. */
+.change-page {
+    --change-add: rgba(67, 160, 71, 0.14);
+    --change-add-ink: #43a047;
+    --change-remove: rgba(229, 57, 53, 0.12);
+    --change-remove-ink: #e53935;
+    --change-edit: rgba(255, 179, 0, 0.18);
+    --change-edit-ink: #f9a825;
+}
+
+.change-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px 24px;
+}
+
+.change-head-text {
+    flex: 1 1 420px;
+    min-width: 0;
+}
+
+.change-head h4 {
+    margin: 0 0 4px;
+    font-size: 1.8rem;
+}
+
+.change-head h4 .chip {
+    vertical-align: middle;
+}
+
+.change-byline {
+    margin: 0;
+}
+
+.change-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.change-ready {
+    flex-basis: 100%;
+    margin: 0;
+    text-align: right;
+    font-size: 0.9rem;
+}
+
+.change-reject summary,
+.change-leave-out summary {
+    list-style: none;
+    cursor: pointer;
+}
+
+.change-reject summary::-webkit-details-marker,
+.change-leave-out summary::-webkit-details-marker {
+    display: none;
+}
+
+.change-reject {
+    position: relative;
+}
+
+.change-reject form,
+.change-leave-out form {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.change-reject form {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 5;
+    width: min(440px, 90vw);
+    margin: 8px 0 0;
+    padding: 16px;
+}
+
+.change-reject textarea,
+.change-leave-out input[type=text] {
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 8px 10px;
+    border: 1px solid rgba(128, 128, 128, 0.4);
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.change-reject textarea {
+    min-height: 4.5rem;
+}
+
+.change-label {
+    display: block;
+    margin: 0 0 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #757575;
+}
+
+.change-why p {
+    margin: 0;
+    max-width: 80ch;
+}
+
+.change-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: start;
+}
+
+@media only screen and (max-width: 992px) {
+    .change-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .change-ready {
+        text-align: left;
+    }
+
+    .change-reject form {
+        right: auto;
+        left: 0;
+    }
+
+    .change-actions {
+        justify-content: flex-start;
+    }
+}
+
+.change-sections .change-part {
+    padding: 0;
+    overflow: hidden;
+}
+
+.change-part-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+.change-part-head a {
+    font-weight: 500;
+}
+
+.change-part-head .chip {
+    margin: 0;
+}
+
+.change-part-kind {
+    margin-left: auto;
+    font-size: 0.9rem;
+}
+
+.change-new {
+    background: var(--change-add);
+}
+
+.change-bom {
+    font-variant-numeric: tabular-nums;
+}
+
+.change-bom th,
+.change-bom td {
+    padding: 8px 12px;
+    vertical-align: top;
+}
+
+.change-bom tr.change-add td {
+    background: var(--change-add);
+}
+
+.change-bom tr.change-add td:first-child {
+    box-shadow: inset 3px 0 0 var(--change-add-ink);
+}
+
+.change-bom tr.change-remove td {
+    background: var(--change-remove);
+}
+
+.change-bom tr.change-remove td:first-child {
+    box-shadow: inset 3px 0 0 var(--change-remove-ink);
+}
+
+.change-bom tr.change-remove td:nth-child(-n+4) {
+    text-decoration: line-through;
+    text-decoration-color: var(--change-remove-ink);
+}
+
+.change-bom tr.change-change td:first-child {
+    box-shadow: inset 3px 0 0 var(--change-edit-ink);
+}
+
+.change-sign {
+    display: inline-block;
+    width: 14px;
+    font-weight: 500;
+}
+
+.change-add .change-sign {
+    color: var(--change-add-ink);
+}
+
+.change-remove .change-sign {
+    color: var(--change-remove-ink);
+}
+
+.change-mono {
+    font-family: "Roboto Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.9rem;
+}
+
+.change-old {
+    text-decoration: line-through;
+    color: var(--change-remove-ink);
+}
+
+.change-new-value {
+    padding: 0 4px;
+    border-radius: 4px;
+    background: var(--change-edit);
+}
+
+.change-left-out {
+    opacity: 0.55;
+}
+
+.change-left-out-reason {
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    color: var(--change-remove-ink);
+}
+
+.change-note,
+.change-fields {
+    padding: 12px 16px;
+}
+
+.change-note + .change-note,
+.change-fields + .change-fields {
+    border-top: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+.change-note p {
+    margin: 0;
+}
+
+.change-fields dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 16px;
+    margin: 0;
+}
+
+.change-fields dt {
+    color: #757575;
+}
+
+.change-fields dd {
+    margin: 0;
+}
+
+.change-side {
+    display: grid;
+    gap: 12px;
+}
+
+.change-side .change-fact {
+    margin: 0;
+    padding: 12px 16px;
+}
+
+.change-fact p {
+    margin: 2px 0;
+}
+
+.change-big {
+    font-size: 1.3rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.change-increase {
+    color: var(--change-remove-ink);
+}
+
+.change-decrease {
+    color: var(--change-add-ink);
+}
+
+.change-ok {
+    color: var(--change-add-ink);
+}
+
+.change-ok .material-icons {
+    vertical-align: middle;
+}

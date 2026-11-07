@@ -378,7 +378,7 @@ class RequestsNavTest(EditingTestCase):
         page = self.client.get(reverse('bom:change-list'))
         self.assertContains(page, self.nav_link)
         self.assertNotContains(page, 'new badge')
-        self.assertContains(page, '<h4>Requests</h4>')
+        self.assertContains(page, '<h4>Change requests</h4>')
 
     def test_the_history_filter_lists_direct_edits_and_the_other_filters_do_not(self):
         self.client.post(reverse('bom:create-part'), {
@@ -874,7 +874,7 @@ class ReleaseApprovalTest(ApprovalTestCase):
 
         page = self.client.get(reverse('bom:change-review', kwargs={'number': change.number}))
         self.assertContains(page, 'Engineering Change Order')
-        self.assertContains(page, 'Approve 1 accepted')
+        self.assertContains(page, 'Approve 1 edit')
 
         self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
         self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_RELEASED)

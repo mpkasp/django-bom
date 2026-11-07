@@ -12,14 +12,13 @@ from django.views.decorators.http import require_POST
 
 from bom.models import Change, ChangeItem, PartRevision
 from bom.permissions import BomPerms
-from bom.services import changes
+from bom.services import change_display, changes
 from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled
 from bom.views.views import BOM_LOGIN_URL
 
 LIST_FILTERS = (('requests', 'Requests'), ('ecos', 'ECOs'), ('applied', 'Applied'), ('rejected', 'Rejected'),
                 ('history', 'History'))
-KIND_LABELS = dict(ChangeItem.KINDS)
 
 
 def changes_view(view):
@@ -65,12 +64,12 @@ def change_list(request, organization):
         rows.append({
             'change': change,
             'is_eco': change.is_eco,
-            'kind_counts': [f'{count} {KIND_LABELS[kind].lower()}' for kind, count in
+            'kind_counts': [f'{count} × {change_display.kind_label(kind)}' for kind, count in
                             Counter(item.kind for item in items).items()],
             'affects': sorted({item.part.full_part_number() for item in items if item.part_id}),
         })
     return TemplateResponse(request, 'bom/changes/change-list.html', {
-        'title': 'Requests', 'name': 'changes', 'profile': request.user.bom_profile(), 'organization': organization,
+        'title': 'Change requests', 'name': 'changes', 'profile': request.user.bom_profile(), 'organization': organization,
         'rows': rows, 'filters': LIST_FILTERS, 'active_filter': active_filter,
     })
 
@@ -86,13 +85,17 @@ def change_review(request, organization, number):
     can_act = is_pending and (is_author or change.status == Change.STATUS_OPEN)
     problems = changes.validate_change(change) if is_pending else []
     is_stale = change.is_stale
+    sections = change_display.change_sections(change)
+    impact = changes.impact(change) if is_pending or change.status == Change.STATUS_APPLIED else None
+    accepted_count = change.items.filter(status=ChangeItem.STATUS_ACCEPTED).count()
     return TemplateResponse(request, 'bom/changes/change-review.html', {
-        'title': f'Change #{change.number}', 'name': 'changes', 'profile': user.bom_profile(),
-        'organization': organization, 'change': change, 'items': list(change.items.all()),
+        'title': f'Change request #{change.number}', 'name': 'changes', 'profile': user.bom_profile(),
+        'organization': organization, 'change': change, 'sections': sections,
+        'edit_count': sum(len(section['entries']) for section in sections),
+        'part_count': len({section['part'].id for section in sections if section['part']}),
+        'author_name': change.author.get_full_name() or change.author.username,
         'is_eco': change.is_eco, 'is_protected': change.is_protected, 'is_stale': is_stale,
-        'problems': problems, 'error_count': sum(problem['level'] == 'error' for problem in problems),
-        'warning_count': sum(problem['level'] == 'warning' for problem in problems),
-        'impact': changes.impact(change) if is_pending or change.status == Change.STATUS_APPLIED else None,
+        'problems': problems, 'impact': impact, 'costs': _costs(impact),
         'created_revisions': changes.created_revisions(change),
         'cascade_candidates': changes.cascade_candidates(change) if can_review else [],
         'cascaded_revisions': changes.cascaded_revisions(change),
@@ -104,8 +107,27 @@ def change_review(request, organization, number):
         'can_apply_as_admin': can_act and can_review and not approval['can_apply'] and approval['can_override'],
         'can_submit': is_author and change.status == Change.STATUS_DRAFT,
         'can_reject': can_review and is_pending,
-        'accepted_count': change.items.filter(status=ChangeItem.STATUS_ACCEPTED).count(),
+        'accepted_count': accepted_count,
     })
+
+
+def _costs(impact):
+    if not impact:
+        return None
+    cost = impact['cost']
+    currency = cost['currency']
+    return {
+        'quantity': cost['quantity'],
+        'total_delta': change_display.money(cost['delta'], currency),
+        'is_increase': cost['delta'] is not None and cost['delta'] > 0,
+        'targets': [{
+            'part_number': target['part_number'], 'revision': target['revision'],
+            'before': change_display.money(target['before'], currency),
+            'after': change_display.money(target['after'], currency),
+            'delta': change_display.money(target['delta'], currency),
+            'is_increase': target['delta'] is not None and target['delta'] > 0,
+        } for target in cost['targets']],
+    }
 
 
 def _review_redirect(change):
