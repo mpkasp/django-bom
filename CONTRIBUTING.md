@@ -14,6 +14,7 @@ Please note we have a code of conduct, please follow it in all your interactions
 3. Run any tests to make sure nothing has broken (`python manage.py test`). Write any additional 
    tests as needed by your changes. 
 4. Pull request will be merged once reviewed and signed off by the owners of this repository.
+5. For changes to templates or CSS, follow [docs/style-guide.md](docs/style-guide.md).
 
 ## Code of Conduct
 
