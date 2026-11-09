@@ -156,7 +156,12 @@ inline `confirm()` pattern for irreversible actions.
   released on approval"), so the page has no explanatory banners. The rationale follows the byline under a "Why"
   label. Items are grouped by the part they touch: BOM edits as diff rows (reference, part number and name,
   quantity old → new; green adds, red removes), part details and prices as before → after fields, new parts as a
-  field list, revisions and releases as a sentence. Each edit has Leave out… (with a reason) or Include again.
+  field list, revisions and releases as a sentence. When a request has more than one edit, each has Leave out…
+  (a modal asking for a reason the author sees) or Include again; a single-edit request offers Reject alone, since
+  leaving out its only edit is the same thing. Left-out edits drop out of everything derived from the request: the
+  ECO chip, the per-part "New Draft revision" promise (the revision is created only when an edit to that part is
+  applied, so there is nothing to leave out there), the Approve count, and the Approve button itself once every
+  edit is left out, when a sentence points to Include again or Reject instead.
   Right rail: one card with cost per unit at the quote quantity, where it's used, and checks (validation errors
   and warnings); cascade candidates get their own card. Release is part of Approve, so there is no separate
   "Release rev N" step.

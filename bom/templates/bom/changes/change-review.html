@@ -73,7 +73,11 @@
                 </div>
             {% endif %}
         </div>
-        {% if is_pending and can_review and not approval.can_apply %}<p class="change-ready text-grey">{{ approval.message }}</p>{% endif %}
+        {% if nothing_left_to_apply %}
+            <p class="change-ready text-grey">Every edit is left out, so there is nothing to approve. Include one again, or reject the request.</p>
+        {% elif is_pending and can_review and not approval.can_apply %}
+            <p class="change-ready text-grey">{{ approval.message }}</p>
+        {% endif %}
 
         {% if is_stale %}
             <div class="alert alert-warning">
@@ -166,4 +170,12 @@
             </aside>
         </div>
     </div>
+{% endblock %}
+
+{% block bom-script %}
+    <script>
+        M.Modal.init(document.querySelectorAll('.change-leave-out'), {
+            onOpenEnd: function (modal) { modal.querySelector('input[name=reason]').focus(); }
+        });
+    </script>
 {% endblock %}

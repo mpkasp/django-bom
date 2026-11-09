@@ -147,6 +147,8 @@ def set_item_status(change, item, status, reason=''):
         raise ServiceError(f"Unknown item status {status!r}.")
     if item.change_id != change.id:
         raise ServiceError('That item belongs to a different change.')
+    if status == ChangeItem.STATUS_ACCEPTED:
+        _require_providers_included(change, item)
     _set_status(item, status, reason)
     if status == ChangeItem.STATUS_REJECTED:
         _reject_dependents(change, item)
@@ -157,6 +159,15 @@ def _set_status(item, status, reason):
     item.status = status
     item.reject_reason = reason[:255] if status == ChangeItem.STATUS_REJECTED else ''
     item.save(update_fields=['status', 'reject_reason'])
+
+
+def _require_providers_included(change, item):
+    left_out = change.items.filter(status=ChangeItem.STATUS_REJECTED, ref__in=_referenced_keys(item.payload))
+    positions = sorted(provider.position for provider in left_out)
+    if positions:
+        raise ServiceError(f"Item {item.position} uses what item{'s' if len(positions) > 1 else ''} "
+                           f"{', '.join(map(str, positions))} create{'s' if len(positions) == 1 else ''}; include "
+                           f"{'that' if len(positions) == 1 else 'those'} first.")
 
 
 def _reject_dependents(change, rejected_item):
