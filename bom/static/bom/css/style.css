@@ -981,6 +981,7 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 
 .change-actions {
     display: flex;
+    flex: 0 0 auto;
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
@@ -988,9 +989,7 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 }
 
 .change-ready {
-    flex-basis: 100%;
-    margin: 0;
-    text-align: right;
+    margin: 8px 0 0;
     font-size: 0.9rem;
 }
 
@@ -1075,10 +1074,6 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
         grid-template-columns: 1fr;
     }
 
-    .change-ready {
-        text-align: left;
-    }
-
     .change-reject form {
         right: auto;
         left: 0;
@@ -1118,6 +1113,7 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 
 .change-new {
     background: var(--change-add);
+    color: inherit;
 }
 
 .change-revision-arrow {

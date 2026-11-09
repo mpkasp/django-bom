@@ -54,7 +54,6 @@
                         <form method="post" action="{% url 'bom:change-withdraw' number=change.number %}" onsubmit="return confirm('Withdraw this change request?');">{% csrf_token %}
                             <button class="btn-flat waves-effect" type="submit">Withdraw</button></form>
                     {% endif %}
-                    {% if can_review and not approval.can_apply %}<p class="change-ready grey-text">{{ approval.message }}</p>{% endif %}
                 </div>
             {% elif change.status == 'applied' %}
                 <div class="change-actions">
@@ -74,6 +73,7 @@
                 </div>
             {% endif %}
         </div>
+        {% if is_pending and can_review and not approval.can_apply %}<p class="change-ready grey-text">{{ approval.message }}</p>{% endif %}
 
         {% if is_stale %}
             <div class="card-panel amber lighten-4 black-text">

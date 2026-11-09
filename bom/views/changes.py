@@ -118,7 +118,7 @@ def _costs(impact):
     currency = cost['currency']
     return {
         'quantity': cost['quantity'],
-        'total_delta': change_display.money(cost['delta'], currency),
+        'total_delta': change_display.money(cost['delta'], currency) if cost['delta'] else None,
         'is_increase': cost['delta'] is not None and cost['delta'] > 0,
         'targets': [{
             'part_number': target['part_number'], 'revision': target['revision'],
