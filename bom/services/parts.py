@@ -1,3 +1,4 @@
+import copy
 from django.db import models
 
 from bom import constants
@@ -197,21 +198,27 @@ def revision_values(part_revision):
                            for prop in part_revision.properties.select_related('property_definition')}}
 
 
-def bind_revision_update(organization, part_revision, description=None, properties=None):
-    """Validate new values for a Draft revision's description and properties without saving. Values left out are
-    kept, and a property given as an empty string is cleared."""
-    if part_revision.is_immutable():
+def bind_revision_update(organization, part_revision, description=None, properties=None, allow_immutable=False):
+    """Validate new values for a revision's description and properties without saving. Values left out are kept,
+    and a property given as an empty string is cleared. Only a Draft can be edited unless ``allow_immutable``: a
+    Change applies such an edit to the new Draft revision it creates (an ECO)."""
+    if part_revision.is_immutable() and not allow_immutable:
         raise ServiceError(
             f"{part_revision.part.full_part_number()} rev {part_revision.revision} is "
             f"{part_revision.get_configuration_display()} and cannot be edited.")
-    data = {'revision': part_revision.revision, 'configuration': part_revision.configuration,
+    instance = part_revision
+    if part_revision.is_immutable():
+        # The form disables every field of a Released revision, so validate against the Draft the edit will land on.
+        instance = copy.copy(part_revision)
+        instance.configuration = constants.CONFIGURATION_TYPE_DRAFT
+    data = {'revision': part_revision.revision, 'configuration': instance.configuration,
             'description': part_revision.description if description is None else description}
     for prop in part_revision.properties.select_related('property_definition', 'unit_definition'):
         data[prop.property_definition.form_field_name] = prop.value_raw
         if prop.unit_definition_id:
             data[prop.property_definition.form_unit_field_name] = prop.unit_definition_id
     data.update(_property_form_data(organization, part_revision.part.number_class, properties, None))
-    form = PartRevisionForm(data, instance=part_revision, organization=organization)
+    form = PartRevisionForm(data, instance=instance, organization=organization)
     if not form.is_valid():
         raise ServiceError('Could not update part revision.', ServiceError.from_form(form).field_errors)
     if not form.has_changed():

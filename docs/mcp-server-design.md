@@ -172,7 +172,7 @@ Write (scope `write`; every tool stages into a Change, see [changes-design.md](c
 | `submit_change`, `withdraw_change` | `change_id` | send a draft change for review; withdraw your own |
 | `apply_change` | `change_id` | needs the `apply` scope; never releases or approves |
 | `create_part` | `description`, `part_class_code?`, `number_item?`, `number_variation?`, `properties?`, `property_units?`, `manufacturer?`, `manufacturer_part_number?`, `link?`, `change_id?`, `ref=''` | applies through `PartForm*` + `PartRevisionForm`; returns the assigned part number |
-| `update_part_revision` | `part_number`, `change_id`, `description?`, `properties?`, `revision?` | Draft revisions only, through `PartRevisionForm`; a Released or In Review revision returns an error that says to call `revise_part` |
+| `update_part_revision` | `part_number`, `change_id`, `description?`, `properties?`, `revision?` | Through `PartRevisionForm`. A Draft is edited in place; a Released or In Review revision makes the change an ECO whose apply creates the next Draft with the new values (the review page shows old → new). Where ECOs are off, the error says to call `revise_part` |
 | `revise_part` | `part_number`, `change_id` | the next Draft from the latest Released or In Review revision, as the UI's Revise; refused when a newer Draft exists |
 | `add_subpart` | `assembly_part_number`, `subpart_part_number`, `count=1`, `reference=''`, `do_not_load=false`, `assembly_revision?`, `change_id?` | `AddSubpartForm` |
 | `update_subpart`, `remove_subpart` | `assembly_part_number`, `subpart_part_number`, ..., `change_id?` | `SubpartForm`; `remove_subpart` is `destructive_hint` |
@@ -340,7 +340,7 @@ Implementation notes (where the shipped code differs from the text above):
 | Tool | Kind | Notes |
 |---|---|---|
 | `export_bom_csv` | read | `part_number`, `revision?`, `layout`: indented, single_level or flat; the same CSV as the UI |
-| `update_part_revision` | write | Draft only: description and properties; an immutable revision returns an error that says to call `revise_part` |
+| `update_part_revision` | write | Description and properties; on a Released or In Review revision it is an ECO (new Draft on apply), or an error that says to call `revise_part` where ECOs are off |
 | `revise_part` | write | the next Draft from a Released or In Review revision (the UI's Revise) |
 | `upload_bom` | write | `assembly_part_number`, `csv_text`, `mode` add or replace; previews through the import service and stages the result |
 

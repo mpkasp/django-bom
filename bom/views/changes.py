@@ -126,6 +126,7 @@ def _costs(impact):
             'after': change_display.money(target['after'], currency),
             'delta': change_display.money(target['delta'], currency),
             'is_increase': target['delta'] is not None and target['delta'] > 0,
+            'is_unchanged': target['delta'] is not None and target['delta'] == 0,
         } for target in cost['targets']],
     }
 

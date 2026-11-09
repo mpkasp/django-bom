@@ -4,7 +4,7 @@ Display only: nothing here changes data, and the MCP tools keep their own item s
 """
 from decimal import Decimal, InvalidOperation
 
-from bom.models import ChangeItem, PartClass, PartRevisionPropertyDefinition
+from bom.models import Change, ChangeItem, PartClass, PartRevision, PartRevisionPropertyDefinition
 from bom.services import parts
 from bom.services.changes import REF_PREFIX
 from bom.services.errors import ServiceError
@@ -54,7 +54,28 @@ def change_sections(change):
         section['entries'].append(_entry(item, context))
         if section['kind'] == 'fields' and len({entry['item'].kind for entry in section['entries']}) > 1:
             section['heading'] = 'Part details'
+    for section in sections.values():
+        section.update(_revision_transition(section, change))
     return list(sections.values())
+
+
+def _revision_transition(section, change):
+    """Edits to a Released revision land on a new Draft: before apply, say so; after, name the revision created."""
+    part_revision = section['part_revision']
+    if part_revision is None:
+        return {}
+    results = [entry['item'].result or {} for entry in section['entries']]
+    created = next((result.get('new_revision') or result.get('revision') for result in results
+                    if result.get('new_revision_id') or 'source_revision_id' in result), None)
+    # Applying moves the items onto the revision it created, so the one they started from is in the result.
+    previous_id = next((result.get('previous_revision_id') for result in results if result.get('previous_revision_id')), None)
+    transition = {'new_revision': created}
+    if previous_id:
+        transition['part_revision'] = PartRevision.objects.filter(pk=previous_id).first() or part_revision
+    revises = part_revision.is_immutable() or any(
+        entry['item'].kind == ChangeItem.KIND_CREATE_PART_REVISION for entry in section['entries'])
+    transition['revises_on_apply'] = created is None and revises and change.status in Change.PENDING_STATUSES
+    return transition
 
 
 def kind_label(kind):
@@ -96,6 +117,8 @@ def _new_section(item, kind, context):
         part_revision = context.revision(item.payload.get('assembly_part_number', ''),
                                          item.payload.get('assembly_revision'))
         part = part_revision.part if part_revision else None
+    elif item.kind == ChangeItem.KIND_CREATE_PART_REVISION:
+        part_revision = context.revision(item.payload.get('part_number', ''), item.payload.get('revision'))
     elif part is not None and part_revision is None:
         part_revision = part.latest()
     if kind == 'fields':

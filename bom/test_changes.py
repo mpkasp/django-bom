@@ -669,6 +669,25 @@ class ChangesViewTest(TestCase):
         self.assertContains(response, f'<span class="change-old">{revision.description}</span>', html=False)
         self.assertContains(response, '<span class="change-new-value">Renamed part</span>', html=False)
 
+    def test_review_page_shows_a_released_part_moving_to_a_new_revision(self):
+        revision = self.new_cap().latest()
+        PartRevision.objects.filter(pk=revision.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        change = changes.start_change(self.organization, self.user, 'Rename the cap')
+        changes.stage_item(change, ChangeItem.KIND_UPDATE_PART_REVISION, {
+            'part_number': revision.part.full_part_number(), 'description': 'Renamed cap'})
+        url = reverse('bom:change-review', kwargs={'number': change.number})
+
+        pending = self.client.get(url)
+        self.assertContains(pending, 'Rev 1 &middot; Released')
+        self.assertContains(pending, 'New Draft revision, released on approval')
+        self.assertContains(pending, '<span class="change-old">Other cap</span>', html=False)
+        self.assertContains(pending, '<span class="change-new-value">Renamed cap</span>', html=False)
+
+        self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
+        applied = self.client.get(url)
+        self.assertContains(applied, 'Rev 2</span>', html=False)
+        self.assertNotContains(applied, 'released on approval')
+
     def test_approved_eco_releases_what_it_created(self):
         assembly = self.parts[2].latest()
         PartRevision.objects.filter(pk=assembly.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
