@@ -6,16 +6,23 @@
                 <input type="hidden" name="status" value="accepted">
                 <button class="btn-flat btn-small" type="submit">Include again</button>
             </form>
-        {% else %}
-            <details class="change-leave-out">
-                <summary class="btn-flat btn-small">Leave out…</summary>
+        {% elif can_leave_out %}
+            <a class="btn-flat btn-small modal-trigger" href="#leave-out-{{ item.id }}">Leave out…</a>
+            <div id="leave-out-{{ item.id }}" class="modal left-align change-leave-out">
                 <form method="post" action="{% url 'bom:change-item-status' number=change.number item_id=item.id %}">{% csrf_token %}
                     <input type="hidden" name="status" value="rejected">
-                    <label for="leave-out-{{ item.id }}">Why leave this edit out?</label>
-                    <input id="leave-out-{{ item.id }}" class="browser-default" type="text" name="reason" required>
-                    <button class="btn-flat btn-small text-error" type="submit">Leave out</button>
+                    <div class="modal-content">
+                        <h5>Leave this edit out?</h5>
+                        <p class="text-grey">The rest of the request can still be approved. The author sees your reason.</p>
+                        <label for="leave-out-reason-{{ item.id }}">Why leave it out?</label>
+                        <input id="leave-out-reason-{{ item.id }}" class="browser-default" type="text" name="reason" required>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="modal-close btn-flat waves-effect">Cancel</button>
+                        <button class="btn btn-danger waves-effect" type="submit">Leave out</button>
+                    </div>
                 </form>
-            </details>
+            </div>
         {% endif %}
     {% endif %}
 {% endwith %}

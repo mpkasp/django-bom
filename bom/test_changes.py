@@ -654,9 +654,42 @@ class ChangesViewTest(TestCase):
         self.assertContains(response, '<td class="right-align">1</td>', html=False)
         self.assertNotContains(response, 'subpart_part_number')
         self.assertNotContains(response, 'prompt(')
-        self.assertContains(response, 'name="reason" class="browser-default" required')
-        self.assertContains(response, 'Leave out')
+        self.assertNotContains(response, 'Leave out')
         self.assertContains(response, 'Apply 1 edit')
+
+    def test_leaving_out_edits_updates_the_revision_promise_and_the_approve_button(self):
+        cap = self.new_cap()
+        revision = cap.latest()
+        PartRevision.objects.filter(pk=revision.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        change = changes.start_change(self.organization, self.user, 'Two edits')
+        rename = changes.stage_item(change, ChangeItem.KIND_UPDATE_PART_REVISION, {
+            'part_number': cap.full_part_number(), 'description': 'Renamed cap'})
+        add_line = changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': self.parts[2].full_part_number(), 'subpart_part_number': cap.full_part_number(),
+            'count': 1})
+        changes.submit_change(change, self.user)
+        url = reverse('bom:change-review', kwargs={'number': change.number})
+
+        response = self.client.get(url)
+        self.assertContains(response, 'Leave out…', count=2)
+        self.assertContains(response, 'name="reason" class="browser-default" required')
+        self.assertContains(response, 'New Draft revision, released on approval')
+        self.assertContains(response, 'Approve 2 edits')
+
+        self.client.post(reverse('bom:change-item-status', kwargs={'number': change.number, 'item_id': rename.id}),
+                         {'status': 'rejected', 'reason': 'keep the name'})
+        response = self.client.get(url)
+        self.assertNotContains(response, 'New Draft revision')
+        self.assertNotContains(response, 'ECO')
+        self.assertContains(response, 'Apply 1 edit')
+        self.assertContains(response, 'Include again')
+
+        self.client.post(reverse('bom:change-item-status', kwargs={'number': change.number, 'item_id': add_line.id}),
+                         {'status': 'rejected', 'reason': 'not needed'})
+        response = self.client.get(url)
+        self.assertNotContains(response, 'Apply 0 edits')
+        self.assertContains(response, 'nothing to approve')
+        self.assertContains(response, 'Reject…')
 
     def test_review_page_shows_before_and_after_for_part_details(self):
         revision = self.new_cap().latest()

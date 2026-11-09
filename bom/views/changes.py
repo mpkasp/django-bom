@@ -88,10 +88,12 @@ def change_review(request, organization, number):
     sections = change_display.change_sections(change)
     impact = changes.impact(change) if is_pending or change.status == Change.STATUS_APPLIED else None
     accepted_count = change.items.filter(status=ChangeItem.STATUS_ACCEPTED).count()
+    edit_count = sum(len(section['entries']) for section in sections)
+    can_approve = can_act and can_review and accepted_count > 0
     return TemplateResponse(request, 'bom/changes/change-review.html', {
         'title': f'Change request #{change.number}', 'name': 'changes', 'profile': user.bom_profile(),
         'organization': organization, 'change': change, 'sections': sections,
-        'edit_count': sum(len(section['entries']) for section in sections),
+        'edit_count': edit_count,
         'part_count': len({section['part'].id for section in sections if section['part']}),
         'author_name': change.author.get_full_name() or change.author.username,
         'is_eco': change.is_eco, 'is_protected': change.is_protected, 'is_stale': is_stale,
@@ -103,8 +105,11 @@ def change_review(request, organization, number):
         'can_revert': change.status == Change.STATUS_APPLIED and can_review
         and change.items.exclude(kind=ChangeItem.KIND_CSV_IMPORT).exists(),
         'is_pending': is_pending, 'is_author': is_author, 'can_review': can_review, 'approval': approval,
-        'can_apply': can_act and can_review and approval['can_apply'],
-        'can_apply_as_admin': can_act and can_review and not approval['can_apply'] and approval['can_override'],
+        'can_apply': can_approve and approval['can_apply'],
+        'can_apply_as_admin': can_approve and not approval['can_apply'] and approval['can_override'],
+        'nothing_left_to_apply': is_pending and can_review and edit_count > 0 and accepted_count == 0,
+        # Leaving out the only edit is a slower Reject, so a single-edit request offers Reject alone.
+        'can_leave_out': can_review and is_pending and edit_count > 1,
         'can_submit': is_author and change.status == Change.STATUS_DRAFT,
         'can_reject': can_review and is_pending,
         'accepted_count': accepted_count,

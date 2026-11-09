@@ -72,9 +72,10 @@ def _revision_transition(section, change):
     transition = {'new_revision': created}
     if previous_id:
         transition['part_revision'] = PartRevision.objects.filter(pk=previous_id).first() or part_revision
+    kept = [entry for entry in section['entries'] if not entry['is_left_out']]
     revises = part_revision.is_immutable() or any(
-        entry['item'].kind == ChangeItem.KIND_CREATE_PART_REVISION for entry in section['entries'])
-    transition['revises_on_apply'] = created is None and revises and change.status in Change.PENDING_STATUSES
+        entry['item'].kind == ChangeItem.KIND_CREATE_PART_REVISION for entry in kept)
+    transition['revises_on_apply'] = created is None and bool(kept) and revises and change.status in Change.PENDING_STATUSES
     return transition
 
 
