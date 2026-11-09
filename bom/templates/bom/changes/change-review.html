@@ -10,10 +10,9 @@
             <div class="change-head-text">
                 <h4>{{ change.title }}
                     {% include 'bom/changes/change-status-chip.html' %}
-                    <span class="chip">#{{ change.number }}</span>
-                    {% if is_stale %}<span class="chip amber lighten-3 black-text">Stale</span>{% endif %}
+                    {% if is_stale %}<span class="chip revision-chip-draft">Stale</span>{% endif %}
                 </h4>
-                <p class="change-byline grey-text">
+                <p class="change-byline text-grey">
                     {% if change.api_token %}Proposed by {{ change.api_token.name }} for {{ author_name }}{% else %}Proposed by {{ author_name }}{% endif %}
                     &middot; {{ change.created_at|timesince }} ago
                     &middot; {{ edit_count }} edit{{ edit_count|pluralize }}{% if part_count %} to {{ part_count }} part{{ part_count|pluralize }}{% endif %}
@@ -30,16 +29,16 @@
                     {% endif %}
                     {% if can_apply %}
                         <form method="post" action="{% url 'bom:change-apply' number=change.number %}">{% csrf_token %}
-                            <button class="btn waves-effect green" type="submit">{% if is_eco %}Approve {% else %}Apply {% endif %}{{ accepted_count }} edit{{ accepted_count|pluralize }}</button></form>
+                            <button class="btn btn-primary waves-effect" type="submit">{% if is_eco %}Approve {% else %}Apply {% endif %}{{ accepted_count }} edit{{ accepted_count|pluralize }}</button></form>
                     {% endif %}
                     {% if can_apply_as_admin %}
                         <form method="post" action="{% url 'bom:change-apply' number=change.number %}" onsubmit="return confirm('Apply your own protected change as an Admin? This override is recorded.');">{% csrf_token %}
                             <input type="hidden" name="override" value="1">
-                            <button class="btn waves-effect orange" type="submit">Apply as admin</button></form>
+                            <button class="btn btn-primary waves-effect" type="submit">Apply as admin</button></form>
                     {% endif %}
                     {% if can_rebase %}
                         <form method="post" action="{% url 'bom:change-rebase' number=change.number %}">{% csrf_token %}
-                            <button class="btn waves-effect amber darken-2" type="submit">Rebase</button></form>
+                            <button class="btn-outline waves-effect" type="submit">Rebase</button></form>
                     {% endif %}
                     {% if can_reject %}
                         <details class="change-reject">
@@ -47,7 +46,7 @@
                             <form class="card-panel z-depth-2" method="post" action="{% url 'bom:change-reject' number=change.number %}">{% csrf_token %}
                                 <label for="reject-reason">Why are you rejecting this? The author sees your reason.</label>
                                 <textarea id="reject-reason" name="reason" class="browser-default" required></textarea>
-                                <button class="btn waves-effect red darken-1" type="submit">Reject change request</button>
+                                <button class="btn btn-danger waves-effect" type="submit">Reject change request</button>
                             </form>
                         </details>
                     {% endif %}
@@ -55,13 +54,12 @@
                         <form method="post" action="{% url 'bom:change-withdraw' number=change.number %}" onsubmit="return confirm('Withdraw this change request?');">{% csrf_token %}
                             <button class="btn-flat waves-effect" type="submit">Withdraw</button></form>
                     {% endif %}
-                    <p class="change-ready grey-text">{{ approval.message }}</p>
                 </div>
             {% elif change.status == 'applied' %}
                 <div class="change-actions">
                     {% for revision in created_revisions %}
                         {% if revision.configuration == 'D' %}
-                            <a class="btn waves-effect teal" href="{% url 'bom:part-revision-release' part_id=revision.part_id part_revision_id=revision.id %}">
+                            <a class="btn btn-primary waves-effect" href="{% url 'bom:part-revision-release' part_id=revision.part_id part_revision_id=revision.id %}">
                                 Release rev {{ revision.revision }} of {{ revision.part.full_part_number }}</a>
                         {% else %}
                             <a class="btn-flat waves-effect" href="{% url 'bom:part-info-history' part_id=revision.part_id part_revision_id=revision.id %}">
@@ -70,30 +68,26 @@
                     {% endfor %}
                     {% if can_revert %}
                         <form method="post" action="{% url 'bom:change-revert' number=change.number %}" onsubmit="return confirm('Revert this change? A new change that undoes it will be applied.');">{% csrf_token %}
-                            <button class="btn-flat waves-effect red-text" type="submit">Revert</button></form>
+                            <button class="btn-flat waves-effect text-error" type="submit">Revert</button></form>
                     {% endif %}
                 </div>
             {% endif %}
         </div>
+        {% if is_pending and can_review and not approval.can_apply %}<p class="change-ready text-grey">{{ approval.message }}</p>{% endif %}
 
-        {% if is_eco %}
-            <div class="card-panel deep-purple lighten-5">
-                This is an Engineering Change Order (ECO): it changes Released parts. Approving it puts the edits on new
-                Draft revisions and releases the revisions it creates or names, children before parents. Released
-                revisions themselves are never edited.
-            </div>
-        {% endif %}
         {% if is_stale %}
-            <div class="card-panel amber lighten-4 black-text">
-                The parts this change touches were edited after it was proposed, so it can't be applied as it is.
-                Rebase it to check each edit against the current parts; edits that no longer fit are left out.
+            <div class="alert alert-warning">
+                The parts this change touches were edited after it was proposed. Rebase it to re-check each edit;
+                edits that no longer fit are left out.
             </div>
         {% endif %}
 
-        <div class="card-panel change-why">
-            <span class="change-label">Why</span>
-            <p>{{ change.rationale|default:"No reason given."|linebreaksbr }}</p>
-        </div>
+        {% if change.rationale %}
+            <div class="change-why">
+                <span class="change-label">Why</span>
+                <p>{{ change.rationale|linebreaksbr }}</p>
+            </div>
+        {% endif %}
 
         <div class="change-columns">
             <div class="change-sections">
@@ -101,47 +95,52 @@
             </div>
 
             <aside class="change-side">
-                {% if costs and costs.targets %}
-                    <div class="card-panel change-fact">
-                        <span class="change-label">Cost per unit at {{ costs.quantity }}</span>
-                        {% for target in costs.targets %}
-                            {% if target.is_unchanged %}
-                                <p>{{ target.part_number }} stays at {{ target.before }}.</p>
-                            {% elif target.delta is not None %}
-                                <p class="change-big">{{ target.before }} &rarr; {{ target.after }}</p>
-                                <p class="{% if target.is_increase %}change-increase{% else %}change-decrease{% endif %}">{% if target.is_increase %}+{% endif %}{{ target.delta }} on {{ target.part_number }}</p>
-                            {% elif is_pending %}
-                                <p class="grey-text">{{ target.part_number }}: the cost after this change couldn't be worked out.</p>
-                            {% else %}
-                                <p>{{ target.part_number }}: {{ target.before }} now.</p>
-                            {% endif %}
-                        {% endfor %}
-                        {% if costs.targets|length > 1 and costs.total_delta %}
-                            <p><b>Total {% if costs.is_increase %}+{% endif %}{{ costs.total_delta }}</b></p>
+                {% if costs and costs.targets or impact or is_pending %}
+                    <div class="card-panel change-facts">
+                        {% if costs and costs.targets %}
+                            <div class="change-fact">
+                                <span class="change-label">Cost per unit at {{ costs.quantity }}</span>
+                                {% for target in costs.targets %}
+                                    {% if target.is_unchanged %}
+                                        <p>{{ target.before }}, unchanged{% if costs.targets|length > 1 %} on {{ target.part_number }}{% endif %}</p>
+                                    {% elif target.delta is not None %}
+                                        <p><span class="change-big">{{ target.before }} &rarr; {{ target.after }}</span>
+                                            <span class="{% if target.is_increase %}change-increase{% else %}change-decrease{% endif %}">{% if target.is_increase %}+{% endif %}{{ target.delta }}</span>{% if costs.targets|length > 1 %} on {{ target.part_number }}{% endif %}</p>
+                                    {% elif is_pending %}
+                                        <p class="text-grey">Couldn't be worked out for {{ target.part_number }}.</p>
+                                    {% else %}
+                                        <p>{{ target.before }} now{% if costs.targets|length > 1 %} on {{ target.part_number }}{% endif %}</p>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if costs.targets|length > 1 and costs.total_delta %}
+                                    <p><b>Total {% if costs.is_increase %}+{% endif %}{{ costs.total_delta }}</b></p>
+                                {% endif %}
+                            </div>
                         {% endif %}
-                    </div>
-                {% endif %}
-                {% if impact %}
-                    <div class="card-panel change-fact">
-                        <span class="change-label">Where it's used</span>
-                        {% for assembly in impact.assemblies %}
-                            <p>{{ assembly.part_number }} rev {{ assembly.revision }}
-                                <span class="grey-text">({{ assembly.configuration }}, uses {{ assembly.uses }})</span>
-                                {% if assembly.needs_new_revision %}<br><small>Released, so it needs a new revision to use this change.</small>{% endif %}</p>
-                        {% empty %}
-                            <p>The parts this changes aren't used in any other assembly.</p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-                {% if is_pending %}
-                    <div class="card-panel change-fact">
-                        <span class="change-label">Checks</span>
-                        {% for problem in problems %}
-                            <p class="{% if problem.level == 'error' %}red-text{% else %}amber-text text-darken-3{% endif %}">
-                                {{ problem.item.position }}. {{ problem.message }}</p>
-                        {% empty %}
-                            <p class="change-ok"><i class="material-icons tiny">check</i> No problems found</p>
-                        {% endfor %}
+                        {% if impact %}
+                            <div class="change-fact">
+                                <span class="change-label">Where it's used</span>
+                                {% for assembly in impact.assemblies %}
+                                    <p>{{ assembly.part_number }} rev {{ assembly.revision }}
+                                        <span class="text-grey">({{ assembly.configuration }}, uses {{ assembly.uses }})</span>
+                                        {% if assembly.needs_new_revision %}<br><small>Released, so it needs a new revision to pick this up.</small>{% endif %}</p>
+                                {% empty %}
+                                    <p class="text-grey">Not used in any other assembly</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if is_pending %}
+                            <div class="change-fact">
+                                <span class="change-label">Checks</span>
+                                {% for problem in problems %}
+                                    <p class="{% if problem.level == 'error' %}text-error{% else %}text-grey{% endif %}">
+                                        <i class="material-icons tiny">{% if problem.level == 'error' %}error_outline{% else %}warning_amber{% endif %}</i>
+                                        {{ problem.item.position }}. {{ problem.message }}</p>
+                                {% empty %}
+                                    <p class="change-ok"><i class="material-icons tiny">check</i> No problems found</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                 {% endif %}
                 {% if cascade_candidates or cascaded_revisions %}
@@ -155,7 +154,7 @@
                                         <input type="checkbox" name="parent_revision_id" value="{{ candidate.parent.id }}" checked>
                                         <span>{{ candidate.parent.part.full_part_number }} rev {{ candidate.parent.revision }}</span></label></p>
                                 {% endfor %}
-                                <button class="btn waves-effect teal" type="submit">Create new revisions for selected</button>
+                                <button class="btn btn-primary waves-effect" type="submit">Create new revisions for selected</button>
                             </form>
                         {% endif %}
                         {% for revision in cascaded_revisions %}

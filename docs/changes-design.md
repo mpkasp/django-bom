@@ -150,13 +150,16 @@ inline `confirm()` pattern for irreversible actions.
 - `/changes/<number>/` review (rendered by `bom/services/change_display.py`): header with the change's title,
   status, number, ECO and stale chips, "Proposed by <connection> for <user>" byline, and the actions beside the
   title: Approve or Apply N edits (applies, then releases the revisions it creates), Apply as admin (Admins on
-  protected changes, with confirm), Rebase (when stale), Reject… (an inline reason box, required), Withdraw
-  (author), and the approval rule. A "Why" card holds the rationale. Items are grouped by the part they touch:
-  BOM edits as diff rows (reference, part number and name, quantity old → new; green adds, red removes),
-  part details and prices as before → after fields, new parts as a field list, revisions and releases as a
-  sentence. Each edit has Leave out… (with a reason) or Include again. Right rail: cost per unit at the quote
-  quantity, where it's used, and checks (validation errors and warnings). Release is part of Approve, so there
-  is no separate "Release rev N" step.
+  protected changes, with confirm), Rebase (when stale), Reject… (an inline reason box, required) and Withdraw
+  (author). The approval rule is spelled out only when the viewer can't apply; the ECO chip's tooltip carries the
+  ECO definition, and the per-part header shows the revision it moves to ("Rev 1 · Released → New Draft revision,
+  released on approval"), so the page has no explanatory banners. The rationale follows the byline under a "Why"
+  label. Items are grouped by the part they touch: BOM edits as diff rows (reference, part number and name,
+  quantity old → new; green adds, red removes), part details and prices as before → after fields, new parts as a
+  field list, revisions and releases as a sentence. Each edit has Leave out… (with a reason) or Include again.
+  Right rail: one card with cost per unit at the quote quantity, where it's used, and checks (validation errors
+  and warnings); cascade candidates get their own card. Release is part of Approve, so there is no separate
+  "Release rev N" step.
 - Part page: banner "N open changes touch this revision" linking to the review page; proposed
   lines ghosted inside the existing BOM component with a "Proposed" chip (Phase 2); a "History" tab
   (formerly "Changes") listing direct edits, releases and applied requests, newest first (Phase 4); a "Compare with rev N" link in the

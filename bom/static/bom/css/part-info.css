@@ -211,26 +211,6 @@ a.part-thumb-empty:hover {
     margin-bottom: 2px;
 }
 
-.revision-chip-draft {
-    background: #fff3cd;
-    color: #6d4c00;
-}
-
-.revision-chip-review {
-    background: #e3e8fb;
-    color: #283593;
-}
-
-.revision-chip-released {
-    background: #dcefdf;
-    color: #1b5e20;
-}
-
-.revision-chip-obsolete {
-    background: #eeeeee;
-    color: #616161;
-}
-
 .part-status-strip {
     display: flex;
     flex-wrap: wrap;

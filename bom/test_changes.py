@@ -591,7 +591,8 @@ class ChangesViewTest(TestCase):
     def test_review_page_renders_and_apply_post_applies(self):
         response = self.client.get(self.review_url())
         self.assertContains(response, 'New part')
-        self.assertContains(response, 'Any Editor or Admin can apply')
+        self.assertContains(response, 'Apply 1 edit')
+        self.assertNotContains(response, 'Any Editor or Admin can apply')
 
         response = self.client.post(self.review_url('change-apply'), follow=True)
         self.assertContains(response, 'applied')

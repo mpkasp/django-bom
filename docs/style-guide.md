@@ -175,9 +175,10 @@ materials · 12"). Content for each tab goes in its own `.card-panel.tab-card`.
 - Revision state uses `.chip.revision-chip-{draft,review,released,obsolete}`; the header's
   `.revision-picker` reuses the same tints. Draft = warning tint, In review = info tint, Released =
   primary tint, Obsolete = neutral.
-- Change status uses `changes/change-status-chip.html`. Vendor and manufacturer approval use a
-  Materialize `badge`. These three should converge on the revision chip tints (see *Known debt*);
-  until then, new status chips use the revision chip classes.
+- Change status (`changes/change-status-chip.html`) uses the same classes: Open and Stale = draft,
+  Applied = released, ECO = review, Rejected and Withdrawn = obsolete. The classes live in `style.css`
+  so any page can use them. Vendor and manufacturer approval still use a Materialize `badge` (see
+  *Known debt*); new status chips use the revision chip classes.
 - A `.part-status-strip` under a page header explains where something stands in one sentence,
   with a leading icon and an optional right-aligned link (`.part-status-action`).
 
@@ -232,8 +233,9 @@ Fix these as the pages they live on are touched; none needs its own project.
   btn-flat` (a flat button with a filled background; use `btn-flat`), `teal-text text-darken-1` on
   section icons while every other accent is green (use `.text-primary`), and `grey-text`
   variants for secondary text (use `.text-grey`).
-- **Three chip systems** (revision chips, change status chip, approval badges) with three
-  palettes.
+- **Two chip systems**: revision and change status chips share one palette; approval badges
+  still use Materialize `badge`. The chip tints are literal light surfaces with dark ink rather
+  than tokens, because the host's `*-surface` tokens are not paired with an ink colour.
 - **Button radius.** `.btn-outline`, `.revision-picker` and `.view-toggle` are pills; Materialize's
   `.btn` is 2px, so a standalone install shows both shapes side by side. Decide whether `.btn`
   becomes a pill in django-bom (IndaBOM already rounds it to 20px) or stays square.

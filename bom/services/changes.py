@@ -429,11 +429,6 @@ def validate_change(change):
             _PREPARERS[item.kind](change.organization, item.payload, validate=True)
         except ServiceError as error:
             problems.append({'item': item, 'level': 'error', 'message': str(error)})
-            continue
-        if item.part_revision_id and item.part_revision.is_immutable():
-            problems.append({'item': item, 'level': 'warning', 'message': (
-                f"{item.part_revision.part.full_part_number()} rev {item.part_revision.revision} is "
-                f"{item.part_revision.get_configuration_display()}; applying creates a new Draft revision.")})
     return problems
 
 

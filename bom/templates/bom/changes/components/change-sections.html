@@ -4,7 +4,7 @@
             {% if section.kind == 'new_part' %}
                 <span class="chip change-new">New part</span>
                 <span>{{ section.entries.0.title }}</span>
-                {% if section.entries.0.part_number %}<span class="grey-text">created as {{ section.entries.0.part_number }}</span>{% endif %}
+                {% if section.entries.0.part_number %}<span class="text-grey">created as {{ section.entries.0.part_number }}</span>{% endif %}
             {% elif section.part %}
                 <a href="{% url 'bom:part-info' part_id=section.part.id %}">{{ section.part.full_part_number }}</a>
                 {% if section.part_revision %}
@@ -17,7 +17,7 @@
                     {% endif %}
                 {% endif %}
             {% endif %}
-            <span class="change-part-kind grey-text">{{ section.heading }}</span>
+            <span class="change-part-kind text-grey">{{ section.heading }}</span>
         </div>
 
         {% if section.kind == 'bom' %}
@@ -30,7 +30,7 @@
                             <td><span class="change-sign">{% if entry.state == 'add' %}+{% elif entry.state == 'remove' %}&minus;{% endif %}</span>
                                 {% if entry.reference_before is not None and entry.reference_before != entry.reference %}<span class="change-old">{{ entry.reference_before|default:"none" }}</span> {% endif %}{{ entry.reference }}</td>
                             <td class="change-mono">{% if entry.part_id %}<a href="{% url 'bom:part-info' part_id=entry.part_id %}">{{ entry.part_number }}</a>{% else %}{{ entry.part_number }}{% endif %}</td>
-                            <td>{{ entry.name }}{% if entry.detail %}<br><small class="grey-text">{{ entry.detail }}</small>{% endif %}</td>
+                            <td>{{ entry.name }}{% if entry.detail %}<br><small class="text-grey">{{ entry.detail }}</small>{% endif %}</td>
                             <td class="right-align">{% if entry.quantity_before is not None %}<span class="change-old">{{ entry.quantity_before }}</span> <span class="change-new-value">{{ entry.quantity }}</span>{% else %}{{ entry.quantity }}{% endif %}</td>
                             <td class="right-align">{% include 'bom/changes/components/change-item-review.html' %}</td>
                         </tr>
@@ -53,7 +53,7 @@
                         <dl>
                             {% for label, before, after in entry.fields %}
                                 <dt>{{ label }}</dt>
-                                <dd>{% if section.kind == 'new_part' or entry.is_addition %}{{ after }}{% else %}{% if before is not None and before != '' %}<span class="change-old">{{ before }}</span> &rarr; {% else %}<span class="grey-text">empty</span> &rarr; {% endif %}{% if after is None or after == '' %}<span class="grey-text">cleared</span>{% else %}<span class="change-new-value">{{ after }}</span>{% endif %}{% endif %}</dd>
+                                <dd>{% if section.kind == 'new_part' or entry.is_addition %}{{ after }}{% else %}{% if before is not None and before != '' %}<span class="change-old">{{ before }}</span> &rarr; {% else %}<span class="text-grey">empty</span> &rarr; {% endif %}{% if after is None or after == '' %}<span class="text-grey">cleared</span>{% else %}<span class="change-new-value">{{ after }}</span>{% endif %}{% endif %}</dd>
                             {% endfor %}
                         </dl>
                     {% else %}

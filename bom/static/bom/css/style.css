@@ -679,6 +679,27 @@ a.anchor {
     font-size: 20px;
 }
 
+/* Revision and change status tints: light surfaces with dark ink, so they read on a dark page too. */
+.revision-chip-draft {
+    background: #fff3cd;
+    color: #6d4c00;
+}
+
+.revision-chip-review {
+    background: #e3e8fb;
+    color: #283593;
+}
+
+.revision-chip-released {
+    background: #dcefdf;
+    color: #1b5e20;
+}
+
+.revision-chip-obsolete {
+    background: #eeeeee;
+    color: #616161;
+}
+
 .btn-outline-danger {
     color: #e53935;
 }
@@ -946,11 +967,11 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 /* Change request page: rgba tints so additions, removals and changes read on light and dark backgrounds. */
 .change-page {
     --change-add: rgba(67, 160, 71, 0.14);
-    --change-add-ink: #43a047;
+    --change-add-ink: var(--color-primary-contrast, #2e7d32);
     --change-remove: rgba(229, 57, 53, 0.12);
-    --change-remove-ink: #e53935;
+    --change-remove-ink: var(--color-error, #f44336);
     --change-edit: rgba(255, 179, 0, 0.18);
-    --change-edit-ink: #f9a825;
+    --change-edit-ink: var(--color-warning, #f9a825);
 }
 
 .change-head {
@@ -981,6 +1002,7 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 
 .change-actions {
     display: flex;
+    flex: 0 0 auto;
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
@@ -988,9 +1010,7 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 }
 
 .change-ready {
-    flex-basis: 100%;
-    margin: 0;
-    text-align: right;
+    margin: 8px 0 0;
     font-size: 0.9rem;
 }
 
@@ -1051,7 +1071,11 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     font-weight: 500;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: #757575;
+    color: var(--color-text-grey, #616161);
+}
+
+.change-why {
+    margin: 16px 0 20px;
 }
 
 .change-why p {
@@ -1069,10 +1093,6 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 @media only screen and (max-width: 992px) {
     .change-columns {
         grid-template-columns: 1fr;
-    }
-
-    .change-ready {
-        text-align: left;
     }
 
     .change-reject form {
@@ -1114,10 +1134,11 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 
 .change-new {
     background: var(--change-add);
+    color: inherit;
 }
 
 .change-revision-arrow {
-    color: #757575;
+    color: var(--color-text-grey, #616161);
 }
 
 .change-bom {
@@ -1217,7 +1238,7 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 }
 
 .change-fields dt {
-    color: #757575;
+    color: var(--color-text-grey, #616161);
 }
 
 .change-fields dd {
@@ -1229,9 +1250,13 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     gap: 12px;
 }
 
-.change-side .change-fact {
+.change-side .card-panel {
     margin: 0;
     padding: 12px 16px;
+}
+
+.change-facts .change-fact + .change-fact {
+    margin-top: 14px;
 }
 
 .change-fact p {
