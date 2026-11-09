@@ -10,6 +10,11 @@
                 {% if section.part_revision %}
                     <span>{{ section.part_revision.description }}</span>
                     <span class="chip">Rev {{ section.part_revision.revision }} &middot; {{ section.part_revision.get_configuration_display }}</span>
+                    {% if section.new_revision %}
+                        <span class="change-revision-arrow">&rarr;</span><span class="chip change-new">Rev {{ section.new_revision }}</span>
+                    {% elif section.revises_on_apply %}
+                        <span class="change-revision-arrow">&rarr;</span><span class="chip change-new">New Draft revision{% if is_eco %}, released on approval{% endif %}</span>
+                    {% endif %}
                 {% endif %}
             {% endif %}
             <span class="change-part-kind grey-text">{{ section.heading }}</span>

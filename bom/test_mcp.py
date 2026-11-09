@@ -335,12 +335,37 @@ class MCPRevisionToolsTest(MCPTestCase):
                                description='x' * 300)
         self.assertIn('description', error)
 
-    def test_update_part_revision_on_an_immutable_revision_says_to_revise_first(self):
+    def test_update_part_revision_on_a_released_revision_is_an_eco_that_lands_on_the_next_draft(self):
+        self.release()
+        client = self.mcp(self.apply_plaintext)
+        change_id = self.start_change(self.apply_plaintext)
+
+        staged, error = client.call('update_part_revision', part_number=self.part_number, change_id=change_id,
+                                    description='Subject, revised')
+
+        self.assertIsNone(error, error)
+        self.assertEqual(staged['staged']['kind'], 'update_part_revision')
+        detail, _ = client.call('get_change', change_id=change_id)
+        self.assertTrue(detail['is_eco'])
+
+        change, error = client.call('apply_change', change_id=change_id)
+
+        self.assertIsNone(error, error)
+        self.revision.refresh_from_db()
+        self.assertEqual((self.revision.configuration, self.revision.description),
+                         (constants.CONFIGURATION_TYPE_RELEASED, 'Subject'))
+        new_revision = self.revision.part.latest()
+        self.assertEqual((new_revision.revision, new_revision.configuration, new_revision.description),
+                         ('2', constants.CONFIGURATION_TYPE_DRAFT, 'Subject, revised'))
+        self.assertEqual(change['items'][0]['result']['new_revision'], '2')
+
+    def test_update_part_revision_on_a_released_revision_says_to_revise_first_without_ecos(self):
         self.release()
         change_id = self.start_change(self.write_plaintext)
 
-        result, error = self.mcp(self.write_plaintext).call(
-            'update_part_revision', part_number=self.part_number, change_id=change_id, description='Nope')
+        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, eco_enabled=False)):
+            result, error = self.mcp(self.write_plaintext).call(
+                'update_part_revision', part_number=self.part_number, change_id=change_id, description='Nope')
 
         self.assertIsNone(result)
         self.assertIn('revise_part', error)

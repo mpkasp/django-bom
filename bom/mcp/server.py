@@ -12,7 +12,7 @@ from bom.permissions import BomPerms
 from bom.models import Change, ChangeItem, PartRevision, SellerPart
 from bom.services import boms, changes, parts, sourcing
 from bom.services.errors import ServiceError
-from bom.services.flags import changes_review_enabled
+from bom.services.flags import changes_review_enabled, eco_enabled
 from bom.services.search import latest_part_revisions, search_parts
 
 logger = logging.getLogger(__name__)
@@ -362,14 +362,16 @@ def add_seller_part(ctx: Context, manufacturer_part_id: int | str, seller: str, 
 @mcp.tool(annotations=WRITE)
 def update_part_revision(ctx: Context, part_number: str, change_id: int, description: str | None = None,
                          properties: dict[str, str] | None = None, revision: str | None = None) -> dict:
-    """Stage a new description and/or property values (codes from get_organization) on a part's Draft revision;
-    values left out are kept and a property given as an empty string is cleared. Only Draft revisions can be
-    edited: for a Released or In Review revision, stage revise_part and have that change applied first, then edit
-    the new Draft. Stages into `change_id` (from start_change); nothing is saved until the change is applied."""
+    """Stage a new description and/or property values (codes from get_organization) on a part's revision; values
+    left out are kept and a property given as an empty string is cleared. Draft revisions are edited in place. A
+    Released or In Review revision makes the change an Engineering Change Order: applying it creates the next
+    Draft revision with the new values, so the reviewer sees the old and new values side by side. Where ECOs are
+    not enabled, stage revise_part and have that change applied first, then edit the new Draft. Stages into
+    `change_id` (from start_change); nothing is saved until the change is applied."""
     with tool_call(ctx, 'update_part_revision') as actor:
         actor.require_write(BomPerms.EDIT_PART)
         part_revision = parts.revision_from_number(actor.organization, part_number, revision)
-        if part_revision.is_immutable():
+        if part_revision.is_immutable() and not eco_enabled(actor.organization):
             raise ToolError(
                 f"{part_number} rev {part_revision.revision} is {part_revision.get_configuration_display()} and "
                 f"cannot be edited. Call revise_part to create the next Draft (and have that change applied), "

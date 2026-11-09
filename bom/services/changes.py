@@ -299,7 +299,7 @@ def _apply_items(change, items):
             if new_revision is None:
                 new_revision = new_revisions[target.part_id] = parts.create_next_revision(target)
                 draft_parents_updated = _retarget_draft_parents(target, new_revision)
-            payload['assembly_revision'] = new_revision.revision
+            payload[_REDIRECT_KEYS.get(item.kind, 'assembly_revision')] = new_revision.revision
             item.part_revision = new_revision
         try:
             item.result = _APPLIERS[item.kind](change.organization, payload)
@@ -314,6 +314,10 @@ def _apply_items(change, items):
         if item.ref:
             ref_values[item.ref] = _ref_value(item)
     return new_revisions
+
+
+# Which payload field names the revision an item edits, for redirecting it to the new Draft.
+_REDIRECT_KEYS = {ChangeItem.KIND_UPDATE_PART_REVISION: 'revision'}
 
 
 def _retarget_draft_parents(previous_revision, new_revision):
@@ -1131,7 +1135,7 @@ def _prepare_update_part_revision(organization, payload, validate):
         return prepared
     part_revision = parts.revision_from_number(organization, part_number, payload.pop('revision', None))
     before = parts.revision_values(part_revision)
-    _call(parts.bind_revision_update, organization, part_revision, **payload)
+    _call(parts.bind_revision_update, organization, part_revision, allow_immutable=True, **payload)
     return dict(prepared, part=part_revision.part, part_revision=part_revision, before=before,
                 summary=f"{prepared['summary']} rev {part_revision.revision}")
 

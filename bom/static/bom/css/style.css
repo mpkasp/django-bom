@@ -1116,6 +1116,10 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     background: var(--change-add);
 }
 
+.change-revision-arrow {
+    color: #757575;
+}
+
 .change-bom {
     font-variant-numeric: tabular-nums;
 }

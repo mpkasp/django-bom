@@ -105,7 +105,9 @@
                     <div class="card-panel change-fact">
                         <span class="change-label">Cost per unit at {{ costs.quantity }}</span>
                         {% for target in costs.targets %}
-                            {% if target.delta is not None %}
+                            {% if target.is_unchanged %}
+                                <p>{{ target.part_number }} stays at {{ target.before }}.</p>
+                            {% elif target.delta is not None %}
                                 <p class="change-big">{{ target.before }} &rarr; {{ target.after }}</p>
                                 <p class="{% if target.is_increase %}change-increase{% else %}change-decrease{% endif %}">{% if target.is_increase %}+{% endif %}{{ target.delta }} on {{ target.part_number }}</p>
                             {% elif is_pending %}
