@@ -691,6 +691,42 @@ class ChangesViewTest(TestCase):
         self.assertContains(response, 'nothing to approve')
         self.assertContains(response, 'Reject…')
 
+    def test_sourcing_edits_to_a_released_part_promise_no_new_revision(self):
+        cap = self.new_cap()
+        change = changes.start_change(self.organization, self.user, 'Second source')
+        rename = changes.stage_item(change, ChangeItem.KIND_UPDATE_PART_REVISION, {
+            'part_number': cap.full_part_number(), 'description': 'Renamed cap'})
+        changes.stage_item(change, ChangeItem.KIND_ADD_MANUFACTURER_PART, {
+            'part_number': cap.full_part_number(), 'manufacturer': 'Acme', 'manufacturer_part_number': 'ALT-1'})
+        changes.submit_change(change, self.user)
+        # Sourcing edits cannot be staged against a Released part, so release it after staging.
+        PartRevision.objects.filter(pk=cap.latest().pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        url = reverse('bom:change-review', kwargs={'number': change.number})
+        self.assertContains(self.client.get(url), 'New Draft revision')
+
+        changes.set_item_status(change, rename, ChangeItem.STATUS_REJECTED, 'keep the name')
+        response = self.client.get(url)
+        self.assertNotContains(response, 'New Draft revision')
+        self.assertNotContains(response, 'ECO')
+        self.assertContains(response, 'Apply 1 edit')
+
+    def test_an_edit_cannot_be_included_again_while_what_it_uses_is_left_out(self):
+        change = changes.start_change(self.organization, self.user, 'New cap and a line')
+        create = changes.stage_item(change, ChangeItem.KIND_CREATE_PART, {
+            'description': 'Cap', 'part_class_code': str(self.parts[0].number_class.code),
+            'properties': {'sheen': 'matte', 'voltage': '3.3'}, 'property_units': {'voltage': 'V'}}, ref='cap')
+        add_line = changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': self.parts[2].full_part_number(), 'subpart_part_number': '$ref:cap', 'count': 1})
+        changes.set_item_status(change, create, ChangeItem.STATUS_REJECTED, 'exists already')
+        add_line.refresh_from_db()
+        self.assertEqual(add_line.status, ChangeItem.STATUS_REJECTED)
+
+        with self.assertRaisesMessage(ServiceError, 'uses what item 1 creates; include that first'):
+            changes.set_item_status(change, add_line, ChangeItem.STATUS_ACCEPTED)
+        changes.set_item_status(change, create, ChangeItem.STATUS_ACCEPTED)
+        changes.set_item_status(change, add_line, ChangeItem.STATUS_ACCEPTED)
+        self.assertEqual(change.items.filter(status=ChangeItem.STATUS_ACCEPTED).count(), 2)
+
     def test_review_page_shows_before_and_after_for_part_details(self):
         revision = self.new_cap().latest()
         change = changes.start_change(self.organization, self.user, 'Rename')

@@ -1221,7 +1221,10 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     background: var(--change-edit);
 }
 
-.change-left-out {
+.change-bom tr.change-left-out td:nth-child(-n+4),
+.change-left-out > dl,
+.change-left-out > .change-label,
+.change-left-out > p:not(.change-left-out-reason) {
     opacity: 0.55;
 }
 
