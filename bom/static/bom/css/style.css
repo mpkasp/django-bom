@@ -1054,6 +1054,10 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     color: #757575;
 }
 
+.change-why {
+    margin: 16px 0 20px;
+}
+
 .change-why p {
     margin: 0;
     max-width: 80ch;
@@ -1229,9 +1233,13 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     gap: 12px;
 }
 
-.change-side .change-fact {
+.change-side .card-panel {
     margin: 0;
     padding: 12px 16px;
+}
+
+.change-facts .change-fact + .change-fact {
+    margin-top: 14px;
 }
 
 .change-fact p {

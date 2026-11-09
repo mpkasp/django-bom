@@ -10,7 +10,6 @@
             <div class="change-head-text">
                 <h4>{{ change.title }}
                     {% include 'bom/changes/change-status-chip.html' %}
-                    <span class="chip">#{{ change.number }}</span>
                     {% if is_stale %}<span class="chip amber lighten-3 black-text">Stale</span>{% endif %}
                 </h4>
                 <p class="change-byline grey-text">
@@ -55,7 +54,7 @@
                         <form method="post" action="{% url 'bom:change-withdraw' number=change.number %}" onsubmit="return confirm('Withdraw this change request?');">{% csrf_token %}
                             <button class="btn-flat waves-effect" type="submit">Withdraw</button></form>
                     {% endif %}
-                    <p class="change-ready grey-text">{{ approval.message }}</p>
+                    {% if can_review and not approval.can_apply %}<p class="change-ready grey-text">{{ approval.message }}</p>{% endif %}
                 </div>
             {% elif change.status == 'applied' %}
                 <div class="change-actions">
@@ -76,24 +75,19 @@
             {% endif %}
         </div>
 
-        {% if is_eco %}
-            <div class="card-panel deep-purple lighten-5">
-                This is an Engineering Change Order (ECO): it changes Released parts. Approving it puts the edits on new
-                Draft revisions and releases the revisions it creates or names, children before parents. Released
-                revisions themselves are never edited.
-            </div>
-        {% endif %}
         {% if is_stale %}
             <div class="card-panel amber lighten-4 black-text">
-                The parts this change touches were edited after it was proposed, so it can't be applied as it is.
-                Rebase it to check each edit against the current parts; edits that no longer fit are left out.
+                The parts this change touches were edited after it was proposed. Rebase it to re-check each edit;
+                edits that no longer fit are left out.
             </div>
         {% endif %}
 
-        <div class="card-panel change-why">
-            <span class="change-label">Why</span>
-            <p>{{ change.rationale|default:"No reason given."|linebreaksbr }}</p>
-        </div>
+        {% if change.rationale %}
+            <div class="change-why">
+                <span class="change-label">Why</span>
+                <p>{{ change.rationale|linebreaksbr }}</p>
+            </div>
+        {% endif %}
 
         <div class="change-columns">
             <div class="change-sections">
@@ -101,47 +95,51 @@
             </div>
 
             <aside class="change-side">
-                {% if costs and costs.targets %}
-                    <div class="card-panel change-fact">
-                        <span class="change-label">Cost per unit at {{ costs.quantity }}</span>
-                        {% for target in costs.targets %}
-                            {% if target.is_unchanged %}
-                                <p>{{ target.part_number }} stays at {{ target.before }}.</p>
-                            {% elif target.delta is not None %}
-                                <p class="change-big">{{ target.before }} &rarr; {{ target.after }}</p>
-                                <p class="{% if target.is_increase %}change-increase{% else %}change-decrease{% endif %}">{% if target.is_increase %}+{% endif %}{{ target.delta }} on {{ target.part_number }}</p>
-                            {% elif is_pending %}
-                                <p class="grey-text">{{ target.part_number }}: the cost after this change couldn't be worked out.</p>
-                            {% else %}
-                                <p>{{ target.part_number }}: {{ target.before }} now.</p>
-                            {% endif %}
-                        {% endfor %}
-                        {% if costs.targets|length > 1 and costs.total_delta %}
-                            <p><b>Total {% if costs.is_increase %}+{% endif %}{{ costs.total_delta }}</b></p>
+                {% if costs and costs.targets or impact or is_pending %}
+                    <div class="card-panel change-facts">
+                        {% if costs and costs.targets %}
+                            <div class="change-fact">
+                                <span class="change-label">Cost per unit at {{ costs.quantity }}</span>
+                                {% for target in costs.targets %}
+                                    {% if target.is_unchanged %}
+                                        <p>{{ target.before }}, unchanged{% if costs.targets|length > 1 %} on {{ target.part_number }}{% endif %}</p>
+                                    {% elif target.delta is not None %}
+                                        <p><span class="change-big">{{ target.before }} &rarr; {{ target.after }}</span>
+                                            <span class="{% if target.is_increase %}change-increase{% else %}change-decrease{% endif %}">{% if target.is_increase %}+{% endif %}{{ target.delta }}</span>{% if costs.targets|length > 1 %} on {{ target.part_number }}{% endif %}</p>
+                                    {% elif is_pending %}
+                                        <p class="grey-text">Couldn't be worked out for {{ target.part_number }}.</p>
+                                    {% else %}
+                                        <p>{{ target.before }} now{% if costs.targets|length > 1 %} on {{ target.part_number }}{% endif %}</p>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if costs.targets|length > 1 and costs.total_delta %}
+                                    <p><b>Total {% if costs.is_increase %}+{% endif %}{{ costs.total_delta }}</b></p>
+                                {% endif %}
+                            </div>
                         {% endif %}
-                    </div>
-                {% endif %}
-                {% if impact %}
-                    <div class="card-panel change-fact">
-                        <span class="change-label">Where it's used</span>
-                        {% for assembly in impact.assemblies %}
-                            <p>{{ assembly.part_number }} rev {{ assembly.revision }}
-                                <span class="grey-text">({{ assembly.configuration }}, uses {{ assembly.uses }})</span>
-                                {% if assembly.needs_new_revision %}<br><small>Released, so it needs a new revision to use this change.</small>{% endif %}</p>
-                        {% empty %}
-                            <p>The parts this changes aren't used in any other assembly.</p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-                {% if is_pending %}
-                    <div class="card-panel change-fact">
-                        <span class="change-label">Checks</span>
-                        {% for problem in problems %}
-                            <p class="{% if problem.level == 'error' %}red-text{% else %}amber-text text-darken-3{% endif %}">
-                                {{ problem.item.position }}. {{ problem.message }}</p>
-                        {% empty %}
-                            <p class="change-ok"><i class="material-icons tiny">check</i> No problems found</p>
-                        {% endfor %}
+                        {% if impact %}
+                            <div class="change-fact">
+                                <span class="change-label">Where it's used</span>
+                                {% for assembly in impact.assemblies %}
+                                    <p>{{ assembly.part_number }} rev {{ assembly.revision }}
+                                        <span class="grey-text">({{ assembly.configuration }}, uses {{ assembly.uses }})</span>
+                                        {% if assembly.needs_new_revision %}<br><small>Released, so it needs a new revision to pick this up.</small>{% endif %}</p>
+                                {% empty %}
+                                    <p class="grey-text">Not used in any other assembly</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if is_pending %}
+                            <div class="change-fact">
+                                <span class="change-label">Checks</span>
+                                {% for problem in problems %}
+                                    <p class="{% if problem.level == 'error' %}red-text{% else %}amber-text text-darken-3{% endif %}">
+                                        {{ problem.item.position }}. {{ problem.message }}</p>
+                                {% empty %}
+                                    <p class="change-ok"><i class="material-icons tiny">check</i> No problems found</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                 {% endif %}
                 {% if cascade_candidates or cascaded_revisions %}
