@@ -16,3 +16,7 @@ class ServiceError(Exception):
             return self.message
         details = '; '.join(f"{field}: {' '.join(errors)}" for field, errors in self.field_errors.items())
         return f"{self.message} {details}"
+
+
+class RevisionRequired(ServiceError):
+    """The revision is Released or In Review and the part has no Draft to edit instead."""

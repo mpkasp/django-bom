@@ -70,27 +70,6 @@ class SettingsTabsTest(TestCase):
         own_token.refresh_from_db()
         self.assertFalse(own_token.is_active())
 
-    def test_protections_form_saves_for_admins_only(self):
-        page = self.client.get(self.settings_url('organization'))
-        self.assertContains(page, 'Engineering Change Order')
-        self.assertFalse(ChangeSettings.objects.exists())
-
-        self.client.post(self.settings_url('organization'), {
-            'submit-protections': '', 'protect_primary_manufacturer_part': 'on', 'protect_cost_delta': '2.5'})
-        change_settings = ChangeSettings.objects.get(organization=self.organization)
-        self.assertTrue(change_settings.protect_primary_manufacturer_part)
-        self.assertEqual(str(change_settings.protect_cost_delta), '2.5000')
-
-        self.client.post(self.settings_url('organization'), {'submit-protections': ''})
-        change_settings.refresh_from_db()
-        self.assertFalse(change_settings.protect_primary_manufacturer_part)
-        self.assertIsNone(change_settings.protect_cost_delta)
-
-        self.editor_client.post(self.settings_url('organization'), {
-            'submit-protections': '', 'protect_primary_manufacturer_part': 'on'})
-        change_settings.refresh_from_db()
-        self.assertFalse(change_settings.protect_primary_manufacturer_part)
-
     def test_require_release_approval_is_saved_by_admins_and_hidden_without_the_host_flag(self):
         page = self.client.get(self.settings_url('organization'))
         self.assertContains(page, 'Require approval to release')
@@ -125,7 +104,7 @@ class ImportPreviewComponentTest(TestCase):
         preview = self.client.post(reverse('bom:import'), {'type': 'parts', 'file': upload})
 
         self.assertTrue(preview.context['token'], preview.context['errors'])
-        self.assertContains(preview, 'Will import')
+        self.assertContains(preview, '<span class="chip">New</span>')
         self.assertContains(preview, 'Imported cap')
         self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
         self.assertTrue(PartRevision.objects.filter(description='Imported cap').exists())
@@ -139,7 +118,6 @@ class ImportPreviewComponentTest(TestCase):
 
         self.assertTrue(preview.context['token'], preview.context['errors'])
         self.assertContains(preview, 'Update line')
-        self.assertContains(preview, 'Will import')
         self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
         line = assembly.latest().assembly.subparts.get(part_revision__part=subpart)
         self.assertEqual(line.reference, 'X1')

@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.utils.formats import date_format
 
 from bom import constants
-from bom.models import Change, ChangeItem
+from bom.models import Change, ChangeItem, PartRevision
 from bom.services import boms, change_orders, changes, parts
 from bom.services.errors import ServiceError
 from bom.test_change_orders import ChangeOrderTestCase
@@ -168,9 +168,9 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
 
     def test_a_change_from_before_change_orders_lists_its_edits_and_can_only_be_withdrawn(self):
         staged = changes.start_change(self.organization, self.user, 'Staged', 'Because')
-        changes.stage_item(staged, ChangeItem.KIND_CREATE_PART, {
-            'description': 'Staged cap', 'part_class_code': self.part_class_code})
-        changes.submit_change(staged, self.user)
+        ChangeItem.objects.create(change=staged, position=1, kind=ChangeItem.KIND_CREATE_PART,
+                                  summary='Create part: Staged cap')
+        Change.objects.filter(pk=staged.pk).update(status=Change.STATUS_OPEN)
 
         page = self.client.get(self.url(staged))
         self.assertContains(page, staged.items.get().summary)
@@ -281,6 +281,22 @@ class ChangeOrderGuardTest(ChangeOrderViewTestCase):
         response = self.client.get(self.revision_url('part-revision-draft', draft), follow=True)
         self.assertContains(response, f'under review in change order #{change.number}')
         self.assertEqual(self.configuration(draft), constants.CONFIGURATION_TYPE_IN_REVIEW)
+
+    def test_the_edit_form_cannot_move_a_revision_under_review(self):
+        draft = self.working_draft(self.released('One'))
+        change = self.order(draft)
+        change_orders.submit(change, self.user)
+        url = self.revision_url('part-edit-revision', draft)
+
+        for configuration in (constants.CONFIGURATION_TYPE_DRAFT, constants.CONFIGURATION_TYPE_RELEASED):
+            self.client.post(url, {'revision': draft.revision, 'configuration': configuration, 'description': 'One'})
+            self.assertEqual(self.configuration(draft), constants.CONFIGURATION_TYPE_IN_REVIEW)
+
+        PartRevision.objects.filter(pk=draft.pk).update(configuration=constants.CONFIGURATION_TYPE_DRAFT)
+        response = self.client.post(url, {'revision': draft.revision, 'description': 'One',
+                                          'configuration': constants.CONFIGURATION_TYPE_RELEASED}, follow=True)
+        self.assertContains(response, f'under review in change order #{change.number}')
+        self.assertEqual(self.configuration(draft), constants.CONFIGURATION_TYPE_DRAFT)
 
     def test_the_part_page_says_which_change_order_holds_the_revision(self):
         draft = self.working_draft(self.released('One'))

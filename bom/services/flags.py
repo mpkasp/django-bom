@@ -13,7 +13,3 @@ def host_flag(name, organization):
 
 def change_orders_enabled(organization):
     return host_flag('change_orders_enabled', organization)
-
-
-def eco_enabled(organization):
-    return host_flag('eco_enabled', organization)

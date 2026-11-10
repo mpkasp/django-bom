@@ -88,7 +88,7 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
-from bom.services import change_orders
+from bom.services import change_orders, edits
 from bom.services.boms import bom_csv
 from bom.services.changes import (log_event, newer_draft_revision, part_history, record_csv_import,
                                   record_direct_edit, release_approval_required, release_preview, release_revision,
@@ -517,13 +517,13 @@ def bom_settings(request, tab_anchor=None):
         elif 'submit-protections' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             if not user_can_manage_members:
-                messages.error(request, "You are not allowed to manage protections, contact your organization admin.")
+                messages.error(request, "You are not allowed to manage release approval, contact your organization admin.")
             else:
                 change_settings_form = ChangeSettingsForm(
                     request.POST, instance=ChangeSettings.objects.get_or_create(organization=organization)[0])
                 if change_settings_form.is_valid():
                     change_settings_form.save()
-                    messages.info(request, "Protections saved.")
+                    messages.info(request, "Release approval saved.")
                 else:
                     add_form_error_messages(request, change_settings_form)
 
@@ -947,8 +947,7 @@ def part_diff(request, part_id, revision_a_id, revision_b_id):
     revision_a = get_object_or_404(PartRevision, pk=revision_a_id, part=part)
     revision_b = get_object_or_404(PartRevision, pk=revision_b_id, part=part)
     diff_items = [
-        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'],
-                      status_label='Differs')
+        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'])
         for entry in revision_diff(revision_a, revision_b)]
     return TemplateResponse(request, 'bom/part-diff.html', {
         'title': f'{part.full_part_number()} rev {revision_a.revision} to rev {revision_b.revision}',
@@ -1169,11 +1168,10 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
     return TemplateResponse(request, 'bom/import-preview.html', context)
 
 
-def _preview_item(kind_label, summary, before=None, after=None, status_label='Will import'):
+def _preview_item(kind_label, summary, before=None, after=None):
     """An import preview entry in the shape of a ChangeItem, for the shared change-items component."""
     return SimpleNamespace(kind='csv_import', get_kind_display=kind_label, summary=summary, before=before,
-                           payload=after or {}, status='accepted', get_status_display=status_label, result=None,
-                           reject_reason='')
+                           payload=after or {}, result=None)
 
 
 def _numbered(preview_items):
@@ -1563,6 +1561,8 @@ def manage_bom(request, part_id, part_revision_id):
 
     edit_url = _edit_page_url(part_id, part_revision_id)
     if request.method == 'POST':
+        if _refuse_under_review(request, part_revision):
+            return HttpResponseRedirect(edit_url)
         before = revision_values(part_revision)
         part_revision_form = PartRevisionForm(request.POST, instance=part_revision, organization=organization)
         if part_revision_form.is_valid():
@@ -1663,40 +1663,9 @@ def add_subpart(request, part_id, part_revision_id):
         if add_subpart_form.is_valid():
             subpart_part = add_subpart_form.subpart_part
             reference = add_subpart_form.cleaned_data['reference']
-            dnl = add_subpart_form.cleaned_data['do_not_load']
-            count = add_subpart_form.cleaned_data['count']
-
-            first_level_bom = part_revision.assembly.subparts.filter(part_revision=subpart_part, do_not_load=dnl)
-            before = None
-
-            if first_level_bom.count() > 0:
-                new_part = first_level_bom[0]
-                before = {'count': new_part.count, 'reference': new_part.reference}
-                new_part.count += count
-                if reference:
-                    new_part.reference = new_part.reference + ', ' + reference
-                new_part.save()
-            else:
-                new_part = Subpart.objects.create(
-                    part_revision=subpart_part,
-                    count=count,
-                    reference=reference,
-                    do_not_load=dnl)
-
-                if part_revision.assembly is None:
-                    part_revision.assembly = Assembly.objects.create()
-                    part_revision.save()
-
-                AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
-
-            subpart_part_number = subpart_part.part.full_part_number()
-            record_direct_edit(
-                organization, user, part_revision.part, ChangeItem.KIND_ADD_SUBPART,
-                f"Add {subpart_part_number} x{count} {reference} to {_revision_label(part_revision)}",
-                part_revision=part_revision, before=before,
-                payload={'subpart_part_number': subpart_part_number, 'count': count, 'reference': reference,
-                         'do_not_load': dnl},
-                result={'part_revision_id': part_revision.id, 'subpart_id': new_part.id})
+            edits.add_subpart(
+                organization, user, part_revision, add_subpart_form.cleaned_data['subpart_part_number'],
+                add_subpart_form.cleaned_data['count'], reference, add_subpart_form.cleaned_data['do_not_load'])
 
             info_msg = "Added subpart "
             if reference:
@@ -2189,8 +2158,7 @@ def part_revision_release(request, part_id, part_revision_id):
     draft_subparts = part_revision.assembly.subparts.filter(
         part_revision__configuration=constants.CONFIGURATION_TYPE_DRAFT).select_related('part_revision__part')
     diff_items = _numbered([
-        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'],
-                      status_label='Differs')
+        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'])
         for entry in preview['diff']])
     title = f'Release {part.full_part_number()} rev {part_revision.revision} {part_revision.synopsis()}'
     profile = request.user.bom_profile()

@@ -12,7 +12,7 @@ from bom.mcp.auth import Actor, ConnectionTokenVerifier, oauth_auth_settings
 from bom.models import APIToken, Change, ChangeItem
 from bom.permissions import BomPerms
 from bom.services import boms, change_orders, changes, edits, parts, sourcing
-from bom.services.errors import ServiceError
+from bom.services.errors import RevisionRequired, ServiceError
 from bom.services.flags import change_orders_enabled
 from bom.services.search import latest_part_revisions, search_parts
 
@@ -58,7 +58,8 @@ def tool_call(ctx, name):
         yield actor
     except ServiceError as error:
         outcome = 'invalid'
-        raise ToolError(str(error)) from error
+        hint = ' Call revise_part to do that.' if isinstance(error, RevisionRequired) else ''
+        raise ToolError(f"{error}{hint}") from error
     except ToolError:
         outcome = 'denied'
         raise

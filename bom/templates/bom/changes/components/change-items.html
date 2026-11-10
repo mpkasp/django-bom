@@ -1,17 +1,15 @@
 <table class="highlight">
-    <thead><tr><th>#</th><th>Item</th><th>Status</th></tr></thead>
+    <thead><tr><th>#</th><th>Item</th></tr></thead>
     <tbody>
     {% for item in items %}
-        <tr {% if item.status == 'rejected' %}class="grey-text"{% endif %}>
+        <tr>
             <td>{{ item.position }}</td>
             <td>
                 <span class="chip">{{ item.get_kind_display }}</span> {{ item.summary }}
                 {% if item.before %}<br><small class="grey-text">Currently: {% for key, value in item.before.items %}{{ key }} = {{ value|default:"none" }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>{% endif %}
                 <br><small>{% for key, value in item.payload.items %}{% if value %}{{ key }}: {{ value }}{% if not forloop.last %}; {% endif %}{% endif %}{% endfor %}</small>
                 {% if item.result %}<br><small class="teal-text">Result: {{ item.result }}</small>{% endif %}
-                {% if item.reject_reason %}<br><small class="red-text">Rejected: {{ item.reject_reason }}</small>{% endif %}
             </td>
-            <td>{{ item.get_status_display }}</td>
         </tr>
     {% endfor %}
     </tbody>
