@@ -78,7 +78,7 @@
             <div class="change-sections">
                 {% if not staged_items %}
                     <div class="change-list-head">
-                        <h5>Parts in this change order{% if cards %} <span class="text-grey">&middot; {{ cards|length }}</span>{% endif %}</h5>
+                        <h5>Affected parts{% if cards %} <span class="text-grey">&middot; {{ cards|length }}</span>{% endif %}</h5>
                         {% if can_remove %}
                             <details class="change-reject change-add-part">
                                 <summary class="btn-outline">Add part to change order…</summary>
@@ -102,7 +102,7 @@
                     </div>
                 {% elif not cards %}
                     <div class="card-panel">
-                        <p class="text-grey">{% if is_editable %}No parts yet. Add the parts whose new revisions this change order should release.{% else %}This change order holds no parts.{% endif %}</p>
+                        <p class="text-grey">{% if is_editable %}No affected parts yet. Add the parts whose new revisions this change order should release.{% else %}This change order holds no parts.{% endif %}</p>
                     </div>
                 {% endif %}
             </div>

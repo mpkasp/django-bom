@@ -88,7 +88,8 @@ Released part is revised and the new revision is released directly (web Release,
   unit cost and where the replaced revisions are used, the rejection reason, and the cascade panel once approved.
   Actions: Submit, Approve (or Approve as admin when the viewer may override), Reject with a reason, Withdraw, and
   Remove for a revision while it is a draft or was sent back.
-- While a change order is a draft or was sent back, its page is where it is built: Add a part takes a part number
+- The revisions are listed under "Affected parts", the term PLM tools use. While a change order is a draft or was
+  sent back, its page is where it is built: Add part to change order takes a part number
   and adds the part's working Draft, revising the part first when its latest revision is Released
   (`change_orders.add_part`); each card has Edit revision, which opens the Draft in its normal screens, and Remove.
   The part page of a revision in a change order says so and links back.
