@@ -111,7 +111,7 @@ def change_review(request, organization, number):
         # Leaving out the only edit is a slower Reject, so a single-edit request offers Reject alone.
         'can_leave_out': can_review and is_pending and edit_count > 1,
         'can_submit': is_author and change.status == Change.STATUS_DRAFT,
-        'can_reject': can_review and is_pending,
+        'can_reject': can_review and is_pending and not is_author,
         'accepted_count': accepted_count,
     })
 

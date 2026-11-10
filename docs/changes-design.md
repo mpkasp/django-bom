@@ -150,8 +150,8 @@ inline `confirm()` pattern for irreversible actions.
 - `/changes/<number>/` review (rendered by `bom/services/change_display.py`): header with the change's title,
   status, number, ECO and stale chips, "Proposed by <connection> for <user>" byline, and the actions beside the
   title: Approve or Apply N edits (applies, then releases the revisions it creates), Apply as admin (Admins on
-  protected changes, with confirm), Rebase (when stale), Reject… (an inline reason box, required) and Withdraw
-  (author). The approval rule is spelled out only when the viewer can't apply; the ECO chip's tooltip carries the
+  protected changes, with confirm), Rebase (when stale), Reject… (an inline reason box, required; reviewers other than the author) and Withdraw
+  (author: their one way to drop the request, so they never see Reject too). The approval rule is spelled out only when the viewer can't apply; the ECO chip's tooltip carries the
   ECO definition, and the per-part header shows the revision it moves to ("Rev 1 · Released → New Draft revision,
   released on approval"), so the page has no explanatory banners. The rationale follows the byline under a "Why"
   label. Items are grouped by the part they touch: BOM edits as diff rows (reference, part number and name,
