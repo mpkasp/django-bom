@@ -383,7 +383,7 @@ class ChangesViewTest(TestCase):
 
     def test_pages_require_login_and_the_host_flag(self):
         self.assertEqual(Client().get(reverse('bom:change-list')).status_code, 302)
-        config = dict(settings.BOM_CONFIG_DEFAULT, changes_review_enabled='bom.test_changes.disable_review')
+        config = dict(settings.BOM_CONFIG_DEFAULT, change_orders_enabled='bom.test_changes.disable_review')
         with override_settings(BOM_CONFIG=config):
             self.assertEqual(self.client.get(reverse('bom:change-list')).status_code, 404)
             self.assertEqual(self.client.get(self.review_url()).status_code, 404)
@@ -456,7 +456,7 @@ class ChangesViewTest(TestCase):
         self.assertContains(unrelated, 'No history yet.')
 
     def test_part_page_shows_history_even_when_review_is_off(self):
-        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, changes_review_enabled=disable_review)):
+        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, change_orders_enabled=disable_review)):
             response = self.client.get(reverse('bom:part-info', kwargs={'part_id': self.parts[2].id}))
         self.assertContains(response, 'id="history-tab"')
 

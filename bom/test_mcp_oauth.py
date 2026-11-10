@@ -236,7 +236,7 @@ class ConsentPageTest(OAuthMCPTestCase):
         self.assertEqual(checked_scope(response), 'read write')
 
     def test_the_levels_do_not_depend_on_host_flags(self):
-        config = {**settings.BOM_CONFIG, 'changes_review_enabled': False, 'mcp_apply_enabled': False}
+        config = {**settings.BOM_CONFIG, 'change_orders_enabled': False}
         with override_settings(BOM_CONFIG=config):
             response = self.consent_page()
         self.assertEqual(radio_scopes(response), ['read', 'read write', 'read write release'])

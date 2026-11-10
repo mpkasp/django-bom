@@ -11,17 +11,9 @@ def host_flag(name, organization):
     return bool(value(organization)) if callable(value) else bool(value)
 
 
-def changes_review_enabled(organization):
-    return host_flag('changes_review_enabled', organization)
-
-
-def mcp_apply_enabled(organization):
-    return host_flag('mcp_apply_enabled', organization)
+def change_orders_enabled(organization):
+    return host_flag('change_orders_enabled', organization)
 
 
 def eco_enabled(organization):
     return host_flag('eco_enabled', organization)
-
-
-def release_approval_enabled(organization):
-    return host_flag('release_approval_enabled', organization)

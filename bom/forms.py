@@ -20,7 +20,7 @@ from djmoney.forms.widgets import MoneyWidget
 from djmoney.money import Money
 
 from bom.permissions import BomPerms
-from bom.services.flags import release_approval_enabled
+from bom.services.flags import change_orders_enabled
 from .constants import (
     NUMBER_SCHEME_INTELLIGENT,
     NUMBER_SCHEME_SEMI_INTELLIGENT,
@@ -483,7 +483,7 @@ class ChangeSettingsForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not release_approval_enabled(self.instance.organization):
+        if not change_orders_enabled(self.instance.organization):
             del self.fields['require_release_approval']
 
 

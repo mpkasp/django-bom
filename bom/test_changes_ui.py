@@ -102,7 +102,7 @@ class SettingsTabsTest(TestCase):
         self.editor_client.post(self.settings_url('organization'), {'submit-protections': ''})
         self.assertTrue(ChangeSettings.objects.get(organization=self.organization).require_release_approval)
 
-        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, release_approval_enabled=False)):
+        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, change_orders_enabled=False)):
             self.assertNotContains(self.client.get(self.settings_url('organization')), 'Require approval to release')
             self.client.post(self.settings_url('organization'), {'submit-protections': ''})
         self.assertTrue(ChangeSettings.objects.get(organization=self.organization).require_release_approval)

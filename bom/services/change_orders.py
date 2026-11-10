@@ -14,12 +14,12 @@ from bom.permissions import BomPerms
 from bom.services import changes
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
-from bom.services.flags import changes_review_enabled
+from bom.services.flags import change_orders_enabled
 
 
 def create_change_order(organization, user, title, rationale='', part_revisions=(), api_token=None, agent_client=''):
     _require_editor(organization, user)
-    if not changes_review_enabled(organization):
+    if not change_orders_enabled(organization):
         raise ServiceError(f"Change orders are not enabled for {organization.name}.")
     with transaction.atomic():
         change = changes.start_change(organization, user, title, rationale, api_token=api_token,

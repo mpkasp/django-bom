@@ -95,7 +95,7 @@ from bom.services.changes import (log_event, newer_draft_revision, part_history,
                                   revise_revision)
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
-from bom.services.flags import changes_review_enabled
+from bom.services.flags import change_orders_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from bom.services.parts import revision_values
 from bom.services.search import latest_part_revisions, search_parts
@@ -644,7 +644,7 @@ def bom_settings(request, tab_anchor=None):
         change_settings_form = ChangeSettingsForm(
             instance=ChangeSettings.objects.filter(organization=organization).first()
             or ChangeSettings(organization=organization))
-    show_protections = user_can_manage_members and changes_review_enabled(organization)
+    show_protections = user_can_manage_members and change_orders_enabled(organization)
 
     return TemplateResponse(request, 'bom/settings.html', locals())
 
@@ -935,7 +935,7 @@ def part_info(request, part_id, part_revision_id=None):
     where_used_part = part.where_used_recursive()
     seller_parts = part.seller_parts()
     change_order = change_orders.change_order_for(part_revision) \
-        if part_revision is not None and changes_review_enabled(organization) else None
+        if part_revision is not None and change_orders_enabled(organization) else None
     history_entries = part_history(part)
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
@@ -2172,7 +2172,7 @@ def part_revision_release(request, part_id, part_revision_id):
         messages.success(request, f'Released {part_revision.part.full_part_number()} rev {part_revision.revision}.')
         return HttpResponseRedirect(revision_url)
 
-    review_enabled = changes_review_enabled(organization)
+    review_enabled = change_orders_enabled(organization)
     change_order = change_orders.change_order_for(part_revision) if review_enabled else None
     if change_order is not None:
         messages.info(request, f'{_revision_label(part_revision)} is in change order #{change_order.number}; '

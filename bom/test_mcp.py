@@ -922,7 +922,7 @@ class MCPChangeOrderTest(MCPTestCase):
         self.assertNotEqual(revision['unit_cost_before'], revision['unit_cost_after'])
 
     def test_change_orders_can_be_turned_off_by_the_host(self):
-        config = dict(settings.BOM_CONFIG_DEFAULT, changes_review_enabled=False)
+        config = dict(settings.BOM_CONFIG_DEFAULT, change_orders_enabled=False)
         with override_settings(BOM_CONFIG=config):
             organization, _ = self.client_as_author.call('get_organization')
             _, error = self.client_as_author.call('create_change_order', title='x', rationale='y')

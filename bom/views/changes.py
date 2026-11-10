@@ -13,7 +13,7 @@ from bom.models import Change, PartRevision
 from bom.permissions import BomPerms
 from bom.services import change_display, change_orders, changes
 from bom.services.errors import ServiceError
-from bom.services.flags import changes_review_enabled
+from bom.services.flags import change_orders_enabled
 from bom.views.views import BOM_LOGIN_URL
 
 LIST_FILTERS = (('open', 'Open'), ('drafts', 'Drafts and sent back'), ('released', 'Released'), ('history', 'History'))
@@ -28,7 +28,7 @@ def changes_view(view):
         organization = request.user.bom_profile().organization
         if organization is None:
             return HttpResponseRedirect(reverse('bom:organization-create'))
-        if not changes_review_enabled(organization):
+        if not change_orders_enabled(organization):
             raise Http404('Change orders are not enabled for this organization.')
         return view(request, organization, *args, **kwargs)
     return wrapped

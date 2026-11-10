@@ -13,7 +13,7 @@ from bom.models import APIToken, Change, ChangeItem
 from bom.permissions import BomPerms
 from bom.services import boms, change_orders, changes, edits, parts, sourcing
 from bom.services.errors import ServiceError
-from bom.services.flags import changes_review_enabled
+from bom.services.flags import change_orders_enabled
 from bom.services.search import latest_part_revisions, search_parts
 
 logger = logging.getLogger(__name__)
@@ -80,7 +80,7 @@ def get_organization(ctx: Context) -> dict:
     with tool_call(ctx, 'get_organization') as actor:
         summary = parts.organization_summary(actor.organization)
         summary['token_level'] = actor.token_level()
-        summary['change_orders_enabled'] = changes_review_enabled(actor.organization)
+        summary['change_orders_enabled'] = change_orders_enabled(actor.organization)
         summary['release_approval_required'] = changes.release_approval_required(actor.organization)
         return summary
 

@@ -21,7 +21,7 @@ from bom.permissions import BomPerms
 from bom.services import boms, imports, parts
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
-from bom.services.flags import changes_review_enabled, eco_enabled, release_approval_enabled
+from bom.services.flags import change_orders_enabled, eco_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -895,7 +895,7 @@ def release_preview(part_revision, quantity=DEFAULT_QUANTITY):
 
 def release_approval_required(organization):
     """Whether releasing needs a second person: the setting is on, the host allows it, and someone else could approve."""
-    if not (changes_review_enabled(organization) and release_approval_enabled(organization)):
+    if not change_orders_enabled(organization):
         return False
     change_settings = ChangeSettings.objects.filter(organization=organization).first()
     return bool(change_settings and change_settings.require_release_approval) \
@@ -994,7 +994,7 @@ def request_release_approval(part_revision, user, note='', cascade_parent_ids=()
     label = f"{part_revision.part.full_part_number()} rev {part_revision.revision}"
     if not user.has_perm(BomPerms.EDIT_PART, organization):
         raise ServiceError(f"{user.username} cannot request approval in {organization.name}.")
-    if not changes_review_enabled(organization):
+    if not change_orders_enabled(organization):
         raise ServiceError(f"Change requests are not enabled for {organization.name}.")
     if part_revision.configuration not in RELEASABLE_STATES:
         raise ServiceError(f"{label} is {part_revision.get_configuration_display()}; "
