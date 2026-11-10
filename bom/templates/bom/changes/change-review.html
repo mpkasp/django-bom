@@ -75,7 +75,7 @@
             {% endif %}
         </div>
         {% if nothing_left_to_apply %}
-            <p class="change-ready text-grey">Every edit is left out, so there is nothing to approve. Include one again, or {% if is_author %}withdraw{% else %}reject{% endif %} the request.</p>
+            <p class="change-ready text-grey">Every edit is left out, so there is nothing to approve. {% if is_author %}Withdraw{% else %}Reject{% endif %} the request.</p>
         {% elif is_pending and can_review and not approval.can_apply %}
             <p class="change-ready text-grey">{{ approval.message }}</p>
         {% endif %}
@@ -97,6 +97,15 @@
         <div class="change-columns">
             <div class="change-sections">
                 {% include 'bom/changes/components/change-sections.html' %}
+                {% if edit_history %}
+                    <div class="card-panel change-history">
+                        <span class="change-label">Edited after it was proposed</span>
+                        {% for edit in edit_history %}
+                            <p>{{ edit.text }}
+                                <br><small class="text-grey">{{ edit.user.get_full_name|default:edit.user.username|default:"A former member" }} &middot; <span title="{{ edit.at|date:'DATETIME_FORMAT' }}">{{ edit.at|date:'M j, Y' }}</span></small></p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <aside class="change-side">
@@ -175,8 +184,8 @@
 
 {% block bom-script %}
     <script>
-        M.Modal.init(document.querySelectorAll('.change-leave-out'), {
-            onOpenEnd: function (modal) { modal.querySelector('input[name=reason]').focus(); }
+        M.Modal.init(document.querySelectorAll('.change-item-modal'), {
+            onOpenEnd: function (modal) { modal.querySelector('input[type=text]').focus(); }
         });
     </script>
 {% endblock %}

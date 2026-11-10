@@ -1,25 +1,30 @@
 {% with item=entry.item %}
     {% if item.reject_reason %}<p class="change-left-out-reason">Left out: {{ item.reject_reason }}</p>{% endif %}
-    {% if can_review and is_pending and item.kind != 'csv_import' %}
-        {% if entry.is_left_out %}
-            <form method="post" action="{% url 'bom:change-item-status' number=change.number item_id=item.id %}">{% csrf_token %}
-                <input type="hidden" name="status" value="accepted">
-                <button class="btn-flat btn-small" type="submit">Include again</button>
-            </form>
-        {% elif can_leave_out %}
-            <a class="btn-flat btn-small modal-trigger" href="#leave-out-{{ item.id }}">Leave out…</a>
-            <div id="leave-out-{{ item.id }}" class="modal left-align change-leave-out">
-                <form method="post" action="{% url 'bom:change-item-status' number=change.number item_id=item.id %}">{% csrf_token %}
-                    <input type="hidden" name="status" value="rejected">
+    {% if can_edit %}
+        <span class="change-item-actions">
+            {% if entry.edit_fields and not entry.is_left_out %}
+                <a class="btn-flat btn-small modal-trigger" href="#edit-item-{{ item.id }}">Edit</a>
+            {% endif %}
+            {% if can_remove and entry.is_removable %}
+                <form method="post" action="{% url 'bom:change-item-remove' number=change.number item_id=item.id %}" onsubmit="return confirm('Remove this edit from the change request?');">{% csrf_token %}
+                    <button class="btn-flat btn-small" type="submit">Remove</button>
+                </form>
+            {% endif %}
+        </span>
+        {% if entry.edit_fields and not entry.is_left_out %}
+            <div id="edit-item-{{ item.id }}" class="modal left-align change-item-modal">
+                <form method="post" action="{% url 'bom:change-item-edit' number=change.number item_id=item.id %}">{% csrf_token %}
                     <div class="modal-content">
-                        <h5>Leave this edit out?</h5>
-                        <p class="text-grey">The rest of the request can still be approved. The author sees your reason.</p>
-                        <label for="leave-out-reason-{{ item.id }}">Why leave it out?</label>
-                        <input id="leave-out-reason-{{ item.id }}" class="browser-default" type="text" name="reason" required>
+                        <h5>{{ entry.label }}</h5>
+                        {% if change.status == 'open' %}<p class="text-grey">Your edit is recorded on the change request.</p>{% endif %}
+                        {% for field in entry.edit_fields %}
+                            <label for="edit-{{ item.id }}-{{ forloop.counter }}">{{ field.label }}</label>
+                            <input id="edit-{{ item.id }}-{{ forloop.counter }}" class="browser-default" type="text" name="{{ field.name }}" value="{{ field.value }}">
+                        {% endfor %}
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="modal-close btn-flat waves-effect">Cancel</button>
-                        <button class="btn btn-danger waves-effect" type="submit">Leave out</button>
+                        <button class="btn waves-effect" type="submit">Save</button>
                     </div>
                 </form>
             </div>

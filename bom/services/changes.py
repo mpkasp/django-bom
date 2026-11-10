@@ -5,11 +5,13 @@ import logging
 from decimal import Decimal
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max, Q
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from bom.constants import (CONFIGURATION_TYPE_DRAFT, CONFIGURATION_TYPE_IN_REVIEW, CONFIGURATION_TYPE_RELEASED,
                            ROLE_TYPE_ADMIN)
@@ -48,6 +50,15 @@ ITEM_PERMISSIONS = {
     ChangeItem.KIND_CREATE_PART_REVISION: BomPerms.EDIT_PART,
     ChangeItem.KIND_RELEASE_REVISION: BomPerms.RELEASE_REVISION,
 }
+# The values of a staged item that can be changed in place. What an item targets is fixed: remove it and stage another.
+EDITABLE_FIELDS = {
+    ChangeItem.KIND_CREATE_PART: ('description',),
+    ChangeItem.KIND_ADD_SUBPART: ('count', 'reference'),
+    ChangeItem.KIND_UPDATE_SUBPART: ('count', 'reference'),
+    ChangeItem.KIND_ADD_MANUFACTURER_PART: ('manufacturer', 'manufacturer_part_number'),
+    ChangeItem.KIND_ADD_SELLER_PART: ('seller', 'seller_part_number', 'unit_cost', 'nre_cost'),
+    ChangeItem.KIND_UPDATE_PART_REVISION: ('description',),
+}
 
 
 def log_event(event, organization, user, part=None):
@@ -78,13 +89,39 @@ def start_change(organization, user, title, rationale='', api_token=None, agent_
             author=user, api_token=api_token, agent_client=agent_client[:64], agent_model=agent_model[:64])
 
 
-def _require_draft(change):
-    if change.status != Change.STATUS_DRAFT:
-        raise ServiceError(f"Change #{change.number} is {change.status}; items can only be staged into a draft.")
+def _require_editable(change):
+    if change.status not in Change.PENDING_STATUSES:
+        raise ServiceError(f"Change #{change.number} is {change.status} and can no longer be edited.")
+    # Editing adopts the current data as the base, which would hide that the other edits were staged against older data.
+    if change.status == Change.STATUS_OPEN and is_stale(change):
+        raise ServiceError(f"Change #{change.number} is stale: the parts it touches changed after it was staged. "
+                           f"Rebase it in IndaBOM before editing it.")
+
+
+def _require_editor(change, user, permission=BomPerms.EDIT_PART):
+    if change.author_id == user.id:
+        return
+    if change.status != Change.STATUS_OPEN or not user.has_perm(permission, change.organization):
+        raise ServiceError(f"{user.username} cannot edit change #{change.number}.")
+
+
+def _log_edit(change, user, text):
+    """Record an edit made after the change was submitted, so reviewers see what differs from what was proposed."""
+    if change.status != Change.STATUS_OPEN:
+        return
+    change.edit_log = change.edit_log + [{'user_id': user.id, 'at': timezone.now().isoformat(), 'text': text}]
+    change.save(update_fields=['edit_log'])
+
+
+def edit_history(change):
+    users = {user.id: user for user in get_user_model().objects.filter(
+        id__in={entry['user_id'] for entry in change.edit_log})}
+    return [{'user': users.get(entry['user_id']), 'at': parse_datetime(entry['at']), 'text': entry['text']}
+            for entry in change.edit_log]
 
 
 def stage_item(change, kind, payload, ref='', refresh_digest=True):
-    _require_draft(change)
+    _require_editable(change)
     if kind not in STAGEABLE_KINDS:
         raise ServiceError(f"Cannot stage {kind!r}. Supported kinds: {', '.join(STAGEABLE_KINDS)}.")
     payload = dict(payload)
@@ -108,7 +145,80 @@ def stage_item(change, kind, payload, ref='', refresh_digest=True):
         before=prepared.get('before'))
     if refresh_digest:
         _refresh_base_digest(change)
+    _log_edit(change, change.author, f"Added: {item.summary}")
     return item
+
+
+def edit_item(change, user, item, values, properties=None):
+    """Change a staged item's ``EDITABLE_FIELDS`` and the property values it already sets, validated as staging
+    is. A value given as an empty string where the item had none is left alone."""
+    _require_editable(change)
+    _require_editor(change, user, ITEM_PERMISSIONS.get(item.kind, BomPerms.EDIT_PART))
+    if item.status != ChangeItem.STATUS_ACCEPTED:
+        raise ServiceError(f"Item {item.position} was left out and cannot be edited.")
+    unknown = sorted(set(values) - set(EDITABLE_FIELDS.get(item.kind, ())))
+    if unknown:
+        raise ServiceError(f"{', '.join(unknown)} cannot be edited on item {item.position}.")
+    payload = dict(item.payload)
+    differences = []
+    for field, value in values.items():
+        if field == 'count':
+            value = _number(value)
+        if _plain(value) != _plain(payload.get(field)):
+            label = 'quantity' if field == 'count' else field.replace('_', ' ')
+            differences.append(f"{label} {_plain(payload.get(field)) or 'empty'} → {_plain(value) or 'empty'}")
+            payload[field] = value
+    staged_properties = payload.get('properties') or {}
+    for code, value in (properties or {}).items():
+        if code not in staged_properties:
+            raise ServiceError(f"Item {item.position} does not set the property {code!r}.")
+        if value != staged_properties[code]:
+            differences.append(f"{code.replace('_', ' ')} {staged_properties[code] or 'empty'} → {value or 'empty'}")
+            payload['properties'] = staged_properties = dict(staged_properties, **{code: value})
+    if not differences:
+        return item
+    prepared = _PREPARERS[item.kind](change.organization, payload, validate=not _referenced_keys(payload))
+    previous_summary = item.summary
+    item.payload = payload
+    item.summary = prepared['summary'][:255]
+    item.before = prepared.get('before', item.before)
+    item.save(update_fields=['payload', 'summary', 'before'])
+    _log_edit(change, user, f"Changed {', '.join(differences)} in: {previous_summary}")
+    return item
+
+
+def _number(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return value
+
+
+def _plain(value):
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return '' if value is None else str(value)
+
+
+def remove_item(change, user, item):
+    _require_editable(change)
+    _require_editor(change, user)
+    if item.kind not in STAGEABLE_KINDS:
+        raise ServiceError(f"Item {item.position} cannot be removed; withdraw or reject the change instead.")
+    dependents = sorted(other.position for other in change.items.exclude(pk=item.pk)
+                        if item.ref and item.ref in _referenced_keys(other.payload))
+    if dependents:
+        raise ServiceError(f"Item{'s' if len(dependents) > 1 else ''} {', '.join(map(str, dependents))} "
+                           f"use{'s' if len(dependents) == 1 else ''} what item {item.position} creates; remove "
+                           f"{'that' if len(dependents) == 1 else 'those'} first.")
+    if change.status == Change.STATUS_OPEN and item.status == ChangeItem.STATUS_ACCEPTED \
+            and change.items.filter(status=ChangeItem.STATUS_ACCEPTED).count() == 1:
+        raise ServiceError(f"Item {item.position} is the only edit in change #{change.number}; withdraw or reject "
+                           f"the change instead.")
+    summary = item.summary
+    item.delete()
+    _refresh_base_digest(change)
+    _log_edit(change, user, f"Removed: {summary}")
 
 
 def _refresh_base_digest(change):
@@ -119,7 +229,7 @@ def _refresh_base_digest(change):
 def stage_bom_upload(change, assembly_part_number, csv_text, mode):
     """Stage the add, update and remove subpart items that a BOM CSV makes, all or none. Returns the staged items
     and the import's warnings."""
-    _require_draft(change)
+    _require_editable(change)
     parent_part = parts.part_from_number(change.organization, assembly_part_number)
     edits, warnings = imports.bom_upload_edits(change.organization, parent_part, csv_text, mode)
     with transaction.atomic():
@@ -140,34 +250,10 @@ def submit_change(change, user):
     return change
 
 
-def set_item_status(change, item, status, reason=''):
-    if change.status not in Change.PENDING_STATUSES:
-        raise ServiceError(f"Change #{change.number} is {change.status}; its items can no longer be reviewed.")
-    if status not in (ChangeItem.STATUS_ACCEPTED, ChangeItem.STATUS_REJECTED):
-        raise ServiceError(f"Unknown item status {status!r}.")
-    if item.change_id != change.id:
-        raise ServiceError('That item belongs to a different change.')
-    if status == ChangeItem.STATUS_ACCEPTED:
-        _require_providers_included(change, item)
-    _set_status(item, status, reason)
-    if status == ChangeItem.STATUS_REJECTED:
-        _reject_dependents(change, item)
-    return item
-
-
 def _set_status(item, status, reason):
     item.status = status
     item.reject_reason = reason[:255] if status == ChangeItem.STATUS_REJECTED else ''
     item.save(update_fields=['status', 'reject_reason'])
-
-
-def _require_providers_included(change, item):
-    left_out = change.items.filter(status=ChangeItem.STATUS_REJECTED, ref__in=_referenced_keys(item.payload))
-    positions = sorted(provider.position for provider in left_out)
-    if positions:
-        raise ServiceError(f"Item {item.position} uses what item{'s' if len(positions) > 1 else ''} "
-                           f"{', '.join(map(str, positions))} create{'s' if len(positions) == 1 else ''}; include "
-                           f"{'that' if len(positions) == 1 else 'those'} first.")
 
 
 def _reject_dependents(change, rejected_item):
@@ -484,14 +570,16 @@ def approval_status(change, user):
         return {'protected': False, 'can_apply': True, 'can_override': False,
                 'message': 'Any Editor or Admin can apply this change.'}
     reason = 'an Engineering Change Order' if is_eco(change) else 'a protected change'
-    if user.id != change.author_id:
+    is_author = user.id == change.author_id
+    if not is_author and user.id not in {entry['user_id'] for entry in change.edit_log}:
         return {'protected': True, 'can_apply': True, 'can_override': False,
                 'message': f'This is {reason}; you are not its author, so you can apply it.'}
     if _active_member_count(change.organization) == 1:
         return {'protected': True, 'can_apply': True, 'can_override': False,
                 'message': f'This is {reason}. You are the only member of this organization, so you can apply your own change.'}
     is_admin = user.bom_profile().role == ROLE_TYPE_ADMIN
-    message = f'This is {reason}, so someone other than its author must apply it.'
+    message = f'This is {reason}, so someone other than its author must apply it.' if is_author else \
+        f'This is {reason} and you edited it, so someone else must apply it.'
     if is_admin:
         message += ' As an Admin you can apply it anyway; the override is recorded.'
     return {'protected': True, 'can_apply': False, 'can_override': is_admin, 'message': message}
@@ -1008,6 +1096,9 @@ def change_detail(change):
         'resolved_by': change.resolved_by.username if change.resolved_by else None,
         'protection_overridden_by': change.protection_overridden_by.username if change.protection_overridden_by else None,
         'items': [item_summary(item) for item in change.items.all()],
+        'edits_after_submission': [
+            {'by': entry['user'].username if entry['user'] else None, 'at': entry['at'].isoformat(),
+             'text': entry['text']} for entry in edit_history(change)],
     })
     return detail
 

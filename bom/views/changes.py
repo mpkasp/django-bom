@@ -89,6 +89,7 @@ def change_review(request, organization, number):
     impact = changes.impact(change) if is_pending or change.status == Change.STATUS_APPLIED else None
     accepted_count = change.items.filter(status=ChangeItem.STATUS_ACCEPTED).count()
     edit_count = sum(len(section['entries']) for section in sections)
+    can_edit = is_pending and not is_stale and (is_author or (can_review and change.status == Change.STATUS_OPEN))
     can_approve = can_act and can_review and accepted_count > 0
     return TemplateResponse(request, 'bom/changes/change-review.html', {
         'title': f'Change request #{change.number}', 'name': 'changes', 'profile': user.bom_profile(),
@@ -108,8 +109,10 @@ def change_review(request, organization, number):
         'can_apply': can_approve and approval['can_apply'],
         'can_apply_as_admin': can_approve and not approval['can_apply'] and approval['can_override'],
         'nothing_left_to_apply': is_pending and can_review and edit_count > 0 and accepted_count == 0,
-        # Leaving out the only edit is a slower Reject, so a single-edit request offers Reject alone.
-        'can_leave_out': can_review and is_pending and edit_count > 1,
+        'can_edit': can_edit,
+        # Removing the only edit would leave an empty request, so a single-edit request offers Withdraw or Reject.
+        'can_remove': can_edit and edit_count > 1,
+        'edit_history': changes.edit_history(change),
         'can_submit': is_author and change.status == Change.STATUS_DRAFT,
         'can_reject': can_review and is_pending and not is_author,
         'accepted_count': accepted_count,
@@ -231,14 +234,19 @@ def change_cascade(request, organization, number):
 
 @changes_view
 @require_POST
-def change_item_status(request, organization, number, item_id):
+def change_item_edit(request, organization, number, item_id):
     change = _change_from_number(organization, number)
     item = get_object_or_404(ChangeItem, id=item_id, change=change)
-    if not request.user.has_perm(BomPerms.EDIT_PART, organization):
-        messages.error(request, "You don't have permission to review changes.")
-        return _review_redirect(change)
-    try:
-        changes.set_item_status(change, item, request.POST.get('status', ''), request.POST.get('reason', ''))
-    except ServiceError as error:
-        messages.error(request, str(error))
-    return _review_redirect(change)
+    values = {field: request.POST[field] for field in changes.EDITABLE_FIELDS.get(item.kind, ())
+              if field in request.POST and (request.POST[field] != '' or item.payload.get(field) not in (None, ''))}
+    properties = {code: request.POST[f'property.{code}'] for code in item.payload.get('properties') or {}
+                  if f'property.{code}' in request.POST}
+    return _perform(request, change, 'Edit saved.', changes.edit_item, item, values, properties)
+
+
+@changes_view
+@require_POST
+def change_item_remove(request, organization, number, item_id):
+    change = _change_from_number(organization, number)
+    item = get_object_or_404(ChangeItem, id=item_id, change=change)
+    return _perform(request, change, 'Edit removed from the change request.', changes.remove_item, item)

@@ -38,6 +38,7 @@ Change (OrganizationScopedModel)
   created_at, submitted_at, resolved_at    DateTimeFields
   resolved_by       FK User null
   protection_overridden_by FK User null    set when an Admin approved past a protection
+  edit_log          JSONField list         edits made after submission: [{user_id, at, text}]
   cascade           JSONField null         ECO cascade: [{source_revision_id, new_revision_id}] for the parent revisions created
   unique_together (organization, number)
 
@@ -80,8 +81,15 @@ All take `organization` and a `user`. No view or tool touches the models directl
   against earlier items in the change; fills target FKs, `summary`, `before`; raises `ServiceError`
   with field errors. Recomputes `change.base_digest`.
 - `submit_change(change, user)`: draft -> open; sets `submitted_at`.
-- `set_item_status(change, item, status, reason='')`: reviewer accept/reject. Rejecting an item that
-  other items depend on (via `$ref`) rejects them too.
+- A change stays editable until it is resolved. `stage_item` works on an open change too (the author's agent adds
+  to it), `edit_item(change, user, item, values, properties=None)` changes an item's `EDITABLE_FIELDS` (quantity,
+  reference, description, sourcing values) and the property values it already sets, validated as staging is, and
+  `remove_item(change, user, item)` deletes one (not while later items `$ref` it, and not the last edit of an open
+  change). The author, or any Editor once the change is open, may edit; a stale open change is rebased first.
+  Edits to an open change are appended to `Change.edit_log` (`{user_id, at, text}`), shown on the review page and
+  returned by `get_change` as `edits_after_submission`. Anyone in that log counts as an author for the
+  protected-change rule, so a reviewer cannot rewrite an ECO and approve their own rewrite. Items are only marked
+  rejected by `rebase_change` (conflicts) and `reject_change`.
 - `apply_change(change, user, override_protection=False) -> Change`: the only write path. Inside
   `transaction.atomic()`:
   1. refuse if stale, or if not every accepted item still validates;
@@ -130,7 +138,8 @@ Host flags (callables of `organization`, default always-true in django-bom; Inda
   Change and applying it when the token has `apply`; if the token lacks `apply`, the Change is
   submitted as a change request and the tool returns its URL and says so.
 - `submit_change(change_id)`, `apply_change(change_id)` (requires `apply` scope),
-  `withdraw_change(change_id)`
+  `withdraw_change(change_id)`, `remove_change_item(change_id, position)` (correct an edit by removing it and
+  staging it again; staging also works on an open change)
 - `get_change(change_id)`: status, is_eco, is_stale, items with status and reject reasons, result ids.
 - `list_changes(status='open', limit=25)`
 - `get_organization` reports the token's level (`read` / `propose` / `apply`) and whether review is enabled.
@@ -157,12 +166,12 @@ inline `confirm()` pattern for irreversible actions.
   rejected or withdrew it and the date (`resolved_at`); the list shows that date in place of the request's age. The rationale follows the byline under a "Why"
   label. Items are grouped by the part they touch: BOM edits as diff rows (reference, part number and name,
   quantity old → new; green adds, red removes), part details and prices as before → after fields, new parts as a
-  field list, revisions and releases as a sentence. When a request has more than one edit, each has Leave out…
-  (a modal asking for a reason the author sees) or Include again; a single-edit request offers Reject alone, since
-  leaving out its only edit is the same thing. Left-out edits drop out of everything derived from the request: the
-  ECO chip, the per-part "New Draft revision" promise (the revision is created only when an edit to that part is
-  applied, so there is nothing to leave out there), the Approve count, and the Approve button itself once every
-  edit is left out, when a sentence points to Include again or Reject instead.
+  field list, revisions and releases as a sentence. While a request is pending, each edit has Edit (a modal
+  with its editable values) and, when the request has more than one edit, Remove; a single-edit request offers
+  Withdraw or Reject instead. Edits made after submission are listed under "Edited after it was proposed". Edits a
+  rebase left out stay struck through with the conflict as the reason, and drop out of everything derived from
+  the request: the ECO chip, the per-part "New Draft revision" promise, the Approve count, and the Approve button
+  itself once every edit is left out.
   Right rail: one card with cost per unit at the quote quantity, where it's used, and checks (validation errors
   and warnings); cascade candidates get their own card. Release is part of Approve, so there is no separate
   "Release rev N" step.
@@ -182,7 +191,7 @@ inline `confirm()` pattern for irreversible actions.
 
 Phases 1 to 4 are implemented on the `changes` branch (django-bom 1.320 to 1.323).
 
-1. Models and migration; `services/changes.py` (start, stage, submit, set_item_status, apply with authorization,
+1. Models and migration; `services/changes.py` (start, stage, submit, edit and remove items, apply with authorization,
    reject, withdraw, digest); the `apply` scope; MCP tools; list and review pages; nav badge; CSV import records a
    Change. `/changes/` and review are gated by `changes_review_enabled`.
 2. `impact`, cost delta (a rolled-back dry run), the Validation rail; part-page banner and ghosted lines; ECO: new

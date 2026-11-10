@@ -1342,6 +1342,7 @@ class Change(OrganizationScopedModel):
     protection_overridden_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                                  on_delete=models.SET_NULL, related_name='+')
     cascade = models.JSONField(null=True, blank=True)
+    edit_log = models.JSONField(default=list, blank=True)
     is_direct_edit = models.BooleanField(default=False)
     base_part_revision = models.ForeignKey('PartRevision', null=True, blank=True, on_delete=models.SET_NULL,
                                            related_name='+')

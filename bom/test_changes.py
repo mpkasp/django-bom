@@ -176,7 +176,7 @@ class ChangesMCPTest(MCPTestCase):
                                subpart_part_number=part_number)
         self.assertIn('no line', error)
 
-    def test_rejected_item_reason_is_visible_and_skipped_on_apply(self):
+    def test_an_agent_corrects_its_change_by_removing_edits_and_staging_again(self):
         client = self.mcp(self.apply_plaintext)
         started, _ = client.call('start_change', title='Two parts', rationale='Testing')
         change_id = started['change_id']
@@ -187,13 +187,13 @@ class ChangesMCPTest(MCPTestCase):
         client.call('add_subpart', assembly_part_number=self.assembly.part.full_part_number(),
                     subpart_part_number='$ref:cap', change_id=change_id)
 
-        change = Change.objects.get(id=change_id)
-        cap_item = change.items.get(position=1)
-        changes.set_item_status(change, cap_item, ChangeItem.STATUS_REJECTED, 'wrong footprint')
-        detail, _ = client.call('get_change', change_id=change_id)
-        self.assertEqual([item['status'] for item in detail['items']], ['rejected', 'accepted', 'rejected'])
-        self.assertEqual(detail['items'][0]['reject_reason'], 'wrong footprint')
-        self.assertIn('depends on rejected item 1', detail['items'][2]['reject_reason'])
+        _, error = client.call('remove_change_item', change_id=change_id, position=1)
+        self.assertIn('Item 3 uses what item 1 creates; remove that first', error)
+        client.call('remove_change_item', change_id=change_id, position=3)
+        detail, error = client.call('remove_change_item', change_id=change_id, position=1)
+        self.assertIsNone(error, error)
+        self.assertEqual([item['position'] for item in detail['items']], [2])
+        self.assertEqual(detail['edits_after_submission'], [])
 
         _, error = client.call('apply_change', change_id=change_id)
         self.assertIsNone(error, error)
@@ -600,14 +600,16 @@ class ChangesViewTest(TestCase):
         self.assertEqual(self.change.status, Change.STATUS_APPLIED)
         self.assertTrue(PartRevision.objects.filter(description='Cap').exists())
 
-    def test_item_reject_with_reason_then_reject_change(self):
-        item = self.change.items.get()
-        self.client.post(reverse('bom:change-item-status', kwargs={'number': self.change.number, 'item_id': item.id}),
-                         {'status': 'rejected', 'reason': 'no thanks'})
-        item.refresh_from_db()
-        self.assertEqual((item.status, item.reject_reason), ('rejected', 'no thanks'))
-        self.assertContains(self.client.get(self.review_url()), 'no thanks')
+    def test_reject_change_needs_a_reason(self):
+        other = User.objects.create_user('other', 'other@example.com', 'ghostpassword')
+        other.bom_profile(organization=self.organization)
+        self.change.author = other
+        self.change.save()
+        changes.submit_change(self.change, other)
 
+        self.client.post(self.review_url('change-reject'), {'reason': ''})
+        self.change.refresh_from_db()
+        self.assertEqual(self.change.status, Change.STATUS_OPEN)
         self.client.post(self.review_url('change-reject'), {'reason': 'Out of scope'})
         self.change.refresh_from_db()
         self.assertEqual(self.change.status, Change.STATUS_REJECTED)
@@ -654,44 +656,92 @@ class ChangesViewTest(TestCase):
         self.assertContains(response, '<td class="right-align">1</td>', html=False)
         self.assertNotContains(response, 'subpart_part_number')
         self.assertNotContains(response, 'prompt(')
-        self.assertNotContains(response, 'Leave out')
+        self.assertContains(response, '>Edit</a>')
+        self.assertNotContains(response, '>Remove</button>')
         self.assertContains(response, 'Apply 1 edit')
 
-    def test_leaving_out_edits_updates_the_revision_promise_and_the_approve_button(self):
+    def two_edit_request(self):
         cap = self.new_cap()
-        revision = cap.latest()
-        PartRevision.objects.filter(pk=revision.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        PartRevision.objects.filter(pk=cap.latest().pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
         change = changes.start_change(self.organization, self.user, 'Two edits')
         rename = changes.stage_item(change, ChangeItem.KIND_UPDATE_PART_REVISION, {
             'part_number': cap.full_part_number(), 'description': 'Renamed cap'})
         add_line = changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
             'assembly_part_number': self.parts[2].full_part_number(), 'subpart_part_number': cap.full_part_number(),
-            'count': 1})
+            'count': 2, 'reference': 'C1, C2'})
         changes.submit_change(change, self.user)
+        return change, rename, add_line
+
+    def item_url(self, name, change, item):
+        return reverse(f'bom:{name}', kwargs={'number': change.number, 'item_id': item.id})
+
+    def test_removing_an_edit_updates_the_revision_promise_and_the_approve_button(self):
+        change, rename, add_line = self.two_edit_request()
         url = reverse('bom:change-review', kwargs={'number': change.number})
 
         response = self.client.get(url)
-        self.assertContains(response, 'Leave out…', count=2)
-        self.assertContains(response, 'class="browser-default" type="text" name="reason" required')
+        self.assertContains(response, '>Remove</button>', count=2)
         self.assertContains(response, 'New Draft revision, released on approval')
         self.assertContains(response, 'Approve 2 edits')
 
-        self.client.post(reverse('bom:change-item-status', kwargs={'number': change.number, 'item_id': rename.id}),
-                         {'status': 'rejected', 'reason': 'keep the name'})
+        self.client.post(self.item_url('change-item-remove', change, rename))
         response = self.client.get(url)
         self.assertNotContains(response, 'New Draft revision')
         self.assertNotContains(response, 'ECO')
         self.assertContains(response, 'Apply 1 edit')
-        self.assertContains(response, 'Include again')
+        self.assertContains(response, 'Edited after it was proposed')
+        self.assertContains(response, 'Removed: Update description and properties of')
+        self.assertNotContains(response, '>Remove</button>')
 
-        self.client.post(reverse('bom:change-item-status', kwargs={'number': change.number, 'item_id': add_line.id}),
-                         {'status': 'rejected', 'reason': 'not needed'})
+        response = self.client.post(self.item_url('change-item-remove', change, add_line), follow=True)
+        self.assertContains(response, 'is the only edit in change')
+        self.assertEqual(change.items.count(), 1)
+
+    def test_editing_an_edit_changes_what_is_applied_and_is_recorded(self):
+        change, rename, add_line = self.two_edit_request()
+        url = reverse('bom:change-review', kwargs={'number': change.number})
+        self.assertContains(self.client.get(url), 'name="count" value="2"')
+
+        self.client.post(self.item_url('change-item-edit', change, add_line), {'count': '3', 'reference': 'C1, C2'})
+        add_line.refresh_from_db()
+        self.assertEqual(add_line.payload['count'], 2)
+
+        self.client.post(self.item_url('change-item-edit', change, add_line), {'count': '1', 'reference': 'C1'})
+        self.client.post(self.item_url('change-item-edit', change, rename), {'description': 'Better cap'})
         response = self.client.get(url)
-        self.assertNotContains(response, 'Apply 0 edits')
-        self.assertContains(response, 'nothing to approve')
-        self.assertContains(response, 'withdraw the request')
-        self.assertNotContains(response, 'Reject…')
-        self.assertContains(response, 'Withdraw')
+        self.assertContains(response, 'Changed quantity 2 → 1, reference C1, C2 → C1 in: Add')
+        self.assertContains(response, 'Changed description Renamed cap → Better cap in:')
+        self.assertContains(response, 'Better cap')
+
+        self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
+        line = self.parts[2].latest().assembly.subparts.get(part_revision__part=rename.part)
+        self.assertEqual((line.count, line.reference), (1, 'C1'))
+        self.assertEqual(rename.part.latest().description, 'Better cap')
+
+    def test_a_reviewer_who_edits_a_protected_request_cannot_approve_it(self):
+        change, rename, add_line = self.two_edit_request()
+        reviewer = User.objects.create_user('reviewer', 'reviewer@example.com', 'ghostpassword')
+        profile = reviewer.bom_profile(organization=self.organization)
+        profile.role = constants.ROLE_TYPE_EDITOR
+        profile.save()
+        self.assertTrue(changes.approval_status(change, reviewer)['can_apply'])
+
+        changes.edit_item(change, reviewer, add_line, {'count': '1', 'reference': 'C1'})
+
+        approval = changes.approval_status(change, reviewer)
+        self.assertFalse(approval['can_apply'])
+        self.assertIn('you edited it', approval['message'])
+        with self.assertRaises(ServiceError):
+            changes.apply_change(change, reviewer)
+
+    def test_a_stale_request_is_rebased_before_it_is_edited(self):
+        change, rename, add_line = self.two_edit_request()
+        boms.add_subpart(self.organization, self.parts[2].latest(), self.parts[0].full_part_number(), count=1)
+
+        self.assertNotContains(self.client.get(reverse('bom:change-review', kwargs={'number': change.number})),
+                               '>Edit</a>')
+        with self.assertRaisesMessage(ServiceError, 'Rebase it'):
+            changes.remove_item(change, self.user, rename)
 
     def test_sourcing_edits_to_a_released_part_promise_no_new_revision(self):
         cap = self.new_cap()
@@ -706,28 +756,11 @@ class ChangesViewTest(TestCase):
         url = reverse('bom:change-review', kwargs={'number': change.number})
         self.assertContains(self.client.get(url), 'New Draft revision')
 
-        changes.set_item_status(change, rename, ChangeItem.STATUS_REJECTED, 'keep the name')
+        ChangeItem.objects.filter(pk=rename.pk).update(status=ChangeItem.STATUS_REJECTED)
         response = self.client.get(url)
         self.assertNotContains(response, 'New Draft revision')
         self.assertNotContains(response, 'ECO')
         self.assertContains(response, 'Apply 1 edit')
-
-    def test_an_edit_cannot_be_included_again_while_what_it_uses_is_left_out(self):
-        change = changes.start_change(self.organization, self.user, 'New cap and a line')
-        create = changes.stage_item(change, ChangeItem.KIND_CREATE_PART, {
-            'description': 'Cap', 'part_class_code': str(self.parts[0].number_class.code),
-            'properties': {'sheen': 'matte', 'voltage': '3.3'}, 'property_units': {'voltage': 'V'}}, ref='cap')
-        add_line = changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
-            'assembly_part_number': self.parts[2].full_part_number(), 'subpart_part_number': '$ref:cap', 'count': 1})
-        changes.set_item_status(change, create, ChangeItem.STATUS_REJECTED, 'exists already')
-        add_line.refresh_from_db()
-        self.assertEqual(add_line.status, ChangeItem.STATUS_REJECTED)
-
-        with self.assertRaisesMessage(ServiceError, 'uses what item 1 creates; include that first'):
-            changes.set_item_status(change, add_line, ChangeItem.STATUS_ACCEPTED)
-        changes.set_item_status(change, create, ChangeItem.STATUS_ACCEPTED)
-        changes.set_item_status(change, add_line, ChangeItem.STATUS_ACCEPTED)
-        self.assertEqual(change.items.filter(status=ChangeItem.STATUS_ACCEPTED).count(), 2)
 
     def test_review_page_shows_before_and_after_for_part_details(self):
         revision = self.new_cap().latest()

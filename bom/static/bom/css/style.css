@@ -1042,7 +1042,7 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 }
 
 .change-reject textarea,
-.change-leave-out input[type=text] {
+.change-item-modal input[type=text] {
     width: 100%;
     min-height: 2.5rem;
     padding: 8px 10px;
@@ -1057,21 +1057,29 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     min-height: 4.5rem;
 }
 
-.change-leave-out {
+.change-item-modal {
     max-width: 480px;
     white-space: normal;
 }
 
-.change-leave-out label {
+.change-item-modal label {
     display: block;
-    margin-bottom: 4px;
+    margin: 12px 0 4px;
     color: inherit;
 }
 
-.change-fields .modal-trigger,
-.change-note .modal-trigger,
-.change-fields > form,
-.change-note > form {
+.change-item-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.change-history p {
+    margin: 0 0 8px;
+}
+
+.change-fields > .change-item-actions,
+.change-note > .change-item-actions {
     margin-top: 10px;
 }
 
