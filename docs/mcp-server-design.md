@@ -170,6 +170,7 @@ Write (scope `write`; every tool stages into a Change, see [changes-design.md](c
 |---|---|---|
 | `start_change` | `title`, `rationale=''` | starts the Change that the other write tools stage into |
 | `submit_change`, `withdraw_change` | `change_id` | send a draft change for review; withdraw your own |
+| `remove_change_item` | `change_id`, `position` | drop one staged edit from your draft or open change; write tools also stage into an open change |
 | `apply_change` | `change_id` | needs the `apply` scope; never releases or approves |
 | `create_part` | `description`, `part_class_code?`, `number_item?`, `number_variation?`, `properties?`, `property_units?`, `manufacturer?`, `manufacturer_part_number?`, `link?`, `change_id?`, `ref=''` | applies through `PartForm*` + `PartRevisionForm`; returns the assigned part number |
 | `update_part_revision` | `part_number`, `change_id`, `description?`, `properties?`, `revision?` | Through `PartRevisionForm`. A Draft is edited in place; a Released or In Review revision makes the change an ECO whose apply creates the next Draft with the new values (the review page shows old → new). Where ECOs are off, the error says to call `revise_part` |
@@ -182,7 +183,7 @@ Write (scope `write`; every tool stages into a Change, see [changes-design.md](c
 
 `upload_bom` stages lines, not parts. The CSV is run through `BOMCSVForm` in a rolled-back transaction, and each
 added, changed or removed line becomes an `add_subpart`, `update_subpart` or `remove_subpart` item, so a reviewer
-accepts or rejects lines one at a time and a Released assembly follows the ECO path like any other subpart edit. A
+edits or removes lines one at a time and a Released assembly follows the ECO path like any other subpart edit. A
 CSV that has row errors, or that needs a part or revision that does not exist yet, stages nothing and the error
 says why; create the parts first.
 

@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 
 from bom.models import Change, ChangeItem, PartClass, PartRevision, PartRevisionPropertyDefinition
 from bom.services import parts
-from bom.services.changes import REF_PREFIX
+from bom.services.changes import EDITABLE_FIELDS, REF_PREFIX, STAGEABLE_KINDS
 from bom.services.errors import ServiceError
 
 KIND_LABELS = {
@@ -34,7 +34,7 @@ FIELD_LABELS = {
     'manufacturer': 'Manufacturer', 'manufacturer_part_number': 'Manufacturer part number', 'seller': 'Seller',
     'seller_part_number': 'Seller part number', 'unit_cost': 'Unit cost', 'nre_cost': 'NRE cost',
     'minimum_order_quantity': 'Minimum order', 'minimum_pack_quantity': 'Pack quantity', 'lead_time_days': 'Lead time (days)',
-    'datasheet_url': 'Datasheet', 'link': 'Link', 'primary_manufacturer_part': 'Primary manufacturer part',
+    'count': 'Quantity', 'reference': 'Reference designators', 'datasheet_url': 'Datasheet', 'link': 'Link', 'primary_manufacturer_part': 'Primary manufacturer part',
 }
 MONEY_FIELDS = ('unit_cost', 'nre_cost')
 HIDDEN_FIELDS = {'part_number', 'revision', 'assembly_part_number', 'assembly_revision', 'manufacturer_part_id',
@@ -130,7 +130,8 @@ def _new_section(item, kind, context):
 
 
 def _entry(item, context):
-    entry = {'item': item, 'label': kind_label(item.kind), 'is_left_out': item.status == ChangeItem.STATUS_REJECTED}
+    entry = {'item': item, 'label': kind_label(item.kind), 'is_left_out': item.status == ChangeItem.STATUS_REJECTED,
+             'edit_fields': _edit_fields(item, context), 'is_removable': item.kind in STAGEABLE_KINDS}
     if item.kind in BOM_KINDS:
         entry.update(_bom_line(item, context))
     elif item.kind == ChangeItem.KIND_CREATE_PART:
@@ -148,6 +149,17 @@ def _entry(item, context):
         if not entry['fields']:
             entry['text'] = item.summary
     return entry
+
+
+def _edit_fields(item, context):
+    """The inputs of the item's Edit form: its editable values, then the properties it sets."""
+    payload = item.payload or {}
+    fields = [{'name': field, 'label': _field_label(field),
+               'value': quantity(payload[field]) if field == 'count' and payload.get(field) is not None
+               else payload.get(field) or ''} for field in EDITABLE_FIELDS.get(item.kind, ())]
+    fields += [{'name': f'property.{code}', 'label': context.property_name(code), 'value': value}
+               for code, value in (payload.get('properties') or {}).items()]
+    return fields
 
 
 def _bom_line(item, context):

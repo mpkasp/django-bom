@@ -34,6 +34,8 @@ mcp = MCPServer(
         "only pass number_item/number_variation when the user stated a specific number. "
         "Edits are Changes: call start_change once per user intent with a title and a rationale (the why), pass "
         "its change_id to the write tools to stage items, then submit_change for review or apply_change. "
+        "A submitted change request can still be corrected until it is applied: stage more edits into it or drop "
+        "one with remove_change_item, and read get_change first, since a person may have edited it. "
         "When the user did not say, ask whether to apply now or submit for review. get_organization shows what "
         "this token may do (token_level). Agents never release revisions or approve requests; people do that."
     ),
@@ -220,6 +222,22 @@ def submit_change(ctx: Context, change_id: int) -> dict:
 
 
 @mcp.tool(annotations=WRITE)
+def remove_change_item(ctx: Context, change_id: int, position: int) -> dict:
+    """Drop one staged edit (by its position, from get_change) from your draft or open change. To correct an
+    edit, remove it and stage it again with the right values. An edit that later items depend on through
+    "$ref:<key>" can only be removed after them, and the last edit of an open change cannot be removed: withdraw
+    the change instead."""
+    with tool_call(ctx, 'remove_change_item') as actor:
+        actor.require_propose()
+        change = _own_change(actor, change_id)
+        item = change.items.filter(position=position).first()
+        if item is None:
+            raise ToolError(f"Change #{change.number} has no item {position}.")
+        changes.remove_item(change, actor.user, item)
+        return changes.change_detail(change)
+
+
+@mcp.tool(annotations=WRITE)
 def apply_change(ctx: Context, change_id: int) -> dict:
     """Apply a change now. Needs the apply scope; protected changes (for example edits to a Released revision) must
     be applied by someone other than their author. Agents apply only the changes they started and never release
@@ -243,7 +261,7 @@ def get_change(ctx: Context, change_id: int) -> dict:
     """A change's status, whether it is an Engineering Change Order (is_eco: touches a Released revision), protected
     (is_protected: someone other than the author must apply it) or stale (is_stale: the parts changed since it was
     staged, so stage it again), each item with its status, reviewer rejection reason and the ids produced when
-    applied, and its impact: assemblies that use the edited parts (Released ones need new revisions) and the unit
+    applied, the edits people or agents made after it was submitted (edits_after_submission), and its impact: assemblies that use the edited parts (Released ones need new revisions) and the unit
     cost before, after and delta at the organization's quote quantity."""
     with tool_call(ctx, 'get_change') as actor:
         change = changes.change_for(actor.organization, change_id)
@@ -401,7 +419,7 @@ def upload_bom(ctx: Context, assembly_part_number: str, csv_text: str, change_id
     quantity, reference, level) into an assembly. `mode` `add` (default) adds the CSV's quantities and references
     to the assembly's existing lines; `replace` makes the assembly's lines match the CSV and removes the rest. The
     CSV is checked with the same import as the web upload and becomes one add_subpart, update_subpart or
-    remove_subpart item per changed line, so a reviewer can accept or reject lines individually. The CSV may only use
+    remove_subpart item per changed line, so a reviewer can edit or remove lines individually. The CSV may only use
     parts and revisions that already exist, and it cannot create or edit parts; a CSV with errors stages nothing and
     the error lists each bad row. A Released assembly becomes an Engineering Change Order, as with add_subpart.
     Stages into `change_id` (from start_change); nothing is saved until the change is applied."""

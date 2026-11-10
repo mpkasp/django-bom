@@ -1,5 +1,5 @@
 <table class="highlight">
-    <thead><tr><th>#</th><th>Item</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>#</th><th>Item</th><th>Status</th></tr></thead>
     <tbody>
     {% for item in items %}
         <tr {% if item.status == 'rejected' %}class="grey-text"{% endif %}>
@@ -12,24 +12,6 @@
                 {% if item.reject_reason %}<br><small class="red-text">Rejected: {{ item.reject_reason }}</small>{% endif %}
             </td>
             <td>{{ item.get_status_display }}</td>
-            <td>
-                {% if can_review and is_pending and item.kind != 'csv_import' %}
-                    {% if item.status == 'accepted' %}
-                        <form method="post" action="{% url 'bom:change-item-status' number=change.number item_id=item.id %}" onsubmit="var reason = prompt('Reason for rejecting this item?'); if (!reason) { return false; } this.reason.value = reason;">
-                            {% csrf_token %}
-                            <input type="hidden" name="status" value="rejected">
-                            <input type="hidden" name="reason" value="">
-                            <button class="btn-flat btn-small" type="submit">Reject</button>
-                        </form>
-                    {% else %}
-                        <form method="post" action="{% url 'bom:change-item-status' number=change.number item_id=item.id %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="status" value="accepted">
-                            <button class="btn-flat btn-small" type="submit">Accept</button>
-                        </form>
-                    {% endif %}
-                {% endif %}
-            </td>
         </tr>
     {% endfor %}
     </tbody>

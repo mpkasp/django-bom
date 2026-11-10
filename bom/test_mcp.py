@@ -666,16 +666,25 @@ class MCPUploadBomTest(MCPTestCase):
             PartRevision.objects.get(pk=self.assembly_revision.pk).configuration,
             constants.CONFIGURATION_TYPE_RELEASED)
 
-    def test_a_submitted_change_cannot_take_more_items(self):
+    def test_a_submitted_change_takes_more_items_until_it_is_resolved(self):
+        client = self.mcp(self.write_plaintext)
         change_id = self.start_change(self.write_plaintext)
         self.upload(self.write_plaintext, self.csv_text((self.resistor.full_part_number(), 1, '')),
                     change_id=change_id)
-        self.mcp(self.write_plaintext).call('submit_change', change_id=change_id)
+        client.call('submit_change', change_id=change_id)
 
         _, _, error = self.upload(self.write_plaintext, self.csv_text((self.capacitor.full_part_number(), 1, '')),
                                   change_id=change_id)
+        self.assertIsNone(error, error)
+        detail, _ = client.call('get_change', change_id=change_id)
+        self.assertEqual(len(detail['items']), 2)
+        self.assertEqual([(edit['by'], edit['text'][:6]) for edit in detail['edits_after_submission']],
+                         [(self.user.username, 'Added:')])
 
-        self.assertIn('items can only be staged into a draft', error)
+        client.call('withdraw_change', change_id=change_id)
+        _, _, error = self.upload(self.write_plaintext, self.csv_text((self.capacitor.full_part_number(), 1, '')),
+                                  change_id=change_id)
+        self.assertIn('withdrawn and can no longer be edited', error)
 
     def test_read_tokens_cannot_upload(self):
         change_id = self.start_change(self.write_plaintext)
