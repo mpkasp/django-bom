@@ -79,11 +79,10 @@ The person connecting an agent chooses one level on the consent page, and can ch
 | Edit | `read write` | edit Drafts, revise, build and submit change orders |
 | Edit and release | `read write release` | also release Drafts and approve change orders, as its person |
 
-Two caps apply on top, and the consent page only offers what passes both:
-
-- **The person's role.** A Viewer can grant Read only. Release needs the role's release permission.
-- **The organization.** An Admin setting, "Agents may release", off by default for organizations with more than
-  one member and on for a single-member organization. It lets a team keep a person on every release.
+The one cap is the person's role, and the consent page only offers what it allows: a Viewer can grant Read only,
+and release needs the role's release permission. There is no separate organization setting for agents. An
+organization that wants a second person on every release turns on change orders with release approval, which
+binds people and agents alike.
 
 With release granted the agent is still its person for the approval rule: it cannot approve a change order that its
 person wrote or edited, unless they are the only member. Every release and approval records the agent as well as
