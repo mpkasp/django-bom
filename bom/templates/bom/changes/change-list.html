@@ -29,10 +29,11 @@
                             <td>
                                 {% if change.number %}
                                     <a href="{% url 'bom:change-review' number=change.number %}">{{ change.title }}</a>
-                                    <br><small class="text-grey">#{{ change.number }} &middot; {{ change.created_at|timesince }} ago</small>
+                                    <br><small class="text-grey">#{{ change.number }} &middot;
+                                        {% if change.resolved_at %}{{ change.get_status_display }} {{ change.resolved_at|date:'M j, Y' }}{% else %}{{ change.created_at|timesince }} ago{% endif %}</small>
                                 {% else %}
                                     {{ change.title }}
-                                    <br><small class="text-grey">{{ change.created_at|timesince }} ago</small>
+                                    <br><small class="text-grey">{{ change.resolved_at|default:change.created_at|date:'M j, Y' }}</small>
                                 {% endif %}
                             </td>
                             <td>

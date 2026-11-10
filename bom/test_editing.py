@@ -6,6 +6,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.formats import date_format
 
 from bom import constants
 from bom.helpers import create_some_fake_parts, create_user_and_organization
@@ -878,6 +880,17 @@ class ReleaseApprovalTest(ApprovalTestCase):
 
         self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
         self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_RELEASED)
+
+    def test_an_applied_request_shows_when_it_was_applied(self):
+        change = changes.request_release_approval(self.draft, self.member(constants.ROLE_TYPE_EDITOR))
+        self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
+        change.refresh_from_db()
+        applied_on = date_format(timezone.localtime(change.resolved_at), 'M j, Y')
+
+        page = self.client.get(reverse('bom:change-review', kwargs={'number': change.number}))
+        self.assertContains(page, f'>{applied_on}</span>')
+        applied_list = self.client.get(reverse('bom:change-list') + '?filter=applied')
+        self.assertContains(applied_list, f'Applied {applied_on}')
 
 
 class TelemetryTest(ApprovalTestCase):
