@@ -170,6 +170,20 @@ def change_withdraw(request, organization, number):
 
 @changes_view
 @require_POST
+def change_part_add(request, organization, number):
+    change = _change_order_from_number(organization, number)
+    try:
+        part_revision, revised = change_orders.add_part(change, request.user, request.POST.get('part_number', '').strip())
+    except ServiceError as error:
+        messages.error(request, str(error))
+    else:
+        label = f'{part_revision.part.full_part_number()} rev {part_revision.revision}'
+        messages.success(request, f'Started {label} as a Draft and added it.' if revised else f'Added {label}.')
+    return _review_redirect(change)
+
+
+@changes_view
+@require_POST
 def change_revision_remove(request, organization, number, part_revision_id):
     change = _change_order_from_number(organization, number)
     part_revision = get_object_or_404(PartRevision.objects.select_related('part'), pk=part_revision_id,

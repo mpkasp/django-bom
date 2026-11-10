@@ -143,6 +143,29 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
         self.assertEqual(change.status, Change.STATUS_WITHDRAWN)
         self.assertEqual(self.configuration(second), constants.CONFIGURATION_TYPE_DRAFT)
 
+    def test_parts_are_added_from_the_change_order_and_released_ones_are_revised(self):
+        released, draft = self.released('Bracket'), parts.create_part(
+            self.organization, 'Plate', part_class_code=self.part_class_code)
+        change = self.order(title='Two parts')
+        page = self.client.get(self.url(change))
+        self.assertContains(page, 'Add a part')
+
+        for part_revision in (released, draft):
+            self.client.post(self.url(change, 'change-part-add'), {'part_number': self.number(part_revision)})
+        added = [link.part_revision for link in change.revisions.all()]
+        self.assertEqual([(revision.part_id, revision.revision, revision.configuration) for revision in added],
+                         [(released.part_id, '2', constants.CONFIGURATION_TYPE_DRAFT),
+                          (draft.part_id, '1', constants.CONFIGURATION_TYPE_DRAFT)])
+        page = self.client.get(self.url(change))
+        self.assertContains(page, '>Edit revision</a>', count=2)
+
+        response = self.client.post(self.url(change, 'change-part-add'), {'part_number': 'nope'}, follow=True)
+        self.assertEqual(change.revisions.count(), 2)
+        change_orders.submit(change, self.user)
+        page = self.client.get(self.url(change))
+        self.assertNotContains(page, 'Add a part')
+        self.assertNotContains(page, '>Edit revision</a>')
+
     def test_an_approved_change_order_offers_the_cascade(self):
         leaf = self.released('Leaf')
         parent = parts.create_part(self.organization, 'Parent', part_class_code=self.part_class_code)
@@ -302,14 +325,14 @@ class ChangeOrderGuardTest(ChangeOrderViewTestCase):
         draft = self.working_draft(self.released('One'))
         other = self.released('Other')
         change = self.order(draft)
-        banner = f'change order #{change.number}</a>'
+        banner = f'Open change order #{change.number}</a>'
 
         page = self.client.get(self.revision_url('part-info-history', draft))
         self.assertContains(page, banner)
-        self.assertContains(page, '(draft)')
-        self.assertNotContains(self.client.get(self.revision_url('part-info-history', other)), 'This revision is in')
+        self.assertContains(page, 'then submit the change order for review')
+        self.assertNotContains(self.client.get(self.revision_url('part-info-history', other)), 'Open change order')
 
         change_orders.submit(change, self.user)
-        self.assertContains(self.client.get(self.revision_url('part-info-history', draft)), '(in review)')
+        self.assertContains(self.client.get(self.revision_url('part-info-history', draft)), 'under review and locked')
         change_orders.withdraw(change, self.user)
         self.assertNotContains(self.client.get(self.revision_url('part-info-history', draft)), banner)

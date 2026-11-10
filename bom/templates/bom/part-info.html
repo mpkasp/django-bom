@@ -140,10 +140,13 @@
             {% endif %}
 
             {% if change_order %}
-                <div class="part-status-strip part-proposals-strip printer-hide">
+                <div class="part-status-strip printer-hide">
                     <i class="material-icons">fact_check</i>
-                    <span>This revision is in <a href="{% url 'bom:change-review' number=change_order.number %}">change order #{{ change_order.number }}</a>
-                        ({% if change_order.status == 'open' %}in review{% elif change_order.status == 'rejected' %}sent back{% else %}draft{% endif %}).</span>
+                    <span>Rev {{ part_revision.revision }} is in change order #{{ change_order.number }}, {{ change_order.title }}.
+                        {% if change_order.status == 'open' %}It is under review and locked until the change order is approved or sent back.
+                        {% elif change_order.status == 'rejected' %}The change order was sent back: edit this revision, then submit the change order again.
+                        {% else %}Edit this revision, then submit the change order for review.{% endif %}</span>
+                    <a class="part-status-action" href="{% url 'bom:change-review' number=change_order.number %}">Open change order #{{ change_order.number }}</a>
                 </div>
             {% endif %}
             <div class="row">

@@ -236,16 +236,6 @@ a.part-thumb-empty:hover {
     font-weight: 500;
 }
 
-.part-proposals-strip {
-    background: #eef1fb;
-    border-color: #d5dbf5;
-    color: #283593;
-}
-
-.part-proposals-strip > .material-icons {
-    color: #283593;
-}
-
 .part-actions-menu {
     min-width: 240px;
 }

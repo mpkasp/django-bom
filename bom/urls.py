@@ -60,6 +60,7 @@ bom_patterns = [
     path('changes/<int:number>/reject/', change_views.change_reject, name='change-reject'),
     path('changes/<int:number>/withdraw/', change_views.change_withdraw, name='change-withdraw'),
     path('changes/<int:number>/cascade/', change_views.change_cascade, name='change-cascade'),
+    path('changes/<int:number>/parts/add/', change_views.change_part_add, name='change-part-add'),
     path('changes/<int:number>/revisions/<int:part_revision_id>/remove/', change_views.change_revision_remove,
          name='change-revision-remove'),
     path('create-part/', views.create_part, name='create-part'),

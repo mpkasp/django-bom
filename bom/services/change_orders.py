@@ -11,7 +11,7 @@ from bom.constants import (CONFIGURATION_TYPE_DRAFT, CONFIGURATION_TYPE_IN_REVIE
                            ROLE_TYPE_ADMIN)
 from bom.models import Change, ChangeItem, ChangeRevision, PartRevision
 from bom.permissions import BomPerms
-from bom.services import changes
+from bom.services import changes, parts
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
 from bom.services.flags import change_orders_enabled
@@ -44,6 +44,18 @@ def add_revision(change, user, part_revision):
         raise ServiceError(f"{label} is already in change order #{other.number}.")
     return ChangeRevision.objects.create(change=change, part_revision=part_revision,
                                          base_revision=changes._previous_revision(part_revision))
+
+
+def add_part(change, user, part_number):
+    """Put a part's working Draft into the change order, revising the part first when its latest revision is
+    Released. Returns the revision and whether it was created here."""
+    _require_editable(change)
+    latest = parts.revision_from_number(change.organization, part_number)
+    with transaction.atomic():
+        revised = latest.is_immutable()
+        part_revision = changes.revise_revision(latest, user) if revised else latest
+        add_revision(change, user, part_revision)
+    return part_revision, revised
 
 
 def remove_revision(change, user, part_revision):

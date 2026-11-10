@@ -1123,8 +1123,26 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     margin: 0;
 }
 
-.change-part-remove {
+.change-part-edit {
     margin-left: auto;
+}
+
+.change-add-part form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.change-add-part input[type=text] {
+    flex: 1 1 14rem;
+    min-height: 2.5rem;
+    padding: 8px 10px;
+    border: 1px solid rgba(128, 128, 128, 0.4);
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
 }
 
 .change-section + .change-section {

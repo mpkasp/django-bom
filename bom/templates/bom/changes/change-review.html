@@ -84,9 +84,19 @@
                             {% for item in staged_items %}<li>{{ item.summary }}</li>{% endfor %}
                         </ul>
                     </div>
-                {% elif not cards %}
+                {% elif not cards and not is_editable %}
                     <div class="card-panel">
-                        <p class="text-grey">This change order holds no revisions{% if is_editable %} yet. Open a Draft revision, choose Release, then Add to change order{% endif %}.</p>
+                        <p class="text-grey">This change order holds no revisions.</p>
+                    </div>
+                {% endif %}
+                {% if can_remove %}
+                    <div class="card-panel change-add-part">
+                        <span class="change-label">Add a part</span>
+                        <form method="post" action="{% url 'bom:change-part-add' number=change.number %}">{% csrf_token %}
+                            <input class="browser-default" type="text" name="part_number" placeholder="Part number" aria-label="Part number" required>
+                            <button class="btn-outline waves-effect" type="submit">Add</button>
+                        </form>
+                        <p class="text-grey">A part whose latest revision is Released gets its next revision as a Draft. Use Edit revision to change it.</p>
                     </div>
                 {% endif %}
             </div>
