@@ -1,25 +1,27 @@
-{% for section in sections %}
+{% for card in cards %}
     <div class="card-panel change-part">
         <div class="change-part-head">
-            {% if section.kind == 'new_part' %}
+            {% if card.kind == 'new_part' %}
                 <span class="chip change-new">New part</span>
-                <span>{{ section.entries.0.title }}</span>
-                {% if section.entries.0.part_number %}<span class="text-grey">created as {{ section.entries.0.part_number }}</span>{% endif %}
-            {% elif section.part %}
-                <a href="{% url 'bom:part-info' part_id=section.part.id %}">{{ section.part.full_part_number }}</a>
-                {% if section.part_revision %}
-                    <span>{{ section.part_revision.description }}</span>
-                    <span class="chip">Rev {{ section.part_revision.revision }} &middot; {{ section.part_revision.get_configuration_display }}</span>
-                    {% if section.new_revision %}
-                        <span class="change-revision-arrow">&rarr;</span><span class="chip change-new">Rev {{ section.new_revision }}</span>
-                    {% elif section.revises_on_apply %}
+                <span>{{ card.entries.0.title }}</span>
+                {% if card.entries.0.part_number %}<span class="text-grey">created as {{ card.entries.0.part_number }}</span>{% endif %}
+            {% elif card.part %}
+                <a href="{% url 'bom:part-info' part_id=card.part.id %}">{{ card.part.full_part_number }}</a>
+                {% if card.part_revision %}
+                    <span>{{ card.part_revision.description }}</span>
+                    <span class="chip">Rev {{ card.part_revision.revision }} &middot; {{ card.part_revision.get_configuration_display }}</span>
+                    {% if card.new_revision %}
+                        <span class="change-revision-arrow">&rarr;</span><span class="chip change-new">Rev {{ card.new_revision }}</span>
+                    {% elif card.revises_on_apply %}
                         <span class="change-revision-arrow">&rarr;</span><span class="chip change-new">New Draft revision{% if is_eco %}, released on approval{% endif %}</span>
                     {% endif %}
                 {% endif %}
             {% endif %}
-            <span class="change-part-kind text-grey">{{ section.heading }}</span>
         </div>
 
+        {% for section in card.sections %}
+        <div class="change-section">
+        {% if section.heading %}<p class="change-label change-section-heading">{{ section.heading }}</p>{% endif %}
         {% if section.kind == 'bom' %}
             <div class="responsive-table-wrapper">
                 <table class="change-bom">
@@ -63,5 +65,7 @@
                 </div>
             {% endfor %}
         {% endif %}
+        </div>
+        {% endfor %}
     </div>
 {% endfor %}

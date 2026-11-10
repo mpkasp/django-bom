@@ -164,7 +164,7 @@ inline `confirm()` pattern for irreversible actions.
   ECO definition, and the per-part header shows the revision it moves to ("Rev 1 · Released → New Draft revision,
   released on approval"), so the page has no explanatory banners. Once resolved, the byline gives who applied,
   rejected or withdrew it and the date (`resolved_at`); the list shows that date in place of the request's age. The rationale follows the byline under a "Why"
-  label. Items are grouped by the part they touch: BOM edits as diff rows (reference, part number and name,
+  label. Items are grouped into one card per part revision, with its part details first and its bill of materials after: BOM edits as diff rows (reference, part number and name,
   quantity old → new; green adds, red removes), part details and prices as before → after fields, new parts as a
   field list, revisions and releases as a sentence. While a request is pending, each edit has Edit (a modal
   with its editable values) and, when the request has more than one edit, Remove; a single-edit request offers

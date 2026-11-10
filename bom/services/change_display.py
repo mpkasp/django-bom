@@ -1,4 +1,4 @@
-"""How a change reads on its review page: items grouped by the part they touch, as BOM lines or before/after fields.
+"""How a change reads on its review page: items grouped by the part revision they touch, as BOM lines or before/after fields.
 
 Display only: nothing here changes data, and the MCP tools keep their own item summaries.
 """
@@ -41,8 +41,9 @@ HIDDEN_FIELDS = {'part_number', 'revision', 'assembly_part_number', 'assembly_re
                  'properties', 'property_units'}
 
 
-def change_sections(change):
-    """The change's items in sections, one per part and kind of edit, in the order the items were staged."""
+def change_parts(change):
+    """The change's items as one card per part revision, each holding its sections: part details, then the bill of
+    materials, then notes. A part the change creates gets its own card."""
     items = list(change.items.select_related('part', 'part_revision').order_by('position'))
     context = _Context(change.organization, items)
     sections = {}
@@ -54,17 +55,30 @@ def change_sections(change):
         section['entries'].append(_entry(item, context))
         if section['kind'] == 'fields' and len({entry['item'].kind for entry in section['entries']}) > 1:
             section['heading'] = 'Part details'
-    for section in sections.values():
-        section.update(_revision_transition(section, change))
-    return list(sections.values())
+    cards = {}
+    for key, section in sections.items():
+        part, part_revision = section['part'], section['part_revision']
+        card_key = key if section['kind'] == 'new_part' or part is None else \
+            (part.id, part_revision.id if part_revision else None)
+        card = cards.setdefault(card_key, {'kind': section['kind'] if section['kind'] == 'new_part' else 'part',
+                                           'part': part, 'part_revision': part_revision, 'sections': [], 'entries': []})
+        card['sections'].append(section)
+        card['entries'] += section['entries']
+    for card in cards.values():
+        card['sections'].sort(key=lambda section: _SECTION_ORDER.get(section['kind'], len(_SECTION_ORDER)))
+        card.update(_revision_transition(card, change))
+    return list(cards.values())
 
 
-def _revision_transition(section, change):
+_SECTION_ORDER = {'fields': 0, 'bom': 1}
+
+
+def _revision_transition(card, change):
     """Edits to a Released revision land on a new Draft: before apply, say so; after, name the revision created."""
-    part_revision = section['part_revision']
+    part_revision = card['part_revision']
     if part_revision is None:
         return {}
-    results = [entry['item'].result or {} for entry in section['entries']]
+    results = [entry['item'].result or {} for entry in card['entries']]
     created = next((result.get('new_revision') or result.get('revision') for result in results
                     if result.get('new_revision_id') or 'source_revision_id' in result), None)
     # Applying moves the items onto the revision it created, so the one they started from is in the result.
@@ -75,7 +89,7 @@ def _revision_transition(section, change):
     # Mirrors is_eco: only a kept edit to an immutable revision (or an explicit revise) creates a revision on apply.
     revises = any(entry['item'].kind == ChangeItem.KIND_CREATE_PART_REVISION
                   or (entry['item'].part_revision_id and entry['item'].part_revision.is_immutable())
-                  for entry in section['entries'] if not entry['is_left_out'])
+                  for entry in card['entries'] if not entry['is_left_out'])
     transition['revises_on_apply'] = created is None and revises and change.status in Change.PENDING_STATUSES
     return transition
 

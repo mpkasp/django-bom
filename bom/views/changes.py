@@ -85,17 +85,17 @@ def change_review(request, organization, number):
     can_act = is_pending and (is_author or change.status == Change.STATUS_OPEN)
     problems = changes.validate_change(change) if is_pending else []
     is_stale = change.is_stale
-    sections = change_display.change_sections(change)
+    cards = change_display.change_parts(change)
     impact = changes.impact(change) if is_pending or change.status == Change.STATUS_APPLIED else None
     accepted_count = change.items.filter(status=ChangeItem.STATUS_ACCEPTED).count()
-    edit_count = sum(len(section['entries']) for section in sections)
+    edit_count = sum(len(card['entries']) for card in cards)
     can_edit = is_pending and not is_stale and (is_author or (can_review and change.status == Change.STATUS_OPEN))
     can_approve = can_act and can_review and accepted_count > 0
     return TemplateResponse(request, 'bom/changes/change-review.html', {
         'title': f'Change request #{change.number}', 'name': 'changes', 'profile': user.bom_profile(),
-        'organization': organization, 'change': change, 'sections': sections,
+        'organization': organization, 'change': change, 'cards': cards,
         'edit_count': edit_count,
-        'part_count': len({section['part'].id for section in sections if section['part']}),
+        'part_count': len({card['part'].id for card in cards if card['part']}),
         'author_name': change.author.get_full_name() or change.author.username,
         'is_eco': change.is_eco, 'is_protected': change.is_protected, 'is_stale': is_stale,
         'problems': problems, 'impact': impact, 'costs': _costs(impact),
