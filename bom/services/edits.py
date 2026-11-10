@@ -7,7 +7,7 @@ from django.db import transaction
 
 from bom.models import Change, ChangeItem
 from bom.services import boms, change_orders, changes, imports, parts
-from bom.services.errors import ServiceError
+from bom.services.errors import RevisionRequired, ServiceError
 
 
 def require_editable(part_revision):
@@ -23,8 +23,8 @@ def require_editable(part_revision):
     if newer_draft is not None:
         raise ServiceError(f"{label} is {state} and cannot be edited. Edit the part's Draft, rev "
                            f"{newer_draft.revision}, instead.")
-    raise ServiceError(f"{label} is {state} and cannot be edited. Revise the part first (revise_part) to get its "
-                       f"next Draft revision, then edit that.")
+    raise RevisionRequired(f"{label} is {state} and cannot be edited. Revise the part to get its next Draft "
+                           f"revision, then edit that.")
 
 
 def create_part(organization, user, description, api_token=None, agent_client='', **fields):

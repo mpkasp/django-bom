@@ -227,7 +227,7 @@ admin.site.register(APIToken, APITokenAdmin)
 class ChangeItemInline(admin.TabularInline):
     model = ChangeItem
     extra = 0
-    fields = ('position', 'kind', 'summary', 'status', 'reject_reason')
+    fields = ('position', 'kind', 'summary')
     readonly_fields = ('position', 'kind', 'summary')
     can_delete = False
 
@@ -241,7 +241,7 @@ class ChangeAdmin(admin.ModelAdmin):
 
 
 class ChangeSettingsAdmin(admin.ModelAdmin):
-    list_display = ('organization', 'protect_primary_manufacturer_part', 'protect_cost_delta', 'require_release_approval')
+    list_display = ('organization', 'require_release_approval')
     raw_id_fields = ('organization',)
 
 

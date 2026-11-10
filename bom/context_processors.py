@@ -22,7 +22,7 @@ def _profile(request):
 
 
 def _open_change_count(profile):
-    """The nav badge: open change requests, for Editors and Admins only; None hides the nav item."""
+    """The nav badge: open change orders, for Editors and Admins only; None hides the nav item."""
     if profile is None or profile.organization is None or profile.role not in (ROLE_TYPE_ADMIN, ROLE_TYPE_EDITOR):
         return None
     if not change_orders_enabled(profile.organization):

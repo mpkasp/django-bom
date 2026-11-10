@@ -114,12 +114,11 @@ def where_used(part):
     ]
 
 
-def bind_subpart(organization, part_revision, subpart_part_number, count=1, reference='', do_not_load=False,
-                 allow_immutable=False):
+def bind_subpart(organization, part_revision, subpart_part_number, count=1, reference='', do_not_load=False):
     form = AddSubpartForm(
         {'subpart_part_number': subpart_part_number, 'count': count, 'reference': reference or '',
          'do_not_load': do_not_load},
-        organization=organization, part_revision_id=part_revision.id, allow_immutable=allow_immutable)
+        organization=organization, part_revision_id=part_revision.id)
     if not form.is_valid():
         raise ServiceError('Could not add subpart.', ServiceError.from_form(form).field_errors)
     return form

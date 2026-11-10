@@ -227,20 +227,9 @@
 
                 {% if show_protections %}
                     <div class="section">
-                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">verified_user</i>Protections</h4>
-                        <p>Protected changes need a second person to apply them. A change to a Released or In Review
-                            revision is an Engineering Change Order (ECO) and is always protected.</p>
+                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">verified_user</i>Release approval</h4>
                         <form name="protections" action="{% url 'bom:settings' tab_anchor='organization' %}" method="post">
                             {% csrf_token %}
-                            <p><label><input type="checkbox" checked disabled><span>Released and In Review revisions (always on)</span></label></p>
-                            <p><label>{{ change_settings_form.protect_primary_manufacturer_part }}<span>{{ change_settings_form.protect_primary_manufacturer_part.label }}</span></label></p>
-                            <div class="row">
-                                <div class="col s12 l4 input-field">
-                                    {{ change_settings_form.protect_cost_delta }}
-                                    <label for="{{ change_settings_form.protect_cost_delta.id_for_label }}" class="active">{{ change_settings_form.protect_cost_delta.label }}</label>
-                                    <span class="helper-text">{{ change_settings_form.protect_cost_delta.help_text }}</span>
-                                </div>
-                            </div>
                             {% if change_settings_form.require_release_approval %}
                                 <p><label>{{ change_settings_form.require_release_approval }}<span>{{ change_settings_form.require_release_approval.label }}</span></label></p>
                                 <p class="grey-text text-darken-1">When on and the organization has more than one member, a revision is released through a change order that someone other than its author approves. An Admin may still release directly by confirming an override, which History records.</p>
