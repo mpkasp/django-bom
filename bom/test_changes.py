@@ -718,6 +718,21 @@ class ChangesViewTest(TestCase):
         self.assertEqual((line.count, line.reference), (1, 'C1'))
         self.assertEqual(rename.part.latest().description, 'Better cap')
 
+    def test_edits_to_one_part_revision_share_a_card(self):
+        assembly, cap = self.new_cap(), self.new_cap()
+        change = changes.start_change(self.organization, self.user, 'Rename and add')
+        changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
+            'assembly_part_number': assembly.full_part_number(), 'subpart_part_number': cap.full_part_number(),
+            'count': 1})
+        changes.stage_item(change, ChangeItem.KIND_UPDATE_PART_REVISION, {
+            'part_number': assembly.full_part_number(), 'description': 'Renamed assembly'})
+
+        cards = change_display.change_parts(change)
+        self.assertEqual([[section['kind'] for section in card['sections']] for card in cards], [['fields', 'bom']])
+        response = self.client.get(reverse('bom:change-review', kwargs={'number': change.number}))
+        self.assertContains(response, 'class="card-panel change-part"', count=1)
+        self.assertContains(response, '2 edits to 1 part')
+
     def test_a_reviewer_who_edits_a_protected_request_cannot_approve_it(self):
         change, rename, add_line = self.two_edit_request()
         reviewer = User.objects.create_user('reviewer', 'reviewer@example.com', 'ghostpassword')
