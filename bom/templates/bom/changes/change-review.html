@@ -16,7 +16,8 @@
                     {% if change.api_token %}Proposed by {{ change.api_token.name }} for {{ author_name }}{% else %}Proposed by {{ author_name }}{% endif %}
                     &middot; {{ change.created_at|timesince }} ago
                     &middot; {{ edit_count }} edit{{ edit_count|pluralize }}{% if part_count %} to {{ part_count }} part{{ part_count|pluralize }}{% endif %}
-                    {% if change.resolved_by %}&middot; {{ change.get_status_display }} by {{ change.resolved_by.get_full_name|default:change.resolved_by.username }}{% endif %}
+                    {% if change.resolved_by %}&middot; {{ change.get_status_display }} by {{ change.resolved_by.get_full_name|default:change.resolved_by.username }}
+                        on <span title="{{ change.resolved_at|date:'DATETIME_FORMAT' }}">{{ change.resolved_at|date:'M j, Y' }}</span>{% endif %}
                     {% if change.protection_overridden_by %}&middot; Protection overridden by {{ change.protection_overridden_by.username }}{% endif %}
                 </p>
             </div>
