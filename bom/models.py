@@ -1198,12 +1198,12 @@ class APIToken(models.Model):
     """
     SCOPE_READ = 'read'
     SCOPE_WRITE = 'write'
-    SCOPE_APPLY = 'apply'
-    SCOPES = ((SCOPE_READ, 'Read'), (SCOPE_WRITE, 'Write'), (SCOPE_APPLY, 'Apply'))
+    SCOPE_RELEASE = 'release'
+    SCOPES = ((SCOPE_READ, 'Read'), (SCOPE_WRITE, 'Write'), (SCOPE_RELEASE, 'Release'))
     LEVELS = (
         ('read', 'Read', (SCOPE_READ,)),
-        ('propose', 'Write: propose', (SCOPE_READ, SCOPE_WRITE)),
-        ('apply', 'Write: apply', (SCOPE_READ, SCOPE_WRITE, SCOPE_APPLY)),
+        ('edit', 'Edit', (SCOPE_READ, SCOPE_WRITE)),
+        ('release', 'Edit and release', (SCOPE_READ, SCOPE_WRITE, SCOPE_RELEASE)),
     )
     PLAINTEXT_PREFIX = 'ibom_'
     PREFIX_LEN = 8
@@ -1284,10 +1284,13 @@ class APIToken(models.Model):
     def has_scope(self, scope):
         return scope in self.scope_list()
 
+    def level(self):
+        """The broadest of ``LEVELS`` the scopes cover, as its key: release needs write, and both need read."""
+        granted = set(self.scope_list())
+        return next((key for key, _label, scopes in reversed(self.LEVELS) if set(scopes) <= granted), 'read')
+
     def level_display(self):
-        if self.has_scope(self.SCOPE_APPLY):
-            return self.LEVELS[2][1]
-        return self.LEVELS[1][1] if self.has_scope(self.SCOPE_WRITE) else self.LEVELS[0][1]
+        return next(label for key, label, _scopes in self.LEVELS if key == self.level())
 
     def is_connection(self):
         return bool(self.oauth_client_id)
@@ -1313,7 +1316,7 @@ class APIToken(models.Model):
 
 
 class Change(OrganizationScopedModel):
-    """A staged bundle of edits. Everything an agent or a person changes is applied through one of these."""
+    """A change order (numbered, holding the revisions it releases) or the History record of one saved edit."""
     STATUS_DRAFT = 'draft'
     STATUS_OPEN = 'open'
     STATUS_APPLIED = 'applied'
@@ -1324,6 +1327,9 @@ class Change(OrganizationScopedModel):
         (STATUS_REJECTED, 'Rejected'), (STATUS_WITHDRAWN, 'Withdrawn'),
     )
     PENDING_STATUSES = (STATUS_DRAFT, STATUS_OPEN)
+    # A change order that was sent back keeps its revisions and can be edited and submitted again.
+    EDITABLE_STATUSES = (STATUS_DRAFT, STATUS_REJECTED)
+    ACTIVE_STATUSES = (STATUS_DRAFT, STATUS_OPEN, STATUS_REJECTED)
 
     number = models.PositiveIntegerField(null=True, blank=True)
     title = models.CharField(max_length=255)
@@ -1333,7 +1339,6 @@ class Change(OrganizationScopedModel):
     api_token = models.ForeignKey('APIToken', null=True, blank=True, on_delete=models.SET_NULL, related_name='changes')
     agent_client = models.CharField(max_length=64, blank=True)
     agent_model = models.CharField(max_length=64, blank=True)
-    base_digest = models.CharField(max_length=64, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
@@ -1341,8 +1346,10 @@ class Change(OrganizationScopedModel):
                                     related_name='+')
     protection_overridden_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                                  on_delete=models.SET_NULL, related_name='+')
+    resolved_api_token = models.ForeignKey('APIToken', null=True, blank=True, on_delete=models.SET_NULL,
+                                           related_name='+')
+    rejection_reason = models.TextField(blank=True)
     cascade = models.JSONField(null=True, blank=True)
-    edit_log = models.JSONField(default=list, blank=True)
     is_direct_edit = models.BooleanField(default=False)
     base_part_revision = models.ForeignKey('PartRevision', null=True, blank=True, on_delete=models.SET_NULL,
                                            related_name='+')
@@ -1351,23 +1358,23 @@ class Change(OrganizationScopedModel):
         unique_together = ('organization', 'number')
         ordering = ['-number']
 
-    @property
-    def is_eco(self):
-        from bom.services import changes
-        return changes.is_eco(self)
-
-    @property
-    def is_protected(self):
-        from bom.services import changes
-        return changes.is_protected(self)
-
-    @property
-    def is_stale(self):
-        from bom.services import changes
-        return changes.is_stale(self)
-
     def __str__(self):
         return f"Change #{self.number}: {self.title}" if self.number else self.title
+
+
+class ChangeRevision(models.Model):
+    """A working revision a change order will release, and the revision it is compared with."""
+    change = models.ForeignKey(Change, on_delete=models.CASCADE, related_name='revisions')
+    part_revision = models.ForeignKey('PartRevision', on_delete=models.CASCADE, related_name='change_revisions')
+    base_revision = models.ForeignKey('PartRevision', null=True, blank=True, on_delete=models.SET_NULL,
+                                      related_name='+')
+
+    class Meta:
+        unique_together = ('change', 'part_revision')
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.part_revision} in {self.change}"
 
 
 class ChangeItem(models.Model):
@@ -1403,23 +1410,16 @@ class ChangeItem(models.Model):
         (KIND_DELETE_SELLER_PART, 'Delete seller part'),
         (KIND_RELEASE_REVISION, 'Release revision'),
     )
-    STATUS_ACCEPTED = 'accepted'
-    STATUS_REJECTED = 'rejected'
-    STATUSES = ((STATUS_ACCEPTED, 'Accepted'), (STATUS_REJECTED, 'Rejected'))
-
     change = models.ForeignKey(Change, on_delete=models.CASCADE, related_name='items')
     position = models.PositiveIntegerField()
     kind = models.CharField(max_length=32, choices=KINDS)
     payload = models.JSONField(default=dict)
-    ref = models.CharField(max_length=64, blank=True)
     part = models.ForeignKey(Part, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     part_revision = models.ForeignKey(PartRevision, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     manufacturer_part = models.ForeignKey(ManufacturerPart, null=True, blank=True, on_delete=models.SET_NULL,
                                           related_name='+')
     summary = models.CharField(max_length=255)
     before = models.JSONField(null=True, blank=True)
-    status = models.CharField(max_length=16, choices=STATUSES, default=STATUS_ACCEPTED)
-    reject_reason = models.CharField(max_length=255, blank=True)
     result = models.JSONField(null=True, blank=True)
 
     class Meta:
@@ -1433,8 +1433,6 @@ class ChangeItem(models.Model):
 class ChangeSettings(models.Model):
     organization = models.OneToOneField(settings.BOM_ORGANIZATION_MODEL, on_delete=models.CASCADE,
                                         related_name='change_settings')
-    protect_primary_manufacturer_part = models.BooleanField(default=False)
-    protect_cost_delta = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     require_release_approval = models.BooleanField(default=False)
 
     class Meta:

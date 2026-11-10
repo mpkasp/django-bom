@@ -6,14 +6,12 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
-from django.utils.formats import date_format
 
 from bom import constants
 from bom.helpers import create_some_fake_parts, create_user_and_organization
 from bom.models import (APIToken, Change, ChangeItem, ChangeSettings, ManufacturerPart, PartRevision,
                         PartRevisionPropertyDefinition)
-from bom.services import boms, changes, parts
+from bom.services import boms, change_orders, changes, parts
 from bom.services.errors import ServiceError
 
 
@@ -109,16 +107,6 @@ class DirectEditHistoryTest(EditingTestCase):
         self.assertTrue(PartRevision.objects.filter(description='Fresh cap').exists())
         self.assertFalse(self.history().exists())
 
-    def test_direct_edits_stay_out_of_agent_facing_lookups(self):
-        self.client.post(reverse('bom:create-part'), {
-            'number_class': self.part_class_code, 'description': 'Fresh cap', 'revision': 'A'})
-        direct_edit = self.history().get()
-        with self.assertRaises(changes.ServiceError):
-            changes.change_for(self.organization, direct_edit.id)
-        self.assertFalse(changes.is_eco(direct_edit))
-        with self.assertRaises(changes.ServiceError):
-            changes.revert_change(direct_edit, self.user)
-
 
 class WithdrawStagedDraftsMigrationTest(EditingTestCase):
     def test_human_drafts_are_withdrawn_and_agent_drafts_stay(self):
@@ -137,6 +125,36 @@ class WithdrawStagedDraftsMigrationTest(EditingTestCase):
         self.assertEqual(statuses, {'Staged by a person': Change.STATUS_WITHDRAWN,
                                     'Staged by an agent': Change.STATUS_DRAFT,
                                     'Already submitted': Change.STATUS_OPEN})
+
+
+class WithdrawPendingStagedChangesMigrationTest(EditingTestCase):
+    def test_pending_staged_changes_are_withdrawn_and_change_orders_stay(self):
+        def staged(title, status):
+            change = changes.start_change(self.organization, self.user, title)
+            ChangeItem.objects.create(change=change, position=1, kind=ChangeItem.KIND_CREATE_PART, summary=title)
+            change.status = status
+            change.save(update_fields=['status'])
+            return change
+
+        pending = [staged('Staged draft', Change.STATUS_DRAFT), staged('Staged open', Change.STATUS_OPEN)]
+        kept = [
+            staged('Staged applied', Change.STATUS_APPLIED),
+            changes.start_change(self.organization, self.user, 'Empty change order'),
+            change_orders.create_change_order(self.organization, self.user, 'Change order', 'Because',
+                                              [self.new_part()]),
+            changes.record_direct_edit(self.organization, self.user, self.parts[0], ChangeItem.KIND_UPDATE_PART,
+                                       'Direct edit'),
+        ]
+        statuses = [change.status for change in kept]
+
+        importlib.import_module('bom.migrations.0073_remove_staged_changes') \
+            .withdraw_pending_staged_changes(apps, None)
+
+        for change in pending:
+            change.refresh_from_db()
+            self.assertEqual(change.status, Change.STATUS_WITHDRAWN)
+            self.assertIsNotNone(change.resolved_at)
+        self.assertEqual([Change.objects.get(pk=change.pk).status for change in kept], statuses)
 
 
 class ReviseTest(EditingTestCase):
@@ -353,22 +371,20 @@ class ReleaseTest(EditingTestCase):
 
 
 class RequestsNavTest(EditingTestCase):
-    nav_link = 'title="IndaBOM | Requests"'
+    nav_link = 'title="IndaBOM | Change orders"'
 
     def propose(self, title):
-        change = changes.start_change(self.organization, self.user, title)
-        changes.stage_item(change, ChangeItem.KIND_CREATE_PART, {
-            'description': title, 'part_class_code': self.part_class_code})
-        return changes.submit_change(change, self.user)
+        change = change_orders.create_change_order(self.organization, self.user, title, 'Because', [self.new_part()])
+        return change_orders.submit(change, self.user)
 
-    def test_the_nav_item_is_hidden_at_zero_and_counts_open_requests(self):
+    def test_the_nav_item_shows_for_an_editor_and_counts_open_change_orders(self):
         home = reverse('bom:home')
-        self.assertNotContains(self.client.get(home), self.nav_link)
-
         self.client.post(reverse('bom:create-part'), {
             'number_class': self.part_class_code, 'description': 'Fresh cap', 'revision': 'A'})
         changes.start_change(self.organization, self.user, 'Still a draft')
-        self.assertNotContains(self.client.get(home), self.nav_link)
+        page = self.client.get(home)
+        self.assertContains(page, self.nav_link)
+        self.assertNotContains(page, 'new badge')
 
         self.propose('First request')
         self.propose('Second request')
@@ -376,18 +392,27 @@ class RequestsNavTest(EditingTestCase):
         self.assertContains(page, self.nav_link)
         self.assertContains(page, 'data-badge-caption="">2<')
 
+    def test_the_nav_item_is_hidden_from_viewers_and_without_the_host_flag(self):
+        home = reverse('bom:home')
+        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, change_orders_enabled=False)):
+            self.assertNotContains(self.client.get(home), self.nav_link)
+        profile = self.user.bom_profile()
+        profile.role = constants.ROLE_TYPE_VIEWER
+        profile.save()
+        self.assertNotContains(self.client.get(home), self.nav_link)
+
     def test_the_nav_item_shows_on_the_requests_page_even_at_zero(self):
         page = self.client.get(reverse('bom:change-list'))
         self.assertContains(page, self.nav_link)
         self.assertNotContains(page, 'new badge')
-        self.assertContains(page, '<h4>Change requests</h4>')
+        self.assertContains(page, '<h4>Change orders</h4>')
 
     def test_the_history_filter_lists_direct_edits_and_the_other_filters_do_not(self):
         self.client.post(reverse('bom:create-part'), {
             'number_class': self.part_class_code, 'description': 'Fresh cap', 'revision': 'A'})
         self.propose('A proposal')
         applied = self.propose('An applied request')
-        changes.apply_change(applied, self.user, override_protection=True)
+        change_orders.approve(applied, self.user)
         url = reverse('bom:change-list')
 
         history = self.client.get(url + '?filter=history')
@@ -395,9 +420,9 @@ class RequestsNavTest(EditingTestCase):
         self.assertNotContains(history, 'A proposal')
         self.assertNotContains(self.client.get(url), 'Create part')
         self.assertContains(self.client.get(url), 'A proposal')
-        applied_page = self.client.get(url + '?filter=applied')
-        self.assertContains(applied_page, 'An applied request')
-        self.assertNotContains(applied_page, 'Fresh cap')
+        released_page = self.client.get(url + '?filter=released')
+        self.assertContains(released_page, 'An applied request')
+        self.assertNotContains(released_page, 'Fresh cap')
         self.assertNotContains(self.client.get(url + '?filter=ecos'), 'Fresh cap')
 
 
@@ -625,14 +650,6 @@ class ApprovalTestCase(EditingTestCase):
     def fresh_draft(self, description='Subject'):
         return self.new_part(description)
 
-    def add_release_item(self, change, revision):
-        ChangeItem.objects.create(
-            change=change, position=change.items.count() + 1, kind=ChangeItem.KIND_RELEASE_REVISION,
-            part=revision.part, part_revision=revision, summary=f'Release {revision}',
-            payload={'part_revision_id': revision.id, 'cascade_parent_ids': []})
-        change.base_digest = changes.compute_digest(change)
-        change.save(update_fields=['base_digest'])
-
     def configuration(self, revision):
         revision.refresh_from_db()
         return revision.configuration
@@ -694,13 +711,13 @@ class ReleaseApprovalTest(ApprovalTestCase):
             'part_id': self.draft.part_id, 'part_revision_id': self.draft.id})
 
         admin_page = self.client.get(url)
-        self.assertContains(admin_page, 'Request approval')
+        self.assertContains(admin_page, 'Add to change order')
         self.assertContains(admin_page, 'Release as admin')
         self.assertNotContains(admin_page, 'value="release"')
 
         self.principal(constants.ROLE_TYPE_EDITOR)
         editor_page = self.client.get(url)
-        self.assertContains(editor_page, 'Request approval')
+        self.assertContains(editor_page, 'Add to change order')
         self.assertNotContains(editor_page, 'Release as admin')
         self.assertNotContains(editor_page, 'value="release"')
 
@@ -720,102 +737,28 @@ class ReleaseApprovalTest(ApprovalTestCase):
         self.assertContains(self.client.get(response.url), 'requires approval to release')
         self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_DRAFT)
 
-    def test_request_approval_opens_an_eco_and_leaves_the_revision_draft(self):
+    def test_add_to_change_order_starts_a_draft_change_order_and_leaves_the_revision_draft(self):
         self.member(constants.ROLE_TYPE_EDITOR)
         self.require_approval()
         url = reverse('bom:part-revision-release', kwargs={
             'part_id': self.draft.part_id, 'part_revision_id': self.draft.id})
 
-        response = self.client.post(url, {
-            'action': 'request_approval', 'note': 'Please check', 'cascade_parent_id': [self.released_parent.id]})
+        response = self.client.post(url, {'action': 'add_to_change_order', 'note': 'Please check'})
 
         change = Change.objects.get(organization=self.organization, is_direct_edit=False)
         self.assertRedirects(response, reverse('bom:change-review', kwargs={'number': change.number}))
-        self.assertEqual((change.status, change.author), (Change.STATUS_OPEN, self.user))
-        self.assertTrue(change.is_eco)
-        item = change.items.get()
-        self.assertEqual(item.kind, ChangeItem.KIND_RELEASE_REVISION)
-        self.assertEqual(item.payload['cascade_parent_ids'], [self.released_parent.id])
+        self.assertEqual((change.status, change.author, change.rationale),
+                         (Change.STATUS_DRAFT, self.user, 'Please check'))
+        self.assertEqual(change.title, f'Release {self.draft.part.full_part_number()} rev {self.draft.revision}')
+        self.assertEqual(change.revisions.get().part_revision, self.draft)
         self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_DRAFT)
-        self.assertEqual(self.released_parent.part.revisions().count(), 1)
-        self.assertContains(self.client.get(reverse('bom:change-list') + '?filter=ecos'), change.title)
-
-    def test_a_revision_cannot_have_two_pending_release_requests_or_a_viewer_request(self):
-        changes.request_release_approval(self.draft, self.user)
-
-        with self.assertRaisesMessage(ServiceError, 'already has a pending request'):
-            changes.request_release_approval(self.draft, self.user)
-
-        viewer = self.member(constants.ROLE_TYPE_VIEWER)
-        with self.assertRaisesMessage(ServiceError, 'cannot request approval'):
-            changes.request_release_approval(self.fresh_draft(), viewer)
-
-    def test_approve_matrix(self):
-        for role, own_request, members, override, approved in [
-            (constants.ROLE_TYPE_VIEWER, False, 2, False, False),
-            (constants.ROLE_TYPE_EDITOR, False, 2, False, True),
-            (constants.ROLE_TYPE_ADMIN, False, 2, False, True),
-            (constants.ROLE_TYPE_EDITOR, True, 2, False, False),
-            (constants.ROLE_TYPE_EDITOR, True, 2, True, False),
-            (constants.ROLE_TYPE_ADMIN, True, 2, False, False),
-            (constants.ROLE_TYPE_ADMIN, True, 2, True, True),
-            (constants.ROLE_TYPE_EDITOR, True, 1, False, True),
-            (constants.ROLE_TYPE_ADMIN, True, 1, False, True),
-        ]:
-            for required in (True, False):
-                with self.subTest(role=role, own_request=own_request, members=members, override=override,
-                                  required=required):
-                    User.objects.exclude(pk=self.user.pk).delete()
-                    other = self.member(constants.ROLE_TYPE_EDITOR) if members == 2 else None
-                    self.require_approval(required)
-                    user = self.principal(role)
-                    revision = self.fresh_draft()
-                    change = changes.request_release_approval(revision, user if own_request else other)
-                    try:
-                        changes.apply_change(change, user, override_protection=override)
-                    except ServiceError:
-                        pass
-                    expected = constants.CONFIGURATION_TYPE_RELEASED if approved else \
-                        constants.CONFIGURATION_TYPE_DRAFT
-                    self.assertEqual(self.configuration(revision), expected)
-
-    def test_approve_releases_cascades_and_records_the_request_in_history(self):
-        other = self.member(constants.ROLE_TYPE_EDITOR)
-        change = changes.request_release_approval(self.draft, other, note='Ship it',
-                                                  cascade_parent_ids=[self.released_parent.id])
-
-        changes.apply_change(change, self.user)
-
-        self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_RELEASED)
-        self.assertEqual(self.released_parent.part.revisions().count(), 2)
-        self.assertEqual(self.draft_parent.assembly.subparts.get().part_revision, self.draft)
-        change.refresh_from_db()
-        self.assertEqual((change.status, change.resolved_by), (Change.STATUS_APPLIED, self.user))
-        item = change.items.get()
-        self.assertEqual(item.result['part_revision_id'], self.draft.id)
-        self.assertEqual(len(item.result['cascaded_revision_ids']), 1)
-        self.assertEqual(changes.part_history(self.component.part)[0]['change'], change)
-
-    def test_approve_releases_children_before_parents(self):
-        child = self.fresh_draft('Child')
-        parent = self.assembly_using(child, 'Parent')
-        other = self.member(constants.ROLE_TYPE_EDITOR)
-        change = changes.request_release_approval(parent, other)
-        self.add_release_item(change, child)
-        released_order = []
-        real_release = changes._release_core
-        with mock.patch.object(changes, '_release_core', side_effect=lambda revision_id, *args: (
-                released_order.append(revision_id), real_release(revision_id, *args))[1]):
-            changes.apply_change(change, self.user)
-
-        self.assertEqual(released_order, [child.id, parent.id])
 
     def test_approve_rolls_everything_back_when_a_release_fails(self):
         child = self.fresh_draft('Child')
         parent = self.assembly_using(child, 'Parent')
         other = self.member(constants.ROLE_TYPE_EDITOR)
-        change = changes.request_release_approval(parent, other)
-        self.add_release_item(change, child)
+        change = change_orders.create_change_order(self.organization, other, 'Both', part_revisions=[parent, child])
+        change_orders.submit(change, other)
         real_release = changes._release_core
         calls = []
 
@@ -827,70 +770,13 @@ class ReleaseApprovalTest(ApprovalTestCase):
 
         with mock.patch.object(changes, '_release_core', side_effect=fail_on_second_release):
             with self.assertRaisesMessage(ServiceError, 'forced failure'):
-                changes.apply_change(change, self.user)
+                change_orders.approve(change, self.user)
 
-        self.assertEqual(self.configuration(child), constants.CONFIGURATION_TYPE_DRAFT)
-        self.assertEqual(self.configuration(parent), constants.CONFIGURATION_TYPE_DRAFT)
+        self.assertEqual(self.configuration(child), constants.CONFIGURATION_TYPE_IN_REVIEW)
+        self.assertEqual(self.configuration(parent), constants.CONFIGURATION_TYPE_IN_REVIEW)
         change.refresh_from_db()
         self.assertEqual(change.status, Change.STATUS_OPEN)
-        self.assertFalse(change.items.filter(result__isnull=False).exists())
-
-    def test_approving_an_eco_releases_the_revisions_its_edits_created(self):
-        other = self.member(constants.ROLE_TYPE_EDITOR)
-        released_assembly = self.released_parent
-        change = changes.start_change(self.organization, other, 'Add a part')
-        changes.stage_item(change, ChangeItem.KIND_ADD_SUBPART, {
-            'assembly_part_number': released_assembly.part.full_part_number(),
-            'subpart_part_number': self.parts[0].full_part_number(), 'count': 1})
-        changes.submit_change(change, other)
-
-        changes.apply_change(change, self.user)
-
-        new_revision = released_assembly.part.latest()
-        self.assertEqual(new_revision.configuration, constants.CONFIGURATION_TYPE_RELEASED)
-        self.assertTrue(change.items.get().result['released'])
-
-    def test_a_stale_release_request_is_refused_until_rebased(self):
-        other = self.member(constants.ROLE_TYPE_EDITOR)
-        change = changes.request_release_approval(self.draft, other)
-        boms.add_subpart(self.organization, self.draft, self.parts[0].full_part_number(), count=1, reference='U9')
-
-        with self.assertRaisesMessage(ServiceError, 'stale'):
-            changes.apply_change(change, self.user)
-        changes.rebase_change(change)
-        changes.apply_change(change, self.user)
-
-        self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_RELEASED)
-
-    def test_a_request_for_a_revision_released_meanwhile_fails_validation(self):
-        other = self.member(constants.ROLE_TYPE_EDITOR)
-        change = changes.request_release_approval(self.draft, other)
-        changes.release_revision(self.draft, self.user)
-
-        with self.assertRaises(ServiceError):
-            changes.apply_change(change, self.user)
-
-    def test_the_review_page_labels_a_release_request_as_an_eco_with_approve(self):
-        other = self.member(constants.ROLE_TYPE_EDITOR)
-        change = changes.request_release_approval(self.draft, other)
-
-        page = self.client.get(reverse('bom:change-review', kwargs={'number': change.number}))
-        self.assertContains(page, 'Engineering Change Order')
-        self.assertContains(page, 'Approve 1 edit')
-
-        self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
-        self.assertEqual(self.configuration(self.draft), constants.CONFIGURATION_TYPE_RELEASED)
-
-    def test_an_applied_request_shows_when_it_was_applied(self):
-        change = changes.request_release_approval(self.draft, self.member(constants.ROLE_TYPE_EDITOR))
-        self.client.post(reverse('bom:change-apply', kwargs={'number': change.number}))
-        change.refresh_from_db()
-        applied_on = date_format(timezone.localtime(change.resolved_at), 'M j, Y')
-
-        page = self.client.get(reverse('bom:change-review', kwargs={'number': change.number}))
-        self.assertContains(page, f'>{applied_on}</span>')
-        applied_list = self.client.get(reverse('bom:change-list') + '?filter=applied')
-        self.assertContains(applied_list, f'Applied {applied_on}')
+        self.assertFalse(change.items.exists())
 
 
 class TelemetryTest(ApprovalTestCase):
@@ -919,15 +805,18 @@ class TelemetryTest(ApprovalTestCase):
             changes.release_revision(draft, self.user)
         self.assertEvent(logs, 'release')
 
+        approval = change_orders.create_change_order(self.organization, other, 'Approve me', part_revisions=[self.draft])
         with self.assertLogs('bom.services.changes', level='INFO') as logs:
-            approval = changes.request_release_approval(self.draft, other)
+            change_orders.submit(approval, other)
         self.assertEvent(logs, 'request_approval')
 
         with self.assertLogs('bom.services.changes', level='INFO') as logs:
-            changes.apply_change(approval, self.user)
+            change_orders.approve(approval, self.user)
         self.assertEvent(logs, 'approve')
 
-        rejected = changes.request_release_approval(self.fresh_draft('Another'), other)
+        rejected = change_orders.create_change_order(self.organization, other, 'Reject me',
+                                                     part_revisions=[self.fresh_draft('Another')])
+        change_orders.submit(rejected, other)
         with self.assertLogs('bom.services.changes', level='INFO') as logs:
-            changes.reject_change(rejected, self.user, 'No')
+            change_orders.reject(rejected, self.user, 'No')
         self.assertEvent(logs, 'reject')

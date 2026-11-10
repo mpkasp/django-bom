@@ -4,86 +4,66 @@
 
 {% block content %}
     <div class="container-app change-page">
-        <p><a href="{% url 'bom:change-list' %}"><i class="material-icons tiny">arrow_back</i> Change requests</a></p>
+        <p><a href="{% url 'bom:change-list' %}"><i class="material-icons tiny">arrow_back</i> Change orders</a></p>
 
         <div class="change-head">
             <div class="change-head-text">
                 <h4>{{ change.title }}
                     {% include 'bom/changes/change-status-chip.html' %}
-                    {% if is_stale %}<span class="chip revision-chip-draft">Stale</span>{% endif %}
                 </h4>
                 <p class="change-byline text-grey">
-                    {% if change.api_token %}Proposed by {{ change.api_token.name }} for {{ author_name }}{% else %}Proposed by {{ author_name }}{% endif %}
+                    {% if staged_items %}Change{% else %}Change order{% endif %} #{{ change.number }}
+                    &middot; {% if change.api_token %}Proposed by {{ change.api_token.name }} for {{ author_name }}{% else %}Proposed by {{ author_name }}{% endif %}
                     &middot; {{ change.created_at|timesince }} ago
-                    &middot; {{ edit_count }} edit{{ edit_count|pluralize }}{% if part_count %} to {{ part_count }} part{{ part_count|pluralize }}{% endif %}
-                    {% if change.resolved_by %}&middot; {{ change.get_status_display }} by {{ change.resolved_by.get_full_name|default:change.resolved_by.username }}
+                    {% if not staged_items %}&middot; {{ cards|length }} revision{{ cards|length|pluralize }}{% endif %}
+                    {% if change.resolved_by %}&middot; {{ resolved_verb }} by {{ change.resolved_by.get_full_name|default:change.resolved_by.username }}
                         on <span title="{{ change.resolved_at|date:'DATETIME_FORMAT' }}">{{ change.resolved_at|date:'M j, Y' }}</span>{% endif %}
-                    {% if change.protection_overridden_by %}&middot; Protection overridden by {{ change.protection_overridden_by.username }}{% endif %}
+                    {% if change.protection_overridden_by %}&middot; Approved with an Admin override by {{ change.protection_overridden_by.username }}{% endif %}
                 </p>
             </div>
 
-            {% if is_pending %}
-                <div class="change-actions">
-                    {% if can_submit %}
-                        <form method="post" action="{% url 'bom:change-submit' number=change.number %}">{% csrf_token %}
-                            <button class="btn waves-effect" type="submit">Submit for review</button></form>
-                    {% endif %}
-                    {% if can_apply %}
-                        <form method="post" action="{% url 'bom:change-apply' number=change.number %}">{% csrf_token %}
-                            <button class="btn btn-primary waves-effect" type="submit">{% if is_eco %}Approve {% else %}Apply {% endif %}{{ accepted_count }} edit{{ accepted_count|pluralize }}</button></form>
-                    {% endif %}
-                    {% if can_apply_as_admin %}
-                        <form method="post" action="{% url 'bom:change-apply' number=change.number %}" onsubmit="return confirm('Apply your own protected change as an Admin? This override is recorded.');">{% csrf_token %}
-                            <input type="hidden" name="override" value="1">
-                            <button class="btn btn-primary waves-effect" type="submit">Apply as admin</button></form>
-                    {% endif %}
-                    {% if can_rebase %}
-                        <form method="post" action="{% url 'bom:change-rebase' number=change.number %}">{% csrf_token %}
-                            <button class="btn-outline waves-effect" type="submit">Rebase</button></form>
-                    {% endif %}
-                    {% if can_reject %}
-                        <details class="change-reject">
-                            <summary class="btn-outline">Reject…</summary>
-                            <form class="card-panel z-depth-2" method="post" action="{% url 'bom:change-reject' number=change.number %}">{% csrf_token %}
-                                <label for="reject-reason">Why are you rejecting this? The author sees your reason.</label>
-                                <textarea id="reject-reason" name="reason" class="browser-default" required></textarea>
-                                <button class="btn btn-danger waves-effect" type="submit">Reject change request</button>
-                            </form>
-                        </details>
-                    {% endif %}
-                    {% if is_author %}
-                        <form method="post" action="{% url 'bom:change-withdraw' number=change.number %}" onsubmit="return confirm('Withdraw this change request?');">{% csrf_token %}
-                            <button class="btn-flat waves-effect" type="submit">Withdraw</button></form>
-                    {% endif %}
-                </div>
-            {% elif change.status == 'applied' %}
-                <div class="change-actions">
-                    {% for revision in created_revisions %}
-                        {% if revision.configuration == 'D' %}
-                            <a class="btn btn-primary waves-effect" href="{% url 'bom:part-revision-release' part_id=revision.part_id part_revision_id=revision.id %}">
-                                Release rev {{ revision.revision }} of {{ revision.part.full_part_number }}</a>
-                        {% else %}
-                            <a class="btn-flat waves-effect" href="{% url 'bom:part-info-history' part_id=revision.part_id part_revision_id=revision.id %}">
-                                Released rev {{ revision.revision }} of {{ revision.part.full_part_number }}</a>
-                        {% endif %}
+            <div class="change-actions">
+                {% if can_submit %}
+                    <form method="post" action="{% url 'bom:change-submit' number=change.number %}">{% csrf_token %}
+                        <button class="btn btn-primary waves-effect" type="submit">Submit for review</button></form>
+                {% endif %}
+                {% if can_apply %}
+                    <form method="post" action="{% url 'bom:change-apply' number=change.number %}">{% csrf_token %}
+                        <button class="btn btn-primary waves-effect" type="submit">Approve {{ cards|length }} revision{{ cards|length|pluralize }}</button></form>
+                {% endif %}
+                {% if can_apply_as_admin %}
+                    <form method="post" action="{% url 'bom:change-apply' number=change.number %}" onsubmit="return confirm('Approve your own change order as an Admin? This override is recorded.');">{% csrf_token %}
+                        <input type="hidden" name="override" value="1">
+                        <button class="btn btn-primary waves-effect" type="submit">Approve as admin</button></form>
+                {% endif %}
+                {% if can_reject %}
+                    <details class="change-reject">
+                        <summary class="btn-outline">Reject…</summary>
+                        <form class="card-panel z-depth-2" method="post" action="{% url 'bom:change-reject' number=change.number %}">{% csrf_token %}
+                            <label for="reject-reason">What needs to change? The author sees your reason and can submit this change order again.</label>
+                            <textarea id="reject-reason" name="reason" class="browser-default" required></textarea>
+                            <button class="btn btn-danger waves-effect" type="submit">Reject change order</button>
+                        </form>
+                    </details>
+                {% endif %}
+                {% if can_withdraw %}
+                    <form method="post" action="{% url 'bom:change-withdraw' number=change.number %}" onsubmit="return confirm('Withdraw this change order? Its revisions stay as Drafts.');">{% csrf_token %}
+                        <button class="btn-flat waves-effect" type="submit">Withdraw</button></form>
+                {% endif %}
+                {% if is_applied %}
+                    {% for card in cards %}
+                        <a class="btn-flat waves-effect" href="{% url 'bom:part-info-history' part_id=card.part_revision.part_id part_revision_id=card.part_revision.id %}">
+                            Released rev {{ card.part_revision.revision }} of {{ card.part_revision.part.full_part_number }}</a>
                     {% endfor %}
-                    {% if can_revert %}
-                        <form method="post" action="{% url 'bom:change-revert' number=change.number %}" onsubmit="return confirm('Revert this change? A new change that undoes it will be applied.');">{% csrf_token %}
-                            <button class="btn-flat waves-effect text-error" type="submit">Revert</button></form>
-                    {% endif %}
-                </div>
-            {% endif %}
+                {% endif %}
+            </div>
         </div>
-        {% if nothing_left_to_apply %}
-            <p class="change-ready text-grey">Every edit is left out, so there is nothing to approve. {% if is_author %}Withdraw{% else %}Reject{% endif %} the request.</p>
-        {% elif is_pending and can_review and not approval.can_apply %}
-            <p class="change-ready text-grey">{{ approval.message }}</p>
-        {% endif %}
 
-        {% if is_stale %}
-            <div class="alert alert-warning">
-                The parts this change touches were edited after it was proposed. Rebase it to re-check each edit;
-                edits that no longer fit are left out.
+        {% if change.status == 'rejected' and change.rejection_reason %}
+            <div class="change-sent-back">
+                <span class="change-label">Sent back{% if change.resolved_by %} by {{ change.resolved_by.get_full_name|default:change.resolved_by.username }}{% endif %}</span>
+                <p>{{ change.rejection_reason|linebreaksbr }}</p>
+                <p class="text-grey">Its revisions are Drafts again. Edit them, then submit this change order for review again.</p>
             </div>
         {% endif %}
 
@@ -96,63 +76,72 @@
 
         <div class="change-columns">
             <div class="change-sections">
-                {% include 'bom/changes/components/change-sections.html' %}
-                {% if edit_history %}
-                    <div class="card-panel change-history">
-                        <span class="change-label">Edited after it was proposed</span>
-                        {% for edit in edit_history %}
-                            <p>{{ edit.text }}
-                                <br><small class="text-grey">{{ edit.user.get_full_name|default:edit.user.username|default:"A former member" }} &middot; <span title="{{ edit.at|date:'DATETIME_FORMAT' }}">{{ edit.at|date:'M j, Y' }}</span></small></p>
-                        {% endfor %}
+                {% if not staged_items %}
+                    <div class="change-list-head">
+                        <h5>Affected parts{% if cards %} <span class="text-grey">&middot; {{ cards|length }}</span>{% endif %}</h5>
+                        {% if can_remove %}
+                            <details class="change-reject change-add-part">
+                                <summary class="btn-outline">Add part to change order…</summary>
+                                <form class="card-panel z-depth-2" method="post" action="{% url 'bom:change-part-add' number=change.number %}">{% csrf_token %}
+                                    <label for="add-part-number">Part number to add to change order #{{ change.number }}</label>
+                                    <input id="add-part-number" class="browser-default" type="text" name="part_number" required>
+                                    <p class="text-grey">The part's Draft revision joins this change order, to be reviewed and released with the others. If its latest revision is Released, its next revision is started as a Draft. No BOM is changed.</p>
+                                    <button class="btn btn-primary waves-effect" type="submit">Add to change order</button>
+                                </form>
+                            </details>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                {% include 'bom/changes/components/change-revisions.html' %}
+                {% if staged_items %}
+                    <div class="card-panel">
+                        <span class="change-label">Edits</span>
+                        <ul class="browser-default">
+                            {% for item in staged_items %}<li>{{ item.summary }}</li>{% endfor %}
+                        </ul>
+                    </div>
+                {% elif not cards %}
+                    <div class="card-panel">
+                        <p class="text-grey">{% if is_editable %}No affected parts yet. Add the parts whose new revisions this change order should release.{% else %}This change order holds no parts.{% endif %}</p>
                     </div>
                 {% endif %}
             </div>
 
             <aside class="change-side">
-                {% if costs and costs.targets or impact or is_pending %}
+                {% if cards %}
                     <div class="card-panel change-facts">
-                        {% if costs and costs.targets %}
-                            <div class="change-fact">
-                                <span class="change-label">Cost per unit at {{ costs.quantity }}</span>
-                                {% for target in costs.targets %}
-                                    {% if target.is_unchanged %}
-                                        <p>{{ target.before }}, unchanged{% if costs.targets|length > 1 %} on {{ target.part_number }}{% endif %}</p>
-                                    {% elif target.delta is not None %}
-                                        <p><span class="change-big">{{ target.before }} &rarr; {{ target.after }}</span>
-                                            <span class="{% if target.is_increase %}change-increase{% else %}change-decrease{% endif %}">{% if target.is_increase %}+{% endif %}{{ target.delta }}</span>{% if costs.targets|length > 1 %} on {{ target.part_number }}{% endif %}</p>
-                                    {% elif is_pending %}
-                                        <p class="text-grey">Couldn't be worked out for {{ target.part_number }}.</p>
+                        <div class="change-fact">
+                            <span class="change-label">Cost per unit at {{ cost_quantity }}</span>
+                            {% for card in cards %}
+                                <p>{% if cards|length > 1 %}<span class="text-grey">{{ card.part_revision.part.full_part_number }}</span><br>{% endif %}
+                                    {% if card.cost_after is None %}
+                                        <span class="text-grey">Couldn't be worked out.</span>
+                                    {% elif card.cost_before is None %}
+                                        <span class="change-big">{{ card.cost_after }}</span>
+                                    {% elif card.cost_delta %}
+                                        <span class="change-big">{{ card.cost_before }} &rarr; {{ card.cost_after }}</span>
+                                        <span class="{% if card.cost_is_increase %}change-increase{% else %}change-decrease{% endif %}">{% if card.cost_is_increase %}+{% endif %}{{ card.cost_delta }}</span>
                                     {% else %}
-                                        <p>{{ target.before }} now{% if costs.targets|length > 1 %} on {{ target.part_number }}{% endif %}</p>
-                                    {% endif %}
-                                {% endfor %}
-                                {% if costs.targets|length > 1 and costs.total_delta %}
-                                    <p><b>Total {% if costs.is_increase %}+{% endif %}{{ costs.total_delta }}</b></p>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-                        {% if impact %}
+                                        Stays at {{ card.cost_after }}
+                                    {% endif %}</p>
+                            {% endfor %}
+                        </div>
+                        {% if not is_applied %}
                             <div class="change-fact">
                                 <span class="change-label">Where it's used</span>
-                                {% for assembly in impact.assemblies %}
-                                    <p>{{ assembly.part_number }} rev {{ assembly.revision }}
-                                        <span class="text-grey">({{ assembly.configuration }}, uses {{ assembly.uses }})</span>
-                                        {% if assembly.needs_new_revision %}<br><small>Released, so it needs a new revision to pick this up.</small>{% endif %}</p>
+                                {% for use in used_in %}
+                                    <p>{{ use.parent.part.full_part_number }} rev {{ use.parent.revision }}
+                                        <span class="text-grey">uses {{ use.base_revision.part.full_part_number }} rev {{ use.base_revision.revision }}</span>
+                                        <br><small>Released, so it will need a new revision to pick this up.</small></p>
                                 {% empty %}
-                                    <p class="text-grey">Not used in any other assembly</p>
+                                    <p class="text-grey">No Released assembly uses the revisions this replaces.</p>
                                 {% endfor %}
                             </div>
                         {% endif %}
-                        {% if is_pending %}
+                        {% if approval %}
                             <div class="change-fact">
-                                <span class="change-label">Checks</span>
-                                {% for problem in problems %}
-                                    <p class="{% if problem.level == 'error' %}text-error{% else %}text-grey{% endif %}">
-                                        <i class="material-icons tiny">{% if problem.level == 'error' %}error_outline{% else %}warning_amber{% endif %}</i>
-                                        {{ problem.item.position }}. {{ problem.message }}</p>
-                                {% empty %}
-                                    <p class="change-ok"><i class="material-icons tiny">check</i> No problems found</p>
-                                {% endfor %}
+                                <span class="change-label">Approval</span>
+                                <p>{{ approval.message }}</p>
                             </div>
                         {% endif %}
                     </div>
@@ -161,7 +150,7 @@
                     <div class="card-panel change-fact">
                         <span class="change-label">Cascade</span>
                         {% if cascade_candidates %}
-                            <p>These Released assemblies still use a revision this change replaced.</p>
+                            <p>These Released assemblies still use a revision this change order replaced.</p>
                             <form method="post" action="{% url 'bom:change-cascade' number=change.number %}">{% csrf_token %}
                                 {% for candidate in cascade_candidates %}
                                     <p><label>
@@ -173,19 +162,11 @@
                         {% endif %}
                         {% for revision in cascaded_revisions %}
                             <p>Created {{ revision.part.full_part_number }} rev {{ revision.revision }}
-                                <a href="{% url 'bom:part-revision-release' part_id=revision.part_id part_revision_id=revision.id %}">Release</a></p>
+                                <a href="{% url 'bom:part-info-history' part_id=revision.part_id part_revision_id=revision.id %}">Open</a></p>
                         {% endfor %}
                     </div>
                 {% endif %}
             </aside>
         </div>
     </div>
-{% endblock %}
-
-{% block bom-script %}
-    <script>
-        M.Modal.init(document.querySelectorAll('.change-item-modal'), {
-            onOpenEnd: function (modal) { modal.querySelector('input[type=text]').focus(); }
-        });
-    </script>
 {% endblock %}

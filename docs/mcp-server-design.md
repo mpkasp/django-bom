@@ -74,7 +74,7 @@ scope set. Tools never see tokens; they receive an `Actor(user, organization, sc
 | `user`, `organization` | token acts as this user in this organization; role comes from `UserMeta.role` |
 | `name` | user-supplied label ("Claude Code laptop") |
 | `prefix` (8 chars), `hashed_key` (sha256) | plaintext shown once at creation, never stored |
-| `scopes` | list of `read`, `write`; new tokens default to `read` only (see §5) |
+| `scopes` | list of `read`, `write`, `release`; new tokens default to `read` only (see §5) |
 | `expires_at`, `last_used_at`, `revoked_at` | revocable, auditable |
 
 Managed from a new API tab in `bom_settings`. Client config is a Bearer header:
@@ -98,15 +98,17 @@ normal Google login.
 
 ### 5. Authorization: existing roles, narrowed by token scope
 
-Two scopes, `read` and `write`, stored as a list so finer scopes (`parts:write`,
-`sourcing:write`) can be added later as data rather than a migration. One `write` scope is enough
-for v1: role already separates part edits from schema and member management, and nobody has
-asked for an agent that may edit BOMs but not pricing.
+Three scopes, `read`, `write` and `release`, stored as a list so finer scopes (`parts:write`,
+`sourcing:write`) can be added later as data rather than a migration. They form three levels: Read
+(`read`), Edit (`read write`) and Edit and release (`read write release`). Role already separates part
+edits from schema and member management, and nobody has asked for an agent that may edit BOMs but not pricing.
 
 The effective permission for a tool call is `role permission AND token scope`:
 
 - A `read`-only token on an Admin account can only read.
 - A `write` token on a Viewer account can still only read, because `BomPerms` denies writes.
+- A `release` token on an Editor or Admin account can release revisions and approve change orders as that user,
+  under the same approval rules as the web app.
 - Every write tool checks `actor.user.has_perm(BomPerms.X, actor.organization)` exactly as the
   views do through `OrganizationPermissionBackend`.
 
@@ -137,16 +139,15 @@ So MCP write tools commit directly, with these constraints:
 - **Narrow, named tools only.** No `update_object`, no raw query tool (ai-architecture §6).
 - **Annotations tell the client what is safe.** Read tools carry `read_only_hint=True`;
   `remove_subpart` carries `destructive_hint=True`. Clients use these to decide what to auto-approve.
-- **Lifecycle transitions are not tools in v1.** Releasing or obsoleting a revision and deleting a
-  part stay in the web UI. They are rare, consequential, and the UI already explains the rules.
+- **Only release is a lifecycle tool.** Releasing a revision and approving or rejecting a change order need the
+  `release` scope; obsoleting a revision and deleting a part stay in the web UI. They are rare, consequential, and
+  the UI already explains the rules.
 - **Every write is logged** with actor, tool, arguments, and resulting object ids. This is the
   audit trail the proposal model would otherwise have provided.
 
-MCP writes now go through Changes: each write tool stages an item (or runs a one-item change), and
-`apply_change` is the only path to the database, subject to the token's `apply` scope, protections and the
-second-person rule for Engineering Change Orders. The "commit directly" and "Forms are the only write path"
-points above still hold inside `apply_change`, which calls the same services. See
-[changes-design.md](changes-design.md).
+Write tools save to Draft revisions at once and record the edit in the part's history with the person and the
+agent. A Released revision is changed by `revise_part` and editing the Draft; the Draft is reviewed and released
+through a change order. See [change-orders-design.md](change-orders-design.md).
 
 ### 7. Tool surface
 
@@ -154,7 +155,7 @@ Read (scope `read`):
 
 | tool | arguments | returns |
 |---|---|---|
-| `get_organization` | | number scheme, part-number lengths, currency, part classes and property definitions, `token_level`, whether change review is enabled |
+| `get_organization` | | number scheme, part-number lengths, currency, part classes and property definitions, `token_level` (read, edit or release), whether change orders are enabled and whether releasing needs approval |
 | `search_parts` | `query=''`, `part_class_code?`, `limit=25` | matches on part number, synopsis, MPN, manufacturer |
 | `get_part` | `part_number`, `revision?` | part, latest/requested revision, properties, manufacturer parts with seller parts |
 | `get_bom` | `part_number`, `revision?`, `quantity=1`, `flat=false` | indented or flat BOM: lines, counts, references, DNL, seller, cost, totals |
@@ -162,29 +163,34 @@ Read (scope `read`):
 | `where_used` | `part_number` | assemblies containing the part, at every level |
 | `lookup_sourcing` | `manufacturer_part_number` | live offers via the organization's configured provider (BYOK); never persisted |
 | `export_bom_csv` | `part_number`, `revision?`, `layout='indented'` | the CSV text the UI export produces; layout is `indented`, `single_level` or `flat` |
-| `get_change`, `list_changes` | `change_id`; `status='open'`, `limit=25` | a change with its items, flags and impact; changes by status |
+| `get_change_order`, `list_change_orders` | `number`; `status='open'`, `limit=25` | a change order with its revisions, diff, unit cost, where used, rejection reason and whether you could approve it; change orders by status |
 
-Write (scope `write`; every tool stages into a Change, see [changes-design.md](changes-design.md)):
+Write (scope `write`; saved at once to Draft revisions):
 
 | tool | arguments | notes |
 |---|---|---|
-| `start_change` | `title`, `rationale=''` | starts the Change that the other write tools stage into |
-| `submit_change`, `withdraw_change` | `change_id` | send a draft change for review; withdraw your own |
-| `remove_change_item` | `change_id`, `position` | drop one staged edit from your draft or open change; write tools also stage into an open change |
-| `apply_change` | `change_id` | needs the `apply` scope; never releases or approves |
-| `create_part` | `description`, `part_class_code?`, `number_item?`, `number_variation?`, `properties?`, `property_units?`, `manufacturer?`, `manufacturer_part_number?`, `link?`, `change_id?`, `ref=''` | applies through `PartForm*` + `PartRevisionForm`; returns the assigned part number |
-| `update_part_revision` | `part_number`, `change_id`, `description?`, `properties?`, `revision?` | Through `PartRevisionForm`. A Draft is edited in place; a Released or In Review revision makes the change an ECO whose apply creates the next Draft with the new values (the review page shows old → new). Where ECOs are off, the error says to call `revise_part` |
-| `revise_part` | `part_number`, `change_id` | the next Draft from the latest Released or In Review revision, as the UI's Revise; refused when a newer Draft exists |
-| `add_subpart` | `assembly_part_number`, `subpart_part_number`, `count=1`, `reference=''`, `do_not_load=false`, `assembly_revision?`, `change_id?` | `AddSubpartForm` |
-| `update_subpart`, `remove_subpart` | `assembly_part_number`, `subpart_part_number`, ..., `change_id?` | `SubpartForm`; `remove_subpart` is `destructive_hint` |
-| `upload_bom` | `assembly_part_number`, `csv_text`, `change_id`, `mode='add'` | `mode` is `add` or `replace`; previews with `BOMCSVForm` and stages one subpart item per changed line; the bulk path for a CAD export |
-| `add_manufacturer_part` | `part_number`, `manufacturer`, `manufacturer_part_number`, `link?`, `datasheet_url?`, `change_id?`, `ref=''` | `ManufacturerPartForm`; creates `Manufacturer` by name if absent |
-| `add_seller_part` | `manufacturer_part_id`, `seller`, `unit_cost`, `currency?`, `minimum_order_quantity=1`, `lead_time_days?`, `nre_cost='0'`, ..., `change_id?` | `SellerPartForm`; creates `Seller` by name if absent |
+| `create_part` | `description`, `part_class_code?`, `number_item?`, `number_variation?`, `properties?`, `property_units?`, `manufacturer?`, `manufacturer_part_number?`, `link?` | `PartForm*` + `PartRevisionForm`; returns the assigned part number |
+| `update_part_revision` | `part_number`, `description?`, `properties?`, `revision?` | `PartRevisionForm`. A Released or In Review revision is refused: the error says to call `revise_part` |
+| `revise_part` | `part_number` | creates the next Draft from the latest Released or In Review revision, as the UI's Revise; refused when a newer Draft exists |
+| `add_subpart` | `assembly_part_number`, `subpart_part_number`, `count=1`, `reference=''`, `do_not_load=false`, `assembly_revision?` | `AddSubpartForm` |
+| `update_subpart`, `remove_subpart` | `assembly_part_number`, `subpart_part_number`, ... | `SubpartForm`; `remove_subpart` is `destructive_hint` |
+| `upload_bom` | `assembly_part_number`, `csv_text`, `mode='add'` | `mode` is `add` or `replace`; applies the lines through `BOMCSVForm`; the bulk path for a CAD export |
+| `add_manufacturer_part` | `part_number`, `manufacturer`, `manufacturer_part_number`, `link?`, `datasheet_url?` | `ManufacturerPartForm`; creates `Manufacturer` by name if absent |
+| `add_seller_part` | `manufacturer_part_id`, `seller`, `unit_cost`, `currency?`, `minimum_order_quantity=1`, `lead_time_days?`, `nre_cost='0'`, ... | `SellerPartForm`; creates `Seller` by name if absent |
+| `create_change_order` | `title`, `rationale`, `revisions?` (`{part_number, revision?}`) | a draft change order holding the given Drafts; refused where change orders are off |
+| `add_to_change_order`, `remove_from_change_order` | `number`, `part_number`, `revision?` | while it is a draft or was sent back |
+| `submit_change_order`, `withdraw_change_order` | `number` | author only; submitting locks its revisions (In Review) |
 
-`upload_bom` stages lines, not parts. The CSV is run through `BOMCSVForm` in a rolled-back transaction, and each
-added, changed or removed line becomes an `add_subpart`, `update_subpart` or `remove_subpart` item, so a reviewer
-edits or removes lines one at a time and a Released assembly follows the ECO path like any other subpart edit. A
-CSV that has row errors, or that needs a part or revision that does not exist yet, stages nothing and the error
+Release (scopes `write` and `release`; ask the user first):
+
+| tool | arguments | notes |
+|---|---|---|
+| `release_revision` | `part_number`, `revision?`, `note=''` | releases a Draft directly; refused when it is in a change order or the organization requires approval |
+| `approve_change_order` | `number` | releases every revision in an open change order; the person's approval rules apply, with no Admin override |
+| `reject_change_order` | `number`, `reason` | sends it back to its author |
+
+`upload_bom` runs the CSV through `BOMCSVForm` and saves each added, changed or removed line to the assembly's Draft.
+A CSV that has row errors, or that needs a part or revision that does not exist yet, saves nothing and the error
 says why; create the parts first.
 
 Explicit part numbers: `create_part` accepts optional `number_item` and `number_variation`,
@@ -225,6 +231,8 @@ returns an error message pointing at the billing page when:
 
 - the token has `write` scope and `organization.subscription` is not `SUBSCRIPTION_TYPE_PRO`,
   unless `user.is_staff`.
+
+The check runs before every write and release tool call.
 
 Free organizations can create tokens and use every read tool; that is the cheapest way to show the
 value and the funnel into Pro. The verifier runs the check on every request, so a lapsed
@@ -277,7 +285,7 @@ way. Pasted personal tokens keep working unchanged.
 - Open dynamic client registration (`AllowAllDCRPermission`) and Client ID Metadata Documents, so
   Claude Code, Claude Desktop, claude.ai and Cursor register themselves.
 - Loopback redirects on any port (`ALLOW_LOCALHOST_LOOPBACK`) plus https redirects; nothing else.
-- Scopes `read`, `write`, `apply`, the same names and meanings as `APIToken` scopes.
+- Scopes `read`, `write`, `release`, the same names and meanings as `APIToken` scopes.
 - Tokens are bound to the MCP resource (RFC 8707); the MCP service validates the audience.
 - Abuse limits: a per-IP throttle on `/o/register/`, and a `cleanup_oauth_clients` management command
   that deletes dynamically registered applications with no grants or tokens after 7 days.
@@ -290,14 +298,13 @@ django-bom ships `templates/oauth2_provider/authorize.html`, so it overrides the
 
 | Choice | Scopes granted |
 |---|---|
-| Read only | `read` |
-| Propose changes for review | `read write` |
-| Propose and apply changes | `read write apply` |
+| Read | `read` |
+| Edit | `read write` |
+| Edit and release | `read write release` |
 
-Choices the user's role or the host flags cannot use are hidden: a Viewer sees only Read; Apply needs
-`mcp_apply_enabled`; Propose without Apply needs `changes_review_enabled`, since nothing could act on a
-proposal otherwise; writes need `mcp_access_check` to pass. The default selection is
-the narrowest of the scopes the client requested and the user's ceiling.
+Choices the user's role or the host cannot use are hidden: a Viewer sees only Read; Edit needs `EDIT_PART` and
+`mcp_access_check` to pass; Edit and release also needs `RELEASE_REVISION`. The default selection is the narrowest of
+the scopes the client requested and the user's ceiling.
 
 ### Connections are `APIToken` rows
 
@@ -336,17 +343,10 @@ Implementation notes (where the shipped code differs from the text above):
   `bom.mcp.asgi.mcp_routes()` instead of a single `Route`.
 - The consent page computes its choices in a template tag (`bom_oauth`), not in the toolkit view.
 
-### Remaining tools
+### Write and release tools
 
-| Tool | Kind | Notes |
-|---|---|---|
-| `export_bom_csv` | read | `part_number`, `revision?`, `layout`: indented, single_level or flat; the same CSV as the UI |
-| `update_part_revision` | write | Description and properties; on a Released or In Review revision it is an ECO (new Draft on apply), or an error that says to call `revise_part` where ECOs are off |
-| `revise_part` | write | the next Draft from a Released or In Review revision (the UI's Revise) |
-| `upload_bom` | write | `assembly_part_number`, `csv_text`, `mode` add or replace; previews through the import service and stages the result |
-
-Write tools go through Changes like the existing ones: a propose token stages items for review, an apply
-token may apply. Agents still never release or approve.
+`export_bom_csv`, `update_part_revision`, `revise_part` and `upload_bom` are in the §7 tables. A `read` or
+`read write` connection cannot release or approve, and agents act as their person under the same approval rules.
 
 ### Setup docs page (django-bom)
 
@@ -358,12 +358,11 @@ fallback), what each access level allows, and how to revoke.
 
 The per-call log lines stay in Cloud Logging (30-day retention, searchable in Logs Explorer). The daily
 funnel export adds two milestones per user, `first_agent_connection_at` (first `APIToken`) and
-`first_agent_change_at` (first Change with an `api_token`), to `indabom_funnel.user_milestones`. A
+`first_agent_change_at` (first Change, saved edit or change order, with an `api_token`), to `indabom_funnel.user_milestones`. A
 BigQuery log sink is worth adding only if read-tool history beyond 30 days is needed.
 
 ### ai-architecture §2
 
-Amend to describe what shipped: agents write Changes through the same engine people use, staged and
-applied through the existing forms, with token levels as the ceiling and protections as the floor; there
-is no separate `AIProposal` model.
-
+Describes what shipped: agents save edits through the same services and forms people use, recorded in history with
+the token and client, with the level the person granted as the ceiling and the approval rules as the floor; there is
+no separate `AIProposal` model.

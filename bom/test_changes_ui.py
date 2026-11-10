@@ -27,22 +27,22 @@ class SettingsTabsTest(TestCase):
 
     def test_creating_a_token_shows_the_plaintext_once_and_lists_it(self):
         response = self.client.post(self.settings_url('api'), {
-            'submit-create-token': '', 'name': 'Claude Code', 'level': 'propose', 'expires_at': '2099-01-31'})
+            'submit-create-token': '', 'name': 'Claude Code', 'level': 'edit', 'expires_at': '2099-01-31'})
         token = APIToken.objects.get(name='Claude Code')
         self.assertEqual(token.scope_list(), ['read', 'write'])
         self.assertEqual(token.expires_at.date().isoformat(), '2099-01-31')
         plaintext = response.context['new_api_token_plaintext']
         self.assertTrue(plaintext.startswith('ibom_'))
         self.assertContains(response, plaintext)
-        self.assertContains(response, 'Write: propose')
+        self.assertContains(response, 'Edit')
 
         again = self.client.get(self.settings_url('api'))
         self.assertNotContains(again, plaintext)
         self.assertContains(again, token.prefix)
 
-    def test_apply_level_token_gets_every_scope(self):
-        self.client.post(self.settings_url('api'), {'submit-create-token': '', 'name': 'Bot', 'level': 'apply'})
-        self.assertEqual(APIToken.objects.get(name='Bot').scope_list(), ['read', 'write', 'apply'])
+    def test_release_level_token_gets_every_scope(self):
+        self.client.post(self.settings_url('api'), {'submit-create-token': '', 'name': 'Bot', 'level': 'release'})
+        self.assertEqual(APIToken.objects.get(name='Bot').scope_list(), ['read', 'write', 'release'])
 
     def test_revoke_removes_a_token_from_the_list(self):
         token, _ = APIToken.issue(self.user, self.organization, 'Old')
@@ -70,27 +70,6 @@ class SettingsTabsTest(TestCase):
         own_token.refresh_from_db()
         self.assertFalse(own_token.is_active())
 
-    def test_protections_form_saves_for_admins_only(self):
-        page = self.client.get(self.settings_url('organization'))
-        self.assertContains(page, 'Engineering Change Order')
-        self.assertFalse(ChangeSettings.objects.exists())
-
-        self.client.post(self.settings_url('organization'), {
-            'submit-protections': '', 'protect_primary_manufacturer_part': 'on', 'protect_cost_delta': '2.5'})
-        change_settings = ChangeSettings.objects.get(organization=self.organization)
-        self.assertTrue(change_settings.protect_primary_manufacturer_part)
-        self.assertEqual(str(change_settings.protect_cost_delta), '2.5000')
-
-        self.client.post(self.settings_url('organization'), {'submit-protections': ''})
-        change_settings.refresh_from_db()
-        self.assertFalse(change_settings.protect_primary_manufacturer_part)
-        self.assertIsNone(change_settings.protect_cost_delta)
-
-        self.editor_client.post(self.settings_url('organization'), {
-            'submit-protections': '', 'protect_primary_manufacturer_part': 'on'})
-        change_settings.refresh_from_db()
-        self.assertFalse(change_settings.protect_primary_manufacturer_part)
-
     def test_require_release_approval_is_saved_by_admins_and_hidden_without_the_host_flag(self):
         page = self.client.get(self.settings_url('organization'))
         self.assertContains(page, 'Require approval to release')
@@ -102,7 +81,7 @@ class SettingsTabsTest(TestCase):
         self.editor_client.post(self.settings_url('organization'), {'submit-protections': ''})
         self.assertTrue(ChangeSettings.objects.get(organization=self.organization).require_release_approval)
 
-        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, release_approval_enabled=False)):
+        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, change_orders_enabled=False)):
             self.assertNotContains(self.client.get(self.settings_url('organization')), 'Require approval to release')
             self.client.post(self.settings_url('organization'), {'submit-protections': ''})
         self.assertTrue(ChangeSettings.objects.get(organization=self.organization).require_release_approval)
@@ -125,7 +104,7 @@ class ImportPreviewComponentTest(TestCase):
         preview = self.client.post(reverse('bom:import'), {'type': 'parts', 'file': upload})
 
         self.assertTrue(preview.context['token'], preview.context['errors'])
-        self.assertContains(preview, 'Will import')
+        self.assertContains(preview, '<span class="chip">New</span>')
         self.assertContains(preview, 'Imported cap')
         self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
         self.assertTrue(PartRevision.objects.filter(description='Imported cap').exists())
@@ -139,7 +118,6 @@ class ImportPreviewComponentTest(TestCase):
 
         self.assertTrue(preview.context['token'], preview.context['errors'])
         self.assertContains(preview, 'Update line')
-        self.assertContains(preview, 'Will import')
         self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
         line = assembly.latest().assembly.subparts.get(part_revision__part=subpart)
         self.assertEqual(line.reference, 'X1')

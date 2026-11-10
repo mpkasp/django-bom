@@ -71,6 +71,7 @@ from bom.models import (
     APIToken,
     Assembly,
     AssemblySubparts,
+    Change,
     ChangeItem,
     ChangeSettings,
     Manufacturer,
@@ -87,13 +88,14 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
+from bom.services import change_orders, edits
 from bom.services.boms import bom_csv
-from bom.services.changes import (log_event, newer_draft_revision, part_history, proposals_for_revision, record_csv_import,
+from bom.services.changes import (log_event, newer_draft_revision, part_history, record_csv_import,
                                   record_direct_edit, release_approval_required, release_preview, release_revision,
-                                  request_release_approval, revise_revision)
+                                  revise_revision)
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
-from bom.services.flags import changes_review_enabled
+from bom.services.flags import change_orders_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
 from bom.services.parts import revision_values
 from bom.services.search import latest_part_revisions, search_parts
@@ -515,13 +517,13 @@ def bom_settings(request, tab_anchor=None):
         elif 'submit-protections' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             if not user_can_manage_members:
-                messages.error(request, "You are not allowed to manage protections, contact your organization admin.")
+                messages.error(request, "You are not allowed to manage release approval, contact your organization admin.")
             else:
                 change_settings_form = ChangeSettingsForm(
                     request.POST, instance=ChangeSettings.objects.get_or_create(organization=organization)[0])
                 if change_settings_form.is_valid():
                     change_settings_form.save()
-                    messages.info(request, "Protections saved.")
+                    messages.info(request, "Release approval saved.")
                 else:
                     add_form_error_messages(request, change_settings_form)
 
@@ -642,7 +644,7 @@ def bom_settings(request, tab_anchor=None):
         change_settings_form = ChangeSettingsForm(
             instance=ChangeSettings.objects.filter(organization=organization).first()
             or ChangeSettings(organization=organization))
-    show_protections = user_can_manage_members and changes_review_enabled(organization)
+    show_protections = user_can_manage_members and change_orders_enabled(organization)
 
     return TemplateResponse(request, 'bom/settings.html', locals())
 
@@ -932,8 +934,8 @@ def part_info(request, part_id, part_revision_id=None):
 
     where_used_part = part.where_used_recursive()
     seller_parts = part.seller_parts()
-    review_enabled = changes_review_enabled(organization)
-    proposals = proposals_for_revision(part_revision) if part_revision is not None and review_enabled else None
+    change_order = change_orders.change_order_for(part_revision) \
+        if part_revision is not None and change_orders_enabled(organization) else None
     history_entries = part_history(part)
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
@@ -945,8 +947,7 @@ def part_diff(request, part_id, revision_a_id, revision_b_id):
     revision_a = get_object_or_404(PartRevision, pk=revision_a_id, part=part)
     revision_b = get_object_or_404(PartRevision, pk=revision_b_id, part=part)
     diff_items = [
-        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'],
-                      status_label='Differs')
+        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'])
         for entry in revision_diff(revision_a, revision_b)]
     return TemplateResponse(request, 'bom/part-diff.html', {
         'title': f'{part.full_part_number()} rev {revision_a.revision} to rev {revision_b.revision}',
@@ -1167,11 +1168,10 @@ def _render_import_preview(request, import_form, kind, csv_bytes, options, retur
     return TemplateResponse(request, 'bom/import-preview.html', context)
 
 
-def _preview_item(kind_label, summary, before=None, after=None, status_label='Will import'):
+def _preview_item(kind_label, summary, before=None, after=None):
     """An import preview entry in the shape of a ChangeItem, for the shared change-items component."""
     return SimpleNamespace(kind='csv_import', get_kind_display=kind_label, summary=summary, before=before,
-                           payload=after or {}, status='accepted', get_status_display=status_label, result=None,
-                           reject_reason='')
+                           payload=after or {}, result=None)
 
 
 def _numbered(preview_items):
@@ -1561,6 +1561,8 @@ def manage_bom(request, part_id, part_revision_id):
 
     edit_url = _edit_page_url(part_id, part_revision_id)
     if request.method == 'POST':
+        if _refuse_under_review(request, part_revision):
+            return HttpResponseRedirect(edit_url)
         before = revision_values(part_revision)
         part_revision_form = PartRevisionForm(request.POST, instance=part_revision, organization=organization)
         if part_revision_form.is_valid():
@@ -1661,40 +1663,9 @@ def add_subpart(request, part_id, part_revision_id):
         if add_subpart_form.is_valid():
             subpart_part = add_subpart_form.subpart_part
             reference = add_subpart_form.cleaned_data['reference']
-            dnl = add_subpart_form.cleaned_data['do_not_load']
-            count = add_subpart_form.cleaned_data['count']
-
-            first_level_bom = part_revision.assembly.subparts.filter(part_revision=subpart_part, do_not_load=dnl)
-            before = None
-
-            if first_level_bom.count() > 0:
-                new_part = first_level_bom[0]
-                before = {'count': new_part.count, 'reference': new_part.reference}
-                new_part.count += count
-                if reference:
-                    new_part.reference = new_part.reference + ', ' + reference
-                new_part.save()
-            else:
-                new_part = Subpart.objects.create(
-                    part_revision=subpart_part,
-                    count=count,
-                    reference=reference,
-                    do_not_load=dnl)
-
-                if part_revision.assembly is None:
-                    part_revision.assembly = Assembly.objects.create()
-                    part_revision.save()
-
-                AssemblySubparts.objects.create(assembly=part_revision.assembly, subpart=new_part)
-
-            subpart_part_number = subpart_part.part.full_part_number()
-            record_direct_edit(
-                organization, user, part_revision.part, ChangeItem.KIND_ADD_SUBPART,
-                f"Add {subpart_part_number} x{count} {reference} to {_revision_label(part_revision)}",
-                part_revision=part_revision, before=before,
-                payload={'subpart_part_number': subpart_part_number, 'count': count, 'reference': reference,
-                         'do_not_load': dnl},
-                result={'part_revision_id': part_revision.id, 'subpart_id': new_part.id})
+            edits.add_subpart(
+                organization, user, part_revision, add_subpart_form.cleaned_data['subpart_part_number'],
+                add_subpart_form.cleaned_data['count'], reference, add_subpart_form.cleaned_data['do_not_load'])
 
             info_msg = "Added subpart "
             if reference:
@@ -2155,10 +2126,9 @@ def part_revision_release(request, part_id, part_revision_id):
         try:
             cascade_parent_ids = [int(value) for value in request.POST.getlist('cascade_parent_id')]
             note = request.POST.get('note', '').strip()
-            if request.POST.get('action') == 'request_approval':
-                change = request_release_approval(part_revision, request.user, note, cascade_parent_ids)
-                messages.success(request, f'Requested approval to release {_revision_label(part_revision)} in '
-                                          f'change #{change.number}.')
+            if request.POST.get('action') == 'add_to_change_order':
+                change = _add_to_change_order(request, organization, part_revision, note)
+                messages.success(request, f'Added {_revision_label(part_revision)} to change order #{change.number}.')
                 return HttpResponseRedirect(reverse('bom:change-review', kwargs={'number': change.number}))
             release_revision(part_revision, request.user, note, cascade_parent_ids,
                              override_approval='override' in request.POST)
@@ -2171,6 +2141,13 @@ def part_revision_release(request, part_id, part_revision_id):
         messages.success(request, f'Released {part_revision.part.full_part_number()} rev {part_revision.revision}.')
         return HttpResponseRedirect(revision_url)
 
+    review_enabled = change_orders_enabled(organization)
+    change_order = change_orders.change_order_for(part_revision) if review_enabled else None
+    if change_order is not None:
+        messages.info(request, f'{_revision_label(part_revision)} is in change order #{change_order.number}; '
+                               f'approve that to release it.')
+        return HttpResponseRedirect(reverse('bom:change-review', kwargs={'number': change_order.number}))
+
     if part_revision.configuration not in (constants.CONFIGURATION_TYPE_DRAFT, constants.CONFIGURATION_TYPE_IN_REVIEW):
         messages.error(request, f'{part_revision} is {part_revision.get_configuration_display()}; '
                                 f'only a Draft or In Review revision can be released.')
@@ -2181,8 +2158,7 @@ def part_revision_release(request, part_id, part_revision_id):
     draft_subparts = part_revision.assembly.subparts.filter(
         part_revision__configuration=constants.CONFIGURATION_TYPE_DRAFT).select_related('part_revision__part')
     diff_items = _numbered([
-        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'],
-                      status_label='Differs')
+        _preview_item(entry['label'], entry['summary'], before=entry['before'], after=entry['after'])
         for entry in preview['diff']])
     title = f'Release {part.full_part_number()} rev {part_revision.revision} {part_revision.synopsis()}'
     profile = request.user.bom_profile()
@@ -2191,8 +2167,40 @@ def part_revision_release(request, part_id, part_revision_id):
         'title': title, 'profile': profile, 'organization': organization, 'part': part,
         'part_revision': part_revision, 'preview': preview, 'items': diff_items, 'draft_subparts': draft_subparts,
         'revision_url': revision_url, 'approval_required': approval_required,
-        'can_request_approval': changes_review_enabled(organization),
+        'can_add_to_change_order': review_enabled,
+        'editable_change_orders': _editable_change_orders(organization) if review_enabled else [],
         'can_release': not approval_required, 'can_override': approval_required and profile.role == constants.ROLE_TYPE_ADMIN})
+
+
+def _editable_change_orders(organization):
+    """Change orders a revision can still be added to. One that lists edits and holds no revisions is a change from
+    before change orders."""
+    return Change.objects.filter(
+        Q(revisions__isnull=False) | Q(items__isnull=True), organization=organization,
+        status__in=Change.EDITABLE_STATUSES, is_direct_edit=False).distinct()
+
+
+def _add_to_change_order(request, organization, part_revision, note):
+    """Put the revision into the change order chosen on the release page, or into a new draft one."""
+    number = request.POST.get('change_order')
+    if not number:
+        return change_orders.create_change_order(
+            organization, request.user, f'Release {_revision_label(part_revision)}', note, [part_revision])
+    change = _editable_change_orders(organization).filter(number=number).first() if number.isdigit() else None
+    if change is None:
+        raise ServiceError(f'Change order #{number} is not open for adding revisions.')
+    change_orders.add_revision(change, request.user, part_revision)
+    return change
+
+
+def _refuse_under_review(request, part_revision):
+    """An error message when the revision is locked by a change order that is being reviewed."""
+    change_order = change_orders.change_order_for(part_revision)
+    if change_order is None or change_order.status != Change.STATUS_OPEN:
+        return False
+    messages.error(request, f'{_revision_label(part_revision)} is under review in change order '
+                            f'#{change_order.number}. Reject or withdraw that to change it.')
+    return True
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -2200,12 +2208,13 @@ def part_revision_release(request, part_id, part_revision_id):
 def part_revision_draft(request, part_id, part_revision_id):
     user = request.user
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-    part_revision.configuration = constants.CONFIGURATION_TYPE_DRAFT
-    try:
-        part_revision.save(user=user)
-        messages.success(request, "Part revision reverted to Draft.")
-    except ValidationError as e:
-        messages.error(request, e.message)
+    if not _refuse_under_review(request, part_revision):
+        part_revision.configuration = constants.CONFIGURATION_TYPE_DRAFT
+        try:
+            part_revision.save(user=user)
+            messages.success(request, "Part revision reverted to Draft.")
+        except ValidationError as e:
+            messages.error(request, e.message)
     return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
@@ -2213,12 +2222,13 @@ def part_revision_draft(request, part_id, part_revision_id):
 @bom_permission_required(BomPerms.EDIT_PART)
 def part_revision_in_review(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id)
-    part_revision.configuration = constants.CONFIGURATION_TYPE_IN_REVIEW
-    try:
-        part_revision.save(user=request.user)
-        messages.success(request, f"{part_revision} is now In Review.")
-    except ValidationError as e:
-        messages.error(request, e.message)
+    if not _refuse_under_review(request, part_revision):
+        part_revision.configuration = constants.CONFIGURATION_TYPE_IN_REVIEW
+        try:
+            part_revision.save(user=request.user)
+            messages.success(request, f"{part_revision} is now In Review.")
+        except ValidationError as e:
+            messages.error(request, e.message)
     return HttpResponseRedirect(
         reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 

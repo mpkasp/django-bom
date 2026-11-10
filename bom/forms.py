@@ -20,7 +20,7 @@ from djmoney.forms.widgets import MoneyWidget
 from djmoney.money import Money
 
 from bom.permissions import BomPerms
-from bom.services.flags import release_approval_enabled
+from bom.services.flags import change_orders_enabled
 from .constants import (
     NUMBER_SCHEME_INTELLIGENT,
     NUMBER_SCHEME_SEMI_INTELLIGENT,
@@ -473,17 +473,12 @@ class APITokenCreateForm(forms.Form):
 class ChangeSettingsForm(forms.ModelForm):
     class Meta:
         model = ChangeSettings
-        fields = ['protect_primary_manufacturer_part', 'protect_cost_delta', 'require_release_approval']
-        labels = {
-            'protect_primary_manufacturer_part': 'Protect the primary manufacturer part',
-            'protect_cost_delta': 'Protect cost increases above',
-            'require_release_approval': 'Require approval to release',
-        }
-        help_texts = {'protect_cost_delta': 'Per unit, in the organization currency. Leave blank to turn off.'}
+        fields = ['require_release_approval']
+        labels = {'require_release_approval': 'Require approval to release'}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not release_approval_enabled(self.instance.organization):
+        if not change_orders_enabled(self.instance.organization):
             del self.fields['require_release_approval']
 
 
@@ -1054,7 +1049,6 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.part_revision_id = kwargs.pop('part_revision_id', None)
-        self.allow_immutable = kwargs.pop('allow_immutable', False)
         super().__init__(*args, **kwargs)
 
         self.part_revision = PartRevision.objects.get(id=self.part_revision_id)
@@ -1114,7 +1108,7 @@ class AddSubpartForm(OrganizationFormMixin, forms.Form):
         if len(refs) > 0 and len(refs) != count:
             raise ValidationError(f"Reference count ({len(refs)}) mismatch quantity ({count}).")
 
-        if self.part_revision.is_immutable() and not self.allow_immutable:
+        if self.part_revision.is_immutable():
             raise ValidationError(
                 f"Cannot add subparts to PartRevision {self.part_revision} in {self.part_revision.get_configuration_display()}. "
                 f"Create a new revision, or revert this revision to Draft to make changes."

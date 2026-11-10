@@ -1,4 +1,3 @@
-from collections import Counter
 from functools import wraps
 
 from django.contrib import messages
@@ -10,15 +9,15 @@ from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from bom.models import Change, ChangeItem, PartRevision
+from bom.models import Change, PartRevision
 from bom.permissions import BomPerms
-from bom.services import change_display, changes
+from bom.services import change_display, change_orders, changes
 from bom.services.errors import ServiceError
-from bom.services.flags import changes_review_enabled
+from bom.services.flags import change_orders_enabled
 from bom.views.views import BOM_LOGIN_URL
 
-LIST_FILTERS = (('requests', 'Requests'), ('ecos', 'ECOs'), ('applied', 'Applied'), ('rejected', 'Rejected'),
-                ('history', 'History'))
+LIST_FILTERS = (('open', 'Open'), ('drafts', 'Drafts and sent back'), ('released', 'Released'), ('history', 'History'))
+RESOLVED_VERBS = {Change.STATUS_REJECTED: 'Rejected', Change.STATUS_WITHDRAWN: 'Withdrawn'}
 
 
 def changes_view(view):
@@ -29,8 +28,8 @@ def changes_view(view):
         organization = request.user.bom_profile().organization
         if organization is None:
             return HttpResponseRedirect(reverse('bom:organization-create'))
-        if not changes_review_enabled(organization):
-            raise Http404('Changes are not enabled for this organization.')
+        if not change_orders_enabled(organization):
+            raise Http404('Change orders are not enabled for this organization.')
         return view(request, organization, *args, **kwargs)
     return wrapped
 
@@ -40,37 +39,50 @@ def _change_from_number(organization, number):
                              organization=organization, number=number)
 
 
+def _is_staged_change(change):
+    """A change from before change orders: it lists edits and holds no revisions."""
+    return not change.revisions.exists() and change.items.exists()
+
+
+def _change_order_from_number(organization, number):
+    change = _change_from_number(organization, number)
+    if _is_staged_change(change):
+        raise Http404(f'Change #{number} is not a change order.')
+    return change
+
+
+def _status_label(change, holds_revisions):
+    if holds_revisions and change.status == Change.STATUS_REJECTED:
+        return 'Sent back'
+    if holds_revisions and change.status == Change.STATUS_APPLIED:
+        return 'Released'
+    return change.get_status_display()
+
+
 @changes_view
 def change_list(request, organization):
-    active_filter = request.GET.get('filter', 'requests')
+    active_filter = request.GET.get('filter', 'open')
     queryset = Change.objects.filter(organization=organization).select_related('author', 'api_token')
-    if active_filter == 'ecos':
-        queryset = queryset.filter(Q(items__part_revision__configuration__in=PartRevision.IMMUTABLE_STATES)
-                                   | Q(items__kind=ChangeItem.KIND_RELEASE_REVISION)
-                                   | Q(items__result__has_key='new_revision_id')).exclude(is_direct_edit=True).distinct()
-    elif active_filter == 'applied':
+    if active_filter == 'drafts':
+        # A rejected change that holds no revisions is a closed one from before change orders, not one sent back.
+        queryset = queryset.filter(Q(status=Change.STATUS_DRAFT)
+                                   | Q(status=Change.STATUS_REJECTED, revisions__isnull=False)).distinct()
+    elif active_filter == 'released':
         queryset = queryset.filter(status=Change.STATUS_APPLIED, is_direct_edit=False)
-    elif active_filter == 'rejected':
-        queryset = queryset.filter(status=Change.STATUS_REJECTED)
     elif active_filter == 'history':
         queryset = queryset.filter(is_direct_edit=True).order_by('-resolved_at', '-id')
     else:
-        active_filter = 'requests'
+        active_filter = 'open'
         queryset = queryset.filter(status=Change.STATUS_OPEN)
 
     rows = []
-    for change in queryset.prefetch_related('items__part')[:100]:
-        items = list(change.items.all())
-        rows.append({
-            'change': change,
-            'is_eco': change.is_eco,
-            'kind_counts': [f'{count} × {change_display.kind_label(kind)}' for kind, count in
-                            Counter(item.kind for item in items).items()],
-            'affects': sorted({item.part.full_part_number() for item in items if item.part_id}),
-        })
+    for change in queryset.prefetch_related('revisions__part_revision__part')[:100]:
+        revisions = [link.part_revision for link in change.revisions.all()]
+        rows.append({'change': change, 'revisions': revisions,
+                     'status_label': _status_label(change, bool(revisions))})
     return TemplateResponse(request, 'bom/changes/change-list.html', {
-        'title': 'Change requests', 'name': 'changes', 'profile': request.user.bom_profile(), 'organization': organization,
-        'rows': rows, 'filters': LIST_FILTERS, 'active_filter': active_filter,
+        'title': 'Change orders', 'name': 'changes', 'profile': request.user.bom_profile(),
+        'organization': organization, 'rows': rows, 'filters': LIST_FILTERS, 'active_filter': active_filter,
     })
 
 
@@ -78,65 +90,36 @@ def change_list(request, organization):
 def change_review(request, organization, number):
     change = _change_from_number(organization, number)
     user = request.user
-    is_pending = change.status in Change.PENDING_STATUSES
+    cards = change_display.revision_cards(change_orders.revision_reports(change), str(organization.currency))
+    staged_items = [] if cards else list(change.items.all())
     is_author = change.author_id == user.id
+    is_open = change.status == Change.STATUS_OPEN
+    is_editable = change.status in Change.EDITABLE_STATUSES and not staged_items
+    is_applied = change.status == Change.STATUS_APPLIED
     can_review = user.has_perm(BomPerms.EDIT_PART, organization)
-    approval = changes.approval_status(change, user)
-    can_act = is_pending and (is_author or change.status == Change.STATUS_OPEN)
-    problems = changes.validate_change(change) if is_pending else []
-    is_stale = change.is_stale
-    cards = change_display.change_parts(change)
-    impact = changes.impact(change) if is_pending or change.status == Change.STATUS_APPLIED else None
-    accepted_count = change.items.filter(status=ChangeItem.STATUS_ACCEPTED).count()
-    edit_count = sum(len(card['entries']) for card in cards)
-    can_edit = is_pending and not is_stale and (is_author or (can_review and change.status == Change.STATUS_OPEN))
-    can_approve = can_act and can_review and accepted_count > 0
+    approval = change_orders.approval_status(change, user) if is_open and can_review and cards else None
+    withdrawable_statuses = Change.PENDING_STATUSES if staged_items else Change.ACTIVE_STATUSES
     return TemplateResponse(request, 'bom/changes/change-review.html', {
-        'title': f'Change request #{change.number}', 'name': 'changes', 'profile': user.bom_profile(),
-        'organization': organization, 'change': change, 'cards': cards,
-        'edit_count': edit_count,
-        'part_count': len({card['part'].id for card in cards if card['part']}),
+        'title': f'Change order #{change.number}', 'name': 'changes', 'profile': user.bom_profile(),
+        'organization': organization, 'change': change, 'cards': cards, 'staged_items': staged_items,
+        'status_label': _status_label(change, bool(cards)),
         'author_name': change.author.get_full_name() or change.author.username,
-        'is_eco': change.is_eco, 'is_protected': change.is_protected, 'is_stale': is_stale,
-        'problems': problems, 'impact': impact, 'costs': _costs(impact),
-        'created_revisions': changes.created_revisions(change),
-        'cascade_candidates': changes.cascade_candidates(change) if can_review else [],
+        'resolved_verb': 'Approved' if is_applied and cards else RESOLVED_VERBS.get(
+            change.status, change.get_status_display()),
+        'is_applied': is_applied, 'is_editable': is_editable,
+        'can_submit': is_editable and is_author and bool(cards),
+        'can_remove': is_editable and can_review,
+        'approval': approval,
+        'can_apply': bool(approval and approval['can_apply']),
+        'can_apply_as_admin': bool(approval and not approval['can_apply'] and approval['can_override']),
+        'can_reject': bool(approval) and not is_author,
+        'can_withdraw': is_author and change.status in withdrawable_statuses,
+        'cost_quantity': changes.DEFAULT_QUANTITY,
+        'used_in': [{'parent': parent, 'base_revision': card['base_revision']}
+                    for card in cards for parent in card['released_parents']],
+        'cascade_candidates': change_orders.cascade_candidates(change) if can_review else [],
         'cascaded_revisions': changes.cascaded_revisions(change),
-        'can_rebase': is_stale and can_review,
-        'can_revert': change.status == Change.STATUS_APPLIED and can_review
-        and change.items.exclude(kind=ChangeItem.KIND_CSV_IMPORT).exists(),
-        'is_pending': is_pending, 'is_author': is_author, 'can_review': can_review, 'approval': approval,
-        'can_apply': can_approve and approval['can_apply'],
-        'can_apply_as_admin': can_approve and not approval['can_apply'] and approval['can_override'],
-        'nothing_left_to_apply': is_pending and can_review and edit_count > 0 and accepted_count == 0,
-        'can_edit': can_edit,
-        # Removing the only edit would leave an empty request, so a single-edit request offers Withdraw or Reject.
-        'can_remove': can_edit and edit_count > 1,
-        'edit_history': changes.edit_history(change),
-        'can_submit': is_author and change.status == Change.STATUS_DRAFT,
-        'can_reject': can_review and is_pending and not is_author,
-        'accepted_count': accepted_count,
     })
-
-
-def _costs(impact):
-    if not impact:
-        return None
-    cost = impact['cost']
-    currency = cost['currency']
-    return {
-        'quantity': cost['quantity'],
-        'total_delta': change_display.money(cost['delta'], currency) if cost['delta'] else None,
-        'is_increase': cost['delta'] is not None and cost['delta'] > 0,
-        'targets': [{
-            'part_number': target['part_number'], 'revision': target['revision'],
-            'before': change_display.money(target['before'], currency),
-            'after': change_display.money(target['after'], currency),
-            'delta': change_display.money(target['delta'], currency),
-            'is_increase': target['delta'] is not None and target['delta'] > 0,
-            'is_unchanged': target['delta'] is not None and target['delta'] == 0,
-        } for target in cost['targets']],
-    }
 
 
 def _review_redirect(change):
@@ -156,23 +139,23 @@ def _perform(request, change, success_message, action, *arguments):
 @changes_view
 @require_POST
 def change_submit(request, organization, number):
-    change = _change_from_number(organization, number)
-    return _perform(request, change, f'Change #{change.number} submitted for review.', changes.submit_change)
+    change = _change_order_from_number(organization, number)
+    return _perform(request, change, f'Change order #{change.number} submitted for review.', change_orders.submit)
 
 
 @changes_view
 @require_POST
 def change_apply(request, organization, number):
-    change = _change_from_number(organization, number)
-    override = 'override' in request.POST
-    return _perform(request, change, f'Change #{change.number} applied.', changes.apply_change, override)
+    change = _change_order_from_number(organization, number)
+    return _perform(request, change, f'Change order #{change.number} approved and its revisions released.',
+                    change_orders.approve, 'override' in request.POST)
 
 
 @changes_view
 @require_POST
 def change_reject(request, organization, number):
-    change = _change_from_number(organization, number)
-    return _perform(request, change, f'Change #{change.number} rejected.', changes.reject_change,
+    change = _change_order_from_number(organization, number)
+    return _perform(request, change, f'Change order #{change.number} sent back to its author.', change_orders.reject,
                     request.POST.get('reason', ''))
 
 
@@ -180,73 +163,45 @@ def change_reject(request, organization, number):
 @require_POST
 def change_withdraw(request, organization, number):
     change = _change_from_number(organization, number)
-    return _perform(request, change, f'Change #{change.number} withdrawn.', changes.withdraw_change)
+    if _is_staged_change(change):
+        return _perform(request, change, f'Change #{change.number} withdrawn.', changes.withdraw_change)
+    return _perform(request, change, f'Change order #{change.number} withdrawn.', change_orders.withdraw)
 
 
 @changes_view
 @require_POST
-def change_rebase(request, organization, number):
-    change = _change_from_number(organization, number)
-    if not request.user.has_perm(BomPerms.EDIT_PART, organization):
-        messages.error(request, "You don't have permission to rebase changes.")
-        return _review_redirect(change)
+def change_part_add(request, organization, number):
+    change = _change_order_from_number(organization, number)
     try:
-        conflicts = changes.rebase_change(change)
+        part_revision, revised = change_orders.add_part(change, request.user, request.POST.get('part_number', '').strip())
     except ServiceError as error:
         messages.error(request, str(error))
     else:
-        messages.success(request, f'Change #{change.number} rebased onto the current data.')
-        for conflict in conflicts:
-            messages.warning(request, f"Item {conflict['position']} rejected: {conflict['reason']}")
+        label = f'{part_revision.part.full_part_number()} rev {part_revision.revision}'
+        messages.success(request, f'Started {label} as a Draft and added it.' if revised else f'Added {label}.')
     return _review_redirect(change)
 
 
 @changes_view
 @require_POST
-def change_revert(request, organization, number):
-    change = _change_from_number(organization, number)
-    try:
-        counter = changes.revert_change(change, request.user)
-    except ServiceError as error:
-        messages.error(request, str(error))
-        return _review_redirect(change)
-    if counter.status == Change.STATUS_APPLIED:
-        messages.success(request, f'Change #{change.number} reverted by change #{counter.number}.')
-    else:
-        messages.info(request, f'Change #{counter.number} was submitted for review: someone other than its author '
-                               f'must apply it to revert change #{change.number}.')
-    return _review_redirect(counter)
+def change_revision_remove(request, organization, number, part_revision_id):
+    change = _change_order_from_number(organization, number)
+    part_revision = get_object_or_404(PartRevision.objects.select_related('part'), pk=part_revision_id,
+                                      part__organization=organization)
+    return _perform(request, change, f'Removed {part_revision.part.full_part_number()} rev {part_revision.revision} '
+                                     f'from change order #{change.number}.',
+                    change_orders.remove_revision, part_revision)
 
 
 @changes_view
 @require_POST
 def change_cascade(request, organization, number):
-    change = _change_from_number(organization, number)
+    change = _change_order_from_number(organization, number)
     try:
         parent_revision_ids = [int(value) for value in request.POST.getlist('parent_revision_id')]
-        created = changes.cascade_revisions(change, request.user, parent_revision_ids)
+        created = change_orders.cascade(change, request.user, parent_revision_ids)
     except (ServiceError, ValueError) as error:
         messages.error(request, str(error) if isinstance(error, ServiceError) else 'Select valid assemblies.')
     else:
         messages.success(request, f'Created {len(created)} new Draft revision{"s" if len(created) != 1 else ""}.')
     return _review_redirect(change)
-
-
-@changes_view
-@require_POST
-def change_item_edit(request, organization, number, item_id):
-    change = _change_from_number(organization, number)
-    item = get_object_or_404(ChangeItem, id=item_id, change=change)
-    values = {field: request.POST[field] for field in changes.EDITABLE_FIELDS.get(item.kind, ())
-              if field in request.POST and (request.POST[field] != '' or item.payload.get(field) not in (None, ''))}
-    properties = {code: request.POST[f'property.{code}'] for code in item.payload.get('properties') or {}
-                  if f'property.{code}' in request.POST}
-    return _perform(request, change, 'Edit saved.', changes.edit_item, item, values, properties)
-
-
-@changes_view
-@require_POST
-def change_item_remove(request, organization, number, item_id):
-    change = _change_from_number(organization, number)
-    item = get_object_or_404(ChangeItem, id=item_id, change=change)
-    return _perform(request, change, 'Edit removed from the change request.', changes.remove_item, item)

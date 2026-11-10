@@ -139,13 +139,14 @@
                 {% include 'bom/components/revision-status.html' %}
             {% endif %}
 
-            {% if proposals.changes %}
-                <div class="part-status-strip part-proposals-strip printer-hide">
-                    <i class="material-icons">chat_bubble_outline</i>
-                    {{ proposals.changes|length }} open change request{{ proposals.changes|length|pluralize }} touch{{ proposals.changes|length|pluralize:"es," }} this revision:
-                    {% for change in proposals.changes %}
-                        <a href="{% url 'bom:change-review' number=change.number %}">#{{ change.number }} {{ change.title }}</a>{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
+            {% if change_order %}
+                <div class="part-status-strip printer-hide">
+                    <i class="material-icons">fact_check</i>
+                    <span>Rev {{ part_revision.revision }} is in change order #{{ change_order.number }}, {{ change_order.title }}.
+                        {% if change_order.status == 'open' %}It is under review and locked until the change order is approved or sent back.
+                        {% elif change_order.status == 'rejected' %}The change order was sent back: edit this revision, then submit the change order again.
+                        {% else %}Edit this revision, then submit the change order for review.{% endif %}</span>
+                    <a class="part-status-action" href="{% url 'bom:change-review' number=change_order.number %}">Open change order #{{ change_order.number }}</a>
                 </div>
             {% endif %}
             <div class="row">
@@ -346,10 +347,6 @@
                                 {% endif %}
                             </div>
                         {% endif %}
-                        {% for item in proposals.seller_items %}
-                            <p style="opacity: 0.6;"><span class="chip">Proposed</span> {{ item.summary }}
-                                <a href="{% url 'bom:change-review' number=item.change.number %}">Change #{{ item.change.number }}</a></p>
-                        {% endfor %}
                     {% endwith %}
                 </div>
             </div>

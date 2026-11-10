@@ -67,7 +67,7 @@ try:
 
     INSTALLED_APPS.append('oauth2_provider')
     OAUTH2_PROVIDER = {
-        'SCOPES': {'read': 'Read', 'write': 'Write', 'apply': 'Apply'},
+        'SCOPES': {'read': 'Read', 'write': 'Write', 'release': 'Release'},
         'PKCE_REQUIRED': True,
         'ALLOWED_REDIRECT_URI_SCHEMES': ['http', 'https'],
     }

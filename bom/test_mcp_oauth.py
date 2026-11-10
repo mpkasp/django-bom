@@ -20,6 +20,7 @@ from bom.mcp.asgi import build_application
 from bom.mcp.auth import ConnectionTokenVerifier
 from bom.mcp.server import mcp
 from bom.models import APIToken
+from bom.permissions import BomPerms
 from bom.test_mcp import MCPClient, MCPTestCase, deny_everything
 from bom.views.views import editor_install_links
 
@@ -68,7 +69,7 @@ class OAuthDiscoveryTest(OAuthMCPTestCase):
     def test_pasted_token_still_works(self):
         result, error = self.mcp(self.write_plaintext).call('get_organization')
         self.assertIsNone(error)
-        self.assertEqual(result['token_level'], 'propose')
+        self.assertEqual(result['token_level'], 'edit')
         self.assertEqual(APIToken.objects.count(), 3)
 
     def test_revoked_pasted_token_is_rejected(self):
@@ -97,7 +98,7 @@ class OAuthTokenTest(OAuthMCPTestCase):
         client = self.mcp(plaintext)
         result, error = client.call('get_organization')
         self.assertIsNone(error)
-        self.assertEqual(result['token_level'], 'propose')
+        self.assertEqual(result['token_level'], 'edit')
         client.call('get_organization')
 
         connection = APIToken.objects.get(oauth_client_id=self.application.client_id)
@@ -115,9 +116,9 @@ class OAuthTokenTest(OAuthMCPTestCase):
 
     def test_later_grant_with_different_scopes_updates_the_connection(self):
         self.mcp(self.make_toolkit_token(self.application, scope='read')).rpc('tools/list')
-        self.mcp(self.make_toolkit_token(self.application, scope='read write apply')).rpc('tools/list')
+        self.mcp(self.make_toolkit_token(self.application, scope='read write release')).rpc('tools/list')
         connection = APIToken.objects.get(oauth_client_id=self.application.client_id)
-        self.assertEqual(connection.scope_list(), ['read', 'write', 'apply'])
+        self.assertEqual(connection.scope_list(), ['read', 'write', 'release'])
 
     def test_rejects_wrong_missing_audience_and_expired_tokens(self):
         for token in (
@@ -189,7 +190,7 @@ class ConsentPageTest(OAuthMCPTestCase):
         self.code_verifier = secrets.token_urlsafe(48)
         self.client.force_login(self.user)
 
-    def authorize_params(self, scope='read write apply'):
+    def authorize_params(self, scope='read write release'):
         challenge = base64.urlsafe_b64encode(hashlib.sha256(self.code_verifier.encode()).digest()).rstrip(b'=')
         return {
             'response_type': 'code', 'client_id': self.application.client_id, 'redirect_uri': REDIRECT_URI,
@@ -197,7 +198,7 @@ class ConsentPageTest(OAuthMCPTestCase):
             'resource': RESOURCE_URL,
         }
 
-    def consent_page(self, scope='read write apply'):
+    def consent_page(self, scope='read write release'):
         return self.client.get('/o/authorize/', self.authorize_params(scope))
 
     def member(self, role):
@@ -211,8 +212,8 @@ class ConsentPageTest(OAuthMCPTestCase):
         response = self.consent_page()
         self.assertContains(response, 'Claude Code')
         self.assertContains(response, self.organization.name)
-        self.assertEqual(radio_scopes(response), ['read', 'read write', 'read write apply'])
-        self.assertEqual(checked_scope(response), 'read write apply')
+        self.assertEqual(radio_scopes(response), ['read', 'read write', 'read write release'])
+        self.assertEqual(checked_scope(response), 'read write release')
 
     def test_default_is_the_narrower_of_the_request_and_the_ceiling(self):
         self.assertEqual(checked_scope(self.consent_page('read write')), 'read write')
@@ -224,21 +225,22 @@ class ConsentPageTest(OAuthMCPTestCase):
         self.assertEqual(radio_scopes(response), ['read'])
         self.assertEqual(checked_scope(response), 'read')
 
-    def test_apply_is_hidden_when_the_host_disables_it(self):
-        config = {**settings.BOM_CONFIG, 'mcp_apply_enabled': False}
-        with override_settings(BOM_CONFIG=config):
+    def test_an_editor_whose_role_cannot_release_is_not_offered_the_release_level(self):
+        self.client.force_login(self.member(constants.ROLE_TYPE_EDITOR))
+        self.assertEqual(radio_scopes(self.consent_page()), ['read', 'read write', 'read write release'])
+
+        editor_permissions = [BomPerms.CREATE_PART, BomPerms.EDIT_PART, BomPerms.MANAGE_SOURCING]
+        with mock.patch.dict(BomPerms.ROLE_PERMISSIONS, {constants.ROLE_TYPE_EDITOR: editor_permissions}):
             response = self.consent_page()
         self.assertEqual(radio_scopes(response), ['read', 'read write'])
         self.assertEqual(checked_scope(response), 'read write')
 
-    def test_propose_only_is_hidden_when_change_review_is_off(self):
-        config = {**settings.BOM_CONFIG, 'changes_review_enabled': False}
+    def test_the_levels_do_not_depend_on_host_flags(self):
+        config = {**settings.BOM_CONFIG, 'change_orders_enabled': False}
         with override_settings(BOM_CONFIG=config):
             response = self.consent_page()
-            proposal_request = self.consent_page('read write')
-        self.assertEqual(radio_scopes(response), ['read', 'read write apply'])
-        self.assertEqual(checked_scope(response), 'read write apply')
-        self.assertEqual(checked_scope(proposal_request), 'read')
+        self.assertEqual(radio_scopes(response), ['read', 'read write', 'read write release'])
+        self.assertContains(response, 'Edit and release')
 
     def test_writes_are_hidden_when_the_access_check_denies_them(self):
         config = {**settings.BOM_CONFIG, 'mcp_access_check': deny_everything}
@@ -263,7 +265,7 @@ class ConsentPageTest(OAuthMCPTestCase):
 
         result, error = self.mcp(granted['access_token']).call('get_organization')
         self.assertIsNone(error)
-        self.assertEqual(result['token_level'], 'propose')
+        self.assertEqual(result['token_level'], 'edit')
 
     def test_cancel_denies_access(self):
         response = self.client.post('/o/authorize/', {**self.authorize_params(), 'scope': 'read'})

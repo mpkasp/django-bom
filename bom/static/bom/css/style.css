@@ -964,7 +964,7 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     margin: 0;
 }
 
-/* Change request page: rgba tints so additions, removals and changes read on light and dark backgrounds. */
+/* Change order page: rgba tints so additions, removals and changes read on light and dark backgrounds. */
 .change-page {
     --change-add: rgba(67, 160, 71, 0.14);
     --change-add-ink: var(--color-primary-contrast, #2e7d32);
@@ -1009,11 +1009,6 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     gap: 8px;
 }
 
-.change-ready {
-    margin: 8px 0 0;
-    font-size: 0.9rem;
-}
-
 .change-reject summary {
     list-style: none;
     cursor: pointer;
@@ -1041,10 +1036,13 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     padding: 16px;
 }
 
-.change-reject textarea,
-.change-item-modal input[type=text] {
-    width: 100%;
+.change-add-part input[type=text] {
     min-height: 2.5rem;
+}
+
+.change-reject textarea,
+.change-add-part input[type=text] {
+    width: 100%;
     padding: 8px 10px;
     border: 1px solid rgba(128, 128, 128, 0.4);
     border-radius: 8px;
@@ -1057,34 +1055,17 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     min-height: 4.5rem;
 }
 
-.change-item-modal {
-    max-width: 480px;
-    white-space: normal;
+.change-sent-back {
+    margin: 16px 0;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--change-edit);
+    box-shadow: inset 3px 0 0 var(--change-edit-ink);
 }
 
-.change-item-modal label {
-    display: block;
-    margin: 12px 0 4px;
-    color: inherit;
-}
-
-.change-item-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.change-history p {
-    margin: 0 0 8px;
-}
-
-.change-fields > .change-item-actions,
-.change-note > .change-item-actions {
-    margin-top: 10px;
-}
-
-.change-bom td:last-child {
-    white-space: nowrap;
+.change-sent-back p {
+    margin: 0 0 4px;
+    max-width: 80ch;
 }
 
 .change-label {
@@ -1147,6 +1128,27 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 }
 
 .change-part-head .chip {
+    margin: 0;
+}
+
+.change-part-edit {
+    margin-left: auto;
+}
+
+.change-list-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+}
+
+.change-list-head h5 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.change-add-part p {
     margin: 0;
 }
 
@@ -1233,19 +1235,6 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     background: var(--change-edit);
 }
 
-.change-bom tr.change-left-out td:nth-child(-n+4),
-.change-left-out > dl,
-.change-left-out > .change-label,
-.change-left-out > p:not(.change-left-out-reason) {
-    opacity: 0.55;
-}
-
-.change-left-out-reason {
-    margin: 4px 0 0;
-    font-size: 0.85rem;
-    color: var(--change-remove-ink);
-}
-
 .change-note,
 .change-fields {
     padding: 12px 16px;
@@ -1304,12 +1293,4 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 
 .change-decrease {
     color: var(--change-add-ink);
-}
-
-.change-ok {
-    color: var(--change-add-ink);
-}
-
-.change-ok .material-icons {
-    vertical-align: middle;
 }

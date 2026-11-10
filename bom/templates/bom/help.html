@@ -73,7 +73,7 @@
                         <tr>
                             <td><strong>Editor</strong></td>
                             <td>Everything a Viewer can do, plus: create and edit parts, revise and release revisions,
-                                manage sourcing (manufacturers and sellers), and approve other people's change requests.
+                                manage sourcing (manufacturers and sellers), and approve other people's change orders.
                             </td>
                         </tr>
                         <tr>
@@ -224,10 +224,10 @@
                         revision, the unit cost before and after, and the assemblies that use the part. Draft assemblies
                         follow the new revision automatically, and you can tick Released assemblies to revise them too.
                         Everything is released together or not at all.</p>
-                    <p>If you want a second opinion, choose <strong>Request approval</strong> instead. The revision
-                        stays in Draft until another person approves the request, which then releases it. Admins can
-                        require this for everyone by turning on <strong>Require approval to release</strong> under
-                        <a href="{% url 'bom:settings' 'organization' %}">Settings → Organization → Protections</a>.
+                    <p>If you want a second opinion, choose <strong>Add to change order</strong> instead (see
+                        <a href="#change-requests">Change Orders</a>). Admins can require this for everyone by turning
+                        on <strong>Require approval to release</strong> under
+                        <a href="{% url 'bom:settings' 'organization' %}">Settings → Organization → Release approval</a>.
                         An organization with a single member is never blocked, and an Admin can still release directly
                         by confirming an override.</p>
 
@@ -237,48 +237,53 @@
                 </div>
 
                 <div class="section">
-                    <h3 id="change-requests">Change Requests</h3>
-                    <p>A <strong>change request</strong> is a set of proposed edits that someone reviews before they take
-                        effect. People open one with <strong>Request approval</strong> in the Release dialog, and AI
-                        agents open them through the MCP server. A request that releases a revision, or changes a
-                        Released one, is labelled an <strong>Engineering Change Order (ECO)</strong>.</p>
-                    <p>The <strong>Requests</strong> item in the navigation bar counts open requests and is hidden when
-                        there are none. A request's page shows each proposed edit as a change to the part's BOM or details
-                        (old values struck through, new ones highlighted), the assemblies it affects and the change in
-                        unit cost. From there you can:</p>
-                    <ul class="browser-default">
-                        <li><strong>Edit</strong> a proposed value, such as a quantity or description, or
-                            <strong>Remove</strong> an edit you don't want. Edits made after the request was proposed
-                            are listed on it, and whoever edits an ECO can't be the one to approve it.</li>
-                        <li><strong>Approve</strong> (or <strong>Apply</strong>) the remaining edits. An ECO's new
-                            revisions are released in the same step, and nothing is saved if any part of it fails.
-                        </li>
-                        <li><strong>Reject</strong> the request, or <strong>Withdraw</strong> it if you opened it.</li>
-                        <li><strong>Rebase</strong> a request whose parts changed after it was opened.</li>
-                    </ul>
-                    <p>You can't approve your own request unless you're an Admin confirming an override or the only
-                        member of your organization. Admins can also mark more changes as needing a second person under
-                        <a href="{% url 'bom:settings' 'organization' %}">Settings → Organization → Protections</a>,
-                        such as a new primary manufacturer part or a large cost change.</p>
-                    <p>Change requests and protections may not be available on every plan.</p>
+                    <h3 id="change-requests">Change Orders</h3>
+                    <p>A <strong>change order</strong> is a set of Draft revisions that are reviewed and released
+                        together. Nothing is edited on the change order itself: you change parts in their usual
+                        screens, and the change order lists them as its <strong>affected parts</strong> with what each
+                        Draft changes.</p>
+                    <ol class="browser-default">
+                        <li><strong>Revise</strong> a Released part to start its next revision as a Draft, then edit
+                            the Draft as usual.</li>
+                        <li>Open the Draft's <strong>Release</strong> page and choose <strong>Add to change
+                            order</strong>: a new one, or one that is still a draft or was sent back.</li>
+                        <li><strong>Submit for review</strong>. The revisions in it are locked (In Review) so what is
+                            approved is what was reviewed.</li>
+                        <li>A reviewer sees, for each revision, what differs from the revision it replaces (old values
+                            struck through, new ones highlighted), the change in unit cost and the Released assemblies
+                            that use it. <strong>Approve</strong> releases every revision in the change order
+                            together, or none if any release fails, and then offers to revise those assemblies.</li>
+                        <li><strong>Reject</strong> sends it back with a reason. Its revisions become Drafts again, to
+                            be fixed and submitted again under the same number. <strong>Withdraw</strong> closes it
+                            and leaves the revisions as Drafts.</li>
+                    </ol>
+                    <p>The <strong>Change orders</strong> item in the navigation bar counts the ones waiting for
+                        review. You can't approve a change order you wrote, or whose revisions you edited, unless
+                        you're an Admin confirming an override or the only member of your organization.</p>
+                    <p>Change orders may not be available on every plan.</p>
                 </div>
 
                 <div class="section">
                     <h3 id="ai-agents">AI Agents and Connected Apps</h3>
-                    <p>An AI assistant such as Claude can search parts, build BOMs and propose changes through
-                        IndaBOM's MCP server. Add the server to your assistant and sign in; you then choose what it may
-                        do, and it never gets more access than your role:</p>
+                    <p>An AI assistant such as Claude can search parts, build BOMs and edit them through
+                        IndaBOM's MCP server. It acts as you. Add the server to your assistant and sign in; you then
+                        choose what it may do, and it never gets more access than your role:</p>
                     <ul class="browser-default">
-                        <li><strong>Read only</strong>: look things up.</li>
-                        <li><strong>Propose changes</strong>: open change requests for a person to review.</li>
-                        <li><strong>Propose and apply</strong>: also edit Draft revisions and make new revisions
-                            directly.
-                        </li>
+                        <li><strong>Read</strong>: look things up.</li>
+                        <li><strong>Edit</strong>: also edit Draft revisions, revise Released parts, and build and
+                            submit change orders. Edits are saved at once and recorded in the part's History with the
+                            assistant's name.</li>
+                        <li><strong>Edit and release</strong>: also release revisions and approve or reject change
+                            orders, as you.</li>
                     </ul>
+                    <p>To change a Released part, the assistant revises it, edits the new Draft, and puts the Draft in
+                        a change order for review. Releasing a revision and approving a change order need the Edit and
+                        release level, and the assistant asks you first. It is held to the same rules as you: it
+                        cannot approve a change order you wrote or edited unless you are the only member of your
+                        organization.</p>
                     <p>Every assistant you connect is listed in <a href="{% url 'bom:settings' 'api' %}">Settings →
                         Connected apps</a>, where you can revoke it. Scripts and tools that can't sign in use a personal
                         access token from the same page, with the same three levels.</p>
-                    <p>Agents never release revisions or approve requests. A person always does that.</p>
                     <p>See <a href="{% url 'bom:help-ai' %}">Connect an AI assistant</a> for step-by-step setup.</p>
                 </div>
 

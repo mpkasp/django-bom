@@ -33,7 +33,7 @@ def run_import(organization, kind, csv_bytes, options, expected_changes_digest=N
 
 
 def bom_upload_edits(organization, parent_part, csv_text, mode):
-    """The subpart edits an indented-BOM CSV makes, as ``(kind, payload)`` pairs ready to stage, plus the import's
+    """The subpart edits an indented-BOM CSV makes, as ``(kind, payload)`` pairs, plus the import's
     warnings. Only BOM lines become edits, so the CSV may not need parts or revisions that do not exist yet. A
     Released parent is previewed against the next Draft it would get when the edits are applied."""
     if mode not in (BOMCSVForm.MODE_ADD, BOMCSVForm.MODE_REPLACE):
@@ -45,14 +45,14 @@ def bom_upload_edits(organization, parent_part, csv_text, mode):
     import_form = _preview_bom_upload(organization, parent_part, parent_revision, csv_text.encode(), mode)
     errors = [str(error) for field_errors in import_form.errors.values() for error in field_errors]
     if errors:
-        raise ServiceError(f"The CSV has {len(errors)} error{'s' if len(errors) != 1 else ''}; nothing was staged.\n"
+        raise ServiceError(f"The CSV has {len(errors)} error{'s' if len(errors) != 1 else ''}; nothing was changed.\n"
                            + '\n'.join(f"- {error}" for error in errors))
     changes = import_form.changes()
     missing = [f"{part['part_number']} rev {part['revision']}" for part in changes['parts']]
     if missing:
         raise ServiceError(
             f"The CSV needs parts or revisions that do not exist yet: {', '.join(missing)}. Create them with "
-            f"create_part and apply that change first, and give each row a revision that exists.")
+            f"create_part first, and give each row a revision that exists.")
 
     edits = []
     for assembly in changes['assemblies']:
