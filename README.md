@@ -253,7 +253,7 @@ Hosts can switch the feature with `BOM_CONFIG['change_orders_enabled']` (a calla
 path, or a bool; default on). Without it a Released part is revised and the new revision released directly. Set
 `BOM_CONFIG['site_url']` so URLs returned to MCP clients are absolute.
 
-Admins can require approval to release in Settings > Organization > Protections (when the host enables change
+Admins can require approval to release in Settings > Organization > Release approval (when the host enables change
 orders). With approval required and more than one active member, the Release dialog offers Add to change order
 instead of Release for Editors; an Admin may release directly by confirming an override that History records.
 

@@ -84,7 +84,7 @@ building a new multi-form page.
 2. **Approve** on a change order is one `transaction.atomic()` call that releases every revision in it, children
    before parents, checking `RELEASE_REVISION` for the approver; any failure rolls back everything.
 3. **Require approval to release** setting: `ChangeSettings.require_release_approval` (default False), on the
-   Protections section, shown when the host flag `change_orders_enabled` is on. When on, and the organization has
+   Release approval section, shown when the host flag `change_orders_enabled` is on. When on, and the organization has
    more than one active member, the Release button is replaced by Add to change order for Editors, and the service
    refuses direct releases. An Admin may still release directly by confirming an override, recorded on the History
    entry. Single-member organizations are never blocked. The rule is enforced in `release_revision`, so views and MCP
@@ -112,7 +112,7 @@ building a new multi-form page.
    - Approve: `change_orders.approve` needs `RELEASE_REVISION` on every revision and applies
      `change_orders.approval_status`: whoever wrote or edited the change order cannot approve it, except in a
      single-member organization or as an Admin override. Reject needs `EDIT_PART` and a reason.
-   - Settings: only Admins save Protections; the checkbox is hidden when the host flag is off.
+   - Settings: only Admins save Release approval; the checkbox is hidden when the host flag is off.
 5. **Telemetry:** one structured log line per Edit save, Revise, Release, Submit, Approve, Reject
    (`logger.info('bom_event=... organization=... user=... part=...')`), matching the existing MCP log style, for
    BigQuery.
