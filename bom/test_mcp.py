@@ -1,6 +1,9 @@
+import importlib
 import json
 from decimal import Decimal
+from unittest import mock
 
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TransactionTestCase, override_settings
@@ -10,8 +13,11 @@ from starlette.testclient import TestClient
 from bom import constants
 from bom.helpers import create_a_fake_organization, create_some_fake_parts
 from bom.mcp.asgi import build_application
-from bom.services import changes, parts
-from bom.models import APIToken, Change, Part, PartRevision, PartRevisionPropertyDefinition, Seller
+from bom.models import (APIToken, Change, ChangeItem, ChangeSettings, Part, PartRevision,
+                        PartRevisionPropertyDefinition, Seller)
+from bom.services import boms, change_orders, changes, parts
+from bom.services.errors import ServiceError
+
 
 def deny_everything(organization, user, scopes):
     return 'Upgrade to Pro.'
@@ -52,6 +58,9 @@ class MCPClient:
         return structured, None
 
 
+RELEASE_SCOPES = [APIToken.SCOPE_READ, APIToken.SCOPE_WRITE, APIToken.SCOPE_RELEASE]
+
+
 # TransactionTestCase: tool calls run on worker threads with their own DB connections, so rows must be committed.
 @override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT)
 class MCPTestCase(TransactionTestCase):
@@ -65,10 +74,28 @@ class MCPTestCase(TransactionTestCase):
         self.read_token, self.read_plaintext = APIToken.issue(self.user, self.organization, 'read')
         self.write_token, self.write_plaintext = APIToken.issue(
             self.user, self.organization, 'write', scopes=[APIToken.SCOPE_READ, APIToken.SCOPE_WRITE])
-        self.apply_token, self.apply_plaintext = APIToken.issue(
-            self.user, self.organization, 'apply',
-            scopes=[APIToken.SCOPE_READ, APIToken.SCOPE_WRITE, APIToken.SCOPE_APPLY])
+        self.release_token, self.release_plaintext = APIToken.issue(self.user, self.organization, 'release',
+                                                                    scopes=RELEASE_SCOPES)
         self.app = build_application()
+
+    def member(self, username, role=constants.ROLE_TYPE_ADMIN, scopes=RELEASE_SCOPES):
+        """Another person in the organization, with a token of their own: ``(user, token, plaintext)``."""
+        member = User.objects.create_user(username, f'{username}@example.com', 'ghostpassword')
+        profile = member.bom_profile(organization=self.organization)
+        profile.role = role
+        profile.save()
+        return (member, *APIToken.issue(member, self.organization, username, scopes=scopes))
+
+    def new_part(self, description='Subject'):
+        PartRevisionPropertyDefinition.objects.update(required=False)
+        return parts.create_part(self.organization, description,
+                                 part_class_code=str(self.parts[0].number_class.code))
+
+    def released_part(self, description='Subject'):
+        return changes.release_revision(self.new_part(description), self.user)
+
+    def history(self, part):
+        return [entry['change'] for entry in changes.part_history(part)]
 
     def mcp(self, plaintext):
         return MCPClient(self.http, plaintext)
@@ -166,7 +193,7 @@ class MCPServerTest(MCPTestCase):
         self.assertIn('Upgrade to Pro.', error)
 
     def test_create_part_add_subpart_and_sourcing(self):
-        client = self.mcp(self.apply_plaintext)
+        client = self.mcp(self.write_plaintext)
         part_class = self.parts[0].number_class
 
         result, error = client.call(
@@ -258,500 +285,706 @@ class MCPExportBomCsvTest(MCPTestCase):
         self.assertIn('No part', error)
 
 
-class MCPRevisionToolsTest(MCPTestCase):
+class MCPAccessLevelTest(MCPTestCase):
     def setUp(self):
         super().setUp()
-        PartRevisionPropertyDefinition.objects.update(required=False)
-        self.revision = parts.create_part(
-            self.organization, 'Subject', part_class_code=str(self.parts[0].number_class.code))
-        self.part_number = self.revision.part.full_part_number()
+        self.draft = self.new_part()
+        self.part_number = self.draft.part.full_part_number()
 
-    def start_change(self, plaintext):
-        result, error = self.mcp(plaintext).call('start_change', title='Edit subject', rationale='Because')
+    def tools(self):
+        return {tool['name']: tool for tool in self.mcp(self.read_plaintext).rpc('tools/list').json()['result']['tools']}
+
+    def test_the_staged_edit_tools_are_gone_and_the_change_order_tools_are_listed(self):
+        tools = self.tools()
+
+        self.assertFalse(set(tools) & {'start_change', 'submit_change', 'apply_change', 'withdraw_change',
+                                       'remove_change_item', 'get_change', 'list_changes'})
+        self.assertLessEqual(
+            {'create_change_order', 'add_to_change_order', 'remove_from_change_order', 'submit_change_order',
+             'withdraw_change_order', 'get_change_order', 'list_change_orders', 'release_revision',
+             'approve_change_order', 'reject_change_order'}, set(tools))
+        for tool in tools.values():
+            properties = tool['inputSchema'].get('properties', {})
+            self.assertFalse({'change_id', 'ref'} & set(properties), tool['name'])
+
+    def test_annotations_mark_reads_writes_and_the_destructive_tool(self):
+        tools = self.tools()
+
+        for name in ('get_change_order', 'list_change_orders', 'get_part'):
+            self.assertTrue(tools[name]['annotations']['readOnlyHint'], name)
+        for name in ('release_revision', 'approve_change_order', 'reject_change_order', 'create_change_order',
+                     'add_subpart'):
+            self.assertFalse(tools[name]['annotations']['readOnlyHint'], name)
+            self.assertFalse(tools[name]['annotations']['destructiveHint'], name)
+        self.assertTrue(tools['remove_subpart']['annotations']['destructiveHint'])
+
+    def test_a_read_token_reads_and_is_refused_every_write(self):
+        client = self.mcp(self.read_plaintext)
+        organization, _ = client.call('get_organization')
+        self.assertEqual(organization['token_level'], 'read')
+        self.assertIsNone(client.call('list_change_orders')[1])
+
+        writes = {
+            'create_part': {'description': 'x'},
+            'update_part_revision': {'part_number': self.part_number, 'description': 'x'},
+            'revise_part': {'part_number': self.part_number},
+            'add_subpart': {'assembly_part_number': self.part_number, 'subpart_part_number': self.part_number},
+            'update_subpart': {'assembly_part_number': self.part_number, 'subpart_part_number': self.part_number},
+            'remove_subpart': {'assembly_part_number': self.part_number, 'subpart_part_number': self.part_number},
+            'upload_bom': {'assembly_part_number': self.part_number, 'csv_text': 'part_number\n'},
+            'add_manufacturer_part': {'part_number': self.part_number, 'manufacturer': 'Acme',
+                                      'manufacturer_part_number': 'X'},
+            'add_seller_part': {'manufacturer_part_id': 1, 'seller': 'Digi-Key', 'unit_cost': '1'},
+            'create_change_order': {'title': 'x', 'rationale': 'y'},
+            'add_to_change_order': {'number': 1, 'part_number': self.part_number},
+            'remove_from_change_order': {'number': 1, 'part_number': self.part_number},
+            'submit_change_order': {'number': 1},
+            'withdraw_change_order': {'number': 1},
+            'release_revision': {'part_number': self.part_number},
+            'approve_change_order': {'number': 1},
+            'reject_change_order': {'number': 1, 'reason': 'no'},
+        }
+        for tool, arguments in writes.items():
+            result, error = client.call(tool, **arguments)
+            self.assertIsNone(result, tool)
+            self.assertIn("'write' scope", error, tool)
+        self.assertFalse(Change.objects.exists())
+
+    def test_an_edit_token_edits_and_is_refused_releasing_and_approving(self):
+        client = self.mcp(self.write_plaintext)
+        organization, _ = client.call('get_organization')
+        self.assertEqual(organization['token_level'], 'edit')
+
+        _, error = client.call('update_part_revision', part_number=self.part_number, description='Renamed')
         self.assertIsNone(error, error)
-        return result['change_id']
+        order, error = client.call('create_change_order', title='Rename', rationale='Because',
+                                   revisions=[{'part_number': self.part_number}])
+        self.assertIsNone(error, error)
+        client.call('submit_change_order', number=order['number'])
+
+        for tool, arguments in {
+            'release_revision': {'part_number': self.part_number},
+            'approve_change_order': {'number': order['number']},
+            'reject_change_order': {'number': order['number'], 'reason': 'no'},
+        }.items():
+            result, error = client.call(tool, **arguments)
+            self.assertIsNone(result, tool)
+            self.assertIn("'release' scope", error, tool)
+        detail, _ = client.call('get_change_order', number=order['number'])
+        self.assertEqual(detail['status'], 'open')
+        self.assertFalse(detail['approval']['can_approve'])
+        self.assertIn('release level', detail['approval']['message'])
+
+    def test_a_release_token_releases(self):
+        client = self.mcp(self.release_plaintext)
+        organization, _ = client.call('get_organization')
+        self.assertEqual(organization['token_level'], 'release')
+
+        result, error = client.call('release_revision', part_number=self.part_number, note='First build')
+
+        self.assertIsNone(error, error)
+        self.assertEqual(result['configuration'], 'Released')
+        entry = self.history(self.draft.part)[0]
+        self.assertEqual((entry.items.get().kind, entry.api_token, entry.rationale),
+                         (ChangeItem.KIND_RELEASE_REVISION, self.release_token, 'First build'))
+
+    def test_the_token_never_widens_the_persons_role(self):
+        self.profile.role = constants.ROLE_TYPE_VIEWER
+        self.profile.save()
+        client = self.mcp(self.release_plaintext)
+
+        _, error = client.call('update_part_revision', part_number=self.part_number, description='Renamed')
+        self.assertIn('permission', error)
+        _, error = client.call('create_change_order', title='x', rationale='y')
+        self.assertIn('permission', error)
+        _, error = client.call('release_revision', part_number=self.part_number)
+        self.assertIn('cannot release revisions', error)
+        self.assertEqual(PartRevision.objects.get(pk=self.draft.pk).configuration, constants.CONFIGURATION_TYPE_DRAFT)
+
+    def test_host_access_check_can_deny_releasing(self):
+        config = dict(settings.BOM_CONFIG_DEFAULT, mcp_access_check='bom.test_mcp.deny_everything')
+        with override_settings(BOM_CONFIG=config):
+            _, error = self.mcp(self.release_plaintext).call('release_revision', part_number=self.part_number)
+        self.assertIn('Upgrade to Pro.', error)
+
+    def test_the_migration_strips_the_apply_scope_and_grants_no_release(self):
+        APIToken.objects.filter(pk=self.release_token.pk).update(scopes='read,write,apply')
+        APIToken.objects.filter(pk=self.write_token.pk).update(scopes='read,apply')
+        migration = importlib.import_module('bom.migrations.0072_apitoken_release_scope')
+
+        migration.strip_apply_scope(apps, None)
+
+        self.assertEqual(APIToken.objects.get(pk=self.release_token.pk).scope_list(), ['read', 'write'])
+        self.assertEqual(APIToken.objects.get(pk=self.write_token.pk).scope_list(), ['read'])
+        self.assertEqual(APIToken.objects.get(pk=self.read_token.pk).scope_list(), ['read'])
+        organization, _ = self.mcp(self.release_plaintext).call('get_organization')
+        self.assertEqual(organization['token_level'], 'edit')
+
+
+class MCPDirectEditTest(MCPTestCase):
+    def setUp(self):
+        super().setUp()
+        self.revision = self.new_part()
+        self.part = self.revision.part
+        self.part_number = self.part.full_part_number()
+        self.resistor = self.parts[0].full_part_number()
 
     def property_values(self):
         # The revision form stores an unchecked boolean property as 'False', so 'custom' appears after any save.
         return {prop.property_definition.code: prop.value_raw for prop in self.revision.properties.all()
                 if prop.property_definition.code != 'custom'}
 
+    def lines(self, part_revision=None):
+        part_revision = part_revision or self.revision
+        return {line.part_revision.part.full_part_number(): (line.count, line.reference)
+                for line in part_revision.assembly.subparts.select_related('part_revision__part')}
+
     def release(self):
-        PartRevision.objects.filter(pk=self.revision.pk).update(configuration=constants.CONFIGURATION_TYPE_RELEASED)
+        return changes.release_revision(self.revision, self.user)
 
-    def test_update_part_revision_stages_then_applies(self):
-        client = self.mcp(self.apply_plaintext)
-        change_id = self.start_change(self.apply_plaintext)
+    def test_every_edit_is_saved_at_once_and_recorded_in_history_with_the_token(self):
+        client = self.mcp(self.write_plaintext)
 
-        staged, error = client.call(
-            'update_part_revision', part_number=self.part_number, change_id=change_id,
-            description='Renamed', properties={'sheen': 'matte', 'voltage': '3.3'})
-
+        created, error = client.call('create_part', description='Cap',
+                                     part_class_code=str(self.parts[0].number_class.code))
         self.assertIsNone(error, error)
-        self.assertEqual(staged['staged']['kind'], 'update_part_revision')
-        self.assertIn('Update description and properties', staged['staged']['summary'])
-        self.revision.refresh_from_db()
-        self.assertEqual(self.revision.description, 'Subject')
-
-        applied, error = client.call('apply_change', change_id=change_id)
-
+        cap = Part.from_part_number(created['part_number'], self.organization)
+        calls = [
+            ('update_part_revision', {'part_number': self.part_number, 'description': 'Renamed'}),
+            ('add_subpart', {'assembly_part_number': self.part_number, 'subpart_part_number': self.resistor,
+                             'count': 2, 'reference': 'R1, R2'}),
+            ('update_subpart', {'assembly_part_number': self.part_number, 'subpart_part_number': self.resistor,
+                                'count': 1, 'reference': 'R1'}),
+            ('remove_subpart', {'assembly_part_number': self.part_number, 'subpart_part_number': self.resistor}),
+            ('add_manufacturer_part', {'part_number': self.part_number, 'manufacturer': 'Acme',
+                                       'manufacturer_part_number': 'SUB-1'}),
+        ]
+        for tool, arguments in calls:
+            result, error = client.call(tool, **arguments)
+            self.assertIsNone(error, f"{tool}: {error}")
+        _, error = client.call('add_seller_part', manufacturer_part_id=result['id'], seller='Digi-Key',
+                               unit_cost='1.25')
         self.assertIsNone(error, error)
-        self.assertEqual(applied['status'], 'applied')
+
         self.revision.refresh_from_db()
         self.assertEqual(self.revision.description, 'Renamed')
-        self.assertEqual(self.property_values(), {'sheen': 'matte', 'voltage': '3.3'})
-        self.assertIn('Renamed', self.revision.displayable_synopsis)
-        self.assertIn('matte', self.revision.displayable_synopsis)
+        self.assertEqual(self.lines(), {})
+        self.assertEqual(self.part.manufacturer_parts().get().seller_parts().get().unit_cost.amount, Decimal('1.25'))
+        recorded = self.history(self.part)
+        self.assertEqual(
+            [entry.items.get().kind for entry in reversed(recorded)],
+            ['update_part_revision', 'add_subpart', 'update_subpart', 'remove_subpart', 'add_manufacturer_part',
+             'add_seller_part'])
+        for entry in recorded + self.history(cap):
+            self.assertTrue(entry.is_direct_edit)
+            self.assertIsNone(entry.number)
+            self.assertEqual((entry.author, entry.api_token, entry.status),
+                             (self.user, self.write_token, Change.STATUS_APPLIED))
+        self.assertEqual(self.history(cap)[0].items.get().kind, 'create_part')
+
+    def test_history_records_what_the_web_app_records(self):
+        client = self.mcp(self.write_plaintext)
+        client.call('add_subpart', assembly_part_number=self.part_number, subpart_part_number=self.resistor,
+                    count=2, reference='R1, R2')
+        client.call('update_subpart', assembly_part_number=self.part_number, subpart_part_number=self.resistor,
+                    count=3, reference='R1, R2, R3')
+        client.call('update_part_revision', part_number=self.part_number, description='Renamed')
+
+        renamed, updated, added = [entry.items.get() for entry in self.history(self.part)]
+        label = f"{self.part_number} rev {self.revision.revision}"
+        self.assertEqual(added.summary, f"Add {self.resistor} x2.0 R1, R2 to {label}")
+        self.assertEqual(added.payload, {'subpart_part_number': self.resistor, 'count': 2.0, 'reference': 'R1, R2',
+                                         'do_not_load': False})
+        self.assertEqual(added.result['part_revision_id'], self.revision.id)
+        self.assertEqual(updated.summary, f"Update {self.resistor} in {label}")
+        self.assertEqual((updated.before['count'], updated.payload['count']), (2.0, 3.0))
+        self.assertEqual(renamed.summary, f"Update description and properties of {label}")
+        self.assertEqual((renamed.before['description'], renamed.payload), ('Subject', {'fields': ['description']}))
+        self.assertEqual(renamed.part_revision, self.revision)
 
     def test_update_part_revision_keeps_omitted_values_and_clears_empty_ones(self):
-        client = self.mcp(self.apply_plaintext)
-        change_id = self.start_change(self.apply_plaintext)
-        client.call('update_part_revision', part_number=self.part_number, change_id=change_id,
-                    properties={'sheen': 'matte', 'voltage': '3.3'})
-        client.call('apply_change', change_id=change_id)
+        client = self.mcp(self.write_plaintext)
 
-        change_id = self.start_change(self.apply_plaintext)
-        _, error = client.call('update_part_revision', part_number=self.part_number, change_id=change_id,
-                               properties={'sheen': ''})
+        result, error = client.call('update_part_revision', part_number=self.part_number,
+                                    properties={'sheen': 'matte', 'voltage': '3.3'})
         self.assertIsNone(error, error)
-        client.call('apply_change', change_id=change_id)
+        self.assertIn({'code': 'sheen', 'name': 'Sheen', 'value': 'matte', 'unit': None}, result['properties'])
+        _, error = client.call('update_part_revision', part_number=self.part_number, properties={'sheen': ''})
+        self.assertIsNone(error, error)
 
         self.revision.refresh_from_db()
         self.assertEqual(self.revision.description, 'Subject')
-        self.assertEqual(self.property_values(),
-                         {'voltage': '3.3'})
+        self.assertEqual(self.property_values(), {'voltage': '3.3'})
 
     def test_update_part_revision_validates_through_the_form(self):
-        change_id = self.start_change(self.write_plaintext)
         client = self.mcp(self.write_plaintext)
 
-        _, error = client.call('update_part_revision', part_number=self.part_number, change_id=change_id,
-                               properties={'nonsense': 'x'})
+        _, error = client.call('update_part_revision', part_number=self.part_number, properties={'nonsense': 'x'})
         self.assertIn('Unknown properties', error)
-        _, error = client.call('update_part_revision', part_number=self.part_number, change_id=change_id,
-                               description='Subject')
+        _, error = client.call('update_part_revision', part_number=self.part_number, description='Subject')
         self.assertIn('already has those values', error)
-        _, error = client.call('update_part_revision', part_number=self.part_number, change_id=change_id,
-                               description='x' * 300)
+        _, error = client.call('update_part_revision', part_number=self.part_number, description='x' * 300)
         self.assertIn('description', error)
+        self.assertEqual(self.history(self.part), [])
 
-    def test_update_part_revision_on_a_released_revision_is_an_eco_that_lands_on_the_next_draft(self):
+    def test_a_released_revision_is_refused_with_the_hint_to_revise(self):
+        boms.add_subpart(self.organization, self.revision, self.resistor, count=1)
         self.release()
-        client = self.mcp(self.apply_plaintext)
-        change_id = self.start_change(self.apply_plaintext)
+        client = self.mcp(self.release_plaintext)
+        csv_text = f"part_number,quantity\n{self.resistor},4\n"
 
-        staged, error = client.call('update_part_revision', part_number=self.part_number, change_id=change_id,
-                                    description='Subject, revised')
-
-        self.assertIsNone(error, error)
-        self.assertEqual(staged['staged']['kind'], 'update_part_revision')
-        detail, _ = client.call('get_change', change_id=change_id)
-        self.assertTrue(detail['is_eco'])
-
-        change, error = client.call('apply_change', change_id=change_id)
-
-        self.assertIsNone(error, error)
-        self.revision.refresh_from_db()
-        self.assertEqual((self.revision.configuration, self.revision.description),
-                         (constants.CONFIGURATION_TYPE_RELEASED, 'Subject'))
-        new_revision = self.revision.part.latest()
-        self.assertEqual((new_revision.revision, new_revision.configuration, new_revision.description),
-                         ('2', constants.CONFIGURATION_TYPE_DRAFT, 'Subject, revised'))
-        self.assertEqual(change['items'][0]['result']['new_revision'], '2')
-
-    def test_update_part_revision_on_a_released_revision_says_to_revise_first_without_ecos(self):
-        self.release()
-        change_id = self.start_change(self.write_plaintext)
-
-        with override_settings(BOM_CONFIG=dict(settings.BOM_CONFIG_DEFAULT, eco_enabled=False)):
-            result, error = self.mcp(self.write_plaintext).call(
-                'update_part_revision', part_number=self.part_number, change_id=change_id, description='Nope')
-
-        self.assertIsNone(result)
-        self.assertIn('revise_part', error)
-        self.assertIn('Released', error)
-        self.assertFalse(Change.objects.get(pk=change_id).items.exists())
-
-    def test_a_propose_token_stages_and_a_person_applies(self):
-        client = self.mcp(self.write_plaintext)
-        change_id = self.start_change(self.write_plaintext)
-        client.call('update_part_revision', part_number=self.part_number, change_id=change_id, description='Proposed')
-
-        _, error = client.call('apply_change', change_id=change_id)
-        self.assertIn("'apply' scope", error)
-        submitted, error = client.call('submit_change', change_id=change_id)
-        self.assertIsNone(error, error)
-        self.assertEqual(submitted['status'], 'open')
-        self.revision.refresh_from_db()
-        self.assertEqual(self.revision.description, 'Subject')
-
-        changes.apply_change(Change.objects.get(pk=change_id), self.user)
-        self.revision.refresh_from_db()
-        self.assertEqual(self.revision.description, 'Proposed')
-
-    def test_an_applied_update_can_be_reverted(self):
-        client = self.mcp(self.apply_plaintext)
-        change_id = self.start_change(self.apply_plaintext)
-        client.call('update_part_revision', part_number=self.part_number, change_id=change_id,
-                    description='Changed', properties={'sheen': 'matte'})
-        client.call('apply_change', change_id=change_id)
-
-        changes.revert_change(Change.objects.get(pk=change_id), self.user)
-
-        self.revision.refresh_from_db()
-        self.assertEqual(self.revision.description, 'Subject')
-        self.assertEqual(self.property_values(), {})
-
-    def test_revise_part_stages_the_next_draft_and_applies(self):
-        self.release()
-        client = self.mcp(self.apply_plaintext)
-        change_id = self.start_change(self.apply_plaintext)
-
-        staged, error = client.call('revise_part', part_number=self.part_number, change_id=change_id)
-
-        self.assertIsNone(error, error)
-        self.assertEqual(staged['staged']['kind'], 'create_part_revision')
-        self.assertIn('Revise', staged['staged']['summary'])
-        self.assertEqual(self.revision.part.revisions().count(), 1)
-
-        change, error = client.call('apply_change', change_id=change_id)
-
-        self.assertIsNone(error, error)
-        self.assertFalse(change['is_eco'])
-        new_revision = self.revision.part.latest()
-        self.assertEqual(new_revision.revision, '2')
-        self.assertEqual(new_revision.configuration, constants.CONFIGURATION_TYPE_DRAFT)
-        self.assertEqual(new_revision.description, 'Subject')
-        self.assertEqual(change['items'][0]['result']['part_revision_id'], new_revision.id)
-        self.assertEqual(Change.objects.get(pk=change_id).items.get().part_id, self.revision.part_id)
-
-    def test_revise_part_copies_the_assembly_like_the_ui(self):
-        assembly = self.parts[2]
-        PartRevision.objects.filter(pk=assembly.latest().pk).update(
-            configuration=constants.CONFIGURATION_TYPE_RELEASED)
-        client = self.mcp(self.apply_plaintext)
-        change_id = self.start_change(self.apply_plaintext)
-
-        client.call('revise_part', part_number=assembly.full_part_number(), change_id=change_id)
-        client.call('apply_change', change_id=change_id)
-
-        revised, released = assembly.latest(), assembly.revisions().order_by('id').first()
-        self.assertNotEqual(revised.id, released.id)
-        self.assertEqual(sorted(revised.assembly.subparts.values_list('part_revision_id', 'count')),
-                         sorted(assembly.revisions().get(pk=assembly.latest().pk).assembly.subparts
-                                .values_list('part_revision_id', 'count')))
-        self.assertTrue(revised.assembly.subparts.exists())
-
-    def test_revise_part_refuses_when_a_newer_draft_exists(self):
-        self.release()
-        parts.create_next_revision(self.revision)
-        change_id = self.start_change(self.write_plaintext)
-
-        result, error = self.mcp(self.write_plaintext).call('revise_part', part_number=self.part_number,
-                                                            change_id=change_id)
-
-        self.assertIsNone(result)
-        self.assertIn('already has a newer Draft, rev 2', error)
-
-    def test_revise_part_refuses_a_part_with_only_a_draft(self):
-        change_id = self.start_change(self.write_plaintext)
-
-        _, error = self.mcp(self.write_plaintext).call('revise_part', part_number=self.part_number,
-                                                       change_id=change_id)
-
-        self.assertIn('no Released or In Review revision', error)
-
-    def test_a_revise_that_was_overtaken_fails_when_applied(self):
-        self.release()
-        change_id = self.start_change(self.apply_plaintext)
-        client = self.mcp(self.apply_plaintext)
-        client.call('revise_part', part_number=self.part_number, change_id=change_id)
-        parts.create_next_revision(self.revision)
-
-        _, error = client.call('apply_change', change_id=change_id)
-
-        self.assertIsNotNone(error)
-        self.assertEqual(self.revision.part.revisions().count(), 2)
-
-    def test_read_tokens_cannot_use_the_write_tools(self):
-        change_id = self.start_change(self.write_plaintext)
-        client = self.mcp(self.read_plaintext)
-
-        for tool, arguments in (
-                ('update_part_revision', {'part_number': self.part_number, 'change_id': change_id, 'description': 'x'}),
-                ('revise_part', {'part_number': self.part_number, 'change_id': change_id})):
+        for tool, arguments in {
+            'update_part_revision': {'part_number': self.part_number, 'description': 'Renamed'},
+            'add_subpart': {'assembly_part_number': self.part_number, 'subpart_part_number': self.resistor},
+            'update_subpart': {'assembly_part_number': self.part_number, 'subpart_part_number': self.resistor,
+                               'count': 5},
+            'remove_subpart': {'assembly_part_number': self.part_number, 'subpart_part_number': self.resistor},
+            'upload_bom': {'assembly_part_number': self.part_number, 'csv_text': csv_text},
+        }.items():
             result, error = client.call(tool, **arguments)
-            self.assertIsNone(result)
-            self.assertIn("'write' scope", error, tool)
-        self.assertFalse(Change.objects.get(pk=change_id).items.exists())
+            self.assertIsNone(result, tool)
+            self.assertIn(f"{self.part_number} rev 1 is Released and cannot be edited", error, tool)
+            self.assertIn('revise_part', error, tool)
+        _, error = client.call('add_manufacturer_part', part_number=self.part_number, manufacturer='Acme',
+                               manufacturer_part_number='SUB-1')
+        self.assertIn('Revise this part', error)
 
-    def test_viewers_cannot_stage_revisions(self):
-        change_id = self.start_change(self.write_plaintext)
-        self.profile.role = constants.ROLE_TYPE_VIEWER
-        self.profile.save()
+        self.revision.refresh_from_db()
+        self.assertEqual(self.revision.description, 'Subject')
+        self.assertEqual(self.lines(), {self.resistor: (1, '')})
+        self.assertEqual(self.part.revisions().count(), 1)
+
+    def test_an_old_revision_points_at_the_draft_that_replaces_it(self):
+        changes.revise_revision(self.release(), self.user)
 
         _, error = self.mcp(self.write_plaintext).call(
-            'update_part_revision', part_number=self.part_number, change_id=change_id, description='x')
+            'update_part_revision', part_number=self.part_number, revision='1', description='Renamed')
 
-        self.assertIn('permission', error)
+        self.assertIn("Edit the part's Draft, rev 2, instead", error)
 
-    def test_another_organization_cannot_reach_the_part_or_the_change(self):
+    def test_a_revision_under_review_names_the_change_order_that_locks_it(self):
+        draft = changes.revise_revision(self.release(), self.user)
+        order = change_orders.create_change_order(self.organization, self.user, 'Rename', 'Because', [draft])
+        change_orders.submit(order, self.user)
+
+        _, error = self.mcp(self.write_plaintext).call(
+            'update_part_revision', part_number=self.part_number, description='Renamed')
+
+        self.assertIn(f"change order #{order.number}", error)
+        self.assertIn('locked', error)
+
+    def test_revise_part_creates_the_draft_now_with_the_assembly_and_records_it(self):
+        boms.add_subpart(self.organization, self.revision, self.resistor, count=2, reference='R1, R2')
         self.release()
+        client = self.mcp(self.write_plaintext)
+
+        result, error = client.call('revise_part', part_number=self.part_number)
+
+        self.assertIsNone(error, error)
+        self.assertEqual((result['revision'], result['configuration'], result['description']),
+                         ('2', 'Draft', 'Subject'))
+        draft = self.part.latest()
+        self.assertEqual(self.lines(draft), {self.resistor: (2, 'R1, R2')})
+        entry = self.history(self.part)[0]
+        self.assertEqual((entry.items.get().kind, entry.api_token), ('create_part_revision', self.write_token))
+
+        _, error = client.call('add_subpart', assembly_part_number=self.part_number,
+                               subpart_part_number=self.parts[1].full_part_number())
+        self.assertIsNone(error, error)
+        self.assertEqual(len(self.lines(draft)), 2)
+        self.assertEqual(len(self.lines()), 1)
+
+    def test_revise_part_refuses_a_newer_draft_and_a_part_that_was_never_released(self):
+        client = self.mcp(self.write_plaintext)
+        _, error = client.call('revise_part', part_number=self.part_number)
+        self.assertIn('no Released or In Review revision', error)
+
+        self.release()
+        client.call('revise_part', part_number=self.part_number)
+        result, error = client.call('revise_part', part_number=self.part_number)
+        self.assertIsNone(result)
+        self.assertIn('already has a newer Draft, rev 2', error)
+        self.assertEqual(self.part.revisions().count(), 2)
+
+    def test_another_organization_cannot_reach_the_part(self):
         other_user = User.objects.create_user('other', 'other@example.com', 'ghostpassword')
         other_organization = create_a_fake_organization(other_user)
         other_profile = other_user.bom_profile(organization=other_organization)
         other_profile.role = constants.ROLE_TYPE_ADMIN
         other_profile.save()
-        _, other_plaintext = APIToken.issue(other_user, other_organization, 'write',
-                                            scopes=[APIToken.SCOPE_READ, APIToken.SCOPE_WRITE])
-        other_client = self.mcp(other_plaintext)
-        change_id = self.start_change(self.write_plaintext)
+        _, other_plaintext = APIToken.issue(other_user, other_organization, 'release', scopes=RELEASE_SCOPES)
+        client = self.mcp(other_plaintext)
 
-        _, error = other_client.call('update_part_revision', part_number=self.part_number, change_id=change_id,
-                                     description='Hijacked')
-        self.assertIn('No part', error)
-
-        own_change = other_client.call('start_change', title='Mine')[0]['change_id']
-        _, error = other_client.call('revise_part', part_number=self.part_number, change_id=own_change)
-        self.assertIn('No part', error)
-
-        _, error = self.mcp(self.write_plaintext).call('revise_part', part_number=self.part_number,
-                                                       change_id=own_change)
-        self.assertIn('No change', error)
+        for tool, arguments in {
+            'update_part_revision': {'part_number': self.part_number, 'description': 'Hijacked'},
+            'revise_part': {'part_number': self.part_number},
+            'release_revision': {'part_number': self.part_number},
+            'create_change_order': {'title': 'x', 'rationale': 'y', 'revisions': [{'part_number': self.part_number}]},
+        }.items():
+            _, error = client.call(tool, **arguments)
+            self.assertIn('No part', error, tool)
+        self.revision.refresh_from_db()
+        self.assertEqual(self.revision.description, 'Subject')
 
 
 class MCPUploadBomTest(MCPTestCase):
     def setUp(self):
         super().setUp()
-        PartRevisionPropertyDefinition.objects.update(required=False)
         self.resistor, self.capacitor = self.parts[0], self.parts[1]
-        self.assembly_revision = parts.create_part(
-            self.organization, 'Board', part_class_code=str(self.parts[0].number_class.code))
+        self.assembly_revision = self.new_part('Board')
         self.assembly_number = self.assembly_revision.part.full_part_number()
 
     def csv_text(self, *rows, header='part_number,quantity,reference'):
         return '\n'.join([header] + [','.join(str(cell) for cell in row) for row in rows]) + '\n'
 
-    def start_change(self, plaintext):
-        result, error = self.mcp(plaintext).call('start_change', title='Load BOM', rationale='From the CSV')
-        self.assertIsNone(error, error)
-        return result['change_id']
-
-    def lines(self, part=None):
-        part = part or self.assembly_revision.part
+    def lines(self):
         return {line.part_revision.part.full_part_number(): (line.count, line.reference)
-                for line in part.latest().assembly.subparts.select_related('part_revision__part')}
+                for line in self.assembly_revision.assembly.subparts.select_related('part_revision__part')}
 
-    def upload(self, plaintext, csv_text, mode='add', change_id=None):
-        change_id = change_id or self.start_change(plaintext)
-        result, error = self.mcp(plaintext).call(
-            'upload_bom', assembly_part_number=self.assembly_number, csv_text=csv_text, change_id=change_id,
-            mode=mode)
-        return change_id, result, error
+    def upload(self, csv_text, mode='add', plaintext=None):
+        return self.mcp(plaintext or self.write_plaintext).call(
+            'upload_bom', assembly_part_number=self.assembly_number, csv_text=csv_text, mode=mode)
 
     def load_initial_lines(self):
-        change_id, _, error = self.upload(self.apply_plaintext, self.csv_text(
+        _, error = self.upload(self.csv_text(
             (self.resistor.full_part_number(), 2, '"R1, R2"'), (self.capacitor.full_part_number(), 1, '')))
         self.assertIsNone(error, error)
-        _, error = self.mcp(self.apply_plaintext).call('apply_change', change_id=change_id)
-        self.assertIsNone(error, error)
 
-    def test_stages_one_item_per_line_and_applies(self):
-        change_id, result, error = self.upload(self.apply_plaintext, self.csv_text(
+    def test_saves_every_line_and_reports_what_changed(self):
+        result, error = self.upload(self.csv_text(
             (self.resistor.full_part_number(), 2, '"R1, R2"'), (self.capacitor.full_part_number(), 1, '')))
 
         self.assertIsNone(error, error)
-        self.assertEqual([item['kind'] for item in result['staged']], ['add_subpart', 'add_subpart'])
-        self.assertEqual(result['items_in_change'], 2)
-        self.assertEqual(self.lines(), {})
-        self.assertEqual(Change.objects.get(pk=change_id).items.count(), 2)
-
-        applied, error = self.mcp(self.apply_plaintext).call('apply_change', change_id=change_id)
-
-        self.assertIsNone(error, error)
-        self.assertEqual(applied['status'], 'applied')
+        self.assertEqual((result['part_number'], result['revision']), (self.assembly_number, '1'))
+        self.assertEqual([(line['kind'], line['subpart_part_number'], line['count']) for line in result['changed']],
+                         [('add_subpart', self.resistor.full_part_number(), 2),
+                          ('add_subpart', self.capacitor.full_part_number(), 1)])
+        self.assertEqual(result['warnings'], [])
         self.assertEqual(self.lines(), {self.resistor.full_part_number(): (2, 'R1, R2'),
                                         self.capacitor.full_part_number(): (1, '')})
+        recorded = self.history(self.assembly_revision.part)
+        self.assertEqual([entry.items.get().kind for entry in recorded], ['add_subpart', 'add_subpart'])
+        self.assertEqual({entry.api_token for entry in recorded}, {self.write_token})
 
     def test_add_mode_adds_to_existing_lines_and_replace_mode_makes_them_match(self):
         self.load_initial_lines()
         csv_text = self.csv_text((self.resistor.full_part_number(), 3, '"R3, R4, R5"'))
 
-        _, added, error = self.upload(self.write_plaintext, csv_text, mode='add')
+        added, error = self.upload(csv_text, mode='add')
         self.assertIsNone(error, error)
-        self.assertEqual([(item['kind'], item['summary'].split()[0]) for item in added['staged']],
-                         [('update_subpart', 'Update')])
-        self.assertIn('count 5', added['staged'][0]['summary'])
+        self.assertEqual([(line['kind'], line['count']) for line in added['changed']], [('update_subpart', 5)])
+        self.assertEqual(self.lines()[self.resistor.full_part_number()], (5, 'R1, R2, R3, R4, R5'))
 
-        _, replaced, error = self.upload(self.write_plaintext, csv_text, mode='replace')
+        replaced, error = self.upload(csv_text, mode='replace')
         self.assertIsNone(error, error)
-        self.assertEqual(sorted(item['kind'] for item in replaced['staged']), ['remove_subpart', 'update_subpart'])
-        self.assertTrue(any('count 3' in item['summary'] for item in replaced['staged']))
-
-        change_id = self.start_change(self.apply_plaintext)
-        self.upload(self.apply_plaintext, csv_text, mode='replace', change_id=change_id)
-        self.mcp(self.apply_plaintext).call('apply_change', change_id=change_id)
+        self.assertEqual(sorted(line['kind'] for line in replaced['changed']), ['remove_subpart', 'update_subpart'])
         self.assertEqual(self.lines(), {self.resistor.full_part_number(): (3, 'R3, R4, R5')})
 
-    def test_a_csv_with_errors_stages_nothing_and_lists_the_rows(self):
-        change_id = self.start_change(self.write_plaintext)
-        csv_text = self.csv_text(
-            (self.resistor.full_part_number(), 'many', ''), (self.capacitor.full_part_number(), 'lots', ''))
-
-        _, result, error = self.upload(self.write_plaintext, csv_text, change_id=change_id)
+    def test_a_csv_with_errors_changes_nothing_and_lists_the_rows(self):
+        result, error = self.upload(self.csv_text(
+            (self.resistor.full_part_number(), 'many', ''), (self.capacitor.full_part_number(), 'lots', '')))
 
         self.assertIsNone(result)
-        self.assertIn('2 errors; nothing was staged', error)
+        self.assertIn('2 errors; nothing was changed', error)
         self.assertIn('Row 2', error)
         self.assertIn('Row 3', error)
-        self.assertFalse(Change.objects.get(pk=change_id).items.exists())
-
-    def test_a_csv_without_the_required_columns_is_refused(self):
-        _, result, error = self.upload(self.write_plaintext, 'description\nBoard\n')
-
-        self.assertIsNone(result)
-        self.assertIn('nothing was staged', error)
+        _, error = self.upload('description\nBoard\n')
+        self.assertIn('nothing was changed', error)
+        self.assertEqual(self.lines(), {})
 
     def test_a_csv_that_needs_new_parts_is_refused_and_creates_nothing(self):
         part_count = Part.objects.filter(organization=self.organization).count()
-        csv_text = self.csv_text((self.resistor.full_part_number(), 1, ''), ('200-9999-00', 1, ''))
 
-        change_id, result, error = self.upload(self.write_plaintext, csv_text)
+        result, error = self.upload(self.csv_text((self.resistor.full_part_number(), 1, ''), ('200-9999-00', 1, '')))
 
         self.assertIsNone(result)
         self.assertIn('200-9999-00', error)
         self.assertIn('create_part', error)
         self.assertEqual(Part.objects.filter(organization=self.organization).count(), part_count)
-        self.assertFalse(Change.objects.get(pk=change_id).items.exists())
+        self.assertEqual(self.lines(), {})
 
     def test_a_csv_that_changes_nothing_and_unknown_modes_are_refused(self):
         self.load_initial_lines()
         same_lines = self.csv_text((self.resistor.full_part_number(), 2, '"R1, R2"'),
                                    (self.capacitor.full_part_number(), 1, ''))
 
-        _, _, error = self.upload(self.write_plaintext, same_lines, mode='replace')
+        _, error = self.upload(same_lines, mode='replace')
         self.assertIn('makes no changes', error)
-        _, _, error = self.upload(self.write_plaintext, same_lines, mode='merge')
+        _, error = self.upload(same_lines, mode='merge')
         self.assertIn('Valid modes: add, replace', error)
 
-    def test_a_propose_token_stages_and_cannot_apply(self):
-        change_id, result, error = self.upload(
-            self.write_plaintext, self.csv_text((self.resistor.full_part_number(), 1, '')))
-        self.assertIsNone(error, error)
+    def test_a_line_that_fails_undoes_the_lines_saved_before_it(self):
+        self.load_initial_lines()
+        before = self.lines()
+        history_before = len(self.history(self.assembly_revision.part))
 
-        _, error = self.mcp(self.write_plaintext).call('apply_change', change_id=change_id)
-        self.assertIn("'apply' scope", error)
-        _, error = self.mcp(self.write_plaintext).call('submit_change', change_id=change_id)
-        self.assertIsNone(error, error)
-        self.assertEqual(self.lines(), {})
-
-        changes.apply_change(Change.objects.get(pk=change_id), self.user)
-        self.assertEqual(self.lines(), {self.resistor.full_part_number(): (1, '')})
-
-    def test_a_released_assembly_becomes_an_engineering_change_order(self):
-        PartRevision.objects.filter(pk=self.assembly_revision.pk).update(
-            configuration=constants.CONFIGURATION_TYPE_RELEASED)
-
-        change_id, result, error = self.upload(
-            self.apply_plaintext, self.csv_text((self.resistor.full_part_number(), 4, '')))
-
-        self.assertIsNone(error, error)
-        change = Change.objects.get(pk=change_id)
-        self.assertTrue(changes.is_eco(change))
-        _, error = self.mcp(self.apply_plaintext).call('apply_change', change_id=change_id)
-        self.assertIsNone(error, error)
-        self.assertEqual(self.assembly_revision.part.revisions().count(), 2)
-        self.assertEqual(self.lines(), {self.resistor.full_part_number(): (4, '')})
-        self.assertEqual(
-            PartRevision.objects.get(pk=self.assembly_revision.pk).configuration,
-            constants.CONFIGURATION_TYPE_RELEASED)
-
-    def test_a_submitted_change_takes_more_items_until_it_is_resolved(self):
-        client = self.mcp(self.write_plaintext)
-        change_id = self.start_change(self.write_plaintext)
-        self.upload(self.write_plaintext, self.csv_text((self.resistor.full_part_number(), 1, '')),
-                    change_id=change_id)
-        client.call('submit_change', change_id=change_id)
-
-        _, _, error = self.upload(self.write_plaintext, self.csv_text((self.capacitor.full_part_number(), 1, '')),
-                                  change_id=change_id)
-        self.assertIsNone(error, error)
-        detail, _ = client.call('get_change', change_id=change_id)
-        self.assertEqual(len(detail['items']), 2)
-        self.assertEqual([(edit['by'], edit['text'][:6]) for edit in detail['edits_after_submission']],
-                         [(self.user.username, 'Added:')])
-
-        client.call('withdraw_change', change_id=change_id)
-        _, _, error = self.upload(self.write_plaintext, self.csv_text((self.capacitor.full_part_number(), 1, '')),
-                                  change_id=change_id)
-        self.assertIn('withdrawn and can no longer be edited', error)
-
-    def test_read_tokens_cannot_upload(self):
-        change_id = self.start_change(self.write_plaintext)
-
-        _, result, error = self.upload(
-            self.read_plaintext, self.csv_text((self.resistor.full_part_number(), 1, '')), change_id=change_id)
+        with mock.patch('bom.services.edits.remove_subpart', side_effect=ServiceError('That line is stuck.')):
+            result, error = self.upload(self.csv_text((self.resistor.full_part_number(), 3, '"R3, R4, R5"')),
+                                        mode='replace')
 
         self.assertIsNone(result)
-        self.assertIn("'write' scope", error)
-        self.assertFalse(Change.objects.get(pk=change_id).items.exists())
+        self.assertIn('That line is stuck.', error)
+        self.assertEqual(self.lines(), before)
+        self.assertEqual(len(self.history(self.assembly_revision.part)), history_before)
 
-    def test_another_organization_cannot_reach_the_assembly_or_the_change(self):
+
+class MCPChangeOrderTest(MCPTestCase):
+    def setUp(self):
+        super().setUp()
+        self.released = self.released_part('Bracket')
+        self.part = self.released.part
+        self.part_number = self.part.full_part_number()
+        self.client_as_author = self.mcp(self.release_plaintext)
+
+    def configuration(self, part_revision):
+        return PartRevision.objects.get(pk=part_revision.pk).configuration
+
+    def submitted_order(self, description='Bracket, longer'):
+        """Revise the Released part, edit the Draft, and submit it in a change order, all through the tools."""
+        client = self.client_as_author
+        for tool, arguments in (
+            ('revise_part', {'part_number': self.part_number}),
+            ('update_part_revision', {'part_number': self.part_number, 'description': description}),
+            ('create_change_order', {'title': 'Lengthen the bracket', 'rationale': 'It did not reach',
+                                     'revisions': [{'part_number': self.part_number}]}),
+        ):
+            result, error = client.call(tool, **arguments)
+            self.assertIsNone(error, f"{tool}: {error}")
+        submitted, error = client.call('submit_change_order', number=result['number'])
+        self.assertIsNone(error, error)
+        return submitted
+
+    def test_revise_edit_submit_and_a_different_person_approves(self):
+        _, reviewer_token, reviewer_plaintext = self.member('reviewer')
+
+        submitted = self.submitted_order()
+
+        draft = self.part.latest()
+        self.assertEqual((submitted['status'], submitted['author']), ('open', self.user.username))
+        self.assertEqual(self.configuration(draft), constants.CONFIGURATION_TYPE_IN_REVIEW)
+        order = Change.objects.get(organization=self.organization, number=submitted['number'])
+        self.assertEqual((order.api_token, order.rationale), (self.release_token, 'It did not reach'))
+
+        detail, error = self.mcp(reviewer_plaintext).call('get_change_order', number=submitted['number'])
+        self.assertIsNone(error, error)
+        self.assertIn(f"/changes/{order.number}/", detail['url'])
+        revision, = detail['revisions']
+        self.assertEqual((revision['part_number'], revision['revision'], revision['state'], revision['base_revision']),
+                         (self.part_number, '2', 'In Review', '1'))
+        self.assertEqual(revision['diff'], [{
+            'label': 'Revision', 'summary': 'Rev 1 to rev 2', 'before': {'description': 'Bracket'},
+            'after': {'description': 'Bracket, longer'}}])
+        self.assertIsInstance(revision['unit_cost_after'], str)
+        self.assertIsInstance(revision['unit_cost_before'], str)
+        self.assertEqual(revision['released_assemblies_using_base'], [])
+        self.assertTrue(detail['approval']['can_approve'])
+
+        approved, error = self.mcp(reviewer_plaintext).call('approve_change_order', number=submitted['number'])
+
+        self.assertIsNone(error, error)
+        self.assertEqual((approved['status'], approved['resolved_by']), ('applied', 'reviewer'))
+        self.assertEqual(self.configuration(draft), constants.CONFIGURATION_TYPE_RELEASED)
+        order.refresh_from_db()
+        self.assertEqual(order.resolved_api_token, reviewer_token)
+        self.assertIn(order, self.history(self.part))
+
+    def test_an_agent_cannot_approve_what_its_person_wrote_or_edited(self):
+        self.member('reviewer')
+        submitted = self.submitted_order()
+
+        detail, _ = self.client_as_author.call('get_change_order', number=submitted['number'])
+        self.assertFalse(detail['approval']['can_approve'])
+        self.assertIn('did not write or edit', detail['approval']['message'])
+        self.assertIn('only available in IndaBOM', detail['approval']['message'])
+        result, error = self.client_as_author.call('approve_change_order', number=submitted['number'])
+
+        self.assertIsNone(result)
+        self.assertIn('did not write or edit', error)
+        self.assertEqual(self.configuration(self.part.latest()), constants.CONFIGURATION_TYPE_IN_REVIEW)
+
+    def test_an_agent_cannot_approve_a_change_order_its_person_only_edited(self):
+        author, _, author_plaintext = self.member('author')
+        draft = changes.revise_revision(self.released, author)
+        _, error = self.client_as_author.call('update_part_revision', part_number=self.part_number,
+                                              description='Bracket, wider')
+        self.assertIsNone(error, error)
+        order = change_orders.create_change_order(self.organization, author, 'Widen', 'Because', [draft])
+        change_orders.submit(order, author)
+
+        _, error = self.client_as_author.call('approve_change_order', number=order.number)
+
+        self.assertIn('did not write or edit', error)
+
+    def test_an_agent_approves_its_persons_change_order_when_they_are_the_only_member(self):
+        submitted = self.submitted_order()
+
+        detail, _ = self.client_as_author.call('get_change_order', number=submitted['number'])
+        self.assertTrue(detail['approval']['can_approve'])
+        approved, error = self.client_as_author.call('approve_change_order', number=submitted['number'])
+
+        self.assertIsNone(error, error)
+        self.assertEqual(approved['status'], 'applied')
+        self.assertEqual(self.configuration(self.part.latest()), constants.CONFIGURATION_TYPE_RELEASED)
+
+    def test_a_rejected_change_order_is_fixed_and_submitted_again(self):
+        _, _, reviewer_plaintext = self.member('reviewer')
+        submitted = self.submitted_order('Brakcet')
+        number = submitted['number']
+
+        _, error = self.mcp(reviewer_plaintext).call('reject_change_order', number=number, reason=' ')
+        self.assertIn('reason', error)
+        rejected, error = self.mcp(reviewer_plaintext).call('reject_change_order', number=number, reason='Typo')
+        self.assertIsNone(error, error)
+        self.assertEqual((rejected['status'], rejected['rejection_reason']), ('rejected', 'Typo'))
+        self.assertEqual(self.configuration(self.part.latest()), constants.CONFIGURATION_TYPE_DRAFT)
+
+        _, error = self.client_as_author.call('update_part_revision', part_number=self.part_number,
+                                              description='Bracket, longer')
+        self.assertIsNone(error, error)
+        resubmitted, error = self.client_as_author.call('submit_change_order', number=number)
+        self.assertIsNone(error, error)
+        self.assertEqual((resubmitted['number'], resubmitted['status'], resubmitted['rejection_reason']),
+                         (number, 'open', ''))
+
+    def test_revisions_are_added_and_removed_while_it_is_a_draft_and_only_its_author_submits_or_withdraws(self):
+        _, _, other_plaintext = self.member('other')
+        client = self.client_as_author
+        plate = self.released_part('Plate').part.full_part_number()
+        client.call('revise_part', part_number=self.part_number)
+        order, error = client.call('create_change_order', title='Rework', rationale='Because')
+        self.assertIsNone(error, error)
+        number = order['number']
+        self.assertEqual((order['status'], order['revisions']), ('draft', []))
+
+        _, error = client.call('submit_change_order', number=number)
+        self.assertIn('no revisions to release', error)
+        _, error = client.call('add_to_change_order', number=number, part_number=plate)
+        self.assertIn('has no Draft revision. Call revise_part', error)
+        _, error = client.call('add_to_change_order', number=number, part_number=self.part_number, revision='1')
+        self.assertIn('only a Draft revision', error)
+        added, error = client.call('add_to_change_order', number=number, part_number=self.part_number)
+        self.assertIsNone(error, error)
+        self.assertEqual([(revision['part_number'], revision['revision']) for revision in added['revisions']],
+                         [(self.part_number, '2')])
+        _, error = client.call('create_change_order', title='Second', rationale='Because',
+                               revisions=[{'part_number': self.part_number}])
+        self.assertIn(f"already in change order #{number}", error)
+        self.assertFalse(Change.objects.filter(title='Second').exists())
+
+        _, error = client.call('remove_from_change_order', number=number, part_number=plate)
+        self.assertIn('is not in change order', error)
+        removed, error = client.call('remove_from_change_order', number=number, part_number=self.part_number)
+        self.assertIsNone(error, error)
+        self.assertEqual(removed['revisions'], [])
+        client.call('add_to_change_order', number=number, part_number=self.part_number)
+
+        for tool in ('submit_change_order', 'withdraw_change_order'):
+            _, error = self.mcp(other_plaintext).call(tool, number=number)
+            self.assertIn('Only the author', error, tool)
+        client.call('submit_change_order', number=number)
+        _, error = client.call('remove_from_change_order', number=number, part_number=self.part_number)
+        self.assertIn('while it is a draft or after it was sent back', error)
+        withdrawn, error = client.call('withdraw_change_order', number=number)
+        self.assertIsNone(error, error)
+        self.assertEqual(withdrawn['status'], 'withdrawn')
+        self.assertEqual(self.configuration(self.part.latest()), constants.CONFIGURATION_TYPE_DRAFT)
+
+    def test_list_change_orders_filters_by_status_and_leaves_out_saved_edits(self):
+        submitted = self.submitted_order()
+        self.client_as_author.call('create_change_order', title='Later', rationale='Because')
+        client = self.mcp(self.read_plaintext)
+
+        open_orders, error = client.call('list_change_orders')
+        self.assertIsNone(error, error)
+        self.assertEqual([(order['number'], order['title'], order['status']) for order in open_orders],
+                         [(submitted['number'], 'Lengthen the bracket', 'open')])
+        self.assertEqual(open_orders[0]['revisions'], [{'part_number': self.part_number, 'revision': '2'}])
+        everything, _ = client.call('list_change_orders', status='all')
+        self.assertEqual([order['title'] for order in everything], ['Later', 'Lengthen the bracket'])
+
+    def test_the_diff_and_impact_cover_bom_lines_and_released_assemblies(self):
+        resistor = self.parts[0].full_part_number()
+        assembly = self.new_part('Board')
+        boms.add_subpart(self.organization, assembly, self.part_number, count=1)
+        changes.release_revision(assembly, self.user)
+        client = self.client_as_author
+        client.call('revise_part', part_number=self.part_number)
+        client.call('add_subpart', assembly_part_number=self.part_number, subpart_part_number=resistor, count=2)
+        order, error = client.call('create_change_order', title='Add a resistor', rationale='Because',
+                                   revisions=[{'part_number': self.part_number}])
+
+        self.assertIsNone(error, error)
+        revision, = order['revisions']
+        self.assertEqual([(entry['label'], entry['summary']) for entry in revision['diff']],
+                         [('Add line', resistor)])
+        self.assertEqual(revision['released_assemblies_using_base'],
+                         [{'part_number': assembly.part.full_part_number(), 'revision': '1'}])
+        self.assertNotEqual(revision['unit_cost_before'], revision['unit_cost_after'])
+
+    def test_change_orders_can_be_turned_off_by_the_host(self):
+        config = dict(settings.BOM_CONFIG_DEFAULT, changes_review_enabled=False)
+        with override_settings(BOM_CONFIG=config):
+            organization, _ = self.client_as_author.call('get_organization')
+            _, error = self.client_as_author.call('create_change_order', title='x', rationale='y')
+
+        self.assertFalse(organization['change_orders_enabled'])
+        self.assertIn('Change orders are not enabled', error)
+
+    def test_another_organization_cannot_reach_the_change_order(self):
+        submitted = self.submitted_order()
         other_user = User.objects.create_user('other', 'other@example.com', 'ghostpassword')
         other_organization = create_a_fake_organization(other_user)
         other_profile = other_user.bom_profile(organization=other_organization)
         other_profile.role = constants.ROLE_TYPE_ADMIN
         other_profile.save()
-        _, other_plaintext = APIToken.issue(other_user, other_organization, 'write',
-                                            scopes=[APIToken.SCOPE_READ, APIToken.SCOPE_WRITE])
-        csv_text = self.csv_text((self.resistor.full_part_number(), 1, ''))
-        own_change = self.start_change(self.write_plaintext)
-        other_change = self.start_change(other_plaintext)
+        _, other_plaintext = APIToken.issue(other_user, other_organization, 'release', scopes=RELEASE_SCOPES)
 
-        _, _, error = self.upload(other_plaintext, csv_text, change_id=other_change)
-        self.assertIn('No part', error)
-        _, _, error = self.upload(other_plaintext, csv_text, change_id=own_change)
-        self.assertIn('No change', error)
-        self.assertFalse(Change.objects.get(pk=own_change).items.exists())
+        for tool, arguments in {'get_change_order': {}, 'approve_change_order': {}, 'withdraw_change_order': {},
+                                'reject_change_order': {'reason': 'no'}}.items():
+            _, error = self.mcp(other_plaintext).call(tool, number=submitted['number'], **arguments)
+            self.assertIn('No change order', error, tool)
+        self.assertEqual(Change.objects.get(number=submitted['number'], organization=self.organization).status,
+                         Change.STATUS_OPEN)
 
 
-class MCPReleaseTest(MCPTestCase):
+class MCPReleaseRevisionTest(MCPTestCase):
     def setUp(self):
         super().setUp()
-        PartRevisionPropertyDefinition.objects.update(required=False)
-        self.revision = parts.create_part(
-            self.organization, 'Subject', part_class_code=str(self.parts[0].number_class.code))
-        self.request = changes.request_release_approval(self.revision, self.user)
+        self.draft = self.new_part()
+        self.part_number = self.draft.part.full_part_number()
 
-    def test_there_is_no_release_tool(self):
-        names = {tool['name'] for tool in self.mcp(self.apply_plaintext).rpc('tools/list').json()['result']['tools']}
+    def configuration(self):
+        return PartRevision.objects.get(pk=self.draft.pk).configuration
 
-        self.assertFalse({name for name in names if 'release' in name or 'approve' in name})
+    def test_required_approval_refuses_a_direct_release_and_points_at_a_change_order(self):
+        self.member('reviewer')
+        ChangeSettings.objects.create(organization=self.organization, require_release_approval=True)
+        client = self.mcp(self.release_plaintext)
 
-    def test_an_apply_token_cannot_approve_a_release_request(self):
-        result, error = self.mcp(self.apply_plaintext).call('apply_change', change_id=self.request.id)
+        organization, _ = client.call('get_organization')
+        result, error = client.call('release_revision', part_number=self.part_number)
 
-        self.assertIn('agent token cannot approve or release', error)
-        self.revision.refresh_from_db()
-        self.assertEqual(self.revision.configuration, constants.CONFIGURATION_TYPE_DRAFT)
-        self.request.refresh_from_db()
-        self.assertEqual(self.request.status, Change.STATUS_OPEN)
+        self.assertTrue(organization['release_approval_required'])
+        self.assertIsNone(result)
+        self.assertIn('requires approval to release', error)
+        self.assertIn('create_change_order', error)
+        self.assertEqual(self.configuration(), constants.CONFIGURATION_TYPE_DRAFT)
 
-    def test_an_apply_token_cannot_approve_a_request_a_person_started(self):
-        change = changes.start_change(self.organization, self.user, 'Human edit')
-        changes.stage_item(change, 'add_subpart', {
-            'assembly_part_number': self.revision.part.full_part_number(),
-            'subpart_part_number': self.parts[0].full_part_number(), 'count': 1})
-        changes.submit_change(change, self.user)
+    def test_a_revision_in_a_change_order_is_released_only_by_approving_it(self):
+        self.member('reviewer')
+        order = change_orders.create_change_order(self.organization, self.user, 'First release', 'Because',
+                                                  [self.draft])
+        change_orders.submit(order, self.user)
 
-        result, error = self.mcp(self.apply_plaintext).call('apply_change', change_id=change.id)
+        _, error = self.mcp(self.release_plaintext).call('release_revision', part_number=self.part_number)
 
-        self.assertIn('agent token cannot approve or release', error)
+        self.assertIn(f"is in change order #{order.number}", error)
+        self.assertEqual(self.configuration(), constants.CONFIGURATION_TYPE_IN_REVIEW)
 
-    def test_an_apply_token_still_applies_its_own_draft_edit(self):
-        result, error = self.mcp(self.apply_plaintext).call(
-            'add_subpart', assembly_part_number=self.revision.part.full_part_number(),
-            subpart_part_number=self.parts[0].full_part_number(), count=2)
+    def test_a_released_revision_cannot_be_released_again(self):
+        client = self.mcp(self.release_plaintext)
+        client.call('release_revision', part_number=self.part_number)
 
-        self.assertIsNone(error)
-        self.assertEqual(self.revision.part.latest().configuration, constants.CONFIGURATION_TYPE_DRAFT)
+        _, error = client.call('release_revision', part_number=self.part_number)
+
+        self.assertIn('only a Draft or In Review revision can be released', error)

@@ -15,7 +15,6 @@ from mcp.server.mcpserver.exceptions import ToolError
 from starlette.datastructures import Headers
 
 from bom.models import APIToken
-from bom.services.flags import mcp_apply_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -158,17 +157,13 @@ class Actor:
             raise ToolError('Not authenticated.')
         return cls(token, agent_client=_client_name(ctx))
 
-    def can_apply(self):
-        return self.token.has_scope(APIToken.SCOPE_APPLY) and mcp_apply_enabled(self.organization)
-
     def token_level(self):
-        if self.can_apply():
-            return 'apply'
-        return 'propose' if self.token.has_scope(APIToken.SCOPE_WRITE) else 'read'
+        return self.token.level()
 
     def require_scope(self, scope):
         if not self.token.has_scope(scope):
-            raise ToolError(f"This token does not have the {scope!r} scope.")
+            raise ToolError(f"This connection does not have the {scope!r} scope. The user can grant it by reconnecting "
+                            f"and choosing a higher access level.")
 
     def require_permission(self, permission, obj=None):
         if not self.user.has_perm(permission, obj if obj is not None else self.organization):
@@ -179,14 +174,11 @@ class Actor:
         self.require_permission(permission, obj)
         self._require_host_access()
 
-    def require_propose(self):
+    def require_release(self):
+        """Releasing and approving need the release level. The services check the person's own permission and the
+        approval rules, so the agent is bound exactly as its person is."""
         self.require_scope(APIToken.SCOPE_WRITE)
-        self._require_host_access()
-
-    def require_apply(self):
-        self.require_scope(APIToken.SCOPE_APPLY)
-        if not mcp_apply_enabled(self.organization):
-            raise ToolError(f"Applying changes through MCP is not enabled for {self.organization.name}.")
+        self.require_scope(APIToken.SCOPE_RELEASE)
         self._require_host_access()
 
     def _require_host_access(self):

@@ -11,7 +11,7 @@ class Command(BaseCommand):
         parser.add_argument('username')
         parser.add_argument('--name', default='MCP client')
         parser.add_argument('--scopes', default=APIToken.SCOPE_READ,
-                            help="Comma-separated: read, write (default: read)")
+                            help="Comma-separated: read, write, release (default: read)")
 
     def handle(self, *args, **options):
         user = get_user_model().objects.filter(username=options['username']).first()

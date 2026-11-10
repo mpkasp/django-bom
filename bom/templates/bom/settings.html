@@ -369,8 +369,9 @@
                     <details class="settings-disclosure"{% if new_api_token_plaintext or api_token_form.errors %} open{% endif %}>
                         <summary><h5>Personal access tokens</h5>
                             <span class="grey-text text-darken-1">For scripts and tools that can't sign in.</span></summary>
-                        <p><b>Read</b> tokens only look things up, <b>Write: propose</b> tokens stage changes for review,
-                            and <b>Write: apply</b> tokens can also apply them.</p>
+                        <p><b>Read</b> tokens only look things up, <b>Edit</b> tokens also edit Draft revisions and
+                            build change orders, and <b>Edit and release</b> tokens can also release revisions and
+                            approve change orders, as you.</p>
                         {% if new_api_token_plaintext %}
                             <div class="card-panel green lighten-5">
                                 <p style="margin-top: 0;"><b>Copy your new token now. It will not be shown again.</b></p>

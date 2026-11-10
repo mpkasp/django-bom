@@ -7,12 +7,13 @@ from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
+from bom.constants import CONFIGURATION_TYPE_DRAFT
 from bom.mcp.auth import Actor, ConnectionTokenVerifier, oauth_auth_settings
+from bom.models import APIToken, Change, ChangeItem
 from bom.permissions import BomPerms
-from bom.models import Change, ChangeItem, PartRevision, SellerPart
-from bom.services import boms, changes, parts, sourcing
+from bom.services import boms, change_orders, changes, edits, parts, sourcing
 from bom.services.errors import ServiceError
-from bom.services.flags import changes_review_enabled, eco_enabled
+from bom.services.flags import changes_review_enabled
 from bom.services.search import latest_part_revisions, search_parts
 
 logger = logging.getLogger(__name__)
@@ -28,16 +29,19 @@ mcp = MCPServer(
     auth=auth_settings,
     token_verifier=ConnectionTokenVerifier(auth_settings.resource_server_url) if auth_settings else None,
     instructions=(
-        "Tools for reading and building bills of materials in the caller's IndaBOM organization. "
-        "Call get_organization first: it tells you the part numbering scheme, the valid part classes, "
-        "and the property definitions that create_part accepts. Part numbers are assigned by the server; "
-        "only pass number_item/number_variation when the user stated a specific number. "
-        "Edits are Changes: call start_change once per user intent with a title and a rationale (the why), pass "
-        "its change_id to the write tools to stage items, then submit_change for review or apply_change. "
-        "A submitted change request can still be corrected until it is applied: stage more edits into it or drop "
-        "one with remove_change_item, and read get_change first, since a person may have edited it. "
-        "When the user did not say, ask whether to apply now or submit for review. get_organization shows what "
-        "this token may do (token_level). Agents never release revisions or approve requests; people do that."
+        "Tools for reading and building bills of materials in the caller's IndaBOM organization. You act as the "
+        "person who connected you, with the access level they chose. "
+        "Call get_organization first: it gives the part numbering scheme, the valid part classes, the property "
+        "definitions that create_part accepts, and token_level, what this connection may do (read, edit or release). "
+        "Part numbers are assigned by the server; only pass number_item/number_variation when the user stated a "
+        "specific number. "
+        "Edits to Draft revisions are saved immediately and recorded in the part's history. A Released revision is "
+        "never edited: call revise_part to create the part's next Draft, edit that Draft, then put it in a change "
+        "order with create_change_order (a title and the reason why) and call submit_change_order, so it is "
+        "reviewed and released by approval. A revision is locked while its change order is under review. "
+        "release_revision, approve_change_order and reject_change_order need the release level, and the same rules "
+        "bind you as the person: you cannot approve a change order they wrote or edited unless they are the "
+        "organization's only member. Always ask the user before releasing a revision or approving a change order."
     ),
 )
 
@@ -70,12 +74,14 @@ def tool_call(ctx, name):
 @mcp.tool(annotations=READ_ONLY)
 def get_organization(ctx: Context) -> dict:
     """The caller's organization: part numbering scheme and lengths, currency, part classes, and property
-    definitions, plus token_level (read, propose: edits are staged or submitted for review, or apply: edits can be
-    applied directly) and whether change review is enabled."""
+    definitions, plus token_level (read: look things up; edit: also edit Drafts, revise, and build and submit change
+    orders; release: also release revisions and approve change orders), whether change orders are enabled, and
+    whether releasing requires approval through a change order."""
     with tool_call(ctx, 'get_organization') as actor:
         summary = parts.organization_summary(actor.organization)
         summary['token_level'] = actor.token_level()
-        summary['review_enabled'] = changes_review_enabled(actor.organization)
+        summary['change_orders_enabled'] = changes_review_enabled(actor.organization)
+        summary['release_approval_required'] = changes.release_approval_required(actor.organization)
         return summary
 
 
@@ -141,292 +147,368 @@ def lookup_sourcing(ctx: Context, manufacturer_part_number: str) -> list[dict]:
         return sourcing.lookup_offers(actor.organization, manufacturer_part_number)
 
 
-def _write_item(actor, kind, payload, change_id, ref=''):
-    """Stage the item into ``change_id``. Without one, run a single-item change: applied right away when the token
-    may apply (returns ``(change, item)``), otherwise submitted for review (returns the response dict)."""
-    if change_id is not None:
-        change = _own_change(actor, change_id)
-        item = changes.stage_item(change, kind, payload, ref=ref)
-        return {'change_id': change.id, 'number': change.number, 'url': changes.change_url(change),
-                'staged': changes.item_summary(item), 'items_in_change': change.items.count()}
-
-    if not actor.can_apply() and not changes_review_enabled(actor.organization):
-        raise ToolError('This token cannot apply changes and change review is not enabled, so there is nowhere '
-                        'to send this edit. Ask for a token with the apply scope.')
-    change = changes.start_change(actor.organization, actor.user, kind, api_token=actor.token,
-                                  agent_client=actor.agent_client)
-    try:
-        item = changes.stage_item(change, kind, payload)
-        change.title = item.summary
-        change.save(update_fields=['title'])
-        if actor.can_apply():
-            actor.require_apply()
-            changes.apply_change(change, actor.user, by_agent=True)
-            item.refresh_from_db()
-            return change, item
-    except (ServiceError, ToolError):
-        changes.withdraw_change(change, actor.user)
-        raise
-    changes.submit_change(change, actor.user)
-    return {'change_id': change.id, 'number': change.number, 'status': change.status,
-            'url': changes.change_url(change),
-            'message': f"This token can propose but not apply, so nothing was changed yet. Submitted as change "
-                       f"request #{change.number} for review: {changes.change_url(change)}"}
-
-
-def _own_change(actor, change_id):
-    change = changes.change_for(actor.organization, change_id)
-    if change.author_id != actor.user.id:
-        raise ToolError(f"Change #{change.number} was started by {change.author.username}; only its author can do that.")
-    return change
-
-
-def _applied_output(organization, item):
-    result = item.result
-    if item.kind == ChangeItem.KIND_CREATE_PART:
-        return parts.part_detail(parts.revision_from_number(organization, result['part_number']))
-    if item.kind in changes.SUBPART_KINDS:
-        return boms.bom_report(PartRevision.objects.get(pk=result['part_revision_id']))
-    if item.kind == ChangeItem.KIND_ADD_MANUFACTURER_PART:
-        return parts.manufacturer_part_summary(parts.manufacturer_part_for(organization, result['manufacturer_part_id']))
-    return parts.seller_part_summary(SellerPart.objects.get(pk=result['seller_part_id']))
-
-
-def _finish_write(actor, outcome):
-    return outcome if isinstance(outcome, dict) else _applied_output(actor.organization, outcome[1])
-
-
-CHANGE_ID_DOC = ("Pass `change_id` (from start_change) to stage this edit into that change instead of applying it. "
-                 "Without it the edit is its own one-item change: applied now if the token has the apply scope, "
-                 "otherwise submitted as a change request for review.")
-
-
-@mcp.tool(annotations=WRITE)
-def start_change(ctx: Context, title: str, rationale: str = '') -> dict:
-    """Start a Change: a bundle of edits reviewed and applied together. Start one per user intent, give a short
-    title, and always give a rationale explaining why. Stage edits into it by passing its change_id to the write
-    tools, then call submit_change (for review) or apply_change (needs the apply scope)."""
-    with tool_call(ctx, 'start_change') as actor:
-        actor.require_propose()
-        change = changes.start_change(actor.organization, actor.user, title, rationale, api_token=actor.token,
-                                      agent_client=actor.agent_client)
-        return {'change_id': change.id, 'number': change.number, 'url': changes.change_url(change)}
-
-
-@mcp.tool(annotations=WRITE)
-def submit_change(ctx: Context, change_id: int) -> dict:
-    """Submit your draft change as a change request for a person to review and apply."""
-    with tool_call(ctx, 'submit_change') as actor:
-        actor.require_propose()
-        return changes.change_detail(changes.submit_change(_own_change(actor, change_id), actor.user))
-
-
-@mcp.tool(annotations=WRITE)
-def remove_change_item(ctx: Context, change_id: int, position: int) -> dict:
-    """Drop one staged edit (by its position, from get_change) from your draft or open change. To correct an
-    edit, remove it and stage it again with the right values. An edit that later items depend on through
-    "$ref:<key>" can only be removed after them, and the last edit of an open change cannot be removed: withdraw
-    the change instead."""
-    with tool_call(ctx, 'remove_change_item') as actor:
-        actor.require_propose()
-        change = _own_change(actor, change_id)
-        item = change.items.filter(position=position).first()
-        if item is None:
-            raise ToolError(f"Change #{change.number} has no item {position}.")
-        changes.remove_item(change, actor.user, item)
-        return changes.change_detail(change)
-
-
-@mcp.tool(annotations=WRITE)
-def apply_change(ctx: Context, change_id: int) -> dict:
-    """Apply a change now. Needs the apply scope; protected changes (for example edits to a Released revision) must
-    be applied by someone other than their author. Agents apply only the changes they started and never release
-    revisions or approve a request; a person does that. Rejected items are skipped."""
-    with tool_call(ctx, 'apply_change') as actor:
-        actor.require_apply()
-        change = changes.change_for(actor.organization, change_id)
-        return changes.change_detail(changes.apply_change(change, actor.user, by_agent=True))
-
-
-@mcp.tool(annotations=WRITE)
-def withdraw_change(ctx: Context, change_id: int) -> dict:
-    """Withdraw your own draft or open change."""
-    with tool_call(ctx, 'withdraw_change') as actor:
-        actor.require_propose()
-        return changes.change_detail(changes.withdraw_change(_own_change(actor, change_id), actor.user))
-
-
-@mcp.tool(annotations=READ_ONLY)
-def get_change(ctx: Context, change_id: int) -> dict:
-    """A change's status, whether it is an Engineering Change Order (is_eco: touches a Released revision), protected
-    (is_protected: someone other than the author must apply it) or stale (is_stale: the parts changed since it was
-    staged, so stage it again), each item with its status, reviewer rejection reason and the ids produced when
-    applied, the edits people or agents made after it was submitted (edits_after_submission), and its impact: assemblies that use the edited parts (Released ones need new revisions) and the unit
-    cost before, after and delta at the organization's quote quantity."""
-    with tool_call(ctx, 'get_change') as actor:
-        change = changes.change_for(actor.organization, change_id)
-        return dict(changes.change_detail(change), impact=changes.impact_summary(change))
-
-
-@mcp.tool(annotations=READ_ONLY)
-def list_changes(ctx: Context, status: str = 'open', limit: int = 25) -> list[dict]:
-    """Changes in the organization, newest first, filtered by status (draft, open, applied, rejected, withdrawn,
-    or all). Each has is_eco, true when it edits a Released or In Review revision."""
-    with tool_call(ctx, 'list_changes') as actor:
-        queryset = Change.objects.filter(organization=actor.organization, is_direct_edit=False)
-        queryset = queryset.select_related('author')
-        if status != 'all':
-            queryset = queryset.filter(status=status)
-        return [changes.change_summary(change) for change in queryset[:max(1, min(limit, 200))]]
+def _recorded_as(actor):
+    return {'api_token': actor.token, 'agent_client': actor.agent_client}
 
 
 @mcp.tool(annotations=WRITE)
 def create_part(ctx: Context, description: str, part_class_code: str | None = None, number_item: str | None = None,
                 number_variation: str | None = None, properties: dict[str, str] | None = None,
                 property_units: dict[str, str] | None = None, manufacturer: str | None = None,
-                manufacturer_part_number: str | None = None, link: str | None = None,
-                change_id: int | None = None, ref: str = '') -> dict:
-    """Create a part with its first draft revision. Semi-intelligent organizations require part_class_code and
-    auto-assign the number unless number_item is given; intelligent organizations require number_item as the
-    free-form part number. `properties` maps property codes (see get_organization) to values and
-    `property_units` maps codes to unit symbols. Giving a manufacturer and manufacturer_part_number also
-    creates the primary manufacturer part. When staging with change_id, set `ref` to a key and later items can
-    use "$ref:<key>" in place of this part's number (known once the change is applied). """ + CHANGE_ID_DOC
+                manufacturer_part_number: str | None = None, link: str | None = None) -> dict:
+    """Create a part with its first Draft revision, saved immediately. Semi-intelligent organizations require
+    part_class_code and auto-assign the number unless number_item is given; intelligent organizations require
+    number_item as the free-form part number. `properties` maps property codes (see get_organization) to values and
+    `property_units` maps codes to unit symbols. Giving a manufacturer and manufacturer_part_number also creates
+    the primary manufacturer part. Returns the new part."""
     with tool_call(ctx, 'create_part') as actor:
         actor.require_write(BomPerms.CREATE_PART)
-        payload = {
-            'description': description, 'part_class_code': part_class_code, 'number_item': number_item,
-            'number_variation': number_variation, 'properties': properties, 'property_units': property_units,
-            'manufacturer': manufacturer, 'manufacturer_part_number': manufacturer_part_number, 'link': link}
-        return _finish_write(actor, _write_item(actor, ChangeItem.KIND_CREATE_PART, payload, change_id, ref))
+        part_revision = edits.create_part(
+            actor.organization, actor.user, description, part_class_code=part_class_code, number_item=number_item,
+            number_variation=number_variation, properties=properties, property_units=property_units,
+            manufacturer=manufacturer, manufacturer_part_number=manufacturer_part_number, link=link,
+            **_recorded_as(actor))
+        return parts.part_detail(part_revision)
+
+
+@mcp.tool(annotations=WRITE)
+def update_part_revision(ctx: Context, part_number: str, description: str | None = None,
+                         properties: dict[str, str] | None = None, revision: str | None = None) -> dict:
+    """Set the description and/or property values (codes from get_organization) of a part's Draft revision, saved
+    immediately; values left out are kept and a property given as an empty string is cleared. `revision` defaults
+    to the part's latest. A Released or In Review revision is refused: call revise_part and edit the new Draft.
+    Returns the part."""
+    with tool_call(ctx, 'update_part_revision') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        part_revision = parts.revision_from_number(actor.organization, part_number, revision)
+        edits.update_revision(actor.organization, actor.user, part_revision, description, properties,
+                              **_recorded_as(actor))
+        return parts.part_detail(part_revision)
+
+
+@mcp.tool(annotations=WRITE)
+def revise_part(ctx: Context, part_number: str) -> dict:
+    """Create the next Draft revision of a part now, copied from its latest Released or In Review revision with its
+    BOM and properties, as the Revise button does, and return it. Refused when the part already has a newer Draft
+    (the error names it; edit that one). Edit the Draft with the other write tools, then put it in a change order
+    (create_change_order) to have it reviewed and released."""
+    with tool_call(ctx, 'revise_part') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        source = changes.latest_immutable_revision(parts.part_from_number(actor.organization, part_number))
+        return parts.part_detail(changes.revise_revision(source, actor.user, **_recorded_as(actor)))
 
 
 @mcp.tool(annotations=WRITE)
 def add_subpart(ctx: Context, assembly_part_number: str, subpart_part_number: str, count: float = 1,
-                reference: str = '', do_not_load: bool = False, assembly_revision: str | None = None,
-                change_id: int | None = None) -> dict:
-    """Add a part to an assembly's draft revision. `reference` holds comma-separated reference designators and
-    must match `count` when given. Adding the same part again merges into the existing line. Part numbers may be
-    "$ref:<key>" for a part created earlier in the same change. """ + CHANGE_ID_DOC
+                reference: str = '', do_not_load: bool = False, assembly_revision: str | None = None) -> dict:
+    """Add a part to an assembly's Draft revision, saved immediately. `reference` holds comma-separated reference
+    designators and must match `count` when given. Adding the same part again merges into the existing line. A
+    Released or In Review assembly is refused: call revise_part and edit the new Draft. Returns the assembly's BOM."""
     with tool_call(ctx, 'add_subpart') as actor:
         actor.require_write(BomPerms.EDIT_PART)
-        payload = {
-            'assembly_part_number': assembly_part_number, 'assembly_revision': assembly_revision,
-            'subpart_part_number': subpart_part_number, 'count': count, 'reference': reference,
-            'do_not_load': do_not_load}
-        return _finish_write(actor, _write_item(actor, ChangeItem.KIND_ADD_SUBPART, payload, change_id))
+        part_revision = parts.revision_from_number(actor.organization, assembly_part_number, assembly_revision)
+        edits.add_subpart(actor.organization, actor.user, part_revision, subpart_part_number, count, reference,
+                          do_not_load, **_recorded_as(actor))
+        return boms.bom_report(part_revision)
 
 
 @mcp.tool(annotations=WRITE)
 def update_subpart(ctx: Context, assembly_part_number: str, subpart_part_number: str, count: float | None = None,
                    reference: str | None = None, do_not_load: bool | None = None,
-                   assembly_revision: str | None = None, change_id: int | None = None) -> dict:
+                   assembly_revision: str | None = None) -> dict:
     """Change the quantity, reference designators or do-not-load flag of the line that uses `subpart_part_number`
-    in an assembly. Values left out are kept. `reference` must match `count` when given. Editing a Released
-    revision makes the change an Engineering Change Order. """ + CHANGE_ID_DOC
+    in an assembly's Draft revision, saved immediately. Values left out are kept. `reference` must match `count`
+    when given. A Released or In Review assembly is refused: call revise_part and edit the new Draft. Returns the
+    assembly's BOM."""
     with tool_call(ctx, 'update_subpart') as actor:
         actor.require_write(BomPerms.EDIT_PART)
-        payload = {
-            'assembly_part_number': assembly_part_number, 'assembly_revision': assembly_revision,
-            'subpart_part_number': subpart_part_number, 'count': count, 'reference': reference,
-            'do_not_load': do_not_load}
-        return _finish_write(actor, _write_item(actor, ChangeItem.KIND_UPDATE_SUBPART, payload, change_id))
+        part_revision = parts.revision_from_number(actor.organization, assembly_part_number, assembly_revision)
+        edits.update_subpart(actor.organization, actor.user, part_revision, subpart_part_number, count, reference,
+                             do_not_load, **_recorded_as(actor))
+        return boms.bom_report(part_revision)
 
 
 @mcp.tool(annotations=DESTRUCTIVE)
 def remove_subpart(ctx: Context, assembly_part_number: str, subpart_part_number: str,
-                   assembly_revision: str | None = None, change_id: int | None = None) -> dict:
-    """Remove the line that uses `subpart_part_number` from an assembly. Editing a Released revision makes the
-    change an Engineering Change Order. """ + CHANGE_ID_DOC
+                   assembly_revision: str | None = None) -> dict:
+    """Remove the line that uses `subpart_part_number` from an assembly's Draft revision, saved immediately. A
+    Released or In Review assembly is refused: call revise_part and edit the new Draft. Returns the assembly's
+    BOM."""
     with tool_call(ctx, 'remove_subpart') as actor:
         actor.require_write(BomPerms.EDIT_PART)
-        payload = {'assembly_part_number': assembly_part_number, 'assembly_revision': assembly_revision,
-                   'subpart_part_number': subpart_part_number}
-        return _finish_write(actor, _write_item(actor, ChangeItem.KIND_REMOVE_SUBPART, payload, change_id))
+        part_revision = parts.revision_from_number(actor.organization, assembly_part_number, assembly_revision)
+        edits.remove_subpart(actor.organization, actor.user, part_revision, subpart_part_number,
+                             **_recorded_as(actor))
+        return boms.bom_report(part_revision)
+
+
+@mcp.tool(annotations=WRITE)
+def upload_bom(ctx: Context, assembly_part_number: str, csv_text: str, mode: str = 'add') -> dict:
+    """Apply the BOM lines of an indented-BOM CSV (the format export_bom_csv produces; columns such as part_number,
+    quantity, reference, level) to an assembly's Draft revision, saved immediately. `mode` `add` (default) adds the
+    CSV's quantities and references to the assembly's existing lines; `replace` makes the assembly's lines match
+    the CSV and removes the rest. The CSV is checked with the same import as the web upload and all of its line
+    edits are saved together or none are: a CSV with errors changes nothing and the error lists each bad row. The
+    CSV may only use parts and revisions that already exist, and it cannot create or edit parts. A Released or In
+    Review assembly is refused: call revise_part first. Returns the line edits made (`changed`) and the import's
+    warnings."""
+    with tool_call(ctx, 'upload_bom') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        assembly = parts.part_from_number(actor.organization, assembly_part_number)
+        changed, warnings = edits.upload_bom(actor.organization, actor.user, assembly, csv_text, mode,
+                                             **_recorded_as(actor))
+        return {'part_number': assembly.full_part_number(), 'revision': assembly.latest().revision,
+                'changed': changed, 'warnings': warnings}
 
 
 @mcp.tool(annotations=WRITE)
 def add_manufacturer_part(ctx: Context, part_number: str, manufacturer: str, manufacturer_part_number: str,
-                          link: str | None = None, datasheet_url: str | None = None,
-                          change_id: int | None = None, ref: str = '') -> dict:
-    """Attach a manufacturer part number to a part, creating the manufacturer by name if it does not exist.
-    Becomes the part's primary manufacturer part if it has none. When staging, `ref` lets add_seller_part use
-    "$ref:<key>" as its manufacturer_part_id. """ + CHANGE_ID_DOC
+                          link: str | None = None, datasheet_url: str | None = None) -> dict:
+    """Attach a manufacturer part number to a part, saved immediately, creating the manufacturer by name if it does
+    not exist. Becomes the part's primary manufacturer part if it has none. Refused while the part's latest
+    revision is Released or In Review: call revise_part first. Returns the manufacturer part with its id."""
     with tool_call(ctx, 'add_manufacturer_part') as actor:
         actor.require_write(BomPerms.MANAGE_SOURCING)
-        payload = {'part_number': part_number, 'manufacturer': manufacturer,
-                   'manufacturer_part_number': manufacturer_part_number, 'link': link, 'datasheet_url': datasheet_url}
-        return _finish_write(actor, _write_item(actor, ChangeItem.KIND_ADD_MANUFACTURER_PART, payload, change_id, ref))
+        part = parts.part_from_number(actor.organization, part_number)
+        return parts.manufacturer_part_summary(edits.add_manufacturer_part(
+            actor.organization, actor.user, part, manufacturer, manufacturer_part_number, link, datasheet_url,
+            **_recorded_as(actor)))
 
 
 @mcp.tool(annotations=WRITE)
-def add_seller_part(ctx: Context, manufacturer_part_id: int | str, seller: str, unit_cost: str,
+def add_seller_part(ctx: Context, manufacturer_part_id: int, seller: str, unit_cost: str,
                     currency: str | None = None, minimum_order_quantity: int = 1, minimum_pack_quantity: int = 1,
                     lead_time_days: int | None = None, nre_cost: str = '0', seller_part_number: str = '',
-                    link: str | None = None, ncnr: bool = False, change_id: int | None = None) -> dict:
-    """Record a seller's price for a manufacturer part (ids come from get_part, or "$ref:<key>" for a manufacturer
-    part staged earlier in the same change). The seller is created by name if it does not exist. Currency defaults
-    to the organization's. """ + CHANGE_ID_DOC
+                    link: str | None = None, ncnr: bool = False) -> dict:
+    """Record a seller's price for a manufacturer part (ids come from get_part or add_manufacturer_part), saved
+    immediately. The seller is created by name if it does not exist. Currency defaults to the organization's.
+    Prices are not under revision control, so this works on Released parts too."""
     with tool_call(ctx, 'add_seller_part') as actor:
         actor.require_write(BomPerms.MANAGE_SOURCING)
-        payload = {
-            'manufacturer_part_id': manufacturer_part_id, 'seller': seller, 'unit_cost': unit_cost,
-            'currency': currency, 'minimum_order_quantity': minimum_order_quantity,
-            'minimum_pack_quantity': minimum_pack_quantity, 'lead_time_days': lead_time_days, 'nre_cost': nre_cost,
-            'seller_part_number': seller_part_number, 'link': link, 'ncnr': ncnr}
-        return _finish_write(actor, _write_item(actor, ChangeItem.KIND_ADD_SELLER_PART, payload, change_id))
+        manufacturer_part = parts.manufacturer_part_for(actor.organization, manufacturer_part_id)
+        return parts.seller_part_summary(edits.add_seller_part(
+            actor.organization, actor.user, manufacturer_part, seller, unit_cost, currency=currency,
+            minimum_order_quantity=minimum_order_quantity, minimum_pack_quantity=minimum_pack_quantity,
+            lead_time_days=lead_time_days, nre_cost=nre_cost, seller_part_number=seller_part_number, link=link,
+            ncnr=ncnr, **_recorded_as(actor)))
+
+
+def _change_order(actor, number):
+    change = Change.objects.filter(organization=actor.organization, number=number, is_direct_edit=False).first()
+    if change is None:
+        raise ToolError(f"No change order #{number} in {actor.organization.name}.")
+    return change
+
+
+def _working_draft(organization, part_number, revision):
+    """The named revision, or the part's Draft when none is named."""
+    if revision is not None:
+        return parts.revision_from_number(organization, part_number, revision)
+    part = parts.part_from_number(organization, part_number)
+    draft = part.revisions().filter(configuration=CONFIGURATION_TYPE_DRAFT).order_by('-id').first()
+    if draft is None:
+        raise ToolError(f"{part.full_part_number()} has no Draft revision. Call revise_part to create one.")
+    return draft
+
+
+def _revision_label(part_revision):
+    return {'part_number': part_revision.part.full_part_number(), 'revision': part_revision.revision}
+
+
+def _timestamp(value):
+    return value.isoformat() if value else None
+
+
+def _change_order_summary(change):
+    return {
+        'number': change.number, 'title': change.title, 'status': change.status, 'author': change.author.username,
+        'revisions': [_revision_label(link.part_revision)
+                      for link in change.revisions.select_related('part_revision__part')],
+        'created_at': _timestamp(change.created_at), 'url': changes.change_url(change),
+    }
+
+
+def _diff_entries(diff):
+    """The diff without the revision state, which only says that a Draft follows a Released revision."""
+    entries = []
+    for entry in diff:
+        if entry['label'] == 'Revision':
+            before, after = ({field: value for field, value in values.items() if field != 'configuration'}
+                             for values in (entry['before'], entry['after']))
+            if not after:
+                continue
+            entry = dict(entry, before=before, after=after)
+        entries.append(entry)
+    return entries
+
+
+def _cost_text(cost):
+    return None if cost is None else str(cost)
+
+
+def _approval(actor, change):
+    if change.status != Change.STATUS_OPEN:
+        return {'can_approve': False, 'message': f"Change order #{change.number} is {change.status}, not open for "
+                                                 f"review."}
+    if not actor.token.has_scope(APIToken.SCOPE_RELEASE):
+        return {'can_approve': False, 'message': 'This connection does not have the release level, so a person '
+                                                 'approves it in IndaBOM.'}
+    if not actor.user.has_perm(BomPerms.RELEASE_REVISION, actor.organization):
+        return {'can_approve': False, 'message': f"{actor.user.username} cannot release revisions in "
+                                                 f"{actor.organization.name}."}
+    approval = change_orders.approval_status(change, actor.user)
+    message = approval['message']
+    if approval['can_override']:
+        message += ' The override is only available in IndaBOM, not through this connection.'
+    return {'can_approve': approval['can_apply'], 'message': message}
+
+
+def _change_order_detail(actor, change):
+    detail = _change_order_summary(change)
+    detail.update({
+        'rationale': change.rationale, 'rejection_reason': change.rejection_reason,
+        'agent_client': change.agent_client,
+        'submitted_at': _timestamp(change.submitted_at), 'resolved_at': _timestamp(change.resolved_at),
+        'resolved_by': change.resolved_by.username if change.resolved_by else None,
+        'revisions': [
+            dict(_revision_label(report['part_revision']),
+                 state=report['part_revision'].get_configuration_display(),
+                 base_revision=report['base_revision'].revision if report['base_revision'] else None,
+                 diff=_diff_entries(report['diff']),
+                 unit_cost_before=_cost_text(report['unit_cost_before']),
+                 unit_cost_after=_cost_text(report['unit_cost_after']),
+                 released_assemblies_using_base=[_revision_label(parent) for parent in report['released_parents']])
+            for report in change_orders.revision_reports(change)],
+        'approval': _approval(actor, change),
+    })
+    return detail
+
+
+REVISIONS_DOC = ("Each revision is `{part_number, revision?}`; `revision` defaults to the part's Draft. Only a Draft "
+                 "that is in no other change order can be added.")
 
 
 @mcp.tool(annotations=WRITE)
-def update_part_revision(ctx: Context, part_number: str, change_id: int, description: str | None = None,
-                         properties: dict[str, str] | None = None, revision: str | None = None) -> dict:
-    """Stage a new description and/or property values (codes from get_organization) on a part's revision; values
-    left out are kept and a property given as an empty string is cleared. Draft revisions are edited in place. A
-    Released or In Review revision makes the change an Engineering Change Order: applying it creates the next
-    Draft revision with the new values, so the reviewer sees the old and new values side by side. Where ECOs are
-    not enabled, stage revise_part and have that change applied first, then edit the new Draft. Stages into
-    `change_id` (from start_change); nothing is saved until the change is applied."""
-    with tool_call(ctx, 'update_part_revision') as actor:
+def create_change_order(ctx: Context, title: str, rationale: str,
+                        revisions: list[dict[str, str]] | None = None) -> dict:
+    """Start a change order: the Draft revisions that are reviewed and released together. Give a short title and
+    always a rationale explaining why. It stays a draft, and its revisions stay editable, until
+    submit_change_order. """ + REVISIONS_DOC
+    with tool_call(ctx, 'create_change_order') as actor:
         actor.require_write(BomPerms.EDIT_PART)
+        part_revisions = [_working_draft(actor.organization, entry.get('part_number', ''), entry.get('revision'))
+                          for entry in revisions or []]
+        change = change_orders.create_change_order(
+            actor.organization, actor.user, title, rationale, part_revisions, **_recorded_as(actor))
+        return _change_order_detail(actor, change)
+
+
+@mcp.tool(annotations=WRITE)
+def add_to_change_order(ctx: Context, number: int, part_number: str, revision: str | None = None) -> dict:
+    """Add a part's Draft revision (or the named revision) to a change order that is still a draft or was sent
+    back. Only a Draft that is in no other change order can be added."""
+    with tool_call(ctx, 'add_to_change_order') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        change = _change_order(actor, number)
+        change_orders.add_revision(change, actor.user, _working_draft(actor.organization, part_number, revision))
+        return _change_order_detail(actor, change)
+
+
+@mcp.tool(annotations=WRITE)
+def remove_from_change_order(ctx: Context, number: int, part_number: str, revision: str | None = None) -> dict:
+    """Take a part's revision out of a change order that is still a draft or was sent back. The revision itself is
+    kept, as a Draft."""
+    with tool_call(ctx, 'remove_from_change_order') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        change = _change_order(actor, number)
+        part = parts.part_from_number(actor.organization, part_number)
+        links = change.revisions.filter(part_revision__part=part).select_related('part_revision__part')
+        link = (links.filter(part_revision__revision=revision) if revision is not None else links).first()
+        if link is None:
+            raise ToolError(f"{part.full_part_number()}{f' rev {revision}' if revision is not None else ''} is not "
+                            f"in change order #{change.number}.")
+        change_orders.remove_revision(change, actor.user, link.part_revision)
+        return _change_order_detail(actor, change)
+
+
+@mcp.tool(annotations=WRITE)
+def submit_change_order(ctx: Context, number: int) -> dict:
+    """Send a change order you wrote for review. Its revisions are locked (In Review) until it is approved,
+    rejected or withdrawn, so what is approved is what was reviewed. A change order that was rejected can be fixed
+    and submitted again under the same number."""
+    with tool_call(ctx, 'submit_change_order') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        return _change_order_detail(actor, change_orders.submit(_change_order(actor, number), actor.user))
+
+
+@mcp.tool(annotations=WRITE)
+def withdraw_change_order(ctx: Context, number: int) -> dict:
+    """Close a change order you wrote without releasing anything. Its revisions stay as Drafts and can go into
+    another change order."""
+    with tool_call(ctx, 'withdraw_change_order') as actor:
+        actor.require_write(BomPerms.EDIT_PART)
+        return _change_order_detail(actor, change_orders.withdraw(_change_order(actor, number), actor.user))
+
+
+@mcp.tool(annotations=READ_ONLY)
+def get_change_order(ctx: Context, number: int) -> dict:
+    """A change order: its title, rationale, status (draft, open: under review, applied: approved and released,
+    rejected: sent back with rejection_reason, or withdrawn), author and url, and for each revision in it what
+    differs from the revision it replaces (diff), the unit cost before and after, and the Released assemblies that
+    still use the replaced revision. `approval` says whether you could approve it now, and why not."""
+    with tool_call(ctx, 'get_change_order') as actor:
+        return _change_order_detail(actor, _change_order(actor, number))
+
+
+@mcp.tool(annotations=READ_ONLY)
+def list_change_orders(ctx: Context, status: str = 'open', limit: int = 25) -> list[dict]:
+    """Change orders in the organization, newest first, filtered by status (draft, open, applied, rejected,
+    withdrawn, or all)."""
+    with tool_call(ctx, 'list_change_orders') as actor:
+        queryset = Change.objects.filter(organization=actor.organization, is_direct_edit=False).exclude(
+            items__kind=ChangeItem.KIND_CSV_IMPORT).select_related('author')
+        if status != 'all':
+            queryset = queryset.filter(status=status)
+        return [_change_order_summary(change) for change in queryset[:max(1, min(limit, 200))]]
+
+
+@mcp.tool(annotations=WRITE)
+def release_revision(ctx: Context, part_number: str, revision: str | None = None, note: str = '') -> dict:
+    """Release a part's Draft revision (the latest unless `revision` is given) directly, without a change order.
+    Needs the release level, and the user's go-ahead: ask before calling. Draft assemblies that use the previous
+    revision move to this one. Refused where the organization requires approval to release (put the revision in a
+    change order instead) and for a revision that is in a change order (that is released by approving it)."""
+    with tool_call(ctx, 'release_revision') as actor:
+        actor.require_release()
         part_revision = parts.revision_from_number(actor.organization, part_number, revision)
-        if part_revision.is_immutable() and not eco_enabled(actor.organization):
-            raise ToolError(
-                f"{part_number} rev {part_revision.revision} is {part_revision.get_configuration_display()} and "
-                f"cannot be edited. Call revise_part to create the next Draft (and have that change applied), "
-                f"then update the new Draft.")
-        payload = {'part_number': part_number, 'revision': part_revision.revision, 'description': description,
-                   'properties': properties}
-        return _write_item(actor, ChangeItem.KIND_UPDATE_PART_REVISION, payload, change_id)
+        label = f"{part_revision.part.full_part_number()} rev {part_revision.revision}"
+        change = change_orders.change_order_for(part_revision)
+        if change is not None:
+            raise ToolError(f"{label} is in change order #{change.number}; it is released when that change order "
+                            f"is approved.")
+        if changes.release_approval_required(actor.organization):
+            raise ToolError(f"{actor.organization.name} requires approval to release. Put {label} in a change order "
+                            f"with create_change_order and submit it.")
+        released = changes.release_revision(part_revision, actor.user, note=note, **_recorded_as(actor))
+        return parts.part_detail(released)
 
 
 @mcp.tool(annotations=WRITE)
-def revise_part(ctx: Context, part_number: str, change_id: int) -> dict:
-    """Stage the next Draft revision of a part, copied from its latest Released or In Review revision, as the
-    Revise button does. Refused when a newer Draft already exists (the error names it). The new Draft
-    exists only once the change is applied; edit it afterwards with update_part_revision, add_subpart and the
-    other write tools. Agents never release a revision: a person does that."""
-    with tool_call(ctx, 'revise_part') as actor:
-        actor.require_write(BomPerms.EDIT_PART)
-        source = changes.latest_immutable_revision(parts.part_from_number(actor.organization, part_number))
-        changes.require_revisable(source)
-        payload = {'part_number': part_number, 'revision': source.revision}
-        return _write_item(actor, ChangeItem.KIND_CREATE_PART_REVISION, payload, change_id)
+def approve_change_order(ctx: Context, number: int) -> dict:
+    """Approve an open change order, which releases every revision in it together. Needs the release level, and the
+    user's go-ahead: ask before calling. You approve as your person, so a change order they wrote or edited
+    (including through you) must be approved by someone else, unless they are the organization's only member; an
+    Admin's override of that rule is only available in IndaBOM. get_change_order's `approval` tells you beforehand."""
+    with tool_call(ctx, 'approve_change_order') as actor:
+        actor.require_release()
+        change = change_orders.approve(_change_order(actor, number), actor.user, api_token=actor.token)
+        return _change_order_detail(actor, change)
 
 
 @mcp.tool(annotations=WRITE)
-def upload_bom(ctx: Context, assembly_part_number: str, csv_text: str, change_id: int, mode: str = 'add') -> dict:
-    """Stage the BOM lines of an indented-BOM CSV (the format export_bom_csv produces; columns such as part_number,
-    quantity, reference, level) into an assembly. `mode` `add` (default) adds the CSV's quantities and references
-    to the assembly's existing lines; `replace` makes the assembly's lines match the CSV and removes the rest. The
-    CSV is checked with the same import as the web upload and becomes one add_subpart, update_subpart or
-    remove_subpart item per changed line, so a reviewer can edit or remove lines individually. The CSV may only use
-    parts and revisions that already exist, and it cannot create or edit parts; a CSV with errors stages nothing and
-    the error lists each bad row. A Released assembly becomes an Engineering Change Order, as with add_subpart.
-    Stages into `change_id` (from start_change); nothing is saved until the change is applied."""
-    with tool_call(ctx, 'upload_bom') as actor:
-        actor.require_write(BomPerms.EDIT_PART)
-        change = _own_change(actor, change_id)
-        items, warnings = changes.stage_bom_upload(change, assembly_part_number, csv_text, mode)
-        return {'change_id': change.id, 'number': change.number, 'url': changes.change_url(change),
-                'staged': [changes.item_summary(item) for item in items], 'warnings': warnings,
-                'items_in_change': change.items.count()}
+def reject_change_order(ctx: Context, number: int, reason: str) -> dict:
+    """Send an open change order back to its author with a reason. Needs the release level. Its revisions become
+    Drafts again, to be fixed and submitted again under the same number."""
+    with tool_call(ctx, 'reject_change_order') as actor:
+        actor.require_release()
+        return _change_order_detail(actor, change_orders.reject(_change_order(actor, number), actor.user, reason))

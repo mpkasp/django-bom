@@ -27,22 +27,22 @@ class SettingsTabsTest(TestCase):
 
     def test_creating_a_token_shows_the_plaintext_once_and_lists_it(self):
         response = self.client.post(self.settings_url('api'), {
-            'submit-create-token': '', 'name': 'Claude Code', 'level': 'propose', 'expires_at': '2099-01-31'})
+            'submit-create-token': '', 'name': 'Claude Code', 'level': 'edit', 'expires_at': '2099-01-31'})
         token = APIToken.objects.get(name='Claude Code')
         self.assertEqual(token.scope_list(), ['read', 'write'])
         self.assertEqual(token.expires_at.date().isoformat(), '2099-01-31')
         plaintext = response.context['new_api_token_plaintext']
         self.assertTrue(plaintext.startswith('ibom_'))
         self.assertContains(response, plaintext)
-        self.assertContains(response, 'Write: propose')
+        self.assertContains(response, 'Edit')
 
         again = self.client.get(self.settings_url('api'))
         self.assertNotContains(again, plaintext)
         self.assertContains(again, token.prefix)
 
-    def test_apply_level_token_gets_every_scope(self):
-        self.client.post(self.settings_url('api'), {'submit-create-token': '', 'name': 'Bot', 'level': 'apply'})
-        self.assertEqual(APIToken.objects.get(name='Bot').scope_list(), ['read', 'write', 'apply'])
+    def test_release_level_token_gets_every_scope(self):
+        self.client.post(self.settings_url('api'), {'submit-create-token': '', 'name': 'Bot', 'level': 'release'})
+        self.assertEqual(APIToken.objects.get(name='Bot').scope_list(), ['read', 'write', 'release'])
 
     def test_revoke_removes_a_token_from_the_list(self):
         token, _ = APIToken.issue(self.user, self.organization, 'Old')
