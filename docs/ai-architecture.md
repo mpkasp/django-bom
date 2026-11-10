@@ -22,21 +22,21 @@ This matters most for multi-tenancy. `OrganizationManager` scoping is the securi
 of the whole app. If four surfaces each write their own queries, one of them eventually leaks
 another organization's parts. One layer means one place to enforce it and one place to test it.
 
-### 2. AI proposes, Django's forms commit
+### 2. Django's forms commit
 
-No AI code path calls `.save()` on a domain model. Agents write **Changes**, the same engine people
-use to bundle and review edits: a tool stages a `ChangeItem` (an organization-scoped record of the
-proposed edit, its status and who or which token made it), and applying the change runs each item
-through the **existing forms** (`PartFormSemiIntelligent`, `SubpartForm`, `PartRevisionForm`,
-`BOMCSVForm`, …). That way `PartRevision.is_immutable()`, organization scoping, part-number validation, and
-every existing validator still run, with no second implementation to keep in sync. There is no separate
-`AIProposal` model.
+No AI code path calls `.save()` on a domain model. Agent tools call the same services the web views do, and those
+run the **existing forms** (`PartFormSemiIntelligent`, `SubpartForm`, `PartRevisionForm`, `BOMCSVForm`, …), so
+`PartRevision.is_immutable()`, organization scoping, part-number validation, and every existing validator still run,
+with no second implementation to keep in sync. There is no separate `AIProposal` model.
 
-The token sets how far an agent may go. A `read` token cannot stage anything, a `write` token stages
-and submits changes for a person to review, and an `apply` token may also apply the changes it started.
-That level is a ceiling; the protections are a floor under it. Agents never release a revision or approve
-a request, and protected changes (an Engineering Change Order, or one that trips an organization's
-protections) need a person other than the author. Each change records the token and client that wrote it.
+Edits are saved at once, to Draft revisions only, and each is recorded in the part's history with the person and the
+token and client that made it. A Released revision is changed by revising it and editing the Draft, and the Draft is
+reviewed and released through a **change order** that a person other than its author approves.
+
+The person who connects an agent chooses how far it may go: Read (`read`), Edit (`read write`), or Edit and release
+(`read write release`). That level is a ceiling, capped by the person's role; the approval rules are a floor under it.
+Only the release level can release a revision or approve a change order, and then as the person, who cannot approve a
+change order they wrote or edited unless they are the organization's only member.
 
 Two things fall out of this for free: an audit trail, which is not optional in a PLM context,
 and a safety story that doesn't depend on the model behaving.

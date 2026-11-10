@@ -264,20 +264,25 @@
 
                 <div class="section">
                     <h3 id="ai-agents">AI Agents and Connected Apps</h3>
-                    <p>An AI assistant such as Claude can search parts, build BOMs and propose changes through
-                        IndaBOM's MCP server. Add the server to your assistant and sign in; you then choose what it may
-                        do, and it never gets more access than your role:</p>
+                    <p>An AI assistant such as Claude can search parts, build BOMs and edit them through
+                        IndaBOM's MCP server. It acts as you. Add the server to your assistant and sign in; you then
+                        choose what it may do, and it never gets more access than your role:</p>
                     <ul class="browser-default">
-                        <li><strong>Read only</strong>: look things up.</li>
-                        <li><strong>Propose changes</strong>: open change requests for a person to review.</li>
-                        <li><strong>Propose and apply</strong>: also edit Draft revisions and make new revisions
-                            directly.
-                        </li>
+                        <li><strong>Read</strong>: look things up.</li>
+                        <li><strong>Edit</strong>: also edit Draft revisions, revise Released parts, and build and
+                            submit change orders. Edits are saved at once and recorded in the part's History with the
+                            assistant's name.</li>
+                        <li><strong>Edit and release</strong>: also release revisions and approve or reject change
+                            orders, as you.</li>
                     </ul>
+                    <p>To change a Released part, the assistant revises it, edits the new Draft, and puts the Draft in
+                        a change order for review. Releasing a revision and approving a change order need the Edit and
+                        release level, and the assistant asks you first. It is held to the same rules as you: it
+                        cannot approve a change order you wrote or edited unless you are the only member of your
+                        organization.</p>
                     <p>Every assistant you connect is listed in <a href="{% url 'bom:settings' 'api' %}">Settings →
                         Connected apps</a>, where you can revoke it. Scripts and tools that can't sign in use a personal
                         access token from the same page, with the same three levels.</p>
-                    <p>Agents never release revisions or approve requests. A person always does that.</p>
                     <p>See <a href="{% url 'bom:help-ai' %}">Connect an AI assistant</a> for step-by-step setup.</p>
                 </div>
 
