@@ -185,6 +185,6 @@ substantially cheaper once the foundations exist.
 - Duplicate detection via embeddings over `searchable_synopsis`
 - Alternate / second-source cross-referencing, validated through the sourcing providers
 - Natural-language search compiled to a constrained filter DSL
-- ECO and change summaries from revision diffs plus `where_used_full()`
+- Change order summaries from revision diffs plus `where_used_full()`
 - Per-class synopsis templates, resolving the `generate_synopsis` TODO
 - Embedded chat — scoped by the Phase 2 tool telemetry
