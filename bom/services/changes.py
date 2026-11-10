@@ -853,7 +853,7 @@ def _counter_item(item):
 
 
 def record_direct_edit(organization, user, part, kind, summary, part_revision=None, before=None, payload=None,
-                       result=None, rationale=''):
+                       result=None, rationale='', api_token=None, agent_client=''):
     """Log an edit that has already been saved as its own applied Change without a number, so it stays out of the
     request sequence. A failure here is logged and never undoes the edit."""
     try:
@@ -862,7 +862,8 @@ def record_direct_edit(organization, user, part, kind, summary, part_revision=No
             change = Change.objects.create(
                 organization=organization, title=summary[:255], rationale=rationale, author=user,
                 status=Change.STATUS_APPLIED, is_direct_edit=True, base_part_revision=part_revision,
-                submitted_at=now, resolved_at=now, resolved_by=user)
+                submitted_at=now, resolved_at=now, resolved_by=user, api_token=api_token,
+                agent_client=agent_client[:64])
             ChangeItem.objects.create(
                 change=change, position=1, kind=kind, payload=payload or {}, part=part, part_revision=part_revision,
                 summary=summary[:255], before=before, result=result)

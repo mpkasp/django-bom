@@ -1324,6 +1324,9 @@ class Change(OrganizationScopedModel):
         (STATUS_REJECTED, 'Rejected'), (STATUS_WITHDRAWN, 'Withdrawn'),
     )
     PENDING_STATUSES = (STATUS_DRAFT, STATUS_OPEN)
+    # A change order that was sent back keeps its revisions and can be edited and submitted again.
+    EDITABLE_STATUSES = (STATUS_DRAFT, STATUS_REJECTED)
+    ACTIVE_STATUSES = (STATUS_DRAFT, STATUS_OPEN, STATUS_REJECTED)
 
     number = models.PositiveIntegerField(null=True, blank=True)
     title = models.CharField(max_length=255)
@@ -1341,6 +1344,9 @@ class Change(OrganizationScopedModel):
                                     related_name='+')
     protection_overridden_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                                  on_delete=models.SET_NULL, related_name='+')
+    resolved_api_token = models.ForeignKey('APIToken', null=True, blank=True, on_delete=models.SET_NULL,
+                                           related_name='+')
+    rejection_reason = models.TextField(blank=True)
     cascade = models.JSONField(null=True, blank=True)
     edit_log = models.JSONField(default=list, blank=True)
     is_direct_edit = models.BooleanField(default=False)
@@ -1368,6 +1374,21 @@ class Change(OrganizationScopedModel):
 
     def __str__(self):
         return f"Change #{self.number}: {self.title}" if self.number else self.title
+
+
+class ChangeRevision(models.Model):
+    """A working revision a change order will release, and the revision it is compared with."""
+    change = models.ForeignKey(Change, on_delete=models.CASCADE, related_name='revisions')
+    part_revision = models.ForeignKey('PartRevision', on_delete=models.CASCADE, related_name='change_revisions')
+    base_revision = models.ForeignKey('PartRevision', null=True, blank=True, on_delete=models.SET_NULL,
+                                      related_name='+')
+
+    class Meta:
+        unique_together = ('change', 'part_revision')
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.part_revision} in {self.change}"
 
 
 class ChangeItem(models.Model):
