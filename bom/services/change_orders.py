@@ -165,7 +165,7 @@ def revision_reports(change, quantity=changes.DEFAULT_QUANTITY):
     reports = []
     for link in change.revisions.select_related('part_revision__part', 'base_revision'):
         part_revision, base = link.part_revision, link.base_revision
-        parents = base.where_used().select_related('part') if base else PartRevision.objects.none()
+        parents = _outside_parents(change, base).select_related('part') if base else PartRevision.objects.none()
         reports.append({
             'part_revision': part_revision, 'base_revision': base,
             'diff': revision_diff(base, part_revision) if base else [],
@@ -186,7 +186,8 @@ def cascade_candidates(change):
     for link in change.revisions.select_related('part_revision__part', 'base_revision'):
         if link.base_revision is None:
             continue
-        released_parents = link.base_revision.where_used().filter(configuration=CONFIGURATION_TYPE_RELEASED)
+        released_parents = _outside_parents(change, link.base_revision).filter(
+            configuration=CONFIGURATION_TYPE_RELEASED)
         for parent in released_parents.exclude(id__in=done).select_related('part'):
             candidates.setdefault(parent.id, {'parent': parent, 'replacements': []})['replacements'].append(
                 (link.base_revision, link.part_revision))
@@ -216,6 +217,11 @@ def cascade(change, user, parent_revision_ids):
             created.append(new_revision)
         change.save(update_fields=['cascade'])
     return created
+
+
+def _outside_parents(change, base_revision):
+    """Assemblies that use the revision and are not revised by this change order themselves."""
+    return base_revision.where_used().exclude(part__in=change.revisions.values('part_revision__part'))
 
 
 def _revisions(change):

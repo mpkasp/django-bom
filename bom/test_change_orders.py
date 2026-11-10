@@ -191,6 +191,8 @@ class ChangeOrderAssemblyTest(ChangeOrderTestCase):
                          [child_draft.id, parent_draft.id])
         self.assertEqual(self.child_revision_ids(parent_draft), [child_draft.id])
         self.assertEqual(self.child_revision_ids(parent), [child.id])
+        self.assertEqual(change_orders.cascade_candidates(change), [])
+        self.assertEqual([report['released_parents'] for report in change_orders.revision_reports(change)], [[], []])
 
     def test_released_assemblies_outside_the_change_order_are_offered_a_new_revision(self):
         child = self.released('Cap')
