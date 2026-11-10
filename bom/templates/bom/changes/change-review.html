@@ -74,7 +74,7 @@
             {% endif %}
         </div>
         {% if nothing_left_to_apply %}
-            <p class="change-ready text-grey">Every edit is left out, so there is nothing to approve. Include one again, or reject the request.</p>
+            <p class="change-ready text-grey">Every edit is left out, so there is nothing to approve. Include one again, or {% if is_author %}withdraw{% else %}reject{% endif %} the request.</p>
         {% elif is_pending and can_review and not approval.can_apply %}
             <p class="change-ready text-grey">{{ approval.message }}</p>
         {% endif %}
