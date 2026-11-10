@@ -148,7 +148,7 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
             self.organization, 'Plate', part_class_code=self.part_class_code)
         change = self.order(title='Two parts')
         page = self.client.get(self.url(change))
-        self.assertContains(page, 'Add a part')
+        self.assertContains(page, 'Add part to change order…')
 
         for part_revision in (released, draft):
             self.client.post(self.url(change, 'change-part-add'), {'part_number': self.number(part_revision)})
@@ -163,7 +163,7 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
         self.assertEqual(change.revisions.count(), 2)
         change_orders.submit(change, self.user)
         page = self.client.get(self.url(change))
-        self.assertNotContains(page, 'Add a part')
+        self.assertNotContains(page, 'Add part to change order…')
         self.assertNotContains(page, '>Edit revision</a>')
 
     def test_an_approved_change_order_offers_the_cascade(self):

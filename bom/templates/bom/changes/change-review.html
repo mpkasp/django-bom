@@ -76,6 +76,22 @@
 
         <div class="change-columns">
             <div class="change-sections">
+                {% if not staged_items %}
+                    <div class="change-list-head">
+                        <h5>Parts in this change order{% if cards %} <span class="text-grey">&middot; {{ cards|length }}</span>{% endif %}</h5>
+                        {% if can_remove %}
+                            <details class="change-reject change-add-part">
+                                <summary class="btn-outline">Add part to change order…</summary>
+                                <form class="card-panel z-depth-2" method="post" action="{% url 'bom:change-part-add' number=change.number %}">{% csrf_token %}
+                                    <label for="add-part-number">Part number to add to change order #{{ change.number }}</label>
+                                    <input id="add-part-number" class="browser-default" type="text" name="part_number" required>
+                                    <p class="text-grey">The part's Draft revision joins this change order, to be reviewed and released with the others. If its latest revision is Released, its next revision is started as a Draft. No BOM is changed.</p>
+                                    <button class="btn btn-primary waves-effect" type="submit">Add to change order</button>
+                                </form>
+                            </details>
+                        {% endif %}
+                    </div>
+                {% endif %}
                 {% include 'bom/changes/components/change-revisions.html' %}
                 {% if staged_items %}
                     <div class="card-panel">
@@ -84,19 +100,9 @@
                             {% for item in staged_items %}<li>{{ item.summary }}</li>{% endfor %}
                         </ul>
                     </div>
-                {% elif not cards and not is_editable %}
+                {% elif not cards %}
                     <div class="card-panel">
-                        <p class="text-grey">This change order holds no revisions.</p>
-                    </div>
-                {% endif %}
-                {% if can_remove %}
-                    <div class="card-panel change-add-part">
-                        <span class="change-label">Add a part</span>
-                        <form method="post" action="{% url 'bom:change-part-add' number=change.number %}">{% csrf_token %}
-                            <input class="browser-default" type="text" name="part_number" placeholder="Part number" aria-label="Part number" required>
-                            <button class="btn-outline waves-effect" type="submit">Add</button>
-                        </form>
-                        <p class="text-grey">A part whose latest revision is Released gets its next revision as a Draft. Use Edit revision to change it.</p>
+                        <p class="text-grey">{% if is_editable %}No parts yet. Add the parts whose new revisions this change order should release.{% else %}This change order holds no parts.{% endif %}</p>
                     </div>
                 {% endif %}
             </div>

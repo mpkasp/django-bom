@@ -1036,15 +1036,23 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     padding: 16px;
 }
 
-.change-reject textarea {
+.change-add-part input[type=text] {
+    min-height: 2.5rem;
+}
+
+.change-reject textarea,
+.change-add-part input[type=text] {
     width: 100%;
-    min-height: 4.5rem;
     padding: 8px 10px;
     border: 1px solid rgba(128, 128, 128, 0.4);
     border-radius: 8px;
     background: transparent;
     color: inherit;
     font: inherit;
+}
+
+.change-reject textarea {
+    min-height: 4.5rem;
 }
 
 .change-sent-back {
@@ -1127,22 +1135,21 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     margin-left: auto;
 }
 
-.change-add-part form {
+.change-list-head {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 8px 16px;
 }
 
-.change-add-part input[type=text] {
-    flex: 1 1 14rem;
-    min-height: 2.5rem;
-    padding: 8px 10px;
-    border: 1px solid rgba(128, 128, 128, 0.4);
-    border-radius: 8px;
-    background: transparent;
-    color: inherit;
-    font: inherit;
+.change-list-head h5 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.change-add-part p {
+    margin: 0;
 }
 
 .change-section + .change-section {
