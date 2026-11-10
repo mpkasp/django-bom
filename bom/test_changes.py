@@ -672,7 +672,7 @@ class ChangesViewTest(TestCase):
 
         response = self.client.get(url)
         self.assertContains(response, 'Leave out…', count=2)
-        self.assertContains(response, 'name="reason" class="browser-default" required')
+        self.assertContains(response, 'class="browser-default" type="text" name="reason" required')
         self.assertContains(response, 'New Draft revision, released on approval')
         self.assertContains(response, 'Approve 2 edits')
 
@@ -689,7 +689,9 @@ class ChangesViewTest(TestCase):
         response = self.client.get(url)
         self.assertNotContains(response, 'Apply 0 edits')
         self.assertContains(response, 'nothing to approve')
-        self.assertContains(response, 'Reject…')
+        self.assertContains(response, 'withdraw the request')
+        self.assertNotContains(response, 'Reject…')
+        self.assertContains(response, 'Withdraw')
 
     def test_sourcing_edits_to_a_released_part_promise_no_new_revision(self):
         cap = self.new_cap()
