@@ -1,0 +1,59 @@
+{% for card in cards %}
+    <div class="card-panel change-part">
+        <div class="change-part-head">
+            <a href="{% url 'bom:part-info-history' part_id=card.part_revision.part_id part_revision_id=card.part_revision.id %}">{{ card.part_revision.part.full_part_number }}</a>
+            <span>{{ card.part_revision.description }}</span>
+            {% if card.base_revision %}
+                <span class="chip">Rev {{ card.base_revision.revision }} &middot; {{ card.base_revision.get_configuration_display }}</span>
+                <span class="change-revision-arrow">&rarr;</span>
+            {% endif %}
+            <span class="chip change-new">Rev {{ card.part_revision.revision }} &middot; {{ card.part_revision.get_configuration_display }}</span>
+            {% if not card.base_revision %}<span class="text-grey">First release</span>{% endif %}
+            {% if can_remove %}
+                <form class="change-part-remove" method="post" action="{% url 'bom:change-revision-remove' number=change.number part_revision_id=card.part_revision.id %}" onsubmit="return confirm('Remove this revision from the change order? It stays a Draft.');">{% csrf_token %}
+                    <button class="btn-flat btn-small" type="submit">Remove</button>
+                </form>
+            {% endif %}
+        </div>
+
+        {% if card.fields %}
+            <div class="change-section">
+                <p class="change-label change-section-heading">Part details</p>
+                <div class="change-fields">
+                    <dl>
+                        {% for label, before, after in card.fields %}
+                            <dt>{{ label }}</dt>
+                            <dd>{% if before %}<span class="change-old">{{ before }}</span>{% else %}<span class="text-grey">empty</span>{% endif %} &rarr; {% if after %}<span class="change-new-value">{{ after }}</span>{% else %}<span class="text-grey">cleared</span>{% endif %}</dd>
+                        {% endfor %}
+                    </dl>
+                </div>
+            </div>
+        {% endif %}
+        {% if card.lines %}
+            <div class="change-section">
+                <p class="change-label change-section-heading">Bill of materials</p>
+                <div class="responsive-table-wrapper">
+                    <table class="change-bom">
+                        <thead><tr><th>Ref</th><th>Part</th><th>Description</th><th class="right-align">Qty</th></tr></thead>
+                        <tbody>
+                        {% for line in card.lines %}
+                            <tr class="change-{{ line.state }}">
+                                <td><span class="change-sign">{% if line.state == 'add' %}+{% elif line.state == 'remove' %}&minus;{% endif %}</span>
+                                    {% if line.reference_before is not None %}<span class="change-old">{{ line.reference_before|default:"none" }}</span> <span class="change-new-value">{{ line.reference|default:"none" }}</span>{% else %}{{ line.reference }}{% endif %}</td>
+                                <td class="change-mono">{% if line.part_id %}<a href="{% url 'bom:part-info' part_id=line.part_id %}">{{ line.part_number }}</a>{% else %}{{ line.part_number }}{% endif %}</td>
+                                <td>{{ line.name }}{% if line.detail %}<br><small class="text-grey">{{ line.detail }}</small>{% endif %}</td>
+                                <td class="right-align">{% if line.quantity_before is not None %}<span class="change-old">{{ line.quantity_before }}</span> <span class="change-new-value">{{ line.quantity }}</span>{% else %}{{ line.quantity }}{% endif %}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+        {% if not card.fields and not card.lines %}
+            <div class="change-note">
+                <p class="text-grey">{% if card.base_revision %}Nothing differs from rev {{ card.base_revision.revision }}.{% else %}This is the part's first revision, so there is nothing to compare it with.{% endif %}</p>
+            </div>
+        {% endif %}
+    </div>
+{% endfor %}

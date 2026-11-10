@@ -139,13 +139,11 @@
                 {% include 'bom/components/revision-status.html' %}
             {% endif %}
 
-            {% if proposals.changes %}
+            {% if change_order %}
                 <div class="part-status-strip part-proposals-strip printer-hide">
-                    <i class="material-icons">chat_bubble_outline</i>
-                    {{ proposals.changes|length }} open change request{{ proposals.changes|length|pluralize }} touch{{ proposals.changes|length|pluralize:"es," }} this revision:
-                    {% for change in proposals.changes %}
-                        <a href="{% url 'bom:change-review' number=change.number %}">#{{ change.number }} {{ change.title }}</a>{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
+                    <i class="material-icons">fact_check</i>
+                    <span>This revision is in <a href="{% url 'bom:change-review' number=change_order.number %}">change order #{{ change_order.number }}</a>
+                        ({% if change_order.status == 'open' %}in review{% elif change_order.status == 'rejected' %}sent back{% else %}draft{% endif %}).</span>
                 </div>
             {% endif %}
             <div class="row">
@@ -346,10 +344,6 @@
                                 {% endif %}
                             </div>
                         {% endif %}
-                        {% for item in proposals.seller_items %}
-                            <p style="opacity: 0.6;"><span class="chip">Proposed</span> {{ item.summary }}
-                                <a href="{% url 'bom:change-review' number=item.change.number %}">Change #{{ item.change.number }}</a></p>
-                        {% endfor %}
                     {% endwith %}
                 </div>
             </div>

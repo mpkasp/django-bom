@@ -71,6 +71,7 @@ from bom.models import (
     APIToken,
     Assembly,
     AssemblySubparts,
+    Change,
     ChangeItem,
     ChangeSettings,
     Manufacturer,
@@ -87,10 +88,11 @@ from bom.models import (
     get_user_meta_model
 )
 from bom.permissions import BomPerms
+from bom.services import change_orders
 from bom.services.boms import bom_csv
-from bom.services.changes import (log_event, newer_draft_revision, part_history, proposals_for_revision, record_csv_import,
+from bom.services.changes import (log_event, newer_draft_revision, part_history, record_csv_import,
                                   record_direct_edit, release_approval_required, release_preview, release_revision,
-                                  request_release_approval, revise_revision)
+                                  revise_revision)
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
 from bom.services.flags import changes_review_enabled
@@ -932,8 +934,8 @@ def part_info(request, part_id, part_revision_id=None):
 
     where_used_part = part.where_used_recursive()
     seller_parts = part.seller_parts()
-    review_enabled = changes_review_enabled(organization)
-    proposals = proposals_for_revision(part_revision) if part_revision is not None and review_enabled else None
+    change_order = change_orders.change_order_for(part_revision) \
+        if part_revision is not None and changes_review_enabled(organization) else None
     history_entries = part_history(part)
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
@@ -2155,10 +2157,9 @@ def part_revision_release(request, part_id, part_revision_id):
         try:
             cascade_parent_ids = [int(value) for value in request.POST.getlist('cascade_parent_id')]
             note = request.POST.get('note', '').strip()
-            if request.POST.get('action') == 'request_approval':
-                change = request_release_approval(part_revision, request.user, note, cascade_parent_ids)
-                messages.success(request, f'Requested approval to release {_revision_label(part_revision)} in '
-                                          f'change #{change.number}.')
+            if request.POST.get('action') == 'add_to_change_order':
+                change = _add_to_change_order(request, organization, part_revision, note)
+                messages.success(request, f'Added {_revision_label(part_revision)} to change order #{change.number}.')
                 return HttpResponseRedirect(reverse('bom:change-review', kwargs={'number': change.number}))
             release_revision(part_revision, request.user, note, cascade_parent_ids,
                              override_approval='override' in request.POST)
@@ -2170,6 +2171,13 @@ def part_revision_release(request, part_id, part_revision_id):
             return HttpResponseRedirect(request.path_info)
         messages.success(request, f'Released {part_revision.part.full_part_number()} rev {part_revision.revision}.')
         return HttpResponseRedirect(revision_url)
+
+    review_enabled = changes_review_enabled(organization)
+    change_order = change_orders.change_order_for(part_revision) if review_enabled else None
+    if change_order is not None:
+        messages.info(request, f'{_revision_label(part_revision)} is in change order #{change_order.number}; '
+                               f'approve that to release it.')
+        return HttpResponseRedirect(reverse('bom:change-review', kwargs={'number': change_order.number}))
 
     if part_revision.configuration not in (constants.CONFIGURATION_TYPE_DRAFT, constants.CONFIGURATION_TYPE_IN_REVIEW):
         messages.error(request, f'{part_revision} is {part_revision.get_configuration_display()}; '
@@ -2191,8 +2199,40 @@ def part_revision_release(request, part_id, part_revision_id):
         'title': title, 'profile': profile, 'organization': organization, 'part': part,
         'part_revision': part_revision, 'preview': preview, 'items': diff_items, 'draft_subparts': draft_subparts,
         'revision_url': revision_url, 'approval_required': approval_required,
-        'can_request_approval': changes_review_enabled(organization),
+        'can_add_to_change_order': review_enabled,
+        'editable_change_orders': _editable_change_orders(organization) if review_enabled else [],
         'can_release': not approval_required, 'can_override': approval_required and profile.role == constants.ROLE_TYPE_ADMIN})
+
+
+def _editable_change_orders(organization):
+    """Change orders a revision can still be added to. One that lists edits and holds no revisions is a change from
+    before change orders."""
+    return Change.objects.filter(
+        Q(revisions__isnull=False) | Q(items__isnull=True), organization=organization,
+        status__in=Change.EDITABLE_STATUSES, is_direct_edit=False).distinct()
+
+
+def _add_to_change_order(request, organization, part_revision, note):
+    """Put the revision into the change order chosen on the release page, or into a new draft one."""
+    number = request.POST.get('change_order')
+    if not number:
+        return change_orders.create_change_order(
+            organization, request.user, f'Release {_revision_label(part_revision)}', note, [part_revision])
+    change = _editable_change_orders(organization).filter(number=number).first() if number.isdigit() else None
+    if change is None:
+        raise ServiceError(f'Change order #{number} is not open for adding revisions.')
+    change_orders.add_revision(change, request.user, part_revision)
+    return change
+
+
+def _refuse_under_review(request, part_revision):
+    """An error message when the revision is locked by a change order that is being reviewed."""
+    change_order = change_orders.change_order_for(part_revision)
+    if change_order is None or change_order.status != Change.STATUS_OPEN:
+        return False
+    messages.error(request, f'{_revision_label(part_revision)} is under review in change order '
+                            f'#{change_order.number}. Reject or withdraw that to change it.')
+    return True
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -2200,12 +2240,13 @@ def part_revision_release(request, part_id, part_revision_id):
 def part_revision_draft(request, part_id, part_revision_id):
     user = request.user
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id)
-    part_revision.configuration = constants.CONFIGURATION_TYPE_DRAFT
-    try:
-        part_revision.save(user=user)
-        messages.success(request, "Part revision reverted to Draft.")
-    except ValidationError as e:
-        messages.error(request, e.message)
+    if not _refuse_under_review(request, part_revision):
+        part_revision.configuration = constants.CONFIGURATION_TYPE_DRAFT
+        try:
+            part_revision.save(user=user)
+            messages.success(request, "Part revision reverted to Draft.")
+        except ValidationError as e:
+            messages.error(request, e.message)
     return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
@@ -2213,12 +2254,13 @@ def part_revision_draft(request, part_id, part_revision_id):
 @bom_permission_required(BomPerms.EDIT_PART)
 def part_revision_in_review(request, part_id, part_revision_id):
     part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id)
-    part_revision.configuration = constants.CONFIGURATION_TYPE_IN_REVIEW
-    try:
-        part_revision.save(user=request.user)
-        messages.success(request, f"{part_revision} is now In Review.")
-    except ValidationError as e:
-        messages.error(request, e.message)
+    if not _refuse_under_review(request, part_revision):
+        part_revision.configuration = constants.CONFIGURATION_TYPE_IN_REVIEW
+        try:
+            part_revision.save(user=request.user)
+            messages.success(request, f"{part_revision} is now In Review.")
+        except ValidationError as e:
+            messages.error(request, e.message)
     return HttpResponseRedirect(
         reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 

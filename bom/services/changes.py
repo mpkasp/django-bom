@@ -912,15 +912,21 @@ def release_revision(part_revision, user, note='', cascade_parent_ids=(), overri
     selected Released assemblies get a new Draft revision that does, and History records the release with the part's
     manufacturer parts. Everything happens or nothing does. When the organization requires approval only an Admin may
     release directly, by confirming ``override_approval``, which History records."""
+    from bom.services import change_orders
     organization = part_revision.part.organization
     _require_release_permission(user, part_revision)
+    change_order = change_orders.change_order_for(part_revision)
+    if change_order is not None:
+        raise ServiceError(f"{part_revision.part.full_part_number()} rev {part_revision.revision} is in change order "
+                           f"#{change_order.number}; approve that to release it.")
     overridden = False
     if release_approval_required(organization):
         if user.bom_profile().role != ROLE_TYPE_ADMIN:
-            raise ServiceError('This organization requires approval to release. Request approval instead.')
+            raise ServiceError('This organization requires approval to release. Add the revision to a change '
+                               'order instead.')
         if not override_approval:
             raise ServiceError('This organization requires approval to release. Confirm the Admin override to '
-                               'release directly, or request approval instead.')
+                               'release directly, or add the revision to a change order instead.')
         overridden = True
     cascade_parent_ids = list(dict.fromkeys(cascade_parent_ids))
     with transaction.atomic():

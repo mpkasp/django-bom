@@ -4,8 +4,8 @@
 
 {% block content %}
     <div class="container-app">
-        <h4>Change requests</h4>
-        <p class="text-grey">Change requests are proposed edits waiting for review. History lists the edits that were saved directly.</p>
+        <h4>Change orders</h4>
+        <p class="text-grey">A change order holds Draft revisions that are reviewed and released together. History lists the edits that were saved directly.</p>
         <ul class="tabs transparent">
             {% for key, label in filters %}
                 <li class="tab"><a target="_self" href="{% url 'bom:change-list' %}?filter={{ key }}" {% if key == active_filter %}class="active"{% endif %}>{{ label }}</a></li>
@@ -17,20 +17,19 @@
                 <tr>
                     <th>Change</th>
                     <th>Author</th>
-                    <th>Edits</th>
-                    <th>Affects</th>
+                    <th>Revisions</th>
                     <th>Status</th>
                 </tr>
                 </thead>
                 <tbody>
                 {% for row in rows %}
-                    {% with change=row.change is_eco=row.is_eco %}
+                    {% with change=row.change status_label=row.status_label %}
                         <tr>
                             <td>
                                 {% if change.number %}
                                     <a href="{% url 'bom:change-review' number=change.number %}">{{ change.title }}</a>
                                     <br><small class="text-grey">#{{ change.number }} &middot;
-                                        {% if change.resolved_at %}{{ change.get_status_display }} {{ change.resolved_at|date:'M j, Y' }}{% else %}{{ change.created_at|timesince }} ago{% endif %}</small>
+                                        {% if change.resolved_at %}{{ status_label }} {{ change.resolved_at|date:'M j, Y' }}{% else %}{{ change.created_at|timesince }} ago{% endif %}</small>
                                 {% else %}
                                     {{ change.title }}
                                     <br><small class="text-grey">{{ change.resolved_at|default:change.created_at|date:'M j, Y' }}</small>
@@ -43,13 +42,12 @@
                                     {{ change.author.username }}
                                 {% endif %}
                             </td>
-                            <td>{{ row.kind_counts|join:', ' }}</td>
-                            <td>{{ row.affects|join:', ' }}</td>
+                            <td>{% for revision in row.revisions %}{{ revision.part.full_part_number }} rev {{ revision.revision }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
                             <td>{% include 'bom/changes/change-status-chip.html' %}</td>
                         </tr>
                     {% endwith %}
                 {% empty %}
-                    <tr><td colspan="5" class="center-align text-grey">Nothing here.</td></tr>
+                    <tr><td colspan="4" class="center-align text-grey">Nothing here.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>

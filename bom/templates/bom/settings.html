@@ -243,7 +243,7 @@
                             </div>
                             {% if change_settings_form.require_release_approval %}
                                 <p><label>{{ change_settings_form.require_release_approval }}<span>{{ change_settings_form.require_release_approval.label }}</span></label></p>
-                                <p class="grey-text text-darken-1">When on and the organization has more than one member, Release becomes Request approval for everyone and someone other than the requester approves it. An Admin may still release directly by confirming an override, which History records.</p>
+                                <p class="grey-text text-darken-1">When on and the organization has more than one member, a revision is released through a change order that someone other than its author approves. An Admin may still release directly by confirming an override, which History records.</p>
                             {% endif %}
                             <div class="right-align">
                                 <button class="waves-effect waves-light btn btn-primary" type="submit" name="submit-protections">Save</button>
