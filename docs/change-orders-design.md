@@ -18,8 +18,8 @@ stage needs no change order at all, which is the single developer working with a
 
 1. **One write path.** The web forms and the agent tools call the same services, and the edit is saved. Nothing is
    staged.
-2. **An agent is its person, capped.** A connection is `read` or `edit`. With `edit` the agent can do what its
-   person's role allows, except approve or release. Those always take a person.
+2. **An agent is its person, capped by what that person granted.** The person picks the level when they connect
+   the agent (see Agent permissions). An agent never has more than its person's role allows.
 3. **Control sits on the revision lifecycle.** Draft revisions are open; Released (and In Review) revisions change
    only by revising them and releasing the new revision through a change order.
 4. **Everything is recorded.** Each saved edit lands in the part's history with who made it and through which agent,
@@ -67,7 +67,27 @@ taken from the history records, not from a separate log.
 
 **Single developer with an agent.** Parts start as Drafts, so the agent edits them directly. Once a part is
 Released, the agent revises, edits the Draft and submits a change order; the developer, as the only member,
-approves it.
+approves it, or grants the agent Edit and release and lets it approve.
+
+## Agent permissions
+
+The person connecting an agent chooses one level on the consent page, and can change it by reconnecting:
+
+| Level | Scopes | The agent can |
+|---|---|---|
+| Read | `read` | look things up |
+| Edit | `read write` | edit Drafts, revise, build and submit change orders |
+| Edit and release | `read write release` | also release Drafts and approve change orders, as its person |
+
+Two caps apply on top, and the consent page only offers what passes both:
+
+- **The person's role.** A Viewer can grant Read only. Release needs the role's release permission.
+- **The organization.** An Admin setting, "Agents may release", off by default for organizations with more than
+  one member and on for a single-member organization. It lets a team keep a person on every release.
+
+With release granted the agent is still its person for the approval rule: it cannot approve a change order that its
+person wrote or edited, unless they are the only member. Every release and approval records the agent as well as
+the person.
 
 ## Agent tools
 
@@ -82,10 +102,10 @@ Read tools are unchanged. Write tools save immediately and return the saved resu
 | `add_to_change_order`, `remove_from_change_order` | while it is a draft |
 | `submit_change_order`, `withdraw_change_order` | author only |
 | `get_change_order`, `list_change_orders` | status, revisions, diff, impact, rejection reason |
+| `release_revision`, `approve_change_order`, `reject_change_order` | need the `release` scope |
 
 Removed: `start_change`, `apply_change`, `submit_change`, `withdraw_change`, `remove_change_item`, the `change_id`
-and `ref` arguments on write tools, and the `apply` scope. Scopes become `read` and `write`; the consent page offers
-"read" or "read and edit".
+and `ref` arguments on write tools, and the `apply` scope, which `release` replaces.
 
 To keep an agent conversation's edits together in history, each tool call records its edit under one history entry
 per MCP session, so a person sees "Claude: 5 edits" and can revert them as a unit.
