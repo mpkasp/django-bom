@@ -1198,12 +1198,12 @@ class APIToken(models.Model):
     """
     SCOPE_READ = 'read'
     SCOPE_WRITE = 'write'
-    SCOPE_APPLY = 'apply'
-    SCOPES = ((SCOPE_READ, 'Read'), (SCOPE_WRITE, 'Write'), (SCOPE_APPLY, 'Apply'))
+    SCOPE_RELEASE = 'release'
+    SCOPES = ((SCOPE_READ, 'Read'), (SCOPE_WRITE, 'Write'), (SCOPE_RELEASE, 'Release'))
     LEVELS = (
         ('read', 'Read', (SCOPE_READ,)),
-        ('propose', 'Write: propose', (SCOPE_READ, SCOPE_WRITE)),
-        ('apply', 'Write: apply', (SCOPE_READ, SCOPE_WRITE, SCOPE_APPLY)),
+        ('edit', 'Edit', (SCOPE_READ, SCOPE_WRITE)),
+        ('release', 'Edit and release', (SCOPE_READ, SCOPE_WRITE, SCOPE_RELEASE)),
     )
     PLAINTEXT_PREFIX = 'ibom_'
     PREFIX_LEN = 8
@@ -1284,10 +1284,13 @@ class APIToken(models.Model):
     def has_scope(self, scope):
         return scope in self.scope_list()
 
+    def level(self):
+        """The broadest of ``LEVELS`` the scopes cover, as its key: release needs write, and both need read."""
+        granted = set(self.scope_list())
+        return next((key for key, _label, scopes in reversed(self.LEVELS) if set(scopes) <= granted), 'read')
+
     def level_display(self):
-        if self.has_scope(self.SCOPE_APPLY):
-            return self.LEVELS[2][1]
-        return self.LEVELS[1][1] if self.has_scope(self.SCOPE_WRITE) else self.LEVELS[0][1]
+        return next(label for key, label, _scopes in self.LEVELS if key == self.level())
 
     def is_connection(self):
         return bool(self.oauth_client_id)

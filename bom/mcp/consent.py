@@ -1,14 +1,14 @@
-from bom.constants import ROLE_TYPE_VIEWER
 from bom.mcp.auth import access_denial
 from bom.models import APIToken
-from bom.services.flags import changes_review_enabled, mcp_apply_enabled
+from bom.permissions import BomPerms
 
-READ, WRITE, APPLY = APIToken.SCOPE_READ, APIToken.SCOPE_WRITE, APIToken.SCOPE_APPLY
+READ, WRITE, RELEASE = APIToken.SCOPE_READ, APIToken.SCOPE_WRITE, APIToken.SCOPE_RELEASE
 
 ACCESS_LEVELS = (
-    ('Read only', 'Look up parts, BOMs and where parts are used.', (READ,)),
-    ('Propose changes for review', 'Also stage changes that a person reviews and applies.', (READ, WRITE)),
-    ('Propose and apply changes', 'Also apply changes directly, without review.', (READ, WRITE, APPLY)),
+    ('Read', 'Look up parts, BOMs and where parts are used.', (READ,)),
+    ('Edit', 'Also edit Draft revisions, revise Released parts, and build and submit change orders.',
+     (READ, WRITE)),
+    ('Edit and release', 'Also release revisions and approve change orders, as you.', (READ, WRITE, RELEASE)),
 )
 
 
@@ -16,7 +16,7 @@ def access_choices(user, requested_scopes):
     """The consent page's organization and the access levels this user may grant, with the default marked.
 
     The default is the broadest level within what the client asked for and what the user may grant, so it
-    never exceeds either. A client that asks for nothing known gets Read only.
+    never exceeds either. A client that asks for nothing known gets Read.
     """
     organization = user.bom_profile().organization
     if organization is None:
@@ -33,11 +33,9 @@ def access_choices(user, requested_scopes):
 
 
 def _may_grant(user, organization, scopes):
-    if WRITE in scopes and user.bom_profile().role == ROLE_TYPE_VIEWER:
+    """A level is offered when the person's own role allows everything in it."""
+    if WRITE in scopes and not user.has_perm(BomPerms.EDIT_PART, organization):
         return False
-    if APPLY in scopes and not mcp_apply_enabled(organization):
-        return False
-    # Without review, nothing could act on a proposal, so proposing is only offered alongside applying.
-    if WRITE in scopes and APPLY not in scopes and not changes_review_enabled(organization):
+    if RELEASE in scopes and not user.has_perm(BomPerms.RELEASE_REVISION, organization):
         return False
     return not (WRITE in scopes and access_denial(organization, user, list(scopes)))

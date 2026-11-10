@@ -907,7 +907,8 @@ def _require_release_permission(user, part_revision):
         raise ServiceError(f"{user.username} cannot release revisions in {part_revision.part.organization.name}.")
 
 
-def release_revision(part_revision, user, note='', cascade_parent_ids=(), override_approval=False):
+def release_revision(part_revision, user, note='', cascade_parent_ids=(), override_approval=False, api_token=None,
+                     agent_client=''):
     """Release a Draft or In Review revision. Draft assemblies that use the previous revision move to this one, the
     selected Released assemblies get a new Draft revision that does, and History records the release with the part's
     manufacturer parts. Everything happens or nothing does. When the organization requires approval only an Admin may
@@ -932,7 +933,7 @@ def release_revision(part_revision, user, note='', cascade_parent_ids=(), overri
             organization, user, revision.part, ChangeItem.KIND_RELEASE_REVISION, summary,
             part_revision=revision, rationale=note,
             payload={'note': note, 'cascade_parent_ids': cascade_parent_ids, 'approval_overridden': overridden},
-            result=details)
+            result=details, api_token=api_token, agent_client=agent_client)
         if overridden and entry is not None:
             entry.protection_overridden_by = user
             entry.save(update_fields=['protection_overridden_by'])
@@ -941,7 +942,8 @@ def release_revision(part_revision, user, note='', cascade_parent_ids=(), overri
                 organization, user, new_revision.part, ChangeItem.KIND_CREATE_PART_REVISION,
                 f"Create {new_revision.part.full_part_number()} rev {new_revision.revision} to use {label}",
                 part_revision=new_revision, payload={'revision': new_revision.revision, 'copy_assembly': True},
-                result={'part_revision_id': new_revision.id, 'source_revision_id': parent_id})
+                result={'part_revision_id': new_revision.id, 'source_revision_id': parent_id},
+                api_token=api_token, agent_client=agent_client)
     log_event('release', organization, user, revision.part)
     return revision
 
@@ -1046,7 +1048,7 @@ def latest_immutable_revision(part):
     return part_revision
 
 
-def revise_revision(part_revision, user):
+def revise_revision(part_revision, user, api_token=None, agent_client=''):
     """The next Draft revision made from an immutable one, recorded in History."""
     organization = part_revision.part.organization
     label = f"{part_revision.part.full_part_number()} rev {part_revision.revision}"
@@ -1059,7 +1061,8 @@ def revise_revision(part_revision, user):
             organization, user, part_revision.part, ChangeItem.KIND_CREATE_PART_REVISION,
             f"Revise {label} into rev {new_revision.revision}", part_revision=new_revision,
             payload={'revision': new_revision.revision, 'copy_assembly': True},
-            result={'part_revision_id': new_revision.id, 'source_revision_id': part_revision.id})
+            result={'part_revision_id': new_revision.id, 'source_revision_id': part_revision.id},
+            api_token=api_token, agent_client=agent_client)
     log_event('revise', organization, user, part_revision.part)
     return new_revision
 
