@@ -158,6 +158,10 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
                           (draft.part_id, '1', constants.CONFIGURATION_TYPE_DRAFT)])
         page = self.client.get(self.url(change))
         self.assertContains(page, '>Edit revision</a>', count=2)
+        edit_url = reverse('bom:part-edit-revision', kwargs={
+            'part_id': added[0].part_id, 'part_revision_id': added[0].id})
+        self.assertContains(page, f'href="{edit_url}">Edit revision</a>')
+        self.assertContains(self.client.get(edit_url), f'Back to change order #{change.number}</a>')
 
         response = self.client.post(self.url(change, 'change-part-add'), {'part_number': 'nope'}, follow=True)
         self.assertEqual(change.revisions.count(), 2)

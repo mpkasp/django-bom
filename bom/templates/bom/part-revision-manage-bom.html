@@ -14,7 +14,8 @@
 
 {% block content %}
     <div class="part-info container-app edit-page">
-        <p><a href="{% url 'bom:part-info-history' part_id=part.id part_revision_id=part_revision.id %}"><i class="material-icons tiny">arrow_back</i> Back to {{ part.full_part_number }}</a></p>
+        <p><a href="{% url 'bom:part-info-history' part_id=part.id part_revision_id=part_revision.id %}"><i class="material-icons tiny">arrow_back</i> Back to {{ part.full_part_number }}</a>
+            {% if change_order %}&nbsp;&middot;&nbsp; <a href="{% url 'bom:change-review' number=change_order.number %}">Back to change order #{{ change_order.number }}</a>{% endif %}</p>
         {% if immutable %}
             <div class="card-panel">
                 <p>Rev {{ part_revision.revision }} is {{ part_revision.get_configuration_display }}. Revise it to make
