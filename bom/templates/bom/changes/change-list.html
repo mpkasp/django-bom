@@ -4,7 +4,10 @@
 
 {% block content %}
     <div class="container-app">
-        <h4>Change orders</h4>
+        <div class="change-list-head">
+            <h4>Change orders</h4>
+            {% if perms.bom.edit_part %}<a class="btn btn-primary waves-effect" href="{% url 'bom:change-new' %}">New change order</a>{% endif %}
+        </div>
         <p class="text-grey">A change order holds Draft revisions that are reviewed and released together. History lists the edits that were saved directly.</p>
         <ul class="tabs transparent">
             {% for key, label in filters %}

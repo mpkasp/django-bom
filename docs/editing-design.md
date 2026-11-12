@@ -134,7 +134,7 @@ building a new multi-form page.
   that replaces Released rev N ("Rev N stays in use until you release"), a first Draft, or an older
   revision with a link to the latest. **Compare with rev N** links the diff against the previous
   revision; the header's "Compare with…" select is gone.
-- The overflow menu is grouped: this revision (Revert to Draft, Send to review, Mark obsolete,
+- The overflow menu is grouped: this revision (Revert to Draft, Start a change order, Mark obsolete,
   Delete), the part (Change number or class, Change photo), and Export BOM CSV. "New revision from
   this one" is removed: it duplicated Revise, copied the latest revision rather than the shown one,
   and could create a second Draft. The `part-revision-new` view remains for parts with no revision.

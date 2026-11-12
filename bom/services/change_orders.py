@@ -17,7 +17,8 @@ from bom.services.errors import ServiceError
 from bom.services.flags import change_orders_enabled
 
 
-def create_change_order(organization, user, title, rationale='', part_revisions=(), api_token=None, agent_client=''):
+def create_change_order(organization, user, title, rationale='', part_revisions=(), api_token=None, agent_client='',
+                        part_numbers=()):
     _require_editor(organization, user)
     if not change_orders_enabled(organization):
         raise ServiceError(f"Change orders are not enabled for {organization.name}.")
@@ -26,6 +27,8 @@ def create_change_order(organization, user, title, rationale='', part_revisions=
                                       agent_client=agent_client)
         for part_revision in part_revisions:
             add_revision(change, user, part_revision)
+        for part_number in part_numbers:
+            add_part(change, user, part_number)
     return change
 
 

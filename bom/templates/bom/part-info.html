@@ -88,10 +88,10 @@
                                     </li>
                                 {% endif %}
                             {% endwith %}
-                            {% if 'I' in part_revision.get_allowed_transitions %}
+                            {% if can_start_change_order %}
                                 <li>
-                                    <a onclick="changePartRevision('I', true)">
-                                        <i class="material-icons">group</i>Send to review</a>
+                                    <a href="{% url 'bom:change-new' %}?part={{ part.full_part_number|urlencode }}">
+                                        <i class="material-icons">fact_check</i>Start a change order&hellip;</a>
                                 </li>
                             {% endif %}
                             {% with allowed=part_revision.get_allowed_transitions config='O' %}
@@ -480,10 +480,7 @@
             {% if part_revision is not None %}
                 var url = "{% url 'bom:part-revision-draft' part_id=part.id part_revision_id=part_revision.id %}";
                 var confirmText = "Are you sure you want to revert this revision to Draft?\n\n";
-                if (c == 'I') {
-                    url = "{% url 'bom:part-revision-review' part_id=part.id part_revision_id=part_revision.id %}";
-                    confirmText = "Are you sure you want to change this revision to In Review?\n\n";
-                } else if (c == 'R') {
+                if (c == 'R') {
                     url = "{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}";
                     window.location.href = url;
                     return;

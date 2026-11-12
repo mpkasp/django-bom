@@ -88,6 +88,9 @@ Released part is revised and the new revision is released directly (web Release,
   unit cost and where the replaced revisions are used, the rejection reason, and the cascade panel once approved.
   Actions: Submit, Approve (or Approve as admin when the viewer may override), Reject with a reason, Withdraw, and
   Remove for a revision while it is a draft or was sent back.
+- A change order is started with New change order on the list, or Start a change order in a part's menu, which
+  fills in that part. In Review is set only by submitting a change order: there is no manual "send to review", and
+  the revision form does not set the state.
 - The revisions are listed under "Affected parts", the term PLM tools use. While a change order is a draft or was
   sent back, its page is where it is built: Add part to change order takes a part number
   and adds the part's working Draft, revising the part first when its latest revision is Released

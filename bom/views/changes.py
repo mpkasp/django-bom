@@ -60,6 +60,25 @@ def _status_label(change, holds_revisions):
 
 
 @changes_view
+def change_new(request, organization):
+    """Start a draft change order, optionally with a first part, and land on its page to build it."""
+    values = request.POST if request.method == 'POST' else {'part_number': request.GET.get('part', '')}
+    if request.method == 'POST':
+        part_number = values.get('part_number', '').strip()
+        try:
+            change = change_orders.create_change_order(
+                organization, request.user, values.get('title', ''), values.get('rationale', '').strip(),
+                part_numbers=[part_number] if part_number else [])
+        except ServiceError as error:
+            messages.error(request, str(error))
+        else:
+            return _review_redirect(change)
+    return TemplateResponse(request, 'bom/changes/change-new.html', {
+        'title': 'New change order', 'name': 'changes', 'profile': request.user.bom_profile(),
+        'organization': organization, 'values': values})
+
+
+@changes_view
 def change_list(request, organization):
     active_filter = request.GET.get('filter', 'open')
     queryset = Change.objects.filter(organization=organization).select_related('author', 'api_token')

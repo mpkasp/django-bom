@@ -936,6 +936,9 @@ def part_info(request, part_id, part_revision_id=None):
     seller_parts = part.seller_parts()
     change_order = change_orders.change_order_for(part_revision) \
         if part_revision is not None and change_orders_enabled(organization) else None
+    can_start_change_order = change_orders_enabled(organization) and part_revision is not None \
+        and change_order is None and part_revision.id == part.latest().id \
+        and part_revision.configuration in (constants.CONFIGURATION_TYPE_DRAFT, constants.CONFIGURATION_TYPE_RELEASED)
     history_entries = part_history(part)
     return TemplateResponse(request, 'bom/part-info.html', locals())
 
@@ -2216,21 +2219,6 @@ def part_revision_draft(request, part_id, part_revision_id):
         except ValidationError as e:
             messages.error(request, e.message)
     return HttpResponseRedirect(reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
-
-
-@login_required(login_url=BOM_LOGIN_URL)
-@bom_permission_required(BomPerms.EDIT_PART)
-def part_revision_in_review(request, part_id, part_revision_id):
-    part_revision = get_object_or_404(PartRevision, pk=part_revision_id, part_id=part_id)
-    if not _refuse_under_review(request, part_revision):
-        part_revision.configuration = constants.CONFIGURATION_TYPE_IN_REVIEW
-        try:
-            part_revision.save(user=request.user)
-            messages.success(request, f"{part_revision} is now In Review.")
-        except ValidationError as e:
-            messages.error(request, e.message)
-    return HttpResponseRedirect(
-        reverse('bom:part-info-history', kwargs={'part_id': part_id, 'part_revision_id': part_revision_id}))
 
 
 @login_required(login_url=BOM_LOGIN_URL)

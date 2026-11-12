@@ -537,7 +537,7 @@ class EditPageTest(EditingTestCase):
         draft_page = self.client.get(part_url)
         self.assertContains(draft_page, f'href="{self.edit_url}"')
         self.assertContains(draft_page, 'Release&hellip;')
-        self.assertContains(draft_page, 'Send to review')
+        self.assertNotContains(draft_page, 'Send to review')
         self.assertNotContains(draft_page, self.url('part-revision-revise', self.revision))
         self.assertNotContains(draft_page, 'Manage Revision')
         self.assertNotContains(draft_page, 'part-identity-edit')
