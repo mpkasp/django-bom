@@ -10,7 +10,7 @@
             <span class="chip change-new">Rev {{ card.part_revision.revision }} &middot; {{ card.part_revision.get_configuration_display }}</span>
             {% if not card.base_revision %}<span class="text-grey">First release</span>{% endif %}
             {% if can_remove %}
-                <a class="btn-flat btn-small change-part-edit" href="{% url 'bom:part-info-history' part_id=card.part_revision.part_id part_revision_id=card.part_revision.id %}">Edit revision</a>
+                <a class="btn-flat btn-small change-part-edit" href="{% url 'bom:part-edit-revision' part_id=card.part_revision.part_id part_revision_id=card.part_revision.id %}">Edit revision</a>
                 <form method="post" action="{% url 'bom:change-revision-remove' number=change.number part_revision_id=card.part_revision.id %}" onsubmit="return confirm('Remove this revision from the change order? It stays a Draft.');">{% csrf_token %}
                     <button class="btn-flat btn-small" type="submit">Remove</button>
                 </form>

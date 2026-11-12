@@ -94,7 +94,7 @@ Released part is revised and the new revision is released directly (web Release,
 - The revisions are listed under "Affected parts", the term PLM tools use. While a change order is a draft or was
   sent back, its page is where it is built: Add part to change order takes a part number
   and adds the part's working Draft, revising the part first when its latest revision is Released
-  (`change_orders.add_part`); each card has Edit revision, which opens the Draft in its normal screens, and Remove.
+  (`change_orders.add_part`); each card has Edit revision, which opens the Draft's edit page (with a link back), and Remove.
   The part page of a revision in a change order says so and links back.
 - The Release page of a Draft has Add to change order beside Release. The part page's History tab lists the saved
   edits, releases and approved change orders of that part.
