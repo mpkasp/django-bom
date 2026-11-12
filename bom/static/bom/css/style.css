@@ -1148,18 +1148,23 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     font-size: 1.15rem;
 }
 
-.change-new form {
+.change-form form {
     max-width: 640px;
+    padding: 20px 24px 24px;
 }
 
-.change-new label {
+.change-form label {
     display: block;
-    margin: 12px 0 4px;
+    margin: 16px 0 4px;
     color: inherit;
 }
 
-.change-new input[type=text],
-.change-new textarea {
+.change-form label:first-of-type {
+    margin-top: 0;
+}
+
+.change-form input[type=text],
+.change-form textarea {
     width: 100%;
     min-height: 2.5rem;
     padding: 8px 10px;
@@ -1170,12 +1175,19 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     font: inherit;
 }
 
-.change-new textarea {
+.change-form textarea {
     min-height: 5rem;
 }
 
-.change-new button {
-    margin-top: 12px;
+.change-form form p {
+    margin: 4px 0 0;
+}
+
+.change-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
 }
 
 .change-add-part p {

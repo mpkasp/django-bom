@@ -3,9 +3,8 @@
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block content %}
-    <div class="container-app change-page change-new">
+    <div class="container-app change-page change-form">
         <p><a href="{% url 'bom:change-list' %}"><i class="material-icons tiny">arrow_back</i> Change orders</a></p>
-        <h4>New change order</h4>
         <p class="text-grey">A change order collects the parts you are changing, so their new revisions are reviewed and released together. You add parts and edit them after it is created.</p>
         <form method="post" class="card-panel">{% csrf_token %}
             <label for="change-title">Title</label>
@@ -15,8 +14,10 @@
             <label for="change-part">First affected part <span class="text-grey">(optional part number)</span></label>
             <input id="change-part" class="browser-default" type="text" name="part_number" value="{{ values.part_number }}">
             <p class="text-grey">If the part's latest revision is Released, its next revision is started as a Draft for you to edit.</p>
-            <button class="btn btn-primary waves-effect" type="submit">Create change order</button>
-            <a class="btn-flat waves-effect" href="{% url 'bom:change-list' %}">Cancel</a>
+            <div class="change-form-actions">
+                <button class="btn btn-primary waves-effect" type="submit">Create change order</button>
+                <a class="btn-flat waves-effect" href="{% url 'bom:change-list' %}">Cancel</a>
+            </div>
         </form>
     </div>
 {% endblock %}
