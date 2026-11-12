@@ -295,15 +295,32 @@ class ChangeOrderGuardTest(ChangeOrderViewTestCase):
         draft = self.working_draft(self.released('One'))
         change = self.order(draft)
 
-        self.client.get(self.revision_url('part-revision-review', draft))
-        self.assertEqual(self.configuration(draft), constants.CONFIGURATION_TYPE_IN_REVIEW)
-        self.client.get(self.revision_url('part-revision-draft', draft))
-        self.assertEqual(self.configuration(draft), constants.CONFIGURATION_TYPE_DRAFT)
+        self.assertNotContains(self.client.get(self.revision_url('part-info-history', draft)), 'Send to review')
 
         change_orders.submit(change, self.user)
         response = self.client.get(self.revision_url('part-revision-draft', draft), follow=True)
         self.assertContains(response, f'under review in change order #{change.number}')
         self.assertEqual(self.configuration(draft), constants.CONFIGURATION_TYPE_IN_REVIEW)
+
+    def test_a_change_order_is_started_from_the_list_or_from_a_part(self):
+        released = self.released('Bracket')
+        self.assertContains(self.client.get(reverse('bom:change-list')), 'New change order')
+        part_page = self.client.get(self.revision_url('part-info-history', released))
+        self.assertContains(part_page, f"{reverse('bom:change-new')}?part={self.number(released)}")
+        form = self.client.get(reverse('bom:change-new'), {'part': self.number(released)})
+        self.assertContains(form, f'value="{self.number(released)}"')
+
+        response = self.client.post(reverse('bom:change-new'), {
+            'title': 'Longer bracket', 'rationale': 'It fouls the lid', 'part_number': self.number(released)})
+        change = Change.objects.get(title='Longer bracket')
+        self.assertRedirects(response, self.url(change))
+        draft = change.revisions.get().part_revision
+        self.assertEqual((draft.part_id, draft.revision, draft.configuration),
+                         (released.part_id, '2', constants.CONFIGURATION_TYPE_DRAFT))
+        self.assertNotContains(self.client.get(self.revision_url('part-info-history', draft)), 'Start a change order')
+
+        self.client.post(reverse('bom:change-new'), {'title': 'Bad part', 'part_number': 'nope'})
+        self.assertFalse(Change.objects.filter(title='Bad part').exists())
 
     def test_the_edit_form_cannot_move_a_revision_under_review(self):
         draft = self.working_draft(self.released('One'))

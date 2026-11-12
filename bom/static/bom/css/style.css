@@ -1148,6 +1148,36 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     font-size: 1.15rem;
 }
 
+.change-new form {
+    max-width: 640px;
+}
+
+.change-new label {
+    display: block;
+    margin: 12px 0 4px;
+    color: inherit;
+}
+
+.change-new input[type=text],
+.change-new textarea {
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 8px 10px;
+    border: 1px solid rgba(128, 128, 128, 0.4);
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.change-new textarea {
+    min-height: 5rem;
+}
+
+.change-new button {
+    margin-top: 12px;
+}
+
 .change-add-part p {
     margin: 0;
 }

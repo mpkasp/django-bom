@@ -856,14 +856,13 @@ class PartImageForm(forms.ModelForm):
 class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm):
     class Meta:
         model = PartRevision
-        exclude = ['timestamp', 'assembly', 'part']
+        exclude = ['timestamp', 'assembly', 'part', 'configuration']
         help_texts = {'description': _('Additional part info, special instructions, etc.')}
 
     def __init__(self, *args, **kwargs):
         self.part_class = kwargs.pop('part_class', None)
         super().__init__(*args, **kwargs)
         self.fields['revision'].initial = 1
-        self.fields['configuration'].required = False
         if not self.part_class and self.instance.pk:
             self.part_class = self.instance.part.number_class
 
