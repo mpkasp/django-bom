@@ -277,6 +277,13 @@ def require_revisable(part_revision):
     label = f"{part_revision.part.full_part_number()} rev {part_revision.revision}"
     if not part_revision.is_immutable():
         raise ServiceError(f"{label} is a Draft; edit it directly.")
+    if part_revision.configuration == CONFIGURATION_TYPE_IN_REVIEW:
+        from bom.services import change_orders
+        change_order = change_orders.change_order_for(part_revision)
+        raise ServiceError(
+            f"{label} is under review in change order #{change_order.number}. It can be changed once that is "
+            f"approved, rejected or withdrawn." if change_order is not None else
+            f"{label} is In Review and has not been released. Revert it to Draft to change it.")
     newer_draft = newer_draft_revision(part_revision)
     if newer_draft is not None:
         raise ServiceError(f"{part_revision.part.full_part_number()} already has a newer Draft, "

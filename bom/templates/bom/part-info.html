@@ -62,6 +62,7 @@
                             {% if perms.bom.edit_part %}
                                 {% if part_revision.is_immutable and latest_revision.id != part_revision.id and latest_revision.configuration == 'D' %}
                                     <a class="waves-effect waves-light btn green lighten-1" href="{% url 'bom:part-info' part_id=part.id %}">Open rev {{ latest_revision.revision }}</a>
+                                {% elif part_revision.configuration == 'I' %}
                                 {% elif part_revision.is_immutable %}
                                     <form method="post" action="{% url 'bom:part-revision-revise' part_id=part.id part_revision_id=part_revision.id %}">
                                         {% csrf_token %}
@@ -71,7 +72,7 @@
                                     <a class="waves-effect waves-light btn green lighten-1" href="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}"><i class="material-icons left">edit</i>Edit</a>
                                 {% endif %}
                                 {% if part_revision.configuration == 'D' or part_revision.configuration == 'I' %}
-                                    {% if perms.bom.release_revision %}
+                                    {% if perms.bom.release_revision and not change_order %}
                                         <a class="waves-effect waves-light btn green lighten-1" href="{% url 'bom:part-revision-release' part_id=part.id part_revision_id=part_revision.id %}">Release&hellip;</a>
                                     {% endif %}
                                 {% endif %}
@@ -135,7 +136,7 @@
                 </div>
             </div>
 
-            {% if part_revision %}
+            {% if part_revision and not change_order %}
                 {% include 'bom/components/revision-status.html' %}
             {% endif %}
 

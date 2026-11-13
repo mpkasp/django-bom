@@ -5,7 +5,7 @@
             <a href="{% url 'bom:part-info' part_id=part.id %}">rev {{ latest_revision.revision }} ({{ latest_revision.get_configuration_display }})</a>.</span>
     {% elif part_revision.is_immutable %}
         <i class="material-icons">lock_outline</i>
-        <span>Rev {{ part_revision.revision }} is {{ part_revision.get_configuration_display }} and read-only.{% if perms.bom.edit_part %} Revise it to start rev {{ part_revision.next_revision }} as a Draft.{% endif %}</span>
+        <span>Rev {{ part_revision.revision }} is {{ part_revision.get_configuration_display }} and read-only.{% if perms.bom.edit_part %}{% if part_revision.configuration == 'I' %} Revert it to Draft to change it.{% else %} Revise it to start rev {{ part_revision.next_revision }} as a Draft.{% endif %}{% endif %}</span>
     {% elif part_revision.configuration == 'O' %}
         <i class="material-icons">block</i>
         <span>Rev {{ part_revision.revision }} is Obsolete.</span>
