@@ -392,7 +392,7 @@ wheels = [
 
 [[package]]
 name = "django-bom"
-version = "1.356"
+version = "1.357"
 source = { editable = "." }
 dependencies = [
     { name = "asgiref" },

@@ -354,6 +354,13 @@ class ChangeOrderGuardTest(ChangeOrderViewTestCase):
         self.assertNotContains(self.client.get(self.revision_url('part-info-history', other)), 'Open change order')
 
         change_orders.submit(change, self.user)
-        self.assertContains(self.client.get(self.revision_url('part-info-history', draft)), 'under review and locked')
+        page = self.client.get(self.revision_url('part-info-history', draft))
+        self.assertContains(page, 'under review and locked')
+        for offered in ('>Revise</button>', 'Release&hellip;', 'Revise it to start'):
+            self.assertNotContains(page, offered)
+        self.client.post(self.revision_url('part-revision-revise', draft))
+        self.assertEqual(draft.part.revisions().count(), 2)
+        with self.assertRaisesMessage(ServiceError, f'under review in change order #{change.number}'):
+            changes.revise_revision(PartRevision.objects.get(pk=draft.pk), self.user)
         change_orders.withdraw(change, self.user)
         self.assertNotContains(self.client.get(self.revision_url('part-info-history', draft)), banner)
