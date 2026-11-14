@@ -174,11 +174,16 @@ def writer_ids(change):
     return {change.author_id, *editors.values_list('author_id', flat=True)}
 
 
+_REVISION_RELATED = tuple(
+    f'{field}__{related}' for field in ('part_revision', 'base_revision')
+    for related in ('assembly', 'part__organization', 'part__number_class'))
+
+
 def revision_reports(change, quantity=changes.DEFAULT_QUANTITY):
     """For each revision in the change order: what differs from the revision it replaces, the unit cost of both, and
     the assemblies that use the replaced one."""
     reports = []
-    for link in change.revisions.select_related('part_revision__part', 'base_revision'):
+    for link in change.revisions.select_related(*_REVISION_RELATED):
         part_revision, base = link.part_revision, link.base_revision
         parents = _outside_parents(change, base).select_related('part') if base else PartRevision.objects.none()
         reports.append({
