@@ -243,9 +243,12 @@ class TestBOM(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        newest_p1_revision = create_a_fake_part_revision(part=p1, assembly=None, revision='2')
 
         response = self.client.post(reverse('bom:home'))
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['part_revs']), 4)
+        self.assertIn(newest_p1_revision, response.context['part_revs'])
 
         # Make sure only one part shows up
         decoded_content = response.content.decode('utf-8')
