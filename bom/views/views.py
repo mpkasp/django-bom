@@ -736,7 +736,7 @@ def manufacturer_manage(request, manufacturer_id=None):
         title = "Create New Manufacturer"
         default_next = reverse('bom:manufacturers')
 
-    next_url = request.GET.get('next', default_next)
+    next_url = _next_url_or(request, default_next)
 
     if request.method == 'POST':
         form = ManufacturerForm(request.POST, instance=manufacturer, organization=organization)
@@ -829,7 +829,7 @@ def seller_manage(request, seller_id=None):
         title = "Create New Vendor"
         default_next = reverse('bom:sellers')
 
-    next_url = request.GET.get('next', default_next)
+    next_url = _next_url_or(request, default_next)
 
     if request.method == 'POST':
         form = SellerForm(request.POST, instance=seller, organization=organization)
@@ -1526,6 +1526,7 @@ def part_edit(request, part_id):
     title = 'Edit Part {}'.format(part.full_part_number())
 
     action = reverse('bom:part-edit', kwargs={'part_id': part_id})
+    next_url = reverse('bom:part-info', kwargs={'part_id': part_id})
 
     PartForm = part_form_from_organization(organization)
 
@@ -1536,7 +1537,7 @@ def part_edit(request, part_id):
             if form.changed_data:
                 record_direct_edit(organization, user, part, ChangeItem.KIND_UPDATE_PART,
                                    f"Edit part {part.full_part_number()}", payload={'fields': form.changed_data})
-            return HttpResponseRedirect(reverse('bom:part-info', kwargs={'part_id': part_id}))
+            return HttpResponseRedirect(next_url)
     else:
         form = PartForm(instance=part, organization=organization)
 
@@ -1736,6 +1737,7 @@ def property_definition_edit(request, property_definition_id=None):
     else:
         property_definition = None
         title = 'Add Property Definition'
+    next_url = reverse('bom:settings', kwargs={'tab_anchor': 'indabom'})
 
     if request.method == 'POST':
         form = PartRevisionPropertyDefinitionForm(request.POST, instance=property_definition, organization=organization)
@@ -1743,7 +1745,7 @@ def property_definition_edit(request, property_definition_id=None):
             property_definition = form.save(commit=False)
             property_definition.organization = organization
             property_definition.save()
-            return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'indabom'}))
+            return HttpResponseRedirect(next_url)
     else:
         form = PartRevisionPropertyDefinitionForm(instance=property_definition, organization=organization)
 
@@ -1913,6 +1915,7 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
         return refusal
     title = f'Edit subpart {subpart.part_revision.part.full_part_number()}'
     before = _subpart_values(subpart)
+    next_url = _edit_page_url(part_id, part_revision_id)
 
     if request.method == 'POST':
         form = SubpartForm(request.POST, instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
@@ -1927,7 +1930,7 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
                          'reference': form.cleaned_data['reference'],
                          'do_not_load': form.cleaned_data['do_not_load']},
                 result={'part_revision_id': parent_revision.id, 'subpart_id': subpart.id})
-            return HttpResponseRedirect(_edit_page_url(part_id, part_revision_id))
+            return HttpResponseRedirect(next_url)
         else:
             return TemplateResponse(request, 'bom/bom-form.html', locals())
 
@@ -1973,13 +1976,13 @@ def seller_part_add(request, manufacturer_part_id):
     organization = request.user.bom_profile().organization
 
     instance = SellerPart(manufacturer_part=mp)
+    next_url = reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing'
 
     if request.method == 'POST':
         form = SellerPartForm(request.POST, instance=instance, organization=organization)
         if form.is_valid():
             form.save()
-            return HttpResponseRedirect(
-                reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing')
+            return HttpResponseRedirect(next_url)
     else:
         form = SellerPartForm(instance=instance, organization=organization)
 
@@ -2011,6 +2014,7 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
     refusal = _refuse_locked_manufacturer_parts(request, part)
     if refusal:
         return refusal
+    next_url = _next_url_or(request, reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing')
 
     if request.method == 'POST':
         form = ManufacturerPartForm(request.POST, instance=instance, organization=organization)
@@ -2027,8 +2031,7 @@ def manufacturer_part_manage(request, part_id=None, manufacturer_part_id=None):
                 before=before, payload=_manufacturer_part_values(obj),
                 result={'part_id': part.id, 'manufacturer_part_id': obj.id})
             messages.success(request, "Manufacturer part saved.")
-            return HttpResponseRedirect(_next_url_or(
-                request, reverse('bom:part-info', kwargs={'part_id': part.id}) + '?tab_anchor=sourcing'))
+            return HttpResponseRedirect(next_url)
         else:
             messages.error(request, "Error saving manufacturer part.")
     else:
@@ -2101,14 +2104,14 @@ def seller_part_manage(request, manufacturer_part_id=None, seller_part_id=None):
         instance = SellerPart(manufacturer_part=mp)
         title = f"Add Vendor for {mp.manufacturer_part_number}"
     before = _seller_part_values(instance) if instance.pk else None
+    next_url = reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing'
 
     if request.method == 'POST':
         form = SellerPartForm(request.POST, instance=instance, organization=organization)
         if form.is_valid():
             _save_seller_part(request, organization, form, mp, before)
             messages.success(request, "Vendor sourcing updated.")
-            return HttpResponseRedirect(
-                reverse('bom:part-info', kwargs={'part_id': mp.part.id}) + '?tab_anchor=sourcing')
+            return HttpResponseRedirect(next_url)
     else:
         form = SellerPartForm(instance=instance, organization=organization)
 

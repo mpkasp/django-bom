@@ -95,31 +95,30 @@
                         <th>Manufacturer</th>
                         <th>Part number</th>
                         <th></th>
-                        <th></th>
                     </tr>
                     </thead>
                     <tbody>
                     {% for manufacturer_part in manufacturer_parts %}
                         <tr>
                             <td>{{ manufacturer_part.manufacturer.name }}</td>
-                            <td>{{ manufacturer_part.manufacturer_part_number }}</td>
-                            <td>
-                                {% if manufacturer_part.id == part.primary_manufacturer_part_id %}
-                                    <span class="chip">Primary</span>
-                                {% elif perms.bom.manage_sourcing %}
-                                    <form method="post" action="{% url 'bom:manufacturer-part-make-primary' manufacturer_part_id=manufacturer_part.id %}">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="next" value="{{ request.path }}">
-                                        <button type="submit" class="btn-flat btn-small green-text text-lighten-1">Make primary</button>
-                                    </form>
-                                {% endif %}
-                            </td>
+                            <td>{{ manufacturer_part.manufacturer_part_number }}{% if manufacturer_part.id == part.primary_manufacturer_part_id %} <span class="chip">Primary</span>{% endif %}</td>
                             <td class="right-align">
                                 {% if perms.bom.manage_sourcing %}
-                                    <a class="btn-flat btn-small green-text text-lighten-1" href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}">Edit</a>
-                                    <a class="btn-flat btn-small text-error"
-                                       href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}"
-                                       onclick="return confirm('Are you sure you want to delete {{ manufacturer_part.manufacturer_part_number|escapejs }}?\n\nIts vendor parts will also be permanently deleted.')">Delete</a>
+                                    <a class="icon-button dropdown-trigger" href="#" data-target="manufacturer-part-menu-{{ manufacturer_part.id }}" aria-label="More actions"><i class="material-icons">more_horiz</i></a>
+                                    <ul id="manufacturer-part-menu-{{ manufacturer_part.id }}" class="dropdown-content">
+                                        {% if manufacturer_part.id != part.primary_manufacturer_part_id %}
+                                            <li><a href="#" onclick="document.getElementById('make-primary-{{ manufacturer_part.id }}').submit(); return false;"><i class="material-icons">star</i>Make primary</a></li>
+                                        {% endif %}
+                                        <li><a href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}"><i class="material-icons">edit</i>Edit</a></li>
+                                        <li><a class="text-error" href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}"
+                                               onclick="return confirm('Are you sure you want to delete {{ manufacturer_part.manufacturer_part_number|escapejs }}?\n\nIts vendor parts will also be permanently deleted.')"><i class="material-icons">delete</i>Delete</a></li>
+                                    </ul>
+                                    {% if manufacturer_part.id != part.primary_manufacturer_part_id %}
+                                        <form id="make-primary-{{ manufacturer_part.id }}" method="post" action="{% url 'bom:manufacturer-part-make-primary' manufacturer_part_id=manufacturer_part.id %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.path }}">
+                                        </form>
+                                    {% endif %}
                                 {% endif %}
                             </td>
                         </tr>

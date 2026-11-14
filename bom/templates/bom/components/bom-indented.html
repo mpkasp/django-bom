@@ -59,25 +59,15 @@
         </tr>
         </thead>
         {% for bom_id, subpart in bom_items.items %}
-            {% if subpart.references|length > 25 %}
-                <div id="modal-{{ subpart.part.id }}-references" class="modal">
+            {% if subpart.references|length > 25 or subpart.part_revision.synopsis|length > 75 %}
+                <div id="modal-{{ subpart.part.id }}-details" class="modal">
                     <div class="modal-content">
-                        <h2>{{ subpart.part.full_part_number }} References</h2>
-                        <p>{{ subpart.references }}</p>
+                        <h5>{{ subpart.part.full_part_number }}</h5>
+                        <p class="text-grey">{{ subpart.part_revision.synopsis }}</p>
+                        {% if subpart.references %}<p>References: {{ subpart.references }}</p>{% endif %}
                     </div>
                     <div class="modal-footer">
-                        <a href="#!" class="modal-close waves-effect btn-flat">Ok</a>
-                    </div>
-                </div>
-            {% endif %}
-            {% if subpart.part_revision.synopsis|length > 75 %}
-                <div id="modal-{{ subpart.part.id }}-synposis" class="modal">
-                    <div class="modal-content">
-                        <h2>{{ subpart.part.full_part_number }} Synposis</h2>
-                        <p>{{ subpart.part_revision.synopsis }}</p>
-                    </div>
-                    <div class="modal-footer">
-                        <a href="#!" class="modal-close waves-effect btn-flat">Ok</a>
+                        <a href="#!" class="modal-close waves-effect btn-flat">Close</a>
                     </div>
                 </div>
             {% endif %}
@@ -87,11 +77,11 @@
                 <td class="text-normal"><a href="{% url 'bom:part-info' part_id=subpart.part.id %}">{{ subpart.part.full_part_number }}</a></td>
                 <td class="text-normal">{{ subpart.quantity | floatformat }}</td>
                 <td class="text-normal">{{ subpart.references | default:"-" | truncatechars:25 }}{% if subpart.references|length > 25 %}
-                    <a class="modal-trigger modal-{{ subpart.part.id }}-references" href="#modal-{{ subpart.part.id }}-references">&nbsp;[+]</a>
+                    <a class="modal-trigger" href="#modal-{{ subpart.part.id }}-details">&nbsp;[+]</a>
                 {% endif %}</td>
                 <td class="text-normal">{{ subpart.do_not_load | default:"-" }}</td>
                 <td class="text-normal">{{ subpart.part_revision.synopsis | truncatechars:75 }}{% if subpart.part_revision.synopsis|length > 75 %}
-                    <a class="modal-trigger modal-{{ subpart.part.id }}-synposis" href="#modal-{{ subpart.part.id }}-synposis">&nbsp;[+]</a>
+                    <a class="modal-trigger" href="#modal-{{ subpart.part.id }}-details">&nbsp;[+]</a>
                 {% endif %}
                 <td class="text-normal">{{ subpart.part_revision.revision }}</td>
                 <td class="text-normal">{{ subpart.part.primary_manufacturer_part.manufacturer.name }}

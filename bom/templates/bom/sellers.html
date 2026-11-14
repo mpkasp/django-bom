@@ -32,16 +32,8 @@
                             </td>
                         </tr>
                     {% empty %}
-                        <tr>
-                            <td colspan="99" style="text-align: center; padding: 5%;">
-                                <i>No vendors found.
-                                    {% if perms.bom.manage_sourcing %}
-                                        <a href="{% url 'bom:seller-create' %}">Create your first vendor
-                                            here</a>.
-                                    {% endif %}
-                                </i>
-                            </td>
-                        </tr>
+                        {% if perms.bom.manage_sourcing %}{% url 'bom:seller-create' as action_url %}{% endif %}
+                        {% include 'bom/components/empty-row.html' with message='No vendors found.' action_url=action_url action_label='Create your first vendor' only %}
                     {% endfor %}
                     </tbody>
                 </table>

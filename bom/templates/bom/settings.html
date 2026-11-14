@@ -306,13 +306,7 @@
                                             </td>
                                         </tr>
                                     {% empty %}
-                                        <tr>
-                                            <td class="text-normal" colspan="5" style="font-style: italic;">There are no
-                                                additional users in
-                                                this
-                                                organization.
-                                            </td>
-                                        </tr>
+                                        {% include 'bom/components/empty-row.html' with message='There are no additional users in this organization.' only %}
                                     {% endfor %}
                                     </tbody>
                                 </table>
@@ -520,28 +514,18 @@
                                         <td class="text-normal">{% if prop.required %}Yes{% else %}No{% endif %}</td>
                                         <td class="text-normal">{{ prop.quantity_of_measure.name|default:"-" }}</td>
                                         <td class="text-normal">
-                                            {% if prop.organization == organization %}
-                                                {% if perms.bom.manage_schema %}
-                                                    <a class="table-action"
-                                                       href="{% url 'bom:property-definition-edit' property_definition_id=prop.id %}"><i
-                                                            class="material-icons left">edit</i>Edit</a>
-                                                    <a class="table-action text-error"
-                                                       href="{% url 'bom:property-definition-delete' property_definition_id=prop.id %}"
-                                                       onclick="return confirm('Are you sure you want to delete this property definition?')"><i
-                                                            class="material-icons left">delete</i></a>
-                                                {% else %}
-                                                    <span class="table-action tooltipped text-grey d-flex-inline align-center"
-                                                          data-position="top"
-                                                          data-tooltip="Only users with schema management permissions can modify.">
-                                                    <i class="material-icons left" style="font-size: 1.2rem;">lock</i> Edit
-                                                </span>
-                                                {% endif %}
+                                            {% if prop.organization == organization and perms.bom.manage_schema %}
+                                                <a class="table-action"
+                                                   href="{% url 'bom:property-definition-edit' property_definition_id=prop.id %}"><i
+                                                        class="material-icons left">edit</i>Edit</a>
+                                                <a class="table-action text-error"
+                                                   href="{% url 'bom:property-definition-delete' property_definition_id=prop.id %}"
+                                                   onclick="return confirm('Are you sure you want to delete this property definition?')"><i
+                                                        class="material-icons left">delete</i></a>
                                             {% else %}
-                                                <span class="table-action tooltipped text-grey d-flex-inline align-center"
-                                                      data-position="top"
-                                                      data-tooltip="System Default: Cannot be modified">
-                                                    <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
-                                                </span>
+                                                <span class="table-action tooltipped text-grey d-flex-inline align-center" data-position="top"
+                                                      data-tooltip="{% if prop.organization == organization %}Only users with schema management permissions can modify.{% else %}System Default: Cannot be modified{% endif %}">
+                                                    <i class="material-icons left" style="font-size: 1.2rem;">lock</i> {% if prop.organization == organization %}Edit{% else %}System{% endif %}</span>
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -596,27 +580,18 @@
                                             {% endif %}
                                         </td>
                                         <td class="text-normal">
-                                            {% if qom.organization == organization %}
-                                                {% if perms.bom.manage_schema %}
-                                                    <a class="table-action"
-                                                       href="{% url 'bom:quantity-of-measure-edit' quantity_of_measure_id=qom.id %}"><i
-                                                            class="material-icons left">edit</i>Edit</a>
-                                                    <a class="table-action text-error"
-                                                       href="{% url 'bom:quantity-of-measure-delete' quantity_of_measure_id=qom.id %}"
-                                                       onclick="return confirm('Are you sure you want to delete this quantity of measure and all its units?')"><i
-                                                            class="material-icons left">delete</i></a>
-                                                {% else %}
-                                                    <span class="table-action tooltipped text-grey d-flex-inline align-center"
-                                                          data-position="top"
-                                                          data-tooltip="Only users with schema management permissions can modify.">
-                                                    <i class="material-icons left" style="font-size: 1.2rem;">lock</i> Edit</span>
-                                                {% endif %}
+                                            {% if qom.organization == organization and perms.bom.manage_schema %}
+                                                <a class="table-action"
+                                                   href="{% url 'bom:quantity-of-measure-edit' quantity_of_measure_id=qom.id %}"><i
+                                                        class="material-icons left">edit</i>Edit</a>
+                                                <a class="table-action text-error"
+                                                   href="{% url 'bom:quantity-of-measure-delete' quantity_of_measure_id=qom.id %}"
+                                                   onclick="return confirm('Are you sure you want to delete this quantity of measure and all its units?')"><i
+                                                        class="material-icons left">delete</i></a>
                                             {% else %}
-                                                <span class="table-action tooltipped text-grey d-flex-inline align-center"
-                                                      data-position="top"
-                                                      data-tooltip="System Default: Cannot be modified">
-                                                <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
-                                            </span>
+                                                <span class="table-action tooltipped text-grey d-flex-inline align-center" data-position="top"
+                                                      data-tooltip="{% if qom.organization == organization %}Only users with schema management permissions can modify.{% else %}System Default: Cannot be modified{% endif %}">
+                                                    <i class="material-icons left" style="font-size: 1.2rem;">lock</i> {% if qom.organization == organization %}Edit{% else %}System{% endif %}</span>
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -784,6 +759,7 @@
             {% endif %}
 
             showSection(initialSection);
+            $('.modal').modal();
 
             // Handle back/forward buttons
             window.onpopstate = function () {
@@ -793,33 +769,9 @@
     </script>
 
     <script type='text/javascript'>
-        function user_checkbox_clear_all() {
-            $("input[type='checkbox']:checked").prop("checked", false)
-        }
-    </script>
-
-    <script type='text/javascript'>
         $(document).ready(function () {
-            const selectAllId = '#part-class-select-all';
-            $(selectAllId).change(function () {
-                var table = $(selectAllId).closest('table');
-                if ($(selectAllId).is(":checked")) {
-                    $("input[type='checkbox']:not(:checked)", table).prop("checked", true)
-                } else {
-                    $("input[type='checkbox']:checked", table).prop("checked", false)
-                }
-            });
-        });
-
-        $(document).ready(function () {
-            const selectAllId = '#user-select-all';
-            $(selectAllId).change(function () {
-                var table = $(selectAllId).closest('table');
-                if ($(selectAllId).is(":checked")) {
-                    $("input[type='checkbox']:not(:checked)", table).prop("checked", true)
-                } else {
-                    $("input[type='checkbox']:checked", table).prop("checked", false)
-                }
+            $('#part-class-select-all, #user-select-all').change(function () {
+                $("input[type='checkbox']", $(this).closest('table')).prop("checked", this.checked);
             });
         });
     </script>

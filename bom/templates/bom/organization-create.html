@@ -24,7 +24,7 @@
                     </div>
                 </div>
                 <div class="col s12 m6" style="display: flex;">
-                    <a class="card green lighten-2 waves-effect waves-block waves-light modal-trigger" style="width: 100%;" onclick="selectJoinOrganization()">
+                    <a class="card green lighten-2 waves-effect waves-block waves-light" style="width: 100%;" onclick="selectJoinOrganization()">
                         <div class="card-image">
                             <i class="material-icons" style="margin-top: 20px; color: white; text-align: center; font-size: 7rem; display: block;">group_add</i>
                         </div>
@@ -46,12 +46,12 @@
                 <a href="mailto:?subject=Add me to your IndaBOM Organization&body=Hi,%0D%0A%0D%0APlease add me to your IndaBOM organization. To do so, log in, go to Settings > Organization and add me via my username {{ user.username }}">here</a>
                 to send an e-mail to your organization owner with instructions.</h5>
             <br><br>
-            <p class="center">Oops! I meant to <a class="modal-trigger" onclick="resetView()">create a new organization</a>.</p>
+            <p class="center">Oops! I meant to <a onclick="resetView()">create a new organization</a>.</p>
         </div>
 
         <div id="create-organization" style="display: none;">
             <h3 class="center">Create a new Organization</h3>
-            <p class="center">Oops! I meant to <a class="modal-trigger" onclick="resetView()">join an existing organization</a>.</p>
+            <p class="center">Oops! I meant to <a onclick="resetView()">join an existing organization</a>.</p>
             <form name="seller" action="{% url 'bom:organization-create' %}" method="post" class="col s12">
                 <div class="row">
                     {% csrf_token %}
@@ -95,11 +95,6 @@
         </div>
     </div>
 
-    <script>
-        $(document).ready(function () {
-            $('.modal').modal();
-        });
-    </script>
     <script type='text/javascript'>
         function selectNewOrganization() {
             $('#create-or-join').hide();

@@ -257,6 +257,18 @@ table.treetable tr.expanded span.indenter a {
     color: var(--color-text-grey, #616161);
 }
 
+td.empty-state {
+    padding: 32px 12px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    margin: 20px 0;
+}
+
 .text-nowrap {
     white-space: nowrap;
 }
@@ -269,7 +281,7 @@ table.treetable tr.expanded span.indenter a {
     color: var(--color-primary-contrast, #2e7d32);
 }
 
-.text-error {
+.text-error, .dropdown-content li > a.text-error {
     color: var(--color-error, #f44336);
 }
 
@@ -654,10 +666,6 @@ a.anchor {
 
 .edit-page .edit-page-add {
     margin-top: 8px;
-}
-
-.edit-page #manufacturer-parts form {
-    display: inline;
 }
 
 .edit-page .edit-page-cost {
@@ -1219,12 +1227,6 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     margin: 4px 0 0;
 }
 
-.change-form-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 20px;
-}
 
 .change-add-part p {
     margin: 0;

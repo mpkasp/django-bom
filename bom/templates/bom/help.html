@@ -500,13 +500,13 @@
     </div>
 
     <div class="fixed-action-btn" id="toTop">
-        <a class="btn-floating btn-large green">
+        <a class="btn-floating btn-large btn-primary">
             <i class="large material-icons">arrow_upward</i>
         </a>
     </div>
 {% endblock %}
 
-{% block script %}
+{% block bom-script %}
     <script>
         $("#toTop").click(function () {
             $("html, body").animate({scrollTop: 0}, 500);
@@ -515,4 +515,4 @@
             $('.fixed-action-btn').floatingActionButton();
         });
     </script>
-{% endblock %}
+{% endblock bom-script %}

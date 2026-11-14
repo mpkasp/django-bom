@@ -1,5 +1,4 @@
 {% load materializecss %}
-{% load static %}
 
 <a class="waves-effect waves-light btn btn-primary modal-trigger modal-{{ name }}"
    href="#modal-{{ name }}">{{ modal_title }}</a>
@@ -7,9 +6,9 @@
 <div id="modal-{{ name }}" class="modal left-align">
     <form name="seller" action="{{ action }}" method="post" class="col s12" enctype="multipart/form-data">
         <div class="modal-content">
+            <h5>{{ modal_title }}</h5>
+            {% if modal_description %}<p class="text-grey">{{ modal_description }}</p>{% endif %}
             <div class="row">
-                {% if modal_title %}<h2 class="light" style="margin-top: 0;">{{ modal_title }}</h2>{% endif %}
-                {% if modal_description %}<p>{{ modal_description }}</p>{% endif %}
                 {% if form %}
                     {% csrf_token %}
                     {{ form|materializecss:'m6 s12' }}
@@ -17,20 +16,10 @@
             </div>
         </div>
         <div class="modal-footer">
-            <button type="button" class="modal-close waves-effect waves-green btn-flat">Cancel</button>
+            <button type="button" class="modal-close waves-effect btn-flat">Cancel</button>
             {% if form %}
-                <button class="waves-effect waves-light btn btn-primary" type="submit" name="{{ name }}">Submit</button>
-            {% else %}
-                <button type="button" class="modal-close waves-effect btn-flat">Ok</button>
+                <button class="waves-effect waves-light btn btn-primary" type="submit" name="{{ name }}">Save</button>
             {% endif %}
         </div>
     </form>
 </div>
-
-{% block script %}
-    <script>
-        $(document).ready(function () {
-            $('.modal').modal();
-        });
-    </script>
-{% endblock %}

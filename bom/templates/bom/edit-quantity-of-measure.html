@@ -74,16 +74,8 @@
                         </div>
                     </div>
 
-                    <div class="row" style="margin-top: 50px;">
-                        <div class="col s12 right-align">
-                            <a href="{% url 'bom:settings' tab_anchor='indabom' %}"
-                               class="btn btn-flat waves-effect"
-                               style="margin-right: 10px;">Cancel</a>
-                            <button class="waves-effect waves-light btn btn-primary" type="submit" name="action">
-                                Save
-                            </button>
-                        </div>
-                    </div>
+                    {% url 'bom:settings' tab_anchor='indabom' as cancel_url %}
+                    {% include 'bom/components/form-actions.html' with cancel_url=cancel_url only %}
                 </form>
             </div>
         {% else %}

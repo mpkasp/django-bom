@@ -147,6 +147,7 @@ Labels are sentence case ("Add manufacturer part"), an ellipsis means a dialog f
   under the label explains what the item does when the label alone is not enough.
 - Group with `<li class="divider" tabindex="-1">`; label a group with
   `<li class="part-actions-heading" tabindex="-1">`. Destructive items use `.text-error`.
+- An item that POSTs (Make primary on the Edit page) submits a hidden form placed after the menu.
 - Navigation holds places (Parts, Manufacturers, Vendors, Requests, Settings, Help), never actions.
   Actions live on the page they act on.
 
@@ -161,8 +162,8 @@ Labels are sentence case ("Add manufacturer part"), an ellipsis means a dialog f
 - Filter row and pager: `components/list-filter.html` (search with clear and optional tips link;
   the part class field on the parts list) and `components/pagination.html`, which keeps `q` and
   `part_class` in its links.
-- Every table has an empty state: a single `<td colspan="99">` row in `.empty-state` wording
-  ("No parts found. …") that says what to do next.
+- Every table has an empty state: `components/empty-row.html` with a `message` ("No parts
+  found. …") and, where there is one, the `action_url` and `action_label` that fix it.
 - The count ("1–50 of 120 parts") goes under the table in `.part-count`.
 
 ### Toolbars and view switches
@@ -207,9 +208,13 @@ materials · 12"). Content for each tab goes in its own `.card-panel.tab-card`.
 - Render Django forms with the `materializecss` filter and column classes
   (`{{ form.email|materializecss:'s12 l6' }}`). Labels are the field's `label`; help text is
   `.text-grey` under the field.
-- Action row: right-aligned, `btn-flat` Cancel then `btn btn-primary` Save, 4px apart.
-- Dialogs are Materialize `.modal` with a `h5` title, a `.text-grey` sentence, the form, and the
-  action row in `.modal-footer`. Destructive confirmations may use `confirm()`.
+- Action row: `components/form-actions.html` with `cancel_url` (and `submit_label` when Save is
+  not the word): right-aligned `btn-flat` Cancel, a link to where the user came from, then
+  `btn btn-primary` Save. The nav bar has no Cancel.
+- Dialogs are Materialize `.modal` with a `h5` title, a `.text-grey` sentence, the form, and
+  `.modal-footer` with `btn-flat` Cancel then `btn btn-primary` Save; a dialog that only shows text
+  has a single `btn-flat` Close. The page initializes its modals once (`$('.modal').modal()`), not
+  the include. Destructive confirmations use `confirm()`.
 - Inline "add a row" affordances (`.add-vendor-link`) are flat links styled like a table row.
 
 ### Print
@@ -248,6 +253,6 @@ Fix these as the pages they live on are touched; none needs its own project.
   variants for secondary text (use `.text-grey`).
 - **Chip tints** are literal light surfaces with dark ink rather than tokens, because the host's
   `*-surface` tokens are not paired with an ink colour.
-- **Inline styles.** `settings.html` (26), `part-info.html` (22), `organization-create.html` (15),
-  `edit-quantity-of-measure.html` (12), `edit-part-class.html` (10), `base.html` (10, the brand
-  logo repeated four times).
+- **Inline styles.** `settings.html` (23), `part-info.html` (21), `organization-create.html` (15),
+  `base.html` (10, the brand logo repeated four times), `edit-quantity-of-measure.html` (9),
+  `edit-part-class.html` (7).
