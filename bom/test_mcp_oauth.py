@@ -18,6 +18,7 @@ from oauth2_provider.models import AccessToken, Application, RefreshToken
 from bom import constants
 from bom.mcp.asgi import build_application
 from bom.mcp.auth import ConnectionTokenVerifier
+from bom.mcp.consent import access_choices
 from bom.mcp.server import mcp
 from bom.models import APIToken
 from bom.permissions import BomPerms
@@ -366,6 +367,17 @@ class ConnectionLevelTest(OAuthMCPTestCase):
         reconnected = self.make_toolkit_token(self.application, scope='read write release')
         self.assertEqual(self.level(reconnected), 'release')
         self.assertEqual(self.level(), 'release')
+
+    def test_an_organization_without_change_orders_is_not_promised_them(self):
+        choices = access_choices(self.user, ['read', 'write', 'release'])
+        self.assertTrue(choices['change_orders_enabled'])
+        self.assertIn('change orders', choices['choices'][1]['description'])
+
+        with override_settings(BOM_CONFIG={**settings.BOM_CONFIG, 'change_orders_enabled': False}):
+            choices = access_choices(self.user, ['read', 'write', 'release'])
+        self.assertFalse(choices['change_orders_enabled'])
+        self.assertEqual([choice['label'] for choice in choices['choices']], ['Read', 'Edit', 'Edit and release'])
+        self.assertFalse(any('change order' in choice['description'] for choice in choices['choices']))
 
     def test_only_the_levels_the_role_allows_are_offered_and_accepted(self):
         viewer, connection = self.member_connection(constants.ROLE_TYPE_VIEWER)

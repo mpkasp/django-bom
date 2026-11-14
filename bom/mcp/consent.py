@@ -1,14 +1,18 @@
 from bom.mcp.auth import access_denial
 from bom.models import APIToken
 from bom.permissions import BomPerms
+from bom.services.flags import change_orders_enabled
 
 READ, WRITE, RELEASE = APIToken.SCOPE_READ, APIToken.SCOPE_WRITE, APIToken.SCOPE_RELEASE
 
+# Each level's description with change orders, then without: an organization that has none is not promised them.
 ACCESS_LEVELS = (
-    ('Read', 'Look up parts, BOMs and where parts are used.', (READ,)),
+    ('Read', 'Look up parts, BOMs and where parts are used.', 'Look up parts, BOMs and where parts are used.',
+     (READ,)),
     ('Edit', 'Also edit Draft revisions, revise Released parts, and build and submit change orders.',
-     (READ, WRITE)),
-    ('Edit and release', 'Also release revisions and approve change orders, as you.', (READ, WRITE, RELEASE)),
+     'Also edit Draft revisions and revise Released parts.', (READ, WRITE)),
+    ('Edit and release', 'Also release revisions and approve change orders, as you.',
+     'Also release revisions, as you.', (READ, WRITE, RELEASE)),
 )
 
 
@@ -21,15 +25,17 @@ def access_choices(user, requested_scopes):
     organization = user.bom_profile().organization
     if organization is None:
         return {'organization': None, 'choices': []}
+    has_change_orders = change_orders_enabled(organization)
     choices = [
-        {'label': label, 'description': description, 'scope': ' '.join(scopes), 'checked': False}
-        for label, description, scopes in ACCESS_LEVELS
+        {'label': label, 'description': with_change_orders if has_change_orders else without,
+         'scope': ' '.join(scopes), 'checked': False}
+        for label, with_change_orders, without, scopes in ACCESS_LEVELS
         if _may_grant(user, organization, scopes)
     ]
     requested = set(requested_scopes)
     within_request = [choice for choice in choices if set(choice['scope'].split()) <= requested] or choices[:1]
     within_request[-1]['checked'] = True
-    return {'organization': organization, 'choices': choices}
+    return {'organization': organization, 'choices': choices, 'change_orders_enabled': has_change_orders}
 
 
 def grantable_levels(user, organization):
