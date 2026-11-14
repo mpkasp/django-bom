@@ -45,14 +45,14 @@ names in its `indabom-colors.css`.
 | Token | Default | Used for |
 |---|---|---|
 | `--color-background` | `#fff` | Page and card background |
-| `--color-background-surface` | `#eee` | Borders, dividers, segmented-control track, status strip border |
+| `--color-background-surface` | `#e0e0e0` | Borders, dividers, segmented-control track, status strip border |
 | `--color-background-surface-hover` | `#f1f3f4` | Hover tint for rows, menu items, settings nav |
 | `--color-text` | `#212121` | Body text, menu items |
 | `--color-text-grey` | `#616161` | Secondary text, eyebrows, menu icons, disabled tabs |
 | `--color-primary` | `#66bb6a` | Filled buttons, active tab, sorted column, selected nav |
-| `--color-primary-surface` | `#c8e6c9` | Tinted backgrounds that mean "selected" or "released" |
+| `--color-primary-surface` | `#dcefdf` | Tinted backgrounds that mean "selected" or "released" |
 | `--color-primary-contrast` | `#2e7d32` | Primary text on a light background where `--color-primary` is too light |
-| `--color-error` / `--color-error-surface` | `#e53935` / `#ffebee` | Destructive actions, rejected, errors |
+| `--color-error` / `--color-error-surface` | `#f44336` / `#ffebee` | Destructive actions, rejected, errors |
 | `--color-warning` / `--color-warning-surface` | `#f9a825` / `#fff3cd` | Draft, open requests, near-match warnings |
 | `--color-info` / `--color-info-surface` | `#283593` / `#e3e8fb` | In review, proposal strip |
 | `--color-table-stripe` | `#f5f5f5` | `table.striped` rows |
@@ -243,9 +243,11 @@ screen-only with `.printer-hide` rather than adding a page print rule.
 
 Fix these as the pages they live on are touched; none needs its own project.
 
-- **Hardcoded colors.** `part-info.css` and the newer parts of `style.css` use hex values for grey
-  text, borders, chip tints and menu text. IndaBOM had to add a block of `.supports-dark-mode`
-  overrides for them. Replace each with a token and the IndaBOM block can go.
+- **Hardcoded colors.** The literals left in `style.css` and `part-info.css` have no token with the
+  same default: greys `#9e9e9e`, `#757575`, `#424242` and `#bdbdbd` (eyebrow, menu and status icons,
+  part synopsis, disabled tab), the `#43a047` accent (tab indicator, outline button, sorted column),
+  the light-green and lime alerts, and Materialize's `#26a69a` on the empty thumbnail hover. IndaBOM
+  still overrides the menu icon, synopsis, status icon and menu heading for them.
 - **Materialize color classes in templates.** About a dozen `btn green lighten-1` (should be
   `btn btn-primary`), `btn red lighten-1` (needs a `btn-danger`), `modal-close green lighten-1
   btn-flat` (a flat button with a filled background; use `btn-flat`), `teal-text text-darken-1` on
