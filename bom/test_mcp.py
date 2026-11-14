@@ -125,6 +125,13 @@ class MCPServerTest(MCPTestCase):
         self.read_token.refresh_from_db()
         self.assertIsNotNone(self.read_token.last_used_at)
 
+    def test_refuses_the_get_stream_so_clients_do_not_hold_a_connection_open(self):
+        response = self.http.get('/mcp', headers={'Accept': 'text/event-stream',
+                                                  'Authorization': f'Bearer {self.read_plaintext}'})
+        self.assertEqual(response.status_code, 405)
+        self.assertNotIn('GET', response.headers['allow'])
+        self.assertEqual(self.mcp(self.read_plaintext).rpc('tools/list').status_code, 200)
+
     @override_settings(ALLOWED_HOSTS=['mcp.example.com'])
     def test_allows_configured_hosts_with_or_without_a_port(self):
         with TestClient(build_application()) as http:

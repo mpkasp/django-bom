@@ -27,7 +27,8 @@ def build_mcp_app(path='/mcp'):
 def mcp_routes(path='/mcp'):
     """The MCP endpoint, plus the RFC 9728 protected resource metadata route when OAuth is configured."""
     app = build_mcp_app(path)
-    routes = [Route(path, endpoint=app, methods=['GET', 'POST', 'DELETE'])]
+    # No GET: a stateless server never pushes messages, so a client's SSE stream would idle until the proxy times it out.
+    routes = [Route(path, endpoint=app, methods=['POST', 'DELETE'])]
     if mcp.settings.auth:
         metadata_path = urlparse(str(build_resource_metadata_url(mcp.settings.auth.resource_server_url))).path
         routes.append(Route(metadata_path, endpoint=app, methods=['GET', 'OPTIONS']))
