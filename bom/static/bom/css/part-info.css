@@ -23,8 +23,8 @@
     flex-shrink: 0;
     border-radius: 8px;
     overflow: hidden;
-    background: #fff;
-    border: 1px solid #e0e0e0;
+    background: var(--color-background, #fff);
+    border: 1px solid var(--color-background-surface, #e0e0e0);
 }
 
 .part-thumb img {
@@ -84,7 +84,7 @@ a.part-thumb-empty:hover {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    color: #616161;
+    color: var(--color-text-grey, #616161);
     font-size: 0.9rem;
 }
 
@@ -143,8 +143,8 @@ a.part-thumb-empty:hover {
     gap: 8px 12px;
     margin: 0 0 12px;
     padding: 10px 16px;
-    background: #fff;
-    border: 1px solid #e0e0e0;
+    background: var(--color-background, #fff);
+    border: 1px solid var(--color-background-surface, #e0e0e0);
     border-radius: 8px;
 }
 
@@ -241,7 +241,7 @@ a.part-thumb-empty:hover {
 
 .overview-note {
     font-size: 0.9rem;
-    color: #616161;
+    color: var(--color-text-grey, #616161);
     margin-top: 2px;
 }
 
@@ -251,7 +251,7 @@ a.part-thumb-empty:hover {
 
 .overview-card .quote-qty-form label {
     font-size: 0.9rem;
-    color: #616161;
+    color: var(--color-text-grey, #616161);
 }
 
 .overview-live.card-panel {
@@ -280,7 +280,7 @@ a.part-thumb-empty:hover {
 }
 
 .overview-details dt {
-    color: #616161;
+    color: var(--color-text-grey, #616161);
 }
 
 .overview-details dd {

@@ -143,7 +143,7 @@ td, tr {
 }
 
 .tabs .tab a {
-    color: #616161;
+    color: var(--color-text-grey, #616161);
     font-weight: 500;
     text-transform: none;
     font-size: 15px;
@@ -151,7 +151,7 @@ td, tr {
 
 .tabs .tab a:hover, .tabs .tab a.active {
     background-color: transparent;
-    color: #2e7d32;
+    color: var(--color-primary-contrast, #2e7d32);
 }
 
 .tabs .tab.disabled a, .tabs .tab.disabled a:hover {
@@ -178,7 +178,7 @@ td, tr {
 
 .alert-error {
     color: white;
-    background-color: #f44336; /* red */
+    background-color: var(--color-error, #f44336); /* red */
     border: solid #e57373 1px; /* red lighten-2 */
 }
 
@@ -220,7 +220,7 @@ table.treetable tr.expanded span.indenter a {
 }
 
 .primary-color {
-    color: #66bb6a;
+    color: var(--color-primary, #66bb6a);
 }
 
 /* One shape and case for every button, matching .btn-outline and the pill pickers. */
