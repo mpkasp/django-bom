@@ -60,11 +60,6 @@ h5 {
     font-weight: 400;
 }
 
-.tabs {
-    /* Materialize has a bug that shows the scrollbar sometimes, this prevents it */
-    /*overflow-x: hidden;*/
-}
-
 td, tr {
     padding-right: 1px;
     padding-left: 1px;
@@ -74,10 +69,6 @@ td, tr {
 .tight td, .tight th {
     padding: 6px 12px;
     font-size: 13px;
-}
-
-.tighter {
-    padding: 1px 1px;
 }
 
 .text-small {
@@ -94,10 +85,6 @@ td, tr {
 
 .text-center {
     text-align: center;
-}
-
-.info {
-    color: red;
 }
 
 .single-line {
@@ -139,11 +126,6 @@ td, tr {
 
 .hidden {
     display: none;
-}
-
-.cell-collapsed {
-    /* background: grey; */
-    background-color: #f2f2f2;
 }
 
 .page-footer {
@@ -241,12 +223,11 @@ table.treetable tr.expanded span.indenter a {
     color: #66bb6a;
 }
 
-.dark-color {
-    color: #338a3e;
-}
-
-.light-color {
-    color: #98ee99;
+/* One shape and case for every button, matching .btn-outline and the pill pickers. */
+.btn, .btn-large, .btn-small, .btn-flat {
+    border-radius: 18px;
+    text-transform: none;
+    letter-spacing: 0;
 }
 
 .btn-icon-round {
@@ -262,12 +243,22 @@ table.treetable tr.expanded span.indenter a {
     background-color: #f5f5f5;
 }
 
-.btn-primary {
+.btn-primary, .btn-primary:hover, .btn-primary:focus {
     background-color: var(--color-primary, #66bb6a);
 }
 
-.btn-danger {
+.btn-danger, .btn-danger:hover, .btn-danger:focus {
     background-color: var(--color-error, #f44336);
+}
+
+.empty-state {
+    margin: 24px 0;
+    text-align: center;
+    color: var(--color-text-grey, #616161);
+}
+
+.text-nowrap {
+    white-space: nowrap;
 }
 
 .text-grey {
@@ -282,20 +273,11 @@ table.treetable tr.expanded span.indenter a {
     color: var(--color-error, #f44336);
 }
 
-.btn-warning {
-    background-color: #F44336;
-}
-
 a.anchor {
     display: block;
     position: relative;
     top: -64px;
     visibility: hidden;
-}
-
-/* Specific Styling */
-.part-info-form input {
-    text-align: right;
 }
 
 .materialize-checkbox-padding div {
@@ -390,8 +372,12 @@ a.anchor {
         page-break-inside: avoid;
     }
 
-    .pagination {
+    .pagination, .fixed-action-btn, #searchForm, .part-list-actions, .checkbox-column {
         display: none;
+    }
+
+    .responsive-table-wrapper {
+        overflow-x: visible;
     }
 }
 

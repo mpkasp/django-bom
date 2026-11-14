@@ -6,7 +6,7 @@
             <td>{{ item.position }}</td>
             <td>
                 <span class="chip">{{ item.get_kind_display }}</span> {{ item.summary }}
-                {% if item.before %}<br><small class="grey-text">Currently: {% for key, value in item.before.items %}{{ key }} = {{ value|default:"none" }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>{% endif %}
+                {% if item.before %}<br><small class="text-grey">Currently: {% for key, value in item.before.items %}{{ key }} = {{ value|default:"none" }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>{% endif %}
                 <br><small>{% for key, value in item.payload.items %}{% if value %}{{ key }}: {{ value }}{% if not forloop.last %}; {% endif %}{% endif %}{% endfor %}</small>
                 {% if item.result %}<br><small class="teal-text">Result: {{ item.result }}</small>{% endif %}
             </td>

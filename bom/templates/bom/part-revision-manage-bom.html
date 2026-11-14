@@ -23,7 +23,7 @@
                 {% if perms.bom.edit_part %}
                     <form method="post" action="{% url 'bom:part-revision-revise' part_id=part.id part_revision_id=part_revision.id %}">
                         {% csrf_token %}
-                        <button type="submit" class="waves-effect waves-light btn green lighten-1"><i class="material-icons left">edit</i>Revise</button>
+                        <button type="submit" class="waves-effect waves-light btn btn-primary"><i class="material-icons left">edit</i>Revise</button>
                     </form>
                 {% endif %}
             </div>
@@ -59,14 +59,14 @@
             </form>
 
             <h6>Import from CSV</h6>
-            <p class="grey-text text-darken-1">Columns: <b>part_number</b> or <b>manufacturer_part_number</b>, and
+            <p class="text-grey">Columns: <b>part_number</b> or <b>manufacturer_part_number</b>, and
                 <b>quantity</b>. Optional: <b>reference</b> (or designator), <b>do_not_load</b>, <b>dnp</b>. Parts must
                 already exist. You'll see a preview before anything is saved.</p>
             <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="row">
                     <div class="col m6 s12 file-field input-field">
-                        <div class="btn green lighten-1">
+                        <div class="btn btn-primary">
                             <span>File</span>
                             {{ upload_subparts_csv_form.file }}
                         </div>
@@ -117,7 +117,7 @@
                             <td class="right-align">
                                 {% if perms.bom.manage_sourcing %}
                                     <a class="btn-flat btn-small green-text text-lighten-1" href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}">Edit</a>
-                                    <a class="btn-flat btn-small red-text text-lighten-1"
+                                    <a class="btn-flat btn-small text-error"
                                        href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}?next={{ request.path|urlencode }}"
                                        onclick="return confirm('Are you sure you want to delete {{ manufacturer_part.manufacturer_part_number|escapejs }}?\n\nIts vendor parts will also be permanently deleted.')">Delete</a>
                                 {% endif %}
@@ -127,7 +127,7 @@
                     </tbody>
                 </table>
             {% else %}
-                <p class="grey-text text-darken-1">This part has no manufacturer parts yet.</p>
+                <p class="text-grey">This part has no manufacturer parts yet.</p>
             {% endif %}
             {% if perms.bom.manage_sourcing %}
                 <a class="waves-effect waves-light btn btn-primary edit-page-add"

@@ -33,7 +33,7 @@
                                             <input class="with-gap" name="scope" type="radio" value="{{ choice.scope }}"
                                                    {% if choice.checked %}checked{% endif %}>
                                             <span><b>{{ choice.label }}</b>
-                                                <span class="consent-choice-help grey-text">{{ choice.description }}</span></span>
+                                                <span class="consent-choice-help text-grey">{{ choice.description }}</span></span>
                                         </label>
                                     </p>
                                 {% endfor %}
@@ -41,7 +41,7 @@
                                 {{ form.scope.as_hidden }}
                                 <p>Join or create an organization before connecting an app.</p>
                             {% endif %}
-                            {% if form.errors %}<p class="red-text">{{ form.errors }}</p>{% endif %}
+                            {% if form.errors %}<p class="text-error">{{ form.errors }}</p>{% endif %}
                         </div>
                         <div class="card-action right-align">
                             <button type="submit" class="btn-flat waves-effect">Cancel</button>
@@ -51,7 +51,7 @@
                             {% endif %}
                         </div>
                     </form>
-                    <p class="consent-note center-align grey-text">You can disconnect this app any time in
+                    <p class="consent-note center-align text-grey">You can disconnect this app any time in
                         <a href="{% url 'bom:settings' 'api' %}">Settings → Connected apps</a>.</p>
                 {% endif %}
             </div>

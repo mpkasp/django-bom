@@ -45,12 +45,12 @@
                           onsubmit="return confirm('Revoke {{ api_token.name|escapejs }}? It will stop working right away.');">
                         {% csrf_token %}
                         <input type="hidden" name="token_id" value="{{ api_token.id }}">
-                        <button class="btn-flat red-text text-darken-1" type="submit" name="submit-revoke-token">Revoke</button>
+                        <button class="btn-flat text-error" type="submit" name="submit-revoke-token">Revoke</button>
                     </form>
                 </td>
             </tr>
         {% empty %}
-            <tr><td colspan="7" class="center-align grey-text">{{ empty_message }}</td></tr>
+            <tr><td colspan="7" class="center-align text-grey">{{ empty_message }}</td></tr>
         {% endfor %}
         </tbody>
     </table>

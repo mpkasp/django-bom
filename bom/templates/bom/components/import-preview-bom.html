@@ -1,5 +1,5 @@
 {% if ignores_vendor_price_columns %}
-    <p class="grey-text">Vendor price columns are ignored in a BOM import; use a vendor prices import.</p>
+    <p class="text-grey">Vendor price columns are ignored in a BOM import; use a vendor prices import.</p>
 {% endif %}
 
 {% for assembly in assembly_changes %}
@@ -9,7 +9,7 @@
             Rev {{ assembly.revision }} &middot; {{ assembly.synopsis }}
         </h6>
         {% if assembly.is_new %}
-            <p class="grey-text">New assembly.</p>
+            <p class="text-grey">New assembly.</p>
         {% elif assembly.used_in_count > 1 %}
             <p class="orange-text text-darken-3">Used in {{ assembly.used_in_count }} assemblies. These changes apply to all of them.</p>
         {% endif %}
@@ -20,7 +20,7 @@
                     {% include 'bom/changes/components/change-items.html' with items=group.items %}
                 </details>
             {% else %}
-                <p class="{% if group.change == 'removed' %}red-text{% else %}orange-text text-darken-3{% endif %}" style="margin-bottom: 0;">
+                <p class="{% if group.change == 'removed' %}text-error{% else %}orange-text text-darken-3{% endif %}" style="margin-bottom: 0;">
                     {{ group.items|length }} line{{ group.items|length|pluralize }} {{ group.change }}
                 </p>
                 {% include 'bom/changes/components/change-items.html' with items=group.items %}

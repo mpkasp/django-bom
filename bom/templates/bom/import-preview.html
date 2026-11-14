@@ -34,7 +34,7 @@
                     {% for error in errors %}<li>{{ error }}</li>{% endfor %}
                 </ul>
             </div>
-            <a href="{{ return_url }}" class="green lighten-1 btn">Choose another file</a>
+            <a href="{{ return_url }}" class="btn btn-primary">Choose another file</a>
         {% else %}
             <div class="import-counts">
                 {% for count in change_counts %}
@@ -64,15 +64,15 @@
                 {% include 'bom/changes/components/change-items.html' with items=row_items %}
             {% endif %}
             {% if changes.unchanged %}
-                <p class="grey-text">{{ changes.unchanged }} row{{ changes.unchanged|pluralize:" matches,s match" }} what's already in IndaBOM.</p>
+                <p class="text-grey">{{ changes.unchanged }} row{{ changes.unchanged|pluralize:" matches,s match" }} what's already in IndaBOM.</p>
             {% endif %}
 
             <form class="import-confirm-bar" action="{% url 'bom:import-confirm' %}" method="post">
                 {% csrf_token %}
                 <span class="note">Nothing is saved until you import.</span>
                 <input type="hidden" name="token" value="{{ token }}">
-                <input class="btn-flat grey-text" type="submit" name="cancel" value="Cancel"/>
-                <input class="green lighten-1 btn" type="submit" name="confirm"
+                <input class="btn-flat text-grey" type="submit" name="cancel" value="Cancel"/>
+                <input class="btn btn-primary" type="submit" name="confirm"
                        value="Import{% if change_count %} {{ change_count }} change{{ change_count|pluralize }}{% endif %}"/>
             </form>
         {% endif %}

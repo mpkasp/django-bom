@@ -21,23 +21,23 @@
                         {% if profile.role == 'A' %}
                             <li><a href="#" onclick="startPartSelection(); return false;">
                                 <i class="material-icons">checklist</i>Select parts
-                                <small class="grey-text">Delete several parts at once</small></a>
+                                <small class="text-grey">Delete several parts at once</small></a>
                             </li>
                             <li class="divider" tabindex="-1"></li>
                         {% endif %}
                         {% if perms.bom.create_part %}
                             <li><a href="{% url 'bom:import' %}">
                                 <i class="material-icons">upload_file</i>Import CSV&hellip;
-                                <small class="grey-text">Add or update parts, vendor prices or a BOM</small></a>
+                                <small class="text-grey">Add or update parts, vendor prices or a BOM</small></a>
                             </li>
                         {% endif %}
                         <li><a href="{% url 'bom:home' %}?download=1{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}">
                             <i class="material-icons">download</i>{% if part_class or query %}Export parts shown{% else %}Export all parts{% endif %} ({{ part_revs.paginator.count }})
-                            <small class="grey-text">{% if part_class or query %}Matches the current search and part class{% else %}Every part in your organization{% endif %}</small></a>
+                            <small class="text-grey">{% if part_class or query %}Matches the current search and part class{% else %}Every part in your organization{% endif %}</small></a>
                         </li>
                         <li><a href="{% url 'bom:export-vendor-prices' %}">
                             <i class="material-icons">download</i>Export all vendor prices
-                            <small class="grey-text">Every price break for every part</small></a>
+                            <small class="text-grey">Every price break for every part</small></a>
                         </li>
                     </ul>
                 </div>
@@ -45,7 +45,7 @@
             {% if profile.role == 'A' %}
                 <div class="part-list-actions" id="selection-actions" hidden>
                     <span id="selected-count"></span>
-                    <button form="actionForm" class="waves-effect waves-light btn red lighten-1" type="submit" name="part-action" value="Delete"
+                    <button form="actionForm" class="waves-effect waves-light btn btn-danger" type="submit" name="part-action" value="Delete"
                             onclick="return confirmDeleteSelectedParts()"><i class="material-icons left">delete</i>Delete</button>
                     <a class="btn-outline waves-effect" href="#" onclick="stopPartSelection(); return false;">Done</a>
                 </div>
@@ -125,7 +125,7 @@
 
                                 <td class="text-normal td-med">
                                     <!-- Dropdown Trigger -->
-                                    <a class="dropdown-trigger" href='#' data-target='part-menu-{{ part_rev.id }}'><i class="material-icons green-text">more_horiz</i></a>
+                                    <a class="icon-button dropdown-trigger" href='#' data-target='part-menu-{{ part_rev.id }}'><i class="material-icons">more_horiz</i></a>
                                     <!-- Dropdown Structure -->
                                     <ul id='part-menu-{{ part_rev.id }}' class='dropdown-content'>
                                         {% if not part_rev.is_immutable %}
@@ -165,7 +165,7 @@
                     </table>
                 </div>
                 {% if part_revs.paginator.count %}
-                    <p class="part-count grey-text">{% if part_revs.has_other_pages %}{{ part_revs.start_index }}&ndash;{{ part_revs.end_index }} of {% endif %}{{ part_revs.paginator.count }} part{{ part_revs.paginator.count|pluralize }}{% if part_class or query %} match{{ part_revs.paginator.count|pluralize:"es," }}{% endif %}</p>
+                    <p class="part-count text-grey">{% if part_revs.has_other_pages %}{{ part_revs.start_index }}&ndash;{{ part_revs.end_index }} of {% endif %}{{ part_revs.paginator.count }} part{{ part_revs.paginator.count|pluralize }}{% if part_class or query %} match{{ part_revs.paginator.count|pluralize:"es," }}{% endif %}</p>
                 {% endif %}
                 {% if part_revs.has_other_pages %}
                     <ul class="pagination center" style="padding-top: 24px;">

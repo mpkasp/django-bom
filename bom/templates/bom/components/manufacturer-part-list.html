@@ -83,7 +83,7 @@
                                                       target="_blank">{% endif %}{{ manufacturer_part.manufacturer_part_number }}
                     {% if manufacturer_part.link %}&nbsp;<i class="material-icons">open_in_new</i></a>{% endif %}
                 </span>
-                <div class="mfr-part-meta inline-meta grey-text text-darken-2">
+                <div class="mfr-part-meta inline-meta text-grey">
                     {% if show_manufacturer and manufacturer_part.manufacturer %}
                         <span>
                             <a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer_part.manufacturer_id %}">{{ manufacturer_part.manufacturer }}</a>
@@ -91,7 +91,7 @@
                                 <i class="material-icons green-text tiny tooltipped"
                                    data-tooltip="{{ manufacturer_part.manufacturer.get_approval_status_display }}">check_circle</i>
                             {% elif manufacturer_part.manufacturer.approval_status == 'R' %}
-                                <i class="material-icons red-text tiny tooltipped"
+                                <i class="material-icons text-error tiny tooltipped"
                                    data-tooltip="{{ manufacturer_part.manufacturer.get_approval_status_display }}">block</i>
                             {% else %}
                                 <i class="material-icons grey-text text-lighten-1 tiny tooltipped"
@@ -105,7 +105,7 @@
                     {% endif %}
                 </div>
                 {% if manufacturer_part.optimal_seller_part.seller or part_revision %}
-                    <div class="mfr-part-best grey-text text-darken-2">
+                    <div class="mfr-part-best text-grey">
                         <span class="eyebrow">Best price</span>
                         {% with seller=manufacturer_part.optimal_seller_part.seller %}
                             <span id="sourcing-mp-{{ manufacturer_part.id }}-name">
@@ -115,7 +115,7 @@
                                         <i class="material-icons green-text tiny tooltipped" data-position="right"
                                            data-tooltip="{{ seller.get_approval_status_display }}">check_circle</i>
                                     {% elif seller.approval_status == 'R' %}
-                                        <i class="material-icons red-text tiny tooltipped" data-position="right"
+                                        <i class="material-icons text-error tiny tooltipped" data-position="right"
                                            data-tooltip="{{ seller.get_approval_status_display }}">block</i>
                                     {% endif %}
                                     {% else %}&mdash;{% endif %}
@@ -135,16 +135,16 @@
 
             {% if perms.bom.manage_sourcing %}
                 <div class="mfr-part-actions">
-                    <a class='dropdown-trigger-manufacturer' href='#' data-target='dropdown{{ manufacturer_part.id }}'>
-                        <i class="material-icons green-text text-lighten-1">more_vert</i></a>
+                    <a class='icon-button dropdown-trigger-manufacturer' href='#' data-target='dropdown{{ manufacturer_part.id }}'>
+                        <i class="material-icons">more_vert</i></a>
                     <ul id='dropdown{{ manufacturer_part.id }}' class='dropdown-content'>
                         <li><a href="{% url 'bom:manufacturer-part-edit' manufacturer_part_id=manufacturer_part.id %}"><i
                                 class="material-icons">edit</i>edit</a></li>
                         <li class="divider" tabindex="-1"></li>
-                        <li><a class="red-text text-lighten-1"
+                        <li><a class="text-error"
                                href="{% url 'bom:manufacturer-part-delete' manufacturer_part_id=manufacturer_part.id %}"
                                onclick="return confirm('Are you sure you want to delete {{ manufacturer_part.manufacturer_part_number|escapejs }}?\n\nIts vendor parts will also be permanently deleted.')"><i
-                                class="material-icons red-text text-lighten-1">delete_forever</i>delete</a></li>
+                                class="material-icons text-error">delete_forever</i>delete</a></li>
                     </ul>
                 </div>
             {% endif %}
@@ -177,7 +177,7 @@
                                 <i class="material-icons green-text tiny tooltipped" data-position="right"
                                    data-tooltip="Approved Vendor">check_circle</i>
                             {% elif seller_part.seller.approval_status == 'R' %}
-                                <i class="material-icons red-text tiny tooltipped" data-position="right"
+                                <i class="material-icons text-error tiny tooltipped" data-position="right"
                                    data-tooltip="Restricted Vendor">block</i>
                             {% endif %}
                         </td>
@@ -188,7 +188,7 @@
                             {{ seller_part.unit_cost }}
                             {% if seller_part.unit_cost_normalized %}
                                 <br>
-                                <span class="text-small grey-text">({{ seller_part.unit_cost_normalized }})</span>
+                                <span class="text-small text-grey">({{ seller_part.unit_cost_normalized }})</span>
                             {% endif %}
                         </td>
                         <td class="text-normal">{{ seller_part.lead_time_days }}</td>
@@ -196,18 +196,18 @@
                             {{ seller_part.nre_cost }}
                             {% if seller_part.nre_cost_normalized %}
                                 <br>
-                                <span class="text-small grey-text">({{ seller_part.nre_cost_normalized }})</span>
+                                <span class="text-small text-grey">({{ seller_part.nre_cost_normalized }})</span>
                             {% endif %}
                         </td>
                         <td class="text-normal">{% if seller_part.ncnr %}Yes{% else %}No{% endif %}</td>
                         <td class="text-normal">{% if perms.bom.manage_sourcing %}
                             <a class="btn-flat btn-small green-text text-darken-2" href="{% url 'bom:seller-part-edit' seller_part_id=seller_part.id %}">Edit</a>
-                            <a class="btn-flat btn-small red-text text-darken-1" href="{% url 'bom:seller-part-delete' seller_part_id=seller_part.id %}" onclick="return confirm('Are you sure you want to delete this vendor part?')">Delete</a>
+                            <a class="btn-flat btn-small text-error" href="{% url 'bom:seller-part-delete' seller_part_id=seller_part.id %}" onclick="return confirm('Are you sure you want to delete this vendor part?')">Delete</a>
                         {% endif %}</td>
                     </tr>
                 {% empty %}
                     <tr class="no-vendors-row">
-                        <td class="text-normal text-center grey-text" colspan="9"><i>No vendors entered yet.</i></td>
+                        <td class="text-normal text-center text-grey" colspan="9"><i>No vendors entered yet.</i></td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -224,7 +224,7 @@
         </div>
     </div>
 {% empty %}
-    <div class="card-panel center-align grey-text"><i>None found.</i></div>
+    <div class="card-panel center-align text-grey"><i>None found.</i></div>
 {% endfor %}
 
 <!-- Floating Horizontal Scrollbar (each vendor table scrolls independently on narrow screens) -->

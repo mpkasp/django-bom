@@ -8,7 +8,7 @@
         {% if perms.bom.manage_schema %}
             <form action="{% url 'bom:part-class-create-starter' %}" method="post" style="display: inline;">
                 {% csrf_token %}
-                <button class="btn green lighten-1" type="submit">Add starter part classes</button>
+                <button class="btn btn-primary" type="submit">Add starter part classes</button>
             </form>
             <span style="margin-left: 8px;">
                 You can rename or remove them later, or <a href="{% url 'bom:settings' 'indabom' %}">create your own
