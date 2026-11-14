@@ -12,7 +12,6 @@
 {% block content %}
     <div class="container-app">
         {% if profile.role == 'A' %}
-            {% if h1 %}<h2 class="light" style="margin-top: 0px;">{{ h1 }}</h2>{% endif %}
             <form name="seller" action="{{ action }}" method="post" class="col s12">
                 <div class="row">
                     {% csrf_token %}

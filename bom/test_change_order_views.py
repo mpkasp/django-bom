@@ -234,7 +234,7 @@ class ChangeOrderListTest(ChangeOrderViewTestCase):
                     self.assertContains(page, f'{name} order', count=1 if name in names else 0)
 
         open_page = self.client.get(url)
-        self.assertContains(open_page, '<h4>Change orders</h4>')
+        self.assertContains(open_page, '<h1>Change orders</h1>')
         self.assertContains(open_page, 'data-badge-caption="">1<')
         self.assertContains(open_page, f"{self.number(drafts['Open'])} rev {drafts['Open'].revision}")
         self.assertContains(self.client.get(url + '?filter=drafts'), 'Sent back')

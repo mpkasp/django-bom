@@ -87,16 +87,7 @@
                     {% if show_manufacturer and manufacturer_part.manufacturer %}
                         <span>
                             <a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer_part.manufacturer_id %}">{{ manufacturer_part.manufacturer }}</a>
-                            {% if manufacturer_part.manufacturer.approval_status == 'A' %}
-                                <i class="material-icons green-text tiny tooltipped"
-                                   data-tooltip="{{ manufacturer_part.manufacturer.get_approval_status_display }}">check_circle</i>
-                            {% elif manufacturer_part.manufacturer.approval_status == 'R' %}
-                                <i class="material-icons text-error tiny tooltipped"
-                                   data-tooltip="{{ manufacturer_part.manufacturer.get_approval_status_display }}">block</i>
-                            {% else %}
-                                <i class="material-icons grey-text text-lighten-1 tiny tooltipped"
-                                   data-tooltip="{{ manufacturer_part.manufacturer.get_approval_status_display|default:'Probation / Unassessed' }}">help_outline</i>
-                            {% endif %}
+                            {% include 'bom/components/approval-chip.html' with approvable=manufacturer_part.manufacturer icon=True %}
                         </span>
                     {% endif %}
                     {% if show_part %}
@@ -111,13 +102,7 @@
                             <span id="sourcing-mp-{{ manufacturer_part.id }}-name">
                                 {% if seller %}
                                     <a href="{% url 'bom:seller-info' seller_id=seller.id %}">{{ seller.name }}</a>
-                                    {% if seller.approval_status == 'A' %}
-                                        <i class="material-icons green-text tiny tooltipped" data-position="right"
-                                           data-tooltip="{{ seller.get_approval_status_display }}">check_circle</i>
-                                    {% elif seller.approval_status == 'R' %}
-                                        <i class="material-icons text-error tiny tooltipped" data-position="right"
-                                           data-tooltip="{{ seller.get_approval_status_display }}">block</i>
-                                    {% endif %}
+                                    {% include 'bom/components/approval-chip.html' with approvable=seller icon=True %}
                                     {% else %}&mdash;{% endif %}
                             </span>
                             <span id="sourcing-mp-{{ manufacturer_part.id }}-cost">{{ manufacturer_part.optimal_seller_part.unit_cost }}</span>
@@ -173,13 +158,7 @@
                             {{ seller_part.seller.name }}
                             {% if seller_part.link %}&nbsp;
                                 <i class="material-icons" style="font-size: 14px;">open_in_new</i></a>{% endif %}
-                            {% if seller_part.seller.approval_status == 'A' %}
-                                <i class="material-icons green-text tiny tooltipped" data-position="right"
-                                   data-tooltip="Approved Vendor">check_circle</i>
-                            {% elif seller_part.seller.approval_status == 'R' %}
-                                <i class="material-icons text-error tiny tooltipped" data-position="right"
-                                   data-tooltip="Restricted Vendor">block</i>
-                            {% endif %}
+                            {% include 'bom/components/approval-chip.html' with approvable=seller_part.seller icon=True %}
                         </td>
                         <td class="text-normal">{{ seller_part.seller_part_number|default:"-" }}</td>
                         <td class="text-normal">{{ seller_part.minimum_order_quantity }}</td>

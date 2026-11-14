@@ -1,128 +1,61 @@
 {% extends 'bom/bom-base.html' %}
 
 {% load static %}
-{% load materializecss %}
 
 {% block head-title %}{{ title }}{% if query %} Search Results{% endif %}{% endblock %}
 
-{% block main %}
-    <link rel="stylesheet" type="text/css" href="{% static 'bom/css/dashboard.css' %}"/>
-{% endblock %}
-
 {% block content %}
     <div class="container-app">
-        <form id="searchForm" name="search-form" action="{% url 'bom:manufacturers' %}" method="get" enctype="multipart/form-data">
-            {% csrf_token %}
-            <div class="row">
-                <div class="input-field col s12 m10">
-                    <i class="material-icons prefix">search</i>
-                    <input type="search" id="autocomplete-input" autocomplete="off" class="text autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}">
-                    <label for="autocomplete-input">Search for manufacturers:</label>
-                </div>
-                <div class="col s12 m2 text-center">
-                    <button type="submit" class="waves-effect waves-light btn btn-primary" name="action">
-                        Submit
-                    </button>
-                    {% if query %}
-                        <a class="waves-effect waves-green btn-flat input-field btn-icon-round" onclick="clearSearchExpression()"><i class="material-icons">clear</i></a>
-                    {% endif %}
-                </div>
-            </div>
-        </form>
-            <div class="part-list push-footer">
-                <div class="responsive-table-wrapper">
-                    <table class="highlight part-list tight single-line" style="margin-bottom: 14px;">
-                        <thead>
+        {% include 'bom/components/list-filter.html' with placeholder="Manufacturer name" %}
+        <div class="part-list push-footer">
+            <div class="responsive-table-wrapper">
+                <table class="highlight part-list tight single-line" style="margin-bottom: 14px;">
+                    <thead>
+                    <tr>
+                        <th class="text-normal td-med">Manufacturer</th>
+                        <th class="text-normal td-med">Part Count</th>
+                        <th>Approval Status</th>
+                        <th>Last Audit</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for manufacturer in manufacturers %}
                         <tr>
-                            {% if profile.role == 'A' %}
-                                <th class="text-normal td-small action-checkbox-column" style="display: none;"><label><input type="checkbox" id="action-select-all"><span></span></label></th>
-                            {% endif %}
-                            <th class="text-normal td-med">Manufacturer</th>
-                            <th class="text-normal td-med">Part Count</th>
-                            <th>Approval Status</th>
-                            <th>Last Audit</th>
-                            <th>Options</th>
+                            <td class="text-normal td-med"><a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer.id %}">{{ manufacturer.name|default:"<i>No name</i>" }}</a></td>
+                            <td class="text-normal td-med">{{ manufacturer.manufacturerpart_count }}</td>
+                            <td>{% include 'bom/components/approval-chip.html' with approvable=manufacturer %}</td>
+                            <td>{{ manufacturer.last_audit_date|default:"-" }}</td>
+                            <td>{% if perms.bom.manage_sourcing %}
+                                <a href="{% url 'bom:manufacturer-edit' manufacturer.id %}">Edit</a>{% else %}<span
+                                        class="text-grey">Edit</span>{% endif %}
+                            </td>
                         </tr>
-                        </thead>
-                        <tbody>
-                        {% for manufacturer in manufacturers %}
-                            <tr>
-                                {% if profile.role == 'A' %}
-                                    <td class="action-checkbox-column" style="display: none;"><label>{% if part_rev.part.id %}
-                                        <input type="checkbox" class="checkbox-array" name="actions" value="{{ part_rev.part.id }}">{% endif %}<span></span></label></td>
-                                {% endif %}
-                                <td class="text-normal td-med"><a href="{% url 'bom:manufacturer-info' manufacturer_id=manufacturer.id %}">{{ manufacturer.name|default:"<i>No name</i>" }}</a></td>
-                                <td class="text-normal td-med">{{ manufacturer.manufacturerpart_count }}</td>
-                                <td>
-                                    {% if manufacturer.approval_status == 'A' %}
-                                        <span class="new badge teal darken-2 white-text"
-                                              data-badge-caption="{{ manufacturer.get_approval_status_display }}"></span>
-                                    {% elif manufacturer.approval_status == 'R' %}
-                                        <span class="new badge red darken-1 white-text"
-                                              data-badge-caption="{{ manufacturer.get_approval_status_display }}"></span>
-                                    {% else %}
-                                        <span class="new badge grey lighten-2 grey-text text-darken-2"
-                                              data-badge-caption="{{ manufacturer.get_approval_status_display|default:'Probation / Unassessed' }}"></span>
+                    {% empty %}
+                        <tr>
+                            <td colspan="99" style="text-align: center; padding: 5%;">
+                                <i>No manufacturers found.
+                                    {% if perms.bom.manage_sourcing %}
+                                        <a href="{% url 'bom:manufacturer-create' %}">Create your first manufacturer
+                                            here</a>.
                                     {% endif %}
-                                </td>
-                                <td>{{ manufacturer.last_audit_date|default:"-" }}</td>
-                                <td>{% if perms.bom.manage_sourcing %}
-                                    <a href="{% url 'bom:manufacturer-edit' manufacturer.id %}">Edit</a>{% else %}<span
-                                            class="text-grey">Edit</span>{% endif %}
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="99" style="text-align: center; padding: 5%;">
-                                    <i>No manufacturers found.
-                                        {% if perms.bom.manage_sourcing %}
-                                            <a href="{% url 'bom:manufacturer-create' %}">Create your first manufacturer
-                                                here</a>.
-                                        {% endif %}
-                                    </i>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% if manufacturers.has_other_pages %}
-                    <ul class="pagination center" style="padding-top: 24px;">
-                        {% if manufacturers.has_previous %}
-                            <li><a href="?page={{ manufacturers.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
-                        {% else %}
-                            <li class="disabled"><i class="material-icons">chevron_left</i></li>
-                        {% endif %}
-                        {% for i in manufacturers.paginator.page_range %}
-                            {% if manufacturers.number == i %}
-                                <li class="active green lighten-2"><a>{{ i }}</a></li>
-                            {% else %}
-                                <li class="waves-effect waves-green"><a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
-                            {% endif %}
-                        {% endfor %}
-                        {% if manufacturers.has_next %}
-                            <li><a href="?page={{ manufacturers.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
-                        {% else %}
-                            <li class="disabled"><i class="material-icons">chevron_right</i></li>
-                        {% endif %}
-                    </ul>
-                {% endif %}
+                                </i>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        </form>
+            {% include 'bom/components/pagination.html' with page=manufacturers %}
+        </div>
     </div>
     {% if perms.bom.manage_sourcing %}
-        <div class="fixed-action-btn">
-            <a class="btn-floating btn-large red tooltipped" data-position="left" data-delay="50"
-               data-tooltip="Create new manufacturer"
-               href="{% url 'bom:manufacturer-create' %}">
-                <i class="large material-icons">add</i>
-            </a>`
-        </div>
+        {% url 'bom:manufacturer-create' as create_url %}
+        {% include 'bom/bom-action-btn.html' with create_url=create_url create_label="Create new manufacturer" %}
     {% endif %}
 {% endblock %}
 
 {% block bom-script %}
-    <!-- Floating Horizontal Scrollbar -->
     <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
     <script>
         $(function () {

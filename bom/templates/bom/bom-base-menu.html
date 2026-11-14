@@ -1,6 +1,6 @@
 {% if user.is_authenticated and user.bom_profile.organization %}
     {% if open_change_count is not None or name == "changes" %}
-        <li {% if name == "changes" %}class="active"{% endif %}><a title="IndaBOM | Change orders" href="{% url 'bom:change-list' %}">Change orders{% if open_change_count %}<span class="new badge green darken-2" data-badge-caption="">{{ open_change_count }}</span>{% endif %}</a></li>
+        <li {% if name == "changes" %}class="active"{% endif %}><a title="IndaBOM | Change orders" href="{% url 'bom:change-list' %}">Change orders{% if open_change_count %}<span class="new badge chip-review" data-badge-caption="">{{ open_change_count }}</span>{% endif %}</a></li>
     {% endif %}
     <li {% if name == "manufacturers" %}class="active"{% endif %}><a title="IndaBOM | Manufacturers" href="{% url 'bom:manufacturers' %}">Manufacturers</a></li>
     <li {% if name == "sellers" %}class="active"{% endif %}><a title="IndaBOM | Vendors" href="{% url 'bom:sellers' %}">Vendors</a>

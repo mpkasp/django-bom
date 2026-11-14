@@ -1,24 +1,3 @@
-.part-list-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 16px;
-    margin: 20px 0 16px;
-}
-
-.part-list-title-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.part-list-title {
-    margin: 0;
-    font-size: 2rem;
-    line-height: 1.2;
-}
-
 .part-list-actions {
     display: flex;
     align-items: center;
@@ -27,51 +6,6 @@
 
 .part-list-actions[hidden] {
     display: none;
-}
-
-.part-list-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 24px;
-    margin-bottom: 8px;
-}
-
-.part-list-filters .input-field {
-    margin: 16px 0 0;
-}
-
-.part-class-filter {
-    flex: 1 1 240px;
-    max-width: 360px;
-}
-
-.part-search-filter {
-    flex: 3 1 320px;
-}
-
-.part-search-submit {
-    border: none;
-    background: none;
-    padding: 0;
-    cursor: pointer;
-    color: inherit;
-}
-
-.part-search-filter input[type=search] {
-    padding-right: 64px;
-    box-sizing: border-box;
-}
-
-.part-search-suffix {
-    position: absolute;
-    top: 10px;
-    right: 0;
-    display: flex;
-    gap: 4px;
-}
-
-.part-search-suffix a {
-    color: #9e9e9e;
 }
 
 .part-count {

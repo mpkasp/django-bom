@@ -5,7 +5,7 @@
 {% block head-title %}{{ title }}{% endblock %}
 
 {% block content %}
-    <div class="container" style="padding-top: 40px; max-width: 1000px;">
+    <div class="container-app">
         {% if profile.role == 'A' %}
             <div class="row">
                 <form action="{% if quantity_of_measure %}{% url 'bom:quantity-of-measure-edit' quantity_of_measure_id=quantity_of_measure.id %}{% else %}{% url 'bom:quantity-of-measure-add' %}{% endif %}" method="post"

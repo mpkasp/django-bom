@@ -71,11 +71,7 @@
 <main>
     {% block main %}
     {% endblock main %}
-    {% if title %}
-        <div class="container">
-            <h1 class="col s12 light header center">{{ title|safe }}</h1>
-        </div>
-    {% endif %}
+    {% if title %}{% include 'bom/components/page-header.html' %}{% endif %}
     {% if messages %}
         <div id="content" class="container">
             <ul class="messages">

@@ -3,7 +3,7 @@
 {% load static %}
 {% load djmoney %}
 
-{% block head-title %}{{ part.full_part_number }}{% if part_revision %} {{ part_revision.synopsis }}{% endif %}{% endblock %}
+{% block head-title %}{{ seller.name }}{% endblock %}
 
 {% block head %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/part-info.css' %}"/>
@@ -11,44 +11,22 @@
 
 {% block content %}
     <div class="container-app">
-        <div class="row" style="margin-bottom: 5px;">
-            <div class="col m8 hide-on-small-and-down">
-                <div class="header-title-row">
-                    <h3 class="light">Vendor / {{ seller.name }}</h3>
-                    <span class="chip
-                        {% if seller.approval_status == 'A' %}teal darken-2 white-text
-                        {% elif seller.approval_status == 'R' %}red darken-1 white-text
-                        {% else %}grey lighten-2 grey-text text-darken-2
-                        {% endif %}">
-                        {{ seller.get_approval_status_display|default:'Probation / Unassessed' }}
-                    </span>
+        <div class="page-header">
+            <div>
+                <a class="eyebrow" href="{% url 'bom:sellers' %}">Vendors</a>
+                <div class="page-header-row">
+                    <h1>{{ seller.name|default:"No name" }}</h1>
+                    {% include 'bom/components/approval-chip.html' with approvable=seller %}
+                    {% if profile.role == 'A' %}
+                        <a class="icon-button dropdown-trigger" href="#" data-target="seller-menu" aria-label="More actions"><i class="material-icons">more_vert</i></a>
+                        <ul id="seller-menu" class="dropdown-content">
+                            <li><a href="{% url 'bom:seller-edit' seller_id=seller.id %}"><i class="material-icons">edit</i>Edit</a></li>
+                            <li class="divider" tabindex="-1"></li>
+                            <li><a class="text-error" href="#" onclick="deleteSeller(); return false;"><i class="material-icons text-error">delete</i>Delete</a></li>
+                        </ul>
+                    {% endif %}
                 </div>
-                <a href="{% url 'bom:sellers' %}">Back to Vendors</a>
             </div>
-        </div>
-        <div class="col {% if seller %}m3 s1{% else %}m3 s12{% endif %}">
-            {% if profile.role == 'A' and seller %}
-                <div style="margin-top: 1.5rem;">
-                    <!-- Dropdown Trigger -->
-                    <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
-                            href='#' data-target='dropdown-revision'><i class="material-icons right">arrow_drop_down</i>Manage
-                    </button>
-                    <a class='icon-button dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
-                            class="material-icons">more_vert</i></a>
-                    <!-- Dropdown Structure -->
-                    <ul id='dropdown-revision' class='dropdown-content'>
-                        <li>
-                            <a href="{% url 'bom:seller-edit' seller_id=seller.id %}">
-                                <i class="material-icons">edit</i>Edit</a>
-                        </li>
-                        <li class="divider" tabindex="-1"></li>
-                        <li>
-                            <a class="text-error" onclick="deleteSeller()">
-                                <i class="material-icons text-error">delete</i>Delete</a>
-                        </li>
-                    </ul>
-                </div>
-            {% endif %}
         </div>
 
         {% include 'bom/components/seller-part-list.html' with seller_parts=seller_parts profile=profile %}

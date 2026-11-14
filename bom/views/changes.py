@@ -119,7 +119,7 @@ def change_review(request, organization, number):
     approval = change_orders.approval_status(change, user) if is_open and can_review and cards else None
     withdrawable_statuses = Change.PENDING_STATUSES if staged_items else Change.ACTIVE_STATUSES
     return TemplateResponse(request, 'bom/changes/change-review.html', {
-        'title': f'Change order #{change.number}', 'name': 'changes', 'profile': user.bom_profile(),
+        'head_title': f'Change order #{change.number}', 'name': 'changes', 'profile': user.bom_profile(),
         'organization': organization, 'change': change, 'cards': cards, 'staged_items': staged_items,
         'status_label': _status_label(change, bool(cards)),
         'author_name': change.author.get_full_name() or change.author.username,

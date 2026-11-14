@@ -3,7 +3,7 @@
 {% load static %}
 {% load djmoney %}
 
-{% block head-title %}{{ part.full_part_number }}{% if part_revision %} {{ part_revision.synopsis }}{% endif %}{% endblock %}
+{% block head-title %}{{ manufacturer.name }}{% endblock %}
 
 {% block head %}
     <link rel="stylesheet" type="text/css" href="{% static 'bom/css/part-info.css' %}"/>
@@ -12,44 +12,22 @@
 {% block content %}
     {% include 'bom/bom-action-btn.html' with profile=profile %}
     <div class="container-app">
-        <div class="row" style="margin-bottom: 5px;">
-            <div class="col m8 hide-on-small-and-down">
-                <div class="header-title-row">
-                    <h3 class="light">Manufacturer / {{ manufacturer.name }}</h3>
-                    <span class="chip
-                        {% if manufacturer.approval_status == 'A' %}teal darken-2 white-text
-                        {% elif manufacturer.approval_status == 'R' %}red darken-1 white-text
-                        {% else %}grey lighten-2 grey-text text-darken-2
-                        {% endif %}">
-                        {{ manufacturer.get_approval_status_display|default:'Probation / Unassessed' }}
-                    </span>
+        <div class="page-header">
+            <div>
+                <a class="eyebrow" href="{% url 'bom:manufacturers' %}">Manufacturers</a>
+                <div class="page-header-row">
+                    <h1>{{ manufacturer.name|default:"No name" }}</h1>
+                    {% include 'bom/components/approval-chip.html' with approvable=manufacturer %}
+                    {% if profile.role == 'A' %}
+                        <a class="icon-button dropdown-trigger" href="#" data-target="manufacturer-menu" aria-label="More actions"><i class="material-icons">more_vert</i></a>
+                        <ul id="manufacturer-menu" class="dropdown-content">
+                            <li><a href="{% url 'bom:manufacturer-edit' manufacturer_id=manufacturer.id %}"><i class="material-icons">edit</i>Edit</a></li>
+                            <li class="divider" tabindex="-1"></li>
+                            <li><a class="text-error" href="#" onclick="deleteManufacturer(); return false;"><i class="material-icons text-error">delete</i>Delete</a></li>
+                        </ul>
+                    {% endif %}
                 </div>
-                <a href="{% url 'bom:manufacturers' %}">Back to manufacturers</a>
             </div>
-        </div>
-        <div class="col {% if manufacturer %}m3 s1{% else %}m3 s12{% endif %}">
-            {% if profile.role == 'A' and manufacturer %}
-                <div style="margin-top: 1.5rem;">
-                    <!-- Dropdown Trigger -->
-                    <button class='dropdown-trigger hide-on-small-and-down waves-effect waves-light btn-flat'
-                            href='#' data-target='dropdown-revision'><i class="material-icons right">arrow_drop_down</i>Manage
-                    </button>
-                    <a class='icon-button dropdown-trigger hide-on-med-and-up' href='#' data-target='dropdown-revision'><i
-                            class="material-icons">more_vert</i></a>
-                    <!-- Dropdown Structure -->
-                    <ul id='dropdown-revision' class='dropdown-content'>
-                        <li>
-                            <a href="{% url 'bom:manufacturer-edit' manufacturer_id=manufacturer.id %}">
-                                <i class="material-icons">edit</i>Edit</a>
-                        </li>
-                        <li class="divider" tabindex="-1"></li>
-                        <li>
-                            <a class="text-error" onclick="deleteManufacturer()">
-                                <i class="material-icons text-error">delete</i>Delete</a>
-                        </li>
-                    </ul>
-                </div>
-            {% endif %}
         </div>
 
         {% include 'bom/components/manufacturer-part-list.html' with manufacturer_parts=manufacturer_parts profile=profile show_part=True %}

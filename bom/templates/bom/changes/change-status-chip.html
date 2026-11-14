@@ -1,1 +1,1 @@
-<span class="chip {% if change.status == 'applied' %}revision-chip-released{% elif change.status == 'open' %}revision-chip-draft{% else %}revision-chip-obsolete{% endif %}">{{ status_label|default:change.get_status_display }}</span>
+<span class="chip {% if change.status == 'applied' %}chip-ok{% elif change.status == 'open' %}chip-review{% elif change.status == 'draft' %}chip-draft{% else %}chip-neutral{% endif %}">{{ status_label|default:change.get_status_display }}</span>
