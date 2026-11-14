@@ -32,6 +32,11 @@ def access_choices(user, requested_scopes):
     return {'organization': organization, 'choices': choices}
 
 
+def grantable_levels(user, organization):
+    """The ``APIToken.LEVELS`` this user may give a connection, as ``(key, label)`` pairs."""
+    return [(key, label) for key, label, scopes in APIToken.LEVELS if _may_grant(user, organization, scopes)]
+
+
 def _may_grant(user, organization, scopes):
     """A level is offered when the person's own role allows everything in it."""
     if WRITE in scopes and not user.has_perm(BomPerms.EDIT_PART, organization):

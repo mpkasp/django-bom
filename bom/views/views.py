@@ -66,6 +66,7 @@ from bom.forms import (
     UserMetaForm,
     part_form_from_organization,
 )
+from bom.mcp.consent import grantable_levels
 from bom.models import (
     MANUFACTURER_PARTS_LOCKED_MESSAGE,
     APIToken,
@@ -514,6 +515,20 @@ def bom_settings(request, tab_anchor=None):
                 token_to_revoke.revoke()
                 messages.info(request, f"Revoked token {token_to_revoke.name}.")
 
+        elif 'submit-connection-level' in request.POST:
+            tab_anchor = API_TAB
+            connection = APIToken.objects.filter(
+                organization=organization, user=user, revoked_at__isnull=True,
+                id=request.POST.get('token_id') or 0).exclude(oauth_client_id='').first()
+            level = request.POST.get('level')
+            if connection is None:
+                messages.error(request, "No connected app found to change.")
+            elif level not in dict(grantable_levels(user, organization)):
+                messages.error(request, "Your role does not allow that access level.")
+            else:
+                connection.set_level(level)
+                messages.info(request, f"{connection.name} now has {connection.level_display()} access.")
+
         elif 'submit-protections' in request.POST:
             tab_anchor = ORGANIZATION_TAB
             if not user_can_manage_members:
@@ -636,6 +651,8 @@ def bom_settings(request, tab_anchor=None):
         api_tokens = api_tokens.filter(user=user)
     api_tokens = api_tokens.filter(revoked_at__isnull=True)
     connected_apps = api_tokens.exclude(oauth_client_id='')
+    connection_levels = grantable_levels(user, organization)
+    connection_level_keys = [key for key, _label in connection_levels]
     personal_api_tokens = api_tokens.filter(oauth_client_id='')
     mcp_oauth_enabled = bool(settings.BOM_CONFIG.get('mcp_oauth_issuer_url'))
     mcp_server_url = mcp_url()

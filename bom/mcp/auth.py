@@ -80,12 +80,12 @@ class ConnectionTokenVerifier:
         client_id = toolkit_token.application.client_id
         api_token = APIToken.connect(
             toolkit_token.user, organization, client_id, toolkit_token.application.name or client_id, scopes,
-            granted_at=toolkit_token.created)
+            granted_at=toolkit_token.created, consented=toolkit_token.source_refresh_token_id is None)
         if api_token is None:
             return None
         APIToken.objects.filter(pk=api_token.pk).update(last_used_at=timezone.now())
         return self._access_token(
-            token, api_token, client_id=client_id, scopes=scopes, expires_at=toolkit_token.expires)
+            token, api_token, client_id=client_id, scopes=api_token.scope_list(), expires_at=toolkit_token.expires)
 
     def _access_token(self, token, api_token, client_id, scopes, expires_at):
         return AccessToken(
@@ -162,8 +162,9 @@ class Actor:
 
     def require_scope(self, scope):
         if not self.token.has_scope(scope):
-            raise ToolError(f"This connection does not have the {scope!r} scope. The user can grant it by reconnecting "
-                            f"and choosing a higher access level.")
+            remedy = ('raising its level in Settings, under Connected apps' if self.token.is_connection()
+                      else 'creating a token with a higher level')
+            raise ToolError(f"This connection does not have the {scope!r} scope. The user can grant it by {remedy}.")
 
     def require_permission(self, permission, obj=None):
         if not self.user.has_perm(permission, obj if obj is not None else self.organization):

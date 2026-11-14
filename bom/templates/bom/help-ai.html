@@ -63,7 +63,9 @@
                         change order for review. A person approves it in IndaBOM, or, at the Edit and release level, the
                         assistant approves it for you after asking. Releasing and approving are not possible at the
                         Read or Edit level.</p>
-                    <p>{% if oauth_enabled %}You choose the level when you sign in. A token's level is set when you
+                    <p>{% if oauth_enabled %}You choose the level when you sign in and can change it later in
+                        <a href="{% url 'bom:settings' 'api' %}">Settings → Connected apps</a>; the change applies to
+                        the assistant's next request, with no need to reconnect. A token's level is set when you
                         create it.{% else %}A token's level is set when you create it.{% endif %}
                         The assistant never has more access than your role: Viewers can only choose Read.</p>
                 </div>

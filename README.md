@@ -204,7 +204,7 @@ sign-in; the user then picks what the assistant may do (Read, Edit, or Edit and 
 claude mcp add --transport http indabom https://your-host/mcp
 ```
 Then run `/mcp` in Claude Code, choose indabom and Authenticate. claude.ai, Claude Desktop and Cursor connect the same
-way. Each connected app appears in Settings > Connected apps; revoking it also revokes its OAuth tokens.
+way. Each connected app appears in Settings > Connected apps, where its owner can change its access level (effective on the next call) or revoke it; revoking also revokes its OAuth tokens.
 
 To enable it, install [django-oauth-toolkit](https://django-oauth-toolkit.readthedocs.io) in the host (django-bom does
 not depend on it), list `bom` before `oauth2_provider` in `INSTALLED_APPS` so the consent template in

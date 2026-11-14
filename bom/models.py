@@ -1234,6 +1234,7 @@ class APIToken(models.Model):
     hashed_key = models.CharField(max_length=64, unique=True)
     scopes = models.CharField(max_length=64, default=SCOPE_READ)  # comma-separated
     oauth_client_id = models.CharField(max_length=128, blank=True, db_index=True)
+    level_set_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
@@ -1259,8 +1260,12 @@ class APIToken(models.Model):
         return token, plaintext
 
     @classmethod
-    def connect(cls, user, organization, oauth_client_id, name, scopes, granted_at):
+    def connect(cls, user, organization, oauth_client_id, name, scopes, granted_at, consented=True):
         """The active connection record for an OAuth client, created on first use.
+
+        The stored level is authoritative. ``scopes`` set it when the connection is created, and again only when
+        they come from a consent (``consented``, not a refreshed token) granted after the level was last set, so a
+        reconnect applies while a token issued before a change in Settings does not undo it.
 
         Returns ``None`` when the client's latest connection was revoked after ``granted_at``. Its hashed key is
         random and never revealed, so a connection cannot be used as a pasted token.
@@ -1272,10 +1277,12 @@ class APIToken(models.Model):
         if connection is None or connection.revoked_at is not None:
             connection = cls.objects.create(
                 user=user, organization=organization, oauth_client_id=oauth_client_id, name=name[:128],
-                prefix='', hashed_key=cls.hash_plaintext(secrets.token_urlsafe(32)), scopes=','.join(scopes))
-        elif connection.scope_list() != list(scopes):
+                prefix='', hashed_key=cls.hash_plaintext(secrets.token_urlsafe(32)), scopes=','.join(scopes),
+                level_set_at=granted_at)
+        elif consented and (connection.level_set_at is None or granted_at > connection.level_set_at):
             connection.scopes = ','.join(scopes)
-            connection.save(update_fields=['scopes'])
+            connection.level_set_at = granted_at
+            connection.save(update_fields=['scopes', 'level_set_at'])
         return connection
 
     @classmethod
@@ -1310,6 +1317,11 @@ class APIToken(models.Model):
 
     def level_display(self):
         return next(label for key, label, _scopes in self.LEVELS if key == self.level())
+
+    def set_level(self, level):
+        self.scopes = ','.join(next(scopes for key, _label, scopes in self.LEVELS if key == level))
+        self.level_set_at = timezone.now()
+        self.save(update_fields=['scopes', 'level_set_at'])
 
     def is_connection(self):
         return bool(self.oauth_client_id)

@@ -840,6 +840,20 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     margin: 0 8px 0 0;
 }
 
+.connection-level-form {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.connection-level-form select {
+    width: auto;
+    height: 2.4rem;
+    color: var(--color-text, inherit);
+    background-color: var(--color-background, #fff);
+    border-color: var(--color-background-surface, #e0e0e0);
+}
+
 /* Colors come from IndaBOM's theme variables when present, so the panel follows its light and dark modes. */
 .mcp-quickstart {
     border: 1px solid var(--color-background-surface, #e0e0e0);
