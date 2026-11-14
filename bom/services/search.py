@@ -56,7 +56,7 @@ def latest_part_revisions(part_ids):
         .filter(id__in=Subquery(
             PartRevision.objects.filter(
                 part_id__in=part_ids
-            ).annotate(max_id=Max('id')).values("id")
+            ).values('part_id').annotate(max_id=Max('id')).values('max_id')
         )).select_related(
             'part__organization',
             'part__number_class',
