@@ -10,9 +10,9 @@
         <i class="material-icons">block</i>
         <span>Rev {{ part_revision.revision }} is Obsolete.</span>
     {% elif previous_revision.configuration == 'R' %}
-        <span class="chip revision-chip-released">Rev {{ previous_revision.revision }} Released</span>
+        <span class="chip chip-ok">Rev {{ previous_revision.revision }} Released</span>
         <i class="material-icons part-status-arrow">arrow_forward</i>
-        <span class="chip revision-chip-draft">Rev {{ part_revision.revision }} {{ part_revision.get_configuration_display }}</span>
+        <span class="chip chip-draft">Rev {{ part_revision.revision }} {{ part_revision.get_configuration_display }}</span>
         <span>Rev {{ previous_revision.revision }} stays in use until you release rev {{ part_revision.revision }}.</span>
     {% else %}
         <i class="material-icons">edit_note</i>

@@ -1,0 +1,22 @@
+<form id="searchForm" class="list-filter" method="get">
+    {% if part_class_selection_form and organization.number_scheme == 'S' %}
+        <div class="input-field list-filter-class">
+            {{ part_class_selection_form.part_class }}
+            <label for="{{ part_class_selection_form.part_class.id_for_label }}" class="active">Part class</label>
+        </div>
+    {% endif %}
+    <div class="input-field list-filter-search">
+        <button type="submit" class="prefix list-filter-submit" aria-label="Search"><i class="material-icons">search</i></button>
+        <input type="search" id="autocomplete-input" autocomplete="off" class="text autocomplete" name="q" value="{{ query|default:'' }}"
+               placeholder="{{ placeholder }}">
+        <label for="autocomplete-input" class="active">Search</label>
+        <div class="list-filter-suffix">
+            {% if part_class or query %}
+                <a href="?" class="tooltipped" data-position="bottom" data-tooltip="Clear search" aria-label="Clear search"><i class="material-icons">clear</i></a>
+            {% endif %}
+            {% if tips_url %}
+                <a href="{{ tips_url }}" class="tooltipped" data-position="bottom" data-tooltip="Search tips" aria-label="Search tips"><i class="material-icons">help_outline</i></a>
+            {% endif %}
+        </div>
+    </div>
+</form>

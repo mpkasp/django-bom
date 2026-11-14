@@ -1,0 +1,6 @@
+{% if icon %}
+    {% if approvable.approval_status == 'A' %}<i class="material-icons tiny tooltipped text-primary" data-position="right" data-tooltip="{{ approvable.get_approval_status_display }}">check_circle</i>
+    {% elif approvable.approval_status == 'R' %}<i class="material-icons tiny tooltipped text-error" data-position="right" data-tooltip="{{ approvable.get_approval_status_display }}">block</i>{% endif %}
+{% else %}
+    <span class="chip {% if approvable.approval_status == 'A' %}chip-ok{% elif approvable.approval_status == 'R' %}chip-neutral{% else %}chip-draft{% endif %}">{{ approvable.get_approval_status_display|default:'Probation / Unassessed' }}</span>
+{% endif %}

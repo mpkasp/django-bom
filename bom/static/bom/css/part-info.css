@@ -1,13 +1,8 @@
 /* --- Part header: title-forward, Part identity + Revision controls --- */
 .part-header {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px 24px;
-    margin: 8px 0 16px;
+    margin-top: 8px;
     padding-bottom: 16px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--color-background-surface, #e0e0e0);
 }
 
 .part-identity {
@@ -83,13 +78,6 @@ a.part-thumb-empty:hover {
 /* Identity text block */
 .part-identity-body {
     min-width: 0;
-}
-
-.part-number {
-    margin: 2px 0 4px !important;
-    font-size: 2rem;
-    line-height: 1.1;
-    word-break: break-word;
 }
 
 .part-identity-meta {

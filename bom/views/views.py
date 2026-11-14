@@ -261,6 +261,7 @@ def home(request):
 def organization_create(request):
     user = request.user
     profile = user.bom_profile()
+    title = 'Welcome to IndaBOM!'
 
     if user.first_name == '' and user.last_name == '':
         org_name = user.username
@@ -290,6 +291,7 @@ def organization_create(request):
 
 @login_required(login_url=BOM_LOGIN_URL)
 def search_help(request):
+    title = 'Help with searching for parts'
     return TemplateResponse(request, 'bom/search-help.html', locals())
 
 
@@ -675,10 +677,7 @@ def manufacturers(request):
         return HttpResponseRedirect(reverse('bom:organization-create'))
 
     query = request.GET.get('q', '')
-    title = f'{organization.name}\'s Manufacturers'
-
-    if query:
-        title += ' - Search Results'
+    title = 'Manufacturers'
 
     manufacturers = Manufacturer.objects.filter(organization=organization, name__icontains=query).annotate(manufacturerpart_count=Count('manufacturerpart')).order_by('name')
 
@@ -768,10 +767,7 @@ def sellers(request):
     organization = profile.organization
     name = 'sellers'
     query = request.GET.get('q', '')
-    title = f'{organization.name}\'s Vendors'
-
-    if query:
-        title += ' - Search Results'
+    title = 'Vendors'
 
     sellers = Seller.objects.filter(organization=organization, name__icontains=query).annotate(sellerpart_count=Count('sellerpart')).order_by('name')
 
@@ -1468,6 +1464,7 @@ def create_part(request):
     profile = user.bom_profile()
     organization = profile.organization
     PartForm = part_form_from_organization(organization)
+    title = 'Create part'
 
     if request.method == 'POST':
         part_form = PartForm(request.POST, request.FILES, organization=organization)
@@ -1914,8 +1911,7 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
     refusal = _refuse_immutable_edit(request, get_object_or_404(PartRevision, pk=part_revision_id), subpart)
     if refusal:
         return refusal
-    title = "Edit Subpart"
-    h1 = "{} {}".format(subpart.part_revision.part.full_part_number(), subpart.part_revision.synopsis())
+    title = f'Edit subpart {subpart.part_revision.part.full_part_number()}'
     before = _subpart_values(subpart)
 
     if request.method == 'POST':
@@ -2378,6 +2374,7 @@ def part_revision_delete(request, part_id, part_revision_id):
 class HelpAI(TemplateView):
     name = 'help-ai'
     template_name = 'bom/help-ai.html'
+    extra_context = {'title': 'Connect an AI assistant'}
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -2406,6 +2403,7 @@ def editor_install_links(server_url):
 class Help(TemplateView):
     name = 'help'
     template_name = f'bom/{name}.html'
+    extra_context = {'title': 'IndaBOM Guide'}
 
     def get_context_data(self, *args, **kwargs):
         context = super(Help, self).get_context_data(**kwargs)

@@ -15,7 +15,7 @@
     {% include 'bom/bom-action-btn.html' with profile=profile %}
     <div class="container-app">
         <div class="part-info">
-            <div class="part-header printer-hide">
+            <div class="page-header part-header printer-hide">
                 <div class="part-identity">
                     <div class="part-identity-media">
                         {% if part.image %}
@@ -36,7 +36,7 @@
                     </div>
                     <div class="part-identity-body">
                         <span class="eyebrow">Part</span>
-                        <h1 class="part-number">{{ part.full_part_number }}</h1>
+                        <h1>{{ part.full_part_number }}</h1>
                         {% if part_revision %}<div class="part-identity-synopsis">{{ part_revision.synopsis }}</div>{% endif %}
                         <div class="part-identity-meta inline-meta">
                             {% if organization.number_scheme == 'S' and part.number_class %}<span title="{{ part.number_class }}">Class {{ part.number_class.code }}</span>{% endif %}
@@ -49,7 +49,7 @@
                     {% if part_revision %}
                         <span class="eyebrow">Revision</span>
                         <div class="revision-selector-row">
-                            <a class="revision-picker dropdown-trigger-revision {% if part_revision.configuration == 'D' %}revision-chip-draft{% elif part_revision.configuration == 'I' %}revision-chip-review{% elif part_revision.configuration == 'R' %}revision-chip-released{% else %}revision-chip-obsolete{% endif %}" href="#" data-target="revision-menu"
+                            <a class="revision-picker dropdown-trigger-revision {% if part_revision.configuration == 'D' %}chip-draft{% elif part_revision.configuration == 'I' %}chip-review{% elif part_revision.configuration == 'R' %}chip-ok{% else %}chip-neutral{% endif %}" href="#" data-target="revision-menu"
                                aria-label="Choose a revision">Rev {{ part_revision.revision }} &middot; {{ part_revision.get_configuration_display }}<i class="material-icons">arrow_drop_down</i></a>
                             <ul id="revision-menu" class="dropdown-content revision-menu">
                                 {% for r in revisions.all %}

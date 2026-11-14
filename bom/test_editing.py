@@ -405,7 +405,7 @@ class RequestsNavTest(EditingTestCase):
         page = self.client.get(reverse('bom:change-list'))
         self.assertContains(page, self.nav_link)
         self.assertNotContains(page, 'new badge')
-        self.assertContains(page, '<h4>Change orders</h4>')
+        self.assertContains(page, '<h1>Change orders</h1>')
 
     def test_the_history_filter_lists_direct_edits_and_the_other_filters_do_not(self):
         self.client.post(reverse('bom:create-part'), {

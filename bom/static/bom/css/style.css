@@ -528,29 +528,86 @@ a.anchor {
     }
 }
 
-.header-title-row {
+/* Longhand margins so .container-app keeps centering the header. */
+.page-header {
     display: flex;
-    align-items: center;
-    gap: 16px;
     flex-wrap: wrap;
-    margin-top: 16px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-top: 20px;
+    margin-bottom: 16px;
+}
+
+.page-header-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.page-header .chip {
+    margin: 0 4px;
+}
+
+.list-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 24px;
     margin-bottom: 8px;
-    padding: 16px 0;
 }
 
-.header-title-row .input-field {
-    margin: 0;
-    width: auto;
-    min-width: 150px;
+.list-filter .input-field {
+    margin: 16px 0 0;
 }
 
-.header-title-row .chip {
-    margin: 0;
+.list-filter-class {
+    flex: 1 1 240px;
+    max-width: 360px;
 }
 
-.header-title-row :is(h1, h2, h3, h4, h5, h6) {
-    margin: 0;
-    line-height: 1; /* Or a specific unitless value to match your inputs */
+.list-filter-search {
+    flex: 3 1 320px;
+}
+
+.list-filter-submit {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+}
+
+.list-filter-search input[type=search] {
+    padding-right: 64px;
+    box-sizing: border-box;
+}
+
+.list-filter-suffix {
+    position: absolute;
+    top: 10px;
+    right: 0;
+    display: flex;
+    gap: 4px;
+}
+
+.list-filter-suffix a {
+    color: var(--color-text-grey, #616161);
+}
+
+.pagination {
+    padding-top: 24px;
+}
+
+.pagination li.active {
+    background-color: var(--color-primary, #66bb6a);
 }
 
 /* Vertically center form checkboxes with the input-fields beside them in a row -- Materialize
@@ -665,23 +722,24 @@ a.anchor {
     font-size: 20px;
 }
 
-/* Revision and change status tints: light surfaces with dark ink, so they read on a dark page too. */
-.revision-chip-draft {
+/* Status tints for revisions, change orders and approval: light surfaces with dark ink, so they read
+   on a dark page too. span.badge.chip-review beats Materialize's span.badge.new colours for the nav count. */
+.chip-draft {
     background: #fff3cd;
     color: #6d4c00;
 }
 
-.revision-chip-review {
+.chip-review, span.badge.chip-review {
     background: #e3e8fb;
     color: #283593;
 }
 
-.revision-chip-released {
+.chip-ok {
     background: #dcefdf;
     color: #1b5e20;
 }
 
-.revision-chip-obsolete {
+.chip-neutral {
     background: #eeeeee;
     color: #616161;
 }
@@ -972,28 +1030,6 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     --change-remove-ink: var(--color-error, #f44336);
     --change-edit: rgba(255, 179, 0, 0.18);
     --change-edit-ink: var(--color-warning, #f9a825);
-}
-
-.change-head {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px 24px;
-}
-
-.change-head-text {
-    flex: 1 1 420px;
-    min-width: 0;
-}
-
-.change-head h4 {
-    margin: 0 0 4px;
-    font-size: 1.8rem;
-}
-
-.change-head h4 .chip {
-    vertical-align: middle;
 }
 
 .change-byline {

@@ -1,16 +1,16 @@
 {% extends 'bom/bom-base.html' %}
 
-{% block head-title %}{{ title }}{% endblock %}
+{% block head-title %}{{ head_title }}{% endblock %}
 
 {% block content %}
     <div class="container-app change-page">
-        <p><a href="{% url 'bom:change-list' %}"><i class="material-icons tiny">arrow_back</i> Change orders</a></p>
-
-        <div class="change-head">
-            <div class="change-head-text">
-                <h4>{{ change.title }}
+        <div class="page-header">
+            <div>
+                <a class="eyebrow" href="{% url 'bom:change-list' %}">Change orders</a>
+                <div class="page-header-row">
+                    <h1>{{ change.title }}</h1>
                     {% include 'bom/changes/change-status-chip.html' %}
-                </h4>
+                </div>
                 <p class="change-byline text-grey">
                     {% if staged_items %}Change{% else %}Change order{% endif %} #{{ change.number }}
                     &middot; {% if change.api_token %}Proposed by {{ change.api_token.name }} for {{ author_name }}{% else %}Proposed by {{ author_name }}{% endif %}

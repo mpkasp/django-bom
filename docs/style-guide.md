@@ -80,7 +80,7 @@ Roboto, light weights, with size doing the work that bold would otherwise do.
 
 | Element | Size / weight | Notes |
 |---|---|---|
-| `h1` | 2.5rem / 300 | Page title. On app pages use `.part-list-title` (2rem) or `.part-number` (2rem) instead of a bare `h1` |
+| `h1` | 2.5rem / 300 | Page title. On app pages it sits in `.page-header`, which sets 2rem |
 | `h2` | 2rem / 300 | Rare in the app |
 | `h3` | 1.7rem / 300 | |
 | `h4` | 1.4rem / 300 | Settings section titles (`.section-title`) |
@@ -99,10 +99,16 @@ new font-size.
   12px between a toolbar and its table.
 - App pages wrap content in `.container-app` (90–95% width). Marketing and auth pages use
   Materialize's `.container`.
-- **Page header** (parts list, part page): an `.eyebrow` with the context (organization, "Part"),
-  a title, then the actions on the right, all in one flex row that wraps on phones. See
-  `.part-list-header` and `.part-header`. Pass `head_title` rather than `title` from the view so the
-  base template does not also render its centered `h1`.
+- **Page header**: an `.eyebrow` with the context, the `h1`, then the actions on the right, in a
+  `.page-header` flex row that wraps on phones. A view that passes `title` gets
+  `components/page-header.html` from `base.html` (organization eyebrow, plain title); hosts with
+  their own base template include the same file. A page whose header carries a chip, a menu or
+  actions (parts list, part page, manufacturer, vendor, change order) writes its own
+  `.page-header`, puts the `h1` and its chip and menu in a `.page-header-row`, makes the eyebrow a
+  link to the parent list where there is one, and passes `head_title` instead of `title` so the
+  base template does not render a second header. Do not add another heading that repeats the title.
+- Content under a header starts at the same left edge: use `.container-app`, not `.container`, and
+  cap the width of a narrow form on its children rather than centering the page.
 - **Tab content** sits in `.card-panel.tab-card`; a tab with several cards uses
   `.overview-cards` (auto-fit grid, 220px minimum) with `.overview-card`.
 - **Settings and forms**: `.section` with an `h4.section-title` (leading icon in `.text-primary`),
@@ -125,7 +131,7 @@ One filled button per view, and it is the thing you came to do.
 | Flat | `btn-flat` | Cancel, dialog dismiss, tertiary links that must align with buttons |
 | Icon | `icon-button` with `aria-label` and `tooltipped` | Expand, collapse, reset sort, overflow ⋮ |
 | Destructive filled | `btn btn-danger` | Delete, with a `confirm()` |
-| Floating | `.fixed-action-btn` via `bom-action-btn.html` | Create part, Import. One per page, bottom right |
+| Floating | `.fixed-action-btn` via `bom-action-btn.html` | Create part, Import; pass `create_url` and `create_label` for a single create button. One per page, bottom right |
 
 Add `waves-effect` to filled and outline buttons. Buttons that start a form submit are `<button
 type="submit">`; buttons that navigate are `<a>`. Icons inside buttons use `material-icons left`.
@@ -152,6 +158,9 @@ Labels are sentence case ("Add manufacturer part"), an ellipsis means a dialog f
   arrow, and the sorted column turns `--color-primary`. Mark non-sortable columns `sorter-false`.
 - Links in the first column, numbers right-aligned with `.text-right`, long text truncated with a
   `[+]` modal (see `bom-indented.html`).
+- Filter row and pager: `components/list-filter.html` (search with clear and optional tips link;
+  the part class field on the parts list) and `components/pagination.html`, which keeps `q` and
+  `part_class` in its links.
 - Every table has an empty state: a single `<td colspan="99">` row in `.empty-state` wording
   ("No parts found. …") that says what to do next.
 - The count ("1–50 of 120 parts") goes under the table in `.part-count`.
@@ -172,13 +181,17 @@ materials · 12"). Content for each tab goes in its own `.card-panel.tab-card`.
 
 ### Chips and status
 
-- Revision state uses `.chip.revision-chip-{draft,review,released,obsolete}`; the header's
-  `.revision-picker` reuses the same tints. Draft = warning tint, In review = info tint, Released =
-  primary tint, Obsolete = neutral.
-- Change status (`changes/change-status-chip.html`) uses the same classes: Open and Stale = draft,
-  Applied = released, ECO = review, Rejected and Withdrawn = obsolete. The classes live in `style.css`
-  so any page can use them. Vendor and manufacturer approval still use a Materialize `badge` (see
-  *Known debt*); new status chips use the revision chip classes.
+- One chip palette in `style.css`: `.chip-ok` (primary tint), `.chip-draft` (warning tint),
+  `.chip-review` (info tint), `.chip-neutral`. The part header's `.revision-picker` uses the same
+  classes.
+- Revision: Draft = `chip-draft`, In review = `chip-review`, Released = `chip-ok`, Obsolete =
+  `chip-neutral`.
+- Change order (`changes/change-status-chip.html`): Draft = `chip-draft`, Open = `chip-review`,
+  Applied = `chip-ok`, Rejected and Withdrawn = `chip-neutral`. The nav count of open change orders
+  is a Materialize `badge` with `chip-review`.
+- Vendor and manufacturer approval (`components/approval-chip.html`): Approved = `chip-ok`,
+  Probation = `chip-draft`, Restricted = `chip-neutral`. Pass `icon=True` for the inline icon used
+  in sourcing rows (check for Approved, block for Restricted, nothing for Probation).
 - A `.part-status-strip` under a page header explains where something stands in one sentence,
   with a leading icon and an optional right-aligned link (`.part-status-action`).
 
@@ -233,13 +246,8 @@ Fix these as the pages they live on are touched; none needs its own project.
   btn-flat` (a flat button with a filled background; use `btn-flat`), `teal-text text-darken-1` on
   section icons while every other accent is green (use `.text-primary`), and `grey-text`
   variants for secondary text (use `.text-grey`).
-- **Two chip systems**: revision and change status chips share one palette; approval badges
-  still use Materialize `badge`. The chip tints are literal light surfaces with dark ink rather
-  than tokens, because the host's `*-surface` tokens are not paired with an ink colour.
+- **Chip tints** are literal light surfaces with dark ink rather than tokens, because the host's
+  `*-surface` tokens are not paired with an ink colour.
 - **Inline styles.** `settings.html` (26), `part-info.html` (22), `organization-create.html` (15),
   `edit-quantity-of-measure.html` (12), `edit-part-class.html` (10), `base.html` (10, the brand
   logo repeated four times).
-- **Older list pages.** `sellers.html` and `manufacturers.html` still have the search row with a
-  Submit button and an "Options" column heading; bring them to the parts-list header and filter
-  row from `dashboard.html`.
-- `sellers.html` used `.text-grey` before `style.css` defined it; it now resolves to the token.

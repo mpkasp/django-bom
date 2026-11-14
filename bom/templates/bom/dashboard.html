@@ -11,11 +11,11 @@
 
 {% block content %}
     <div class="container-app part-list-page">
-        <div class="part-list-header">
+        <div class="page-header">
             <div>
                 <span class="eyebrow">{{ organization.name }}</span>
-                <div class="part-list-title-row">
-                    <h1 class="part-list-title">Parts</h1>
+                <div class="page-header-row">
+                    <h1>Parts</h1>
                     <a class="icon-button dropdown-trigger-list" href="#" data-target="list-menu" aria-label="More actions"><i class="material-icons">more_vert</i></a>
                     <ul id="list-menu" class="dropdown-content list-menu">
                         {% if profile.role == 'A' %}
@@ -52,26 +52,8 @@
             {% endif %}
         </div>
 
-        <form id="searchForm" class="part-list-filters" name="search-form" action="{% url 'bom:home' %}" method="get">
-            {% if organization.number_scheme == 'S' %}
-                <div class="input-field part-class-filter">
-                    {{ part_class_selection_form.part_class }}
-                    <label for="{{ part_class_selection_form.part_class.id_for_label }}" class="active">Part class</label>
-                </div>
-            {% endif %}
-            <div class="input-field part-search-filter">
-                <button type="submit" class="prefix part-search-submit" aria-label="Search"><i class="material-icons">search</i></button>
-                <input type="search" id="autocomplete-input" autocomplete="off" class="text autocomplete" name="q" value="{% if query %}{{ query }}{% endif %}"
-                       placeholder="Part number, synopsis, MPN or manufacturer">
-                <label for="autocomplete-input" class="active">Search</label>
-                <div class="part-search-suffix">
-                    {% if part_class or query %}
-                        <a href="#" onclick="clearSearchExpression(); return false;" class="tooltipped" data-position="bottom" data-tooltip="Clear search" aria-label="Clear search"><i class="material-icons">clear</i></a>
-                    {% endif %}
-                    <a href="{% url 'bom:search-help' %}" class="tooltipped" data-position="bottom" data-tooltip="Search tips" aria-label="Search tips"><i class="material-icons">help_outline</i></a>
-                </div>
-            </div>
-        </form>
+        {% url 'bom:search-help' as tips_url %}
+        {% include 'bom/components/list-filter.html' with placeholder="Part number, synopsis, MPN or manufacturer" tips_url=tips_url %}
 
         <form id="actionForm" name="action-form" action="{% url 'bom:home' %}" method="post">
             {% csrf_token %}
@@ -167,27 +149,7 @@
                 {% if part_revs.paginator.count %}
                     <p class="part-count text-grey">{% if part_revs.has_other_pages %}{{ part_revs.start_index }}&ndash;{{ part_revs.end_index }} of {% endif %}{{ part_revs.paginator.count }} part{{ part_revs.paginator.count|pluralize }}{% if part_class or query %} match{{ part_revs.paginator.count|pluralize:"es," }}{% endif %}</p>
                 {% endif %}
-                {% if part_revs.has_other_pages %}
-                    <ul class="pagination center" style="padding-top: 24px;">
-                        {% if part_revs.has_previous %}
-                            <li><a href="?page={{ part_revs.previous_page_number }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_left</i></a></li>
-                        {% else %}
-                            <li class="disabled"><i class="material-icons">chevron_left</i></li>
-                        {% endif %}
-                        {% for i in part_revs.paginator.page_range %}
-                            {% if part_revs.number == i %}
-                                <li class="active green lighten-2"><a>{{ i }}</a></li>
-                            {% else %}
-                                <li class="waves-effect waves-green"><a href="?page={{ i }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}">{{ i }}</a></li>
-                            {% endif %}
-                        {% endfor %}
-                        {% if part_revs.has_next %}
-                            <li><a href="?page={{ part_revs.next_page_number }}{% if part_class %}&part_class={{ part_class }}{% endif %}{% if query %}&q={{ query }}{% endif %}"><i class="material-icons">chevron_right</i></a></li>
-                        {% else %}
-                            <li class="disabled"><i class="material-icons">chevron_right</i></li>
-                        {% endif %}
-                    </ul>
-                {% endif %}
+                {% include 'bom/components/pagination.html' with page=part_revs %}
             </div>
         </form>
     </div>
@@ -268,12 +230,6 @@
         function confirmDeleteSelectedParts() {
             const count = $('.checkbox-array:checked').length;
             return confirm(`Delete ${count} part${count === 1 ? '' : 's'}?\n\nAll of their revisions will also be permanently deleted. This can't be undone.`);
-        }
-
-        function clearSearchExpression() {
-            $("#autocomplete-input").val("");
-            $('#id_part_class').val('');
-            $('#searchForm').submit();
         }
 
         $(document).ready(function () {
