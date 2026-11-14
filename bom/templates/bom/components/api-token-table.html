@@ -17,7 +17,27 @@
                 <td class="text-normal">{{ api_token.name }}</td>
                 {% if user_can_manage_members %}<td class="text-normal">{{ api_token.user.username }}</td>{% endif %}
                 {% if not connections %}<td><code>{{ api_token.prefix }}</code></td>{% endif %}
-                <td class="text-normal">{{ api_token.level_display }}</td>
+                <td class="text-normal">
+                    {% if connections and api_token.user == user %}
+                        <form action="{% url 'bom:settings' tab_anchor='api' %}" method="post" class="connection-level-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="token_id" value="{{ api_token.id }}">
+                            {% with current_level=api_token.level %}
+                                <select name="level" class="browser-default" aria-label="Access for {{ api_token.name }}">
+                                    {% for key, label in connection_levels %}
+                                        <option value="{{ key }}"{% if key == current_level %} selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                    {% if current_level not in connection_level_keys %}
+                                        <option value="" selected disabled>{{ api_token.level_display }} (above your role)</option>
+                                    {% endif %}
+                                </select>
+                            {% endwith %}
+                            <button class="btn-flat" type="submit" name="submit-connection-level">Save</button>
+                        </form>
+                    {% else %}
+                        {{ api_token.level_display }}
+                    {% endif %}
+                </td>
                 <td class="text-normal">{{ api_token.last_used_at|default:"Never" }}</td>
                 {% if not connections %}<td class="text-normal">{{ api_token.expires_at|default:"Never" }}</td>{% endif %}
                 <td class="text-normal right-align">

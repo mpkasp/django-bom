@@ -309,6 +309,112 @@ class ConnectionManagementTest(OAuthMCPTestCase):
 
 
 @override_settings(ROOT_URLCONF='bom.test_oauth_urls')
+class ConnectionLevelTest(OAuthMCPTestCase):
+    def setUp(self):
+        super().setUp()
+        self.application = self.make_application('Cursor')
+        self.plaintext = self.make_toolkit_token(self.application, scope='read write')
+        self.mcp(self.plaintext).rpc('tools/list')
+        self.connection = APIToken.objects.get(oauth_client_id=self.application.client_id)
+        self.client.force_login(self.user)
+
+    def set_level(self, level, connection=None):
+        return self.client.post('/settings/api/', {
+            'submit-connection-level': '', 'token_id': (connection or self.connection).id, 'level': level})
+
+    def level(self, plaintext=None):
+        result, _ = self.mcp(plaintext or self.plaintext).call('get_organization')
+        return result['token_level']
+
+    def create_part_error(self):
+        _, error = self.mcp(self.plaintext).call('create_part', description='x', part_class_code='500')
+        return error or ''
+
+    def member_connection(self, role):
+        member = User.objects.create_user(f'member-{role}', f'{role}@example.com', 'ghostpassword')
+        profile = member.bom_profile(organization=self.organization)
+        profile.role = role
+        profile.save()
+        self.mcp(self.make_toolkit_token(self.application, scope='read', user=member)).rpc('tools/list')
+        return member, APIToken.objects.get(oauth_client_id=self.application.client_id, user=member)
+
+    def test_the_level_set_in_settings_applies_to_the_next_call_with_the_same_token(self):
+        self.assertEqual(self.level(), 'edit')
+        self.assertNotIn('scope', self.create_part_error())
+
+        self.assertContains(self.set_level('read'), 'Cursor now has Read access.')
+        self.assertEqual(self.level(), 'read')
+        self.assertIn("'write' scope", self.create_part_error())
+        self.assertIn('Settings, under Connected apps', self.create_part_error())
+
+        self.set_level('release')
+        self.assertEqual(self.level(), 'release')
+        self.assertNotIn('scope', self.create_part_error())
+        self.assertEqual(APIToken.objects.filter(oauth_client_id=self.application.client_id).count(), 1)
+
+    def test_a_refreshed_token_keeps_the_level_and_a_new_consent_sets_it_again(self):
+        self.set_level('read')
+        refresh_token = RefreshToken.objects.create(
+            user=self.user, application=self.application, token='refresh',
+            access_token=AccessToken.objects.get(application=self.application))
+        refreshed = secrets.token_urlsafe(24)
+        AccessToken.objects.create(
+            user=self.user, application=self.application, token=refreshed, scope='read write',
+            resource=[RESOURCE_URL], expires=timezone.now() + timedelta(hours=1), source_refresh_token=refresh_token)
+        self.assertEqual(self.level(refreshed), 'read')
+
+        reconnected = self.make_toolkit_token(self.application, scope='read write release')
+        self.assertEqual(self.level(reconnected), 'release')
+        self.assertEqual(self.level(), 'release')
+
+    def test_only_the_levels_the_role_allows_are_offered_and_accepted(self):
+        viewer, connection = self.member_connection(constants.ROLE_TYPE_VIEWER)
+        self.client.force_login(viewer)
+
+        response = self.client.get('/settings/api/')
+        self.assertEqual(response.context['connection_levels'], [('read', 'Read')])
+
+        self.assertContains(self.set_level('edit', connection), 'Your role does not allow that access level.')
+        connection.refresh_from_db()
+        self.assertEqual(connection.level(), 'read')
+
+    def test_the_access_check_caps_the_offered_levels(self):
+        config = {**settings.BOM_CONFIG, 'mcp_access_check': deny_everything}
+        with override_settings(BOM_CONFIG=config):
+            self.assertEqual(self.client.get('/settings/api/').context['connection_levels'], [('read', 'Read')])
+
+    def test_another_user_cannot_change_the_connection(self):
+        admin, _ = self.member_connection(constants.ROLE_TYPE_ADMIN)
+        self.client.force_login(admin)
+
+        response = self.client.get('/settings/api/')
+        self.assertIn(self.connection, response.context['connected_apps'])
+        self.assertContains(response, 'name="submit-connection-level"', count=1)
+
+        self.assertContains(self.set_level('release'), 'No connected app found to change.')
+        self.connection.refresh_from_db()
+        self.assertEqual(self.connection.level(), 'edit')
+
+    def test_a_personal_token_keeps_the_level_it_was_created_with(self):
+        personal_token, _ = APIToken.issue(self.user, self.organization, 'CI script')
+        self.assertContains(self.set_level('release', personal_token), 'No connected app found to change.')
+        personal_token.refresh_from_db()
+        self.assertEqual(personal_token.level(), 'read')
+
+    def test_a_level_above_a_reduced_role_opens_nothing_the_role_forbids(self):
+        self.set_level('release')
+        part_number = self.new_part().part.full_part_number()
+        self.profile.role = constants.ROLE_TYPE_VIEWER
+        self.profile.save()
+
+        self.assertIn('permission', self.create_part_error())
+        _, error = self.mcp(self.plaintext).call('release_revision', part_number=part_number)
+        self.assertIn('cannot release revisions', error)
+        self.assertContains(self.client.get('/settings/api/'), 'Edit and release (above your role)')
+        self.assertContains(self.set_level('release'), 'Your role does not allow that access level.')
+
+
+@override_settings(ROOT_URLCONF='bom.test_oauth_urls')
 class ConnectQuickStartTest(OAuthMCPTestCase):
     OAUTH_CONFIG = {'mcp_oauth_issuer_url': ISSUER_URL, 'mcp_resource_url': RESOURCE_URL}
 

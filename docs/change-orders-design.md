@@ -101,8 +101,11 @@ Released part is revised and the new revision is released directly (web Release,
 
 ## Agent permissions
 
-The person connecting an agent chooses one level on the consent page and can change it by reconnecting. Personal
-access tokens get the same levels from their scopes (`create_api_token --scopes read,write,release`).
+The person connecting an agent chooses one level on the consent page and can change it in Settings → Connected
+apps, where the same role cap applies; the change takes effect on the agent's next call. The level is stored on the
+connection (`APIToken.scopes`), not read from the OAuth token on each call; reconnecting through the consent page
+sets it again. Personal access tokens get the same levels from their scopes
+(`create_api_token --scopes read,write,release`) and keep the level they were created with.
 
 | Level | Scopes | The agent can |
 |---|---|---|
@@ -113,7 +116,8 @@ access tokens get the same levels from their scopes (`create_api_token --scopes 
 The cap is the person's role, and the consent page only offers what it allows: write needs `EDIT_PART` and the host's
 `mcp_access_check` to pass; release needs `RELEASE_REVISION`. A Viewer can grant Read only. There is no separate
 organization setting for agents. `mcp_access_check` (a callable or dotted path,
-`(organization, user, scopes) -> message or None`) still runs before every write and release tool call.
+`(organization, user, scopes) -> message or None`) still runs before every write and release tool call, as do the
+person's own permissions, so a stored level never grants more than the role allows at the time of the call.
 
 With release granted the agent is still its person for the approval rule: it cannot approve a change order its
 person wrote or edited, unless they are the only member. There is no Admin override through the agent; `get_change_order`

@@ -342,6 +342,11 @@ Implementation notes (where the shipped code differs from the text above):
 - The protected resource metadata route lives at the domain root, outside `/mcp`, so hosts register
   `bom.mcp.asgi.mcp_routes()` instead of a single `Route`.
 - The consent page computes its choices in a template tag (`bom_oauth`), not in the toolkit view.
+- The connection's stored scopes are its level, and the person can change it in Settings → Connected apps without
+  reconnecting. A toolkit token's scopes set the level when the connection is created, and again only when the
+  token came from a consent (it has no `source_refresh_token`) issued after `APIToken.level_set_at`, the time the
+  level was last set. So a reconnect applies, while refreshed tokens and tokens issued before a change in Settings
+  leave it alone.
 
 ### Write and release tools
 
