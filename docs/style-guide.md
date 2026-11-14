@@ -45,14 +45,14 @@ names in its `indabom-colors.css`.
 | Token | Default | Used for |
 |---|---|---|
 | `--color-background` | `#fff` | Page and card background |
-| `--color-background-surface` | `#eee` | Borders, dividers, segmented-control track, status strip border |
+| `--color-background-surface` | `#e0e0e0` | Borders, dividers, segmented-control track, status strip border |
 | `--color-background-surface-hover` | `#f1f3f4` | Hover tint for rows, menu items, settings nav |
 | `--color-text` | `#212121` | Body text, menu items |
 | `--color-text-grey` | `#616161` | Secondary text, eyebrows, menu icons, disabled tabs |
 | `--color-primary` | `#66bb6a` | Filled buttons, active tab, sorted column, selected nav |
-| `--color-primary-surface` | `#c8e6c9` | Tinted backgrounds that mean "selected" or "released" |
+| `--color-primary-surface` | `#dcefdf` | Tinted backgrounds that mean "selected" or "released" |
 | `--color-primary-contrast` | `#2e7d32` | Primary text on a light background where `--color-primary` is too light |
-| `--color-error` / `--color-error-surface` | `#e53935` / `#ffebee` | Destructive actions, rejected, errors |
+| `--color-error` / `--color-error-surface` | `#f44336` / `#ffebee` | Destructive actions, rejected, errors |
 | `--color-warning` / `--color-warning-surface` | `#f9a825` / `#fff3cd` | Draft, open requests, near-match warnings |
 | `--color-info` / `--color-info-surface` | `#283593` / `#e3e8fb` | In review, proposal strip |
 | `--color-table-stripe` | `#f5f5f5` | `table.striped` rows |
@@ -147,6 +147,7 @@ Labels are sentence case ("Add manufacturer part"), an ellipsis means a dialog f
   under the label explains what the item does when the label alone is not enough.
 - Group with `<li class="divider" tabindex="-1">`; label a group with
   `<li class="part-actions-heading" tabindex="-1">`. Destructive items use `.text-error`.
+- An item that POSTs (Make primary on the Edit page) submits a hidden form placed after the menu.
 - Navigation holds places (Parts, Manufacturers, Vendors, Requests, Settings, Help), never actions.
   Actions live on the page they act on.
 
@@ -161,8 +162,8 @@ Labels are sentence case ("Add manufacturer part"), an ellipsis means a dialog f
 - Filter row and pager: `components/list-filter.html` (search with clear and optional tips link;
   the part class field on the parts list) and `components/pagination.html`, which keeps `q` and
   `part_class` in its links.
-- Every table has an empty state: a single `<td colspan="99">` row in `.empty-state` wording
-  ("No parts found. …") that says what to do next.
+- Every table has an empty state: `components/empty-row.html` with a `message` ("No parts
+  found. …") and, where there is one, the `action_url` and `action_label` that fix it.
 - The count ("1–50 of 120 parts") goes under the table in `.part-count`.
 
 ### Toolbars and view switches
@@ -207,9 +208,13 @@ materials · 12"). Content for each tab goes in its own `.card-panel.tab-card`.
 - Render Django forms with the `materializecss` filter and column classes
   (`{{ form.email|materializecss:'s12 l6' }}`). Labels are the field's `label`; help text is
   `.text-grey` under the field.
-- Action row: right-aligned, `btn-flat` Cancel then `btn btn-primary` Save, 4px apart.
-- Dialogs are Materialize `.modal` with a `h5` title, a `.text-grey` sentence, the form, and the
-  action row in `.modal-footer`. Destructive confirmations may use `confirm()`.
+- Action row: `components/form-actions.html` with `cancel_url` (and `submit_label` when Save is
+  not the word): right-aligned `btn-flat` Cancel, a link to where the user came from, then
+  `btn btn-primary` Save. The nav bar has no Cancel.
+- Dialogs are Materialize `.modal` with a `h5` title, a `.text-grey` sentence, the form, and
+  `.modal-footer` with `btn-flat` Cancel then `btn btn-primary` Save; a dialog that only shows text
+  has a single `btn-flat` Close. The page initializes its modals once (`$('.modal').modal()`), not
+  the include. Destructive confirmations use `confirm()`.
 - Inline "add a row" affordances (`.add-vendor-link`) are flat links styled like a table row.
 
 ### Print
@@ -238,9 +243,11 @@ screen-only with `.printer-hide` rather than adding a page print rule.
 
 Fix these as the pages they live on are touched; none needs its own project.
 
-- **Hardcoded colors.** `part-info.css` and the newer parts of `style.css` use hex values for grey
-  text, borders, chip tints and menu text. IndaBOM had to add a block of `.supports-dark-mode`
-  overrides for them. Replace each with a token and the IndaBOM block can go.
+- **Hardcoded colors.** The literals left in `style.css` and `part-info.css` have no token with the
+  same default: greys `#9e9e9e`, `#757575`, `#424242` and `#bdbdbd` (eyebrow, menu and status icons,
+  part synopsis, disabled tab), the `#43a047` accent (tab indicator, outline button, sorted column),
+  the light-green and lime alerts, and Materialize's `#26a69a` on the empty thumbnail hover. IndaBOM
+  still overrides the menu icon, synopsis, status icon and menu heading for them.
 - **Materialize color classes in templates.** About a dozen `btn green lighten-1` (should be
   `btn btn-primary`), `btn red lighten-1` (needs a `btn-danger`), `modal-close green lighten-1
   btn-flat` (a flat button with a filled background; use `btn-flat`), `teal-text text-darken-1` on
@@ -248,6 +255,6 @@ Fix these as the pages they live on are touched; none needs its own project.
   variants for secondary text (use `.text-grey`).
 - **Chip tints** are literal light surfaces with dark ink rather than tokens, because the host's
   `*-surface` tokens are not paired with an ink colour.
-- **Inline styles.** `settings.html` (26), `part-info.html` (22), `organization-create.html` (15),
-  `edit-quantity-of-measure.html` (12), `edit-part-class.html` (10), `base.html` (10, the brand
-  logo repeated four times).
+- **Inline styles.** `settings.html` (23), `part-info.html` (21), `organization-create.html` (15),
+  `base.html` (10, the brand logo repeated four times), `edit-quantity-of-measure.html` (9),
+  `edit-part-class.html` (7).

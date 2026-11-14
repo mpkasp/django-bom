@@ -5,10 +5,6 @@
 
 {% block head-title %}{{ title }}{% endblock %}
 
-{% block bom-menu %}
-    <li><a href="javascript:history.back()">Cancel</a></li>
-{% endblock %}
-
 {% block content %}
     <div class="container-app">
         {% if profile.role == 'A' %}
@@ -39,15 +35,8 @@
                         </div>
                     </div>
                 {% endif %}
-                <div class="row">
-                    <div class="col s6">
-                        <a href="javascript:history.back()" class="waves-effect waves-light btn-flat text-grey" style="margin-left: -16px;">Cancel</a>
-                    </div>
-                    <div class="col s6 right-align">
-                        <button class="waves-effect waves-light btn btn-primary" type="submit" name="action">Save
-                        </button>
-                    </div>
-                </div>
+                {% url 'bom:part-info' part_id=part.id as cancel_url %}
+                {% include 'bom/components/form-actions.html' with cancel_url=cancel_url only %}
             </form>
         {% else %}
             {% include 'bom/nothing-to-see.html' with required_privilege='Admin' %}

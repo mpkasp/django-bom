@@ -14,10 +14,8 @@
             <label for="change-part">First affected part <span class="text-grey">(optional part number)</span></label>
             <input id="change-part" class="browser-default" type="text" name="part_number" value="{{ values.part_number }}">
             <p class="text-grey">If the part's latest revision is Released, its next revision is started as a Draft for you to edit.</p>
-            <div class="change-form-actions">
-                <button class="btn btn-primary waves-effect" type="submit">Create change order</button>
-                <a class="btn-flat waves-effect" href="{% url 'bom:change-list' %}">Cancel</a>
-            </div>
+            {% url 'bom:change-list' as cancel_url %}
+            {% include 'bom/components/form-actions.html' with cancel_url=cancel_url submit_label='Create change order' only %}
         </form>
     </div>
 {% endblock %}

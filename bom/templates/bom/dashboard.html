@@ -138,10 +138,8 @@
                                 </td>
                             </tr>
                         {% empty %}
-                            <tr>
-                                <td colspan="99" style="text-align: center; padding: 5%;"><i>No parts found. To add your first part, first create a Part Class on the <a
-                                        href="{% url 'bom:settings' tab_anchor='indabom' %}">settings</a> page, then click the red + button in the bottom right of your screen.</i></td>
-                            </tr>
+                            {% url 'bom:settings' tab_anchor='indabom' as action_url %}
+                            {% include 'bom/components/empty-row.html' with message='No parts found. To add your first part, create a part class in settings, then use the + button at the bottom right.' action_url=action_url action_label='Go to settings' only %}
                         {% endfor %}
                         </tbody>
                     </table>

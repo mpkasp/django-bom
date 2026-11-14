@@ -1,5 +1,4 @@
 {% load materializecss %}
-{% load static %}
 
 <a class="waves-effect waves-light btn btn-primary modal-trigger modal-{{ name }}"
    href="#modal-{{ name }}">{{ modal_title }}</a>
@@ -7,42 +6,27 @@
 <div id="modal-{{ name }}" class="modal left-align">
     <form name="seller" action="{{ action }}" method="post" class="col s12" enctype="multipart/form-data">
         <div class="modal-content">
-            <div class="row">
-                {% if modal_title %}<h2 class="light" style="margin-top: 0;">{{ modal_title }}</h2>{% endif %}
-                <div class="col s12">
-                    {% if is_pro and user_can_manage_members %}
-                        {% csrf_token %}
-                        <p class="flow-text-small text-grey">To add a user, ensure they have already
-                            created an IndaBOM account and are not currently part of another organization.
-                            Then, enter their <b>username</b> (not email) and select their role below.</p>
-                        {{ form|materializecss:'m6 s12' }}
-                    {% elif is_pro and not user_can_manage_members %}
-                        <p class="flow-text-small text-error">
-                            <b>Access Restricted:</b> Please contact an organization administrator to add new members to
-                            your team.
-                        </p>
-                    {% else %}
-                        <p>Upgrade your organization subscription to professional to manage members.</p>
-                    {% endif %}
+            <h5>{{ modal_title }}</h5>
+            {% if is_pro and user_can_manage_members %}
+                {% csrf_token %}
+                <p class="text-grey">To add a user, ensure they have already created an IndaBOM account and are not
+                    currently part of another organization. Then, enter their <b>username</b> (not email) and select
+                    their role below.</p>
+                <div class="row">
+                    {{ form|materializecss:'m6 s12' }}
                 </div>
-            </div>
+            {% elif is_pro %}
+                <p class="text-error"><b>Access Restricted:</b> Please contact an organization administrator to add
+                    new members to your team.</p>
+            {% else %}
+                <p class="text-grey">Upgrade your organization subscription to professional to manage members.</p>
+            {% endif %}
         </div>
         <div class="modal-footer">
-            <button type="button" class="modal-close waves-effect waves-green btn-flat">Cancel</button>
-
+            <button type="button" class="modal-close waves-effect btn-flat">Cancel</button>
             {% if is_pro and user_can_manage_members %}
-                <button class="waves-effect waves-light btn btn-primary" type="submit" name="{{ name }}">Submit</button>
-            {% else %}
-                <button type="button" class="modal-close waves-effect btn-flat">Ok</button>
+                <button class="waves-effect waves-light btn btn-primary" type="submit" name="{{ name }}">Save</button>
             {% endif %}
         </div>
     </form>
 </div>
-
-{% block script %}
-    <script>
-        $(document).ready(function () {
-            $('.modal').modal();
-        });
-    </script>
-{% endblock %}
