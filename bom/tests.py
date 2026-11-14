@@ -11,7 +11,9 @@ from cryptography.fernet import Fernet, MultiFernet
 from djmoney.money import Money
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
+from django.core.management import call_command
 from django.db import connection
 from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.test.utils import CaptureQueriesContext
@@ -42,6 +44,8 @@ from .helpers import (
     create_some_fake_unit_definitions,
     create_user_and_organization,
 )
+from .services.boms import bom_csv, bom_report
+from .services.parts import part_detail
 from .services.imports import IMPORT_LABELS, detect_import_kind, read_csv_header_names, run_import
 from .models import (
     Manufacturer,
@@ -3574,3 +3578,88 @@ class TestQueryCountDoesNotGrowWithRows(TestCase):
         query_count_with_few_properties = form_query_count()
         add_properties(3)
         self.assertEqual(form_query_count(), query_count_with_few_properties)
+
+
+@override_settings(BOM_CONFIG=settings.BOM_CONFIG_DEFAULT, CACHES={'default': {
+    'BACKEND': 'django.core.cache.backends.db.DatabaseCache', 'LOCATION': 'bom_test_cache'}})
+class TestPricingQueryCountWithDatabaseCache(TestCase):
+    """Production uses DatabaseCache, so each read of a part's cached build quantity is a query too."""
+
+    def setUp(self):
+        call_command('createcachetable', verbosity=0)
+        self.user, self.organization = create_user_and_organization()
+        self.part_class = PartClass.objects.create(code='500', name='Switches', organization=self.organization)
+        self.manufacturer = Manufacturer.objects.create(name='Acme', organization=self.organization)
+        self.seller = Seller.objects.create(name='Digi', organization=self.organization)
+        self.assembly_part = self.create_part()
+        self.client.force_login(self.user)
+
+    def create_part(self):
+        part = Part.objects.create(number_class=self.part_class, organization=self.organization)
+        part.primary_manufacturer_part = self.create_manufacturer_part(part, f'MPN-{part.id}')
+        part.save()
+        PartRevision.objects.create(part=part, revision='1', description=f'Part {part.id}')
+        return part
+
+    def create_manufacturer_part(self, part, manufacturer_part_number):
+        manufacturer_part = ManufacturerPart.objects.create(
+            part=part, manufacturer=self.manufacturer, manufacturer_part_number=manufacturer_part_number)
+        create_a_fake_seller_part(self.seller, manufacturer_part, 1, 1, 2, 7, nre_cost=0)
+        create_a_fake_seller_part(self.seller, manufacturer_part, 10, 1, 1, 7, nre_cost=0)
+        return manufacturer_part
+
+    def add_bom_lines_and_sourcing(self, count):
+        part_revision = self.assembly_part.latest()
+        for _ in range(count):
+            subassembly_part = self.create_part()
+            part_revision.assembly.subparts.add(create_a_fake_subpart(subassembly_part.latest(), count=2))
+            leaf_part = self.create_part()
+            subassembly_part.latest().assembly.subparts.add(create_a_fake_subpart(leaf_part.latest(), count=3))
+            for part in (subassembly_part, leaf_part, self.assembly_part):
+                self.create_manufacturer_part(part, f'ALT-{part.id}-{ManufacturerPart.objects.count()}')
+
+    def assertQueryCountConstant(self, function):
+        def query_count():
+            with CaptureQueriesContext(connection) as queries:
+                function()
+            return len(queries)
+
+        self.add_bom_lines_and_sourcing(3)
+        query_count_with_few_lines = query_count()
+        self.add_bom_lines_and_sourcing(3)
+        self.assertEqual(query_count(), query_count_with_few_lines)
+
+    def test_part_info(self):
+        url = reverse('bom:part-info', kwargs={'part_id': self.assembly_part.id})
+        self.assertQueryCountConstant(lambda: self.assertEqual(self.client.get(url).status_code, 200))
+
+    def test_manufacturer_info(self):
+        url = reverse('bom:manufacturer-info', kwargs={'manufacturer_id': self.manufacturer.id})
+        self.assertQueryCountConstant(lambda: self.assertEqual(self.client.get(url).status_code, 200))
+
+    def test_bom_report(self):
+        for flat in (False, True):
+            with self.subTest(flat=flat):
+                self.assertQueryCountConstant(lambda: bom_report(self.assembly_part.latest(), quantity=10, flat=flat))
+
+    def test_part_detail(self):
+        self.assertQueryCountConstant(lambda: part_detail(self.assembly_part.latest()))
+
+    def test_bom_csv_sourcing_detailed_seller_parts(self):
+        def seller_part_and_cache_query_count():
+            with CaptureQueriesContext(connection) as queries:
+                bom_csv(self.assembly_part.latest(), sourcing_detailed=True)
+            return len([query for query in queries if 'bom_sellerpart' in query['sql'] or 'bom_test_cache' in query['sql']])
+
+        self.add_bom_lines_and_sourcing(3)
+        query_count_with_few_lines = seller_part_and_cache_query_count()
+        self.add_bom_lines_and_sourcing(3)
+        self.assertEqual(seller_part_and_cache_query_count(), query_count_with_few_lines)
+
+    def test_prefetched_optimal_seller_matches_single_part_lookup(self):
+        self.add_bom_lines_and_sourcing(1)
+        cache.set(f'{self.assembly_part.id}_qty', 5)
+        manufacturer_parts = ManufacturerPart.prefetch_seller_parts(self.assembly_part.manufacturer_parts())
+        for manufacturer_part in manufacturer_parts:
+            self.assertEqual(manufacturer_part.optimal_seller_part, manufacturer_part.optimal_seller())
+            self.assertEqual(list(manufacturer_part.sellerpart_set.all()), list(manufacturer_part.seller_parts()))

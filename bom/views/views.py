@@ -694,7 +694,9 @@ def manufacturer_info(request, manufacturer_id):
         messages.error(request, "Can't access a manufacturer that is not yours!")
         return HttpResponseRedirect(reverse('bom:home'))
 
-    manufacturer_parts = ManufacturerPart.objects.filter(manufacturer=manufacturer).order_by('manufacturer_part_number')
+    manufacturer_parts = ManufacturerPart.prefetch_seller_parts(
+        ManufacturerPart.objects.filter(manufacturer=manufacturer).select_related('part__number_class')
+        .order_by('manufacturer_part_number'))
 
     return TemplateResponse(request, 'bom/manufacturer-info.html', locals())
 
@@ -934,6 +936,7 @@ def part_info(request, part_id, part_revision_id=None):
 
     where_used_part = part.where_used_recursive()
     seller_parts = part.seller_parts()
+    manufacturer_parts = ManufacturerPart.prefetch_seller_parts(part.manufacturer_parts())
     change_order = change_orders.change_order_for(part_revision) \
         if part_revision is not None and change_orders_enabled(organization) else None
     can_start_change_order = change_orders_enabled(organization) and part_revision is not None \

@@ -5,7 +5,7 @@ from django.utils.encoding import smart_str
 
 from bom.csv_headers import ManufacturerPartCSVHeaders, SellerPartCSVHeaders
 from bom.forms import AddSubpartForm, SubpartForm
-from bom.models import Assembly, AssemblySubparts, Subpart
+from bom.models import Assembly, AssemblySubparts, ManufacturerPart, Subpart
 from bom.services import parts
 from bom.services.errors import ServiceError
 
@@ -68,6 +68,10 @@ def bom_csv(part_revision, layout='indented', quantity=DEFAULT_EXPORT_QUANTITY, 
             bom = part_revision.indented(top_level_quantity=quantity, max_level=1 if layout == 'single_level' else None)
     except (RuntimeError, RecursionError):
         raise ServiceError(f"Infinite recursion in the BOM of {part_revision.part.full_part_number()}.")
+
+    if sourcing_detailed:
+        ManufacturerPart.prefetch_seller_parts(
+            mp for item in bom.parts.values() for mp in item.part.manufacturerpart_set.all())
 
     csv_headers = organization.bom_flat_csv_headers() if layout == 'flat' else organization.bom_indented_csv_headers()
     csv_headers_raw = csv_headers.get_default_all()
