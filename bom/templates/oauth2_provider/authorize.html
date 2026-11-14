@@ -37,6 +37,9 @@
                                         </label>
                                     </p>
                                 {% endfor %}
+                                {% if not access.change_orders_enabled %}
+                                    {% include 'bom/change-orders-note.html' %}
+                                {% endif %}
                             {% else %}
                                 {{ form.scope.as_hidden }}
                                 <p>Join or create an organization before connecting an app.</p>
