@@ -37,7 +37,7 @@ small surface.
 
 Transport is Streamable HTTP with `stateless_http=True, json_response=True`. Cloud Run has no
 sticky sessions and scales to zero, so no server-side session state and no long-lived SSE
-streams. Every request carries its own Bearer token and is independently authenticated.
+streams: `GET /mcp` answers 405, so clients don't hold a stream open until Cloud Run times it out. Every request carries its own Bearer token and is independently authenticated.
 
 Tools are plain `def` functions. The SDK runs sync handlers on a worker thread, which is exactly
 what the Django ORM needs (thread-local connections); no `sync_to_async` plumbing. Close the DB
