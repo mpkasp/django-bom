@@ -98,7 +98,8 @@ def part_detail(part_revision):
          'unit': prop.unit_definition.symbol if prop.unit_definition else None}
         for prop in part_revision.properties.select_related('property_definition', 'unit_definition')
     ]
-    detail['manufacturer_parts'] = [manufacturer_part_summary(mp) for mp in part.manufacturer_parts()]
+    detail['manufacturer_parts'] = [
+        manufacturer_part_summary(mp) for mp in ManufacturerPart.prefetch_seller_parts(part.manufacturer_parts())]
     detail['is_assembly'] = bool(part_revision.assembly and part_revision.assembly.subparts.exists())
     return detail
 
@@ -110,7 +111,7 @@ def manufacturer_part_summary(manufacturer_part):
         'manufacturer_part_number': manufacturer_part.manufacturer_part_number,
         'link': manufacturer_part.link,
         'datasheet_url': manufacturer_part.datasheet_url,
-        'seller_parts': [seller_part_summary(sp) for sp in manufacturer_part.seller_parts()],
+        'seller_parts': [seller_part_summary(sp) for sp in manufacturer_part.sellerpart_set.all()],
     }
 
 

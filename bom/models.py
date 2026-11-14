@@ -424,8 +424,10 @@ class Part(OrganizationScopedModel):
         manufacturer_parts = ManufacturerPart.objects.filter(part=self)
         q = SellerPart.objects.filter(manufacturer_part__in=manufacturer_parts).order_by('seller', 'minimum_order_quantity')\
             .select_related('manufacturer_part').select_related('manufacturer_part__manufacturer').select_related('seller')
-        if exclude_primary and self.primary_manufacturer_part is not None and self.primary_manufacturer_part.optimal_seller():
-            return q.exclude(id=self.primary_manufacturer_part.optimal_seller().id)
+        primary_optimal_seller = self.primary_manufacturer_part.optimal_seller() \
+            if exclude_primary and self.primary_manufacturer_part is not None else None
+        if primary_optimal_seller:
+            return q.exclude(id=primary_optimal_seller.id)
         return q
 
     def manufacturer_parts(self, exclude_primary=False):
@@ -1041,13 +1043,30 @@ class ManufacturerPart(models.Model, AsDictModel):
     def seller_parts(self):
         return SellerPart.objects.filter(manufacturer_part=self).order_by('seller', 'minimum_order_quantity')
 
-    def optimal_seller(self, quantity=None):
+    def optimal_seller(self, quantity=None, seller_parts=None):
         if quantity is None:
-            qty_cache_key = str(self.part.id) + '_qty'
+            qty_cache_key = str(self.part_id) + '_qty'
             quantity = int(cache.get(qty_cache_key, 100))
-        sellerparts = SellerPart.objects.filter(manufacturer_part=self)\
-            .select_related('seller', 'manufacturer_part__manufacturer', 'manufacturer_part__part__organization')
-        return SellerPart.optimal(sellerparts, quantity)
+        if seller_parts is None:
+            seller_parts = SellerPart.objects.filter(manufacturer_part=self)\
+                .select_related('seller', 'manufacturer_part__manufacturer', 'manufacturer_part__part__organization')
+        return SellerPart.optimal(seller_parts, quantity)
+
+    @staticmethod
+    def prefetch_seller_parts(manufacturer_parts):
+        """Loads the seller parts of every manufacturer part, ordered like seller_parts(), into sellerpart_set and
+        sets optimal_seller_part at its part's cached quantity, with a fixed number of queries for the whole list."""
+        manufacturer_parts = list(manufacturer_parts)
+        prefetch_related_objects(manufacturer_parts, 'part__organization', Prefetch(
+            'sellerpart_set',
+            queryset=SellerPart.objects.select_related('seller').order_by('seller', 'minimum_order_quantity')))
+        quantities = cache.get_many({f'{manufacturer_part.part_id}_qty' for manufacturer_part in manufacturer_parts})
+        for manufacturer_part in manufacturer_parts:
+            # Sorted by id to break cost ties the way the unordered single-part query does.
+            seller_parts = sorted(manufacturer_part.sellerpart_set.all(), key=lambda seller_part: seller_part.id)
+            manufacturer_part.optimal_seller_part = manufacturer_part.optimal_seller(
+                int(quantities.get(f'{manufacturer_part.part_id}_qty', 100)), seller_parts=seller_parts)
+        return manufacturer_parts
 
     def as_dict_for_export(self):
         return {

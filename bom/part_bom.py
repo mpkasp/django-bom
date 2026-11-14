@@ -205,10 +205,17 @@ class PartBomItem(AsDictModel):
         return row
 
     def manufacturer_parts_for_export(self):
-        return [mp.as_dict_for_export() for mp in self.part.manufacturer_parts(exclude_primary=True)]
+        return [mp.as_dict_for_export() for mp in self.part.manufacturerpart_set.all()
+                if mp.id != self.part.primary_manufacturer_part_id]
 
     def seller_parts_for_export(self):
-        return [sp.as_dict_for_export() for sp in self.part.seller_parts(exclude_primary=True)]
+        """Expects the part's manufacturer parts to have gone through ManufacturerPart.prefetch_seller_parts."""
+        manufacturer_parts = self.part.manufacturerpart_set.all()
+        primary_optimal_seller = next((mp.optimal_seller_part for mp in manufacturer_parts
+                                       if mp.id == self.part.primary_manufacturer_part_id), None)
+        seller_parts = sorted((sp for mp in manufacturer_parts for sp in mp.sellerpart_set.all()),
+                              key=lambda sp: (sp.seller_id, sp.minimum_order_quantity))
+        return [sp.as_dict_for_export() for sp in seller_parts if sp != primary_optimal_seller]
 
     def __str__(self):
         return f'{self.part.full_part_number()}, qty: {self.quantity}'

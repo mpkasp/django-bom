@@ -61,7 +61,7 @@
     function deleteManufacturer() {
         {% if manufacturer is not None %}
             let url = "{% url 'bom:manufacturer-delete' manufacturer_id=manufacturer.id %}";
-            if (confirm("Warning! Are you sure you want to delete this manufacturer?\n\n{{ manufacturer_parts.count }} of its manufacturer parts will also be permanently deleted.")) {
+            if (confirm("Warning! Are you sure you want to delete this manufacturer?\n\n{{ manufacturer_parts|length }} of its manufacturer parts will also be permanently deleted.")) {
                 window.location.href = url;
             }
         {% else %}

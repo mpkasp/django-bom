@@ -1,4 +1,4 @@
-{# To include this widget, make sure to pass: `manufacturer_parts`, `profile`, (optional, for mouser) `part_revision` variables  #}
+{# To include this widget, make sure to pass: `manufacturer_parts` (from ManufacturerPart.prefetch_seller_parts), `profile`, (optional, for mouser) `part_revision` variables  #}
 {% load static %}
 
 <style>
@@ -104,10 +104,10 @@
                                 href="{% url 'bom:part-info' part_id=manufacturer_part.part_id %}">{{ manufacturer_part.part }}</a></span>
                     {% endif %}
                 </div>
-                {% if manufacturer_part.optimal_seller.seller or part_revision %}
+                {% if manufacturer_part.optimal_seller_part.seller or part_revision %}
                     <div class="mfr-part-best grey-text text-darken-2">
                         <span class="eyebrow">Best price</span>
-                        {% with seller=manufacturer_part.optimal_seller.seller %}
+                        {% with seller=manufacturer_part.optimal_seller_part.seller %}
                             <span id="sourcing-mp-{{ manufacturer_part.id }}-name">
                                 {% if seller %}
                                     <a href="{% url 'bom:seller-info' seller_id=seller.id %}">{{ seller.name }}</a>
@@ -120,13 +120,13 @@
                                     {% endif %}
                                     {% else %}&mdash;{% endif %}
                             </span>
-                            <span id="sourcing-mp-{{ manufacturer_part.id }}-cost">{{ manufacturer_part.optimal_seller.unit_cost }}</span>
-                            {% if manufacturer_part.optimal_seller.seller_part_number %}&middot; {% endif %}
-                            <span id="sourcing-mp-{{ manufacturer_part.id }}-pn">{{ manufacturer_part.optimal_seller.seller_part_number|default_if_none:"" }}</span>
-                            {% if manufacturer_part.optimal_seller.minimum_order_quantity %}&middot;MOQ {% endif %}
-                            <span id="sourcing-mp-{{ manufacturer_part.id }}-moq">{{ manufacturer_part.optimal_seller.minimum_order_quantity }}</span>
-                            {% if manufacturer_part.optimal_seller.lead_time_days %}&middot;
-                                <span id="sourcing-mp-{{ manufacturer_part.id }}-lt">{{ manufacturer_part.optimal_seller.lead_time_days }}</span>
+                            <span id="sourcing-mp-{{ manufacturer_part.id }}-cost">{{ manufacturer_part.optimal_seller_part.unit_cost }}</span>
+                            {% if manufacturer_part.optimal_seller_part.seller_part_number %}&middot; {% endif %}
+                            <span id="sourcing-mp-{{ manufacturer_part.id }}-pn">{{ manufacturer_part.optimal_seller_part.seller_part_number|default_if_none:"" }}</span>
+                            {% if manufacturer_part.optimal_seller_part.minimum_order_quantity %}&middot;MOQ {% endif %}
+                            <span id="sourcing-mp-{{ manufacturer_part.id }}-moq">{{ manufacturer_part.optimal_seller_part.minimum_order_quantity }}</span>
+                            {% if manufacturer_part.optimal_seller_part.lead_time_days %}&middot;
+                                <span id="sourcing-mp-{{ manufacturer_part.id }}-lt">{{ manufacturer_part.optimal_seller_part.lead_time_days }}</span>
                                 days{% else %}<span id="sourcing-mp-{{ manufacturer_part.id }}-lt"></span>{% endif %}
                         {% endwith %}
                     </div>
@@ -166,7 +166,7 @@
                 </tr>
                 </thead>
                 <tbody id="vendor-rows-{{ manufacturer_part.id }}">
-                {% for seller_part in manufacturer_part.seller_parts %}
+                {% for seller_part in manufacturer_part.sellerpart_set.all %}
                     <tr>
                         <td class="text-normal">
                             {% if seller_part.link %}<a href="{{ seller_part.link }}" target="_blank">{% endif %}

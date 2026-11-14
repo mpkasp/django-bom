@@ -325,7 +325,6 @@
 
                 <div id="sourcing" class="col s12">
                     <h4 class="printer-show">Sourcing</h4>
-                    {% with manufacturer_parts=part.manufacturer_parts %}
                         {% if manufacturer_parts %}
                             {% if perms.bom.manage_sourcing %}
                                 <div class="table-toolbar printer-hide">
@@ -348,7 +347,6 @@
                                 {% endif %}
                             </div>
                         {% endif %}
-                    {% endwith %}
                 </div>
             </div>
         </div>
