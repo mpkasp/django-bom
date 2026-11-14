@@ -39,7 +39,8 @@ def _lines(part_revision):
     if part_revision is None or part_revision.assembly is None:
         return {}
     return {(subpart.part_revision.part.full_part_number(), subpart.do_not_load): subpart
-            for subpart in part_revision.assembly.subparts.select_related('part_revision__part')}
+            for subpart in part_revision.assembly.subparts.select_related(
+                'part_revision__part__organization', 'part_revision__part__number_class')}
 
 
 def _line(entry, lines_before, lines_after):

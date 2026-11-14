@@ -1,12 +1,10 @@
-from bom.services import boms, parts
-
 REVISION_FIELDS = ('description', 'configuration')
 
 
 def revision_diff(revision_a, revision_b):
     """What changed from ``revision_a`` to ``revision_b`` of one part, as ``{'label', 'summary', 'before', 'after'}``
     entries (before or after is None for an added or removed entry): revision fields, properties, then BOM lines."""
-    detail_a, detail_b = parts.part_detail(revision_a), parts.part_detail(revision_b)
+    detail_a, detail_b = _revision_detail(revision_a), _revision_detail(revision_b)
     entries = []
     changed_fields = [field for field in REVISION_FIELDS if detail_a[field] != detail_b[field]]
     if changed_fields:
@@ -20,15 +18,37 @@ def revision_diff(revision_a, revision_b):
     return entries
 
 
+def _revision_detail(part_revision):
+    return {
+        'description': part_revision.description,
+        'configuration': part_revision.get_configuration_display(),
+        'properties': [
+            {'name': prop.property_definition.name, 'value': prop.value_raw,
+             'unit': prop.unit_definition.symbol if prop.unit_definition else None}
+            for prop in part_revision.properties.select_related('property_definition', 'unit_definition')],
+    }
+
+
 def _properties(detail):
     return {prop['name']: {'value': prop['value'], 'unit': prop['unit'] or ''} for prop in detail['properties']}
 
 
 def _lines(part_revision):
-    """Direct BOM lines keyed by subpart part number and do-not-load."""
-    return {(item['part_number'], item['do_not_load']): {
-        'revision': item['revision'], 'count': item['quantity'], 'reference': item['references'] or ''}
-        for item in boms.bom_report(part_revision, flat=False)['items'] if item['indent_level'] == 1}
+    """Direct BOM lines keyed by subpart part number and do-not-load. Lines for the same revision merge their
+    references, as a BOM report does."""
+    if part_revision.assembly is None:
+        return {}
+    merged = {}
+    for subpart in part_revision.assembly.subparts.select_related(
+            'part_revision__part__organization', 'part_revision__part__number_class').order_by('id'):
+        merge_key = (subpart.part_revision_id, subpart.do_not_load)
+        if merge_key in merged:
+            merged[merge_key][1]['reference'] += f', {subpart.reference}'
+            continue
+        part_number = subpart.part_revision.part.full_part_number()
+        merged[merge_key] = ((part_number, subpart.do_not_load), {
+            'revision': subpart.part_revision.revision, 'count': subpart.count, 'reference': subpart.reference or ''})
+    return dict(merged.values())
 
 
 def _keyed_entries(label, before_by_key, after_by_key, describe):
