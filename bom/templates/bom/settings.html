@@ -47,7 +47,7 @@
         <div class="col s12 m9 l10 settings-content">
             <div id="user" class="settings-section">
                 <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">person</i>User</h4>
+                    <h4 class="section-title"><i class="material-icons text-primary">person</i>User</h4>
                     <form name="seller" action="{% url 'bom:settings' tab_anchor='user' %}" method="post">
                         {% csrf_token %}
                         <div class="row">
@@ -77,13 +77,13 @@
                 </div>
 
                 <div class="section" style="padding: 16px; border-radius: 6px;">
-                    <h4 class="section-title red-text text-darken-2" style="margin-top:0;"><i
-                            class="material-icons red-text text-darken-2">warning</i>Danger Zone</h4>
+                    <h4 class="section-title text-error" style="margin-top:0;"><i
+                            class="material-icons text-error">warning</i>Danger Zone</h4>
                     <p>Deleting your account is permanent. If you are the organization owner, your organization will
                         also be
                         deleted unless you transfer ownership before proceeding.</p>
                     <div class="right-align" style="margin-top: 8px;">
-                        <a href="{% url 'account-delete' %}" class="btn red lighten-1">Delete My Account</a>
+                        <a href="{% url 'account-delete' %}" class="btn btn-danger">Delete My Account</a>
                     </div>
                 </div>
             </div>
@@ -91,7 +91,7 @@
             <div id="organization" class="settings-section">
                 {% if perms.bom.manage_members %}
                     <div class="section">
-                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">business</i>Organization
+                        <h4 class="section-title"><i class="material-icons text-primary">business</i>Organization
                         </h4>
                         <form name="seller" action="{% url 'bom:settings' tab_anchor='organization' %}" method="post"
                               enctype="multipart/form-data">
@@ -115,7 +115,7 @@
                     {% include 'bom/subscription_panel.html' %}
                 {% else %}
                     <div class="section">
-                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">business</i>Organization
+                        <h4 class="section-title"><i class="material-icons text-primary">business</i>Organization
                         </h4>
                         <p>You are a member of <b>{{ organization.name }}</b>.</p>
                     </div>
@@ -142,7 +142,7 @@
                         <div class="right-align">
                             <form action="{% url 'social:disconnect' 'google-oauth2' %}" method="post">
                                 {% csrf_token %}
-                                <button class="waves-effect btn-flat red-text" type="submit">Disconnect
+                                <button class="waves-effect btn-flat text-error" type="submit">Disconnect
                                     Google Drive
                                 </button>
                             </form>
@@ -183,7 +183,7 @@
                                 <form action="{% url 'bom:settings' tab_anchor='organization' %}" method="post"
                                       style="display: inline;">
                                     {% csrf_token %}
-                                    <button class="waves-effect btn-flat red-text" type="submit"
+                                    <button class="waves-effect btn-flat text-error" type="submit"
                                             name="submit-clear-sourcing"
                                             onclick="return confirm('Remove the stored {{ sourcing_provider_label }} credentials?')">
                                         Disconnect {{ sourcing_provider_label }}
@@ -191,7 +191,7 @@
                                 </form>
                             </div>
                         {% else %}
-                            <p id="sourcing-key-help" class="grey-text" style="font-size: 0.9em;"></p>
+                            <p id="sourcing-key-help" class="text-grey" style="font-size: 0.9em;"></p>
                             {{ sourcing_provider_schema|json_script:"sourcing-provider-schema" }}
                             <form name="sourcing-settings" action="{% url 'bom:settings' tab_anchor='organization' %}"
                                   method="post">
@@ -227,12 +227,12 @@
 
                 {% if show_protections %}
                     <div class="section">
-                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">verified_user</i>Release approval</h4>
+                        <h4 class="section-title"><i class="material-icons text-primary">verified_user</i>Release approval</h4>
                         <form name="protections" action="{% url 'bom:settings' tab_anchor='organization' %}" method="post">
                             {% csrf_token %}
                             {% if change_settings_form.require_release_approval %}
                                 <p><label>{{ change_settings_form.require_release_approval }}<span>{{ change_settings_form.require_release_approval.label }}</span></label></p>
-                                <p class="grey-text text-darken-1">When on and the organization has more than one member, a revision is released through a change order that someone other than its author approves. An Admin may still release directly by confirming an override, which History records.</p>
+                                <p class="text-grey">When on and the organization has more than one member, a revision is released through a change order that someone other than its author approves. An Admin may still release directly by confirming an override, which History records.</p>
                             {% endif %}
                             <div class="right-align">
                                 <button class="waves-effect waves-light btn btn-primary" type="submit" name="submit-protections">Save</button>
@@ -243,7 +243,7 @@
                 {% endif %}
 
                 <div class="section">
-                    <h4 class="section-title"><i class="material-icons red-text text-darken-1">exit_to_app</i>Leave Your
+                    <h4 class="section-title"><i class="material-icons text-error">exit_to_app</i>Leave Your
                         Organization</h4>
                     <p>Warning, the only way back in to {{ organization.name }} is if you are invited by an
                         organization administrator.</p>
@@ -251,7 +251,7 @@
                           method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         <div class="right-align">
-                            <button class="waves-effect waves-light btn red lighten-1" type="submit"
+                            <button class="waves-effect waves-light btn btn-danger" type="submit"
                                     name="submit-leave-organization">
                                 <i class="material-icons left">exit_to_app</i>Leave Organization
                             </button>
@@ -263,7 +263,7 @@
             <div id="users" class="settings-section">
                 {% if perms.bom.manage_members %}
                     <div class="section">
-                        <h4 class="section-title"><i class="material-icons teal-text text-darken-1">group</i>Organization
+                        <h4 class="section-title"><i class="material-icons text-primary">group</i>Organization
                             Members
                         </h4>
                         <form name="seller" action="{% url 'bom:settings' tab_anchor='organization' %}" method="post"
@@ -319,7 +319,7 @@
                             </div>
                             <div class="row" style="padding-top: 16px;">
                                 <div class="col s6">
-                                    <button class="waves-effect waves-light btn red lighten-1" type="submit"
+                                    <button class="waves-effect waves-light btn btn-danger" type="submit"
                                             name="submit-remove-user"
                                             onclick="return confirm('Are you sure you want to remove the selected users from {{ organization }}?')">
                                         Remove Selected
@@ -338,7 +338,7 @@
 
             <div id="api" class="settings-section">
                 <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">vpn_key</i>Connected apps</h4>
+                    <h4 class="section-title"><i class="material-icons text-primary">vpn_key</i>Connected apps</h4>
                     <p>AI assistants such as Claude connect by signing in and act as you, never with more access than
                         your role. <a href="{% url 'bom:help-ai' %}">Connect an AI assistant</a></p>
                     {% if mcp_oauth_enabled and not connected_apps %}
@@ -357,7 +357,7 @@
                 <div class="section">
                     <details class="settings-disclosure"{% if new_api_token_plaintext or api_token_form.errors %} open{% endif %}>
                         <summary><h5>Personal access tokens</h5>
-                            <span class="grey-text text-darken-1">For scripts and tools that can't sign in.</span></summary>
+                            <span class="text-grey">For scripts and tools that can't sign in.</span></summary>
                         <p><b>Read</b> tokens only look things up, <b>Edit</b> tokens also edit Draft revisions and
                             build change orders, and <b>Edit and release</b> tokens can also release revisions and
                             approve change orders, as you.</p>
@@ -387,7 +387,7 @@
 
             <div id="part-classes" class="settings-section">
                 <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">category</i>Part
+                    <h4 class="section-title"><i class="material-icons text-primary">category</i>Part
                         Classes</h4>
                     <form name="seller" action="{% url 'bom:settings' tab_anchor='indabom' %}" method="post"
                           enctype="multipart/form-data">
@@ -496,7 +496,7 @@
 
             <div id="property-definitions" class="settings-section">
                 <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">list_alt</i>Property
+                    <h4 class="section-title"><i class="material-icons text-primary">list_alt</i>Property
                         Definitions</h4>
                     <p>Define part properties (e.g. Capacitance, Length, Sheen), their data type, and their
                         associated quantity of measure.</p>
@@ -525,19 +525,19 @@
                                                     <a class="table-action"
                                                        href="{% url 'bom:property-definition-edit' property_definition_id=prop.id %}"><i
                                                             class="material-icons left">edit</i>Edit</a>
-                                                    <a class="table-action red-text"
+                                                    <a class="table-action text-error"
                                                        href="{% url 'bom:property-definition-delete' property_definition_id=prop.id %}"
                                                        onclick="return confirm('Are you sure you want to delete this property definition?')"><i
                                                             class="material-icons left">delete</i></a>
                                                 {% else %}
-                                                    <span class="table-action tooltipped grey-text d-flex-inline align-center"
+                                                    <span class="table-action tooltipped text-grey d-flex-inline align-center"
                                                           data-position="top"
                                                           data-tooltip="Only users with schema management permissions can modify.">
                                                     <i class="material-icons left" style="font-size: 1.2rem;">lock</i> Edit
                                                 </span>
                                                 {% endif %}
                                             {% else %}
-                                                <span class="table-action tooltipped grey-text d-flex-inline align-center"
+                                                <span class="table-action tooltipped text-grey d-flex-inline align-center"
                                                       data-position="top"
                                                       data-tooltip="System Default: Cannot be modified">
                                                     <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
@@ -565,7 +565,7 @@
 
             <div id="units" class="settings-section">
                 <div class="section">
-                    <h4 class="section-title"><i class="material-icons teal-text text-darken-1">straighten</i>Units
+                    <h4 class="section-title"><i class="material-icons text-primary">straighten</i>Units
                         & Quantities</h4>
                     <p>Define quantities of measure (e.g. Length, Resistance) and their associated units (e.g. m,
                         mm, Ohm, kOhm).</p>
@@ -590,7 +590,7 @@
 
                                             {% if qom.units.count > 3 %}
                                                 <!--@formatter:off-->
-                                                <span class="grey-text text-darken-1 tooltipped" data-tooltip="{% for unit in qom.units.all %}{{ unit.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">(+{{ qom.units.count|add:"-3" }} more)
+                                                <span class="text-grey tooltipped" data-tooltip="{% for unit in qom.units.all %}{{ unit.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">(+{{ qom.units.count|add:"-3" }} more)
                                                 <!--@formatter:on-->
                                             </span>
                                             {% endif %}
@@ -601,18 +601,18 @@
                                                     <a class="table-action"
                                                        href="{% url 'bom:quantity-of-measure-edit' quantity_of_measure_id=qom.id %}"><i
                                                             class="material-icons left">edit</i>Edit</a>
-                                                    <a class="table-action red-text"
+                                                    <a class="table-action text-error"
                                                        href="{% url 'bom:quantity-of-measure-delete' quantity_of_measure_id=qom.id %}"
                                                        onclick="return confirm('Are you sure you want to delete this quantity of measure and all its units?')"><i
                                                             class="material-icons left">delete</i></a>
                                                 {% else %}
-                                                    <span class="table-action tooltipped grey-text d-flex-inline align-center"
+                                                    <span class="table-action tooltipped text-grey d-flex-inline align-center"
                                                           data-position="top"
                                                           data-tooltip="Only users with schema management permissions can modify.">
                                                     <i class="material-icons left" style="font-size: 1.2rem;">lock</i> Edit</span>
                                                 {% endif %}
                                             {% else %}
-                                                <span class="table-action tooltipped grey-text d-flex-inline align-center"
+                                                <span class="table-action tooltipped text-grey d-flex-inline align-center"
                                                       data-position="top"
                                                       data-tooltip="System Default: Cannot be modified">
                                                 <i class="material-icons left" style="font-size: 1.2rem;">lock</i> System
@@ -642,7 +642,7 @@
                 {% if perms.bom.manage_schema %}
                     <div class="section">
                         <h4 class="section-title" id="indabom-part-number-header"><i
-                                class="material-icons teal-text text-darken-1">format_list_numbered</i>Part Number</h4>
+                                class="material-icons text-primary">format_list_numbered</i>Part Number</h4>
                         {% if organization.number_scheme == 'S' %}
                             <form name="seller" action="{% url 'bom:settings' tab_anchor='indabom' %}" method="post"
                                   enctype="multipart/form-data">
@@ -667,7 +667,7 @@
                         {% endif %}
 
                         <div class="section">
-                            <h4 class="section-title"><i class="material-icons teal-text text-darken-1">swap_horiz</i>Change
+                            <h4 class="section-title"><i class="material-icons text-primary">swap_horiz</i>Change
                                 Organization Number Scheme</h4>
                             <p>Your organization's number scheme is currently:
                                 <b>{{ organization.get_number_scheme_display }}</b></p>
@@ -712,7 +712,7 @@
                                       method="post">
                                     {% csrf_token %}
                                     <button type="submit" name="change-number-scheme"
-                                            class="waves-effect waves-light btn red lighten-1">Change Scheme to
+                                            class="waves-effect waves-light btn btn-danger">Change Scheme to
                                         {% if organization.number_scheme == 'S' %}Intelligent{% else %}
                                             Semi-Intelligent{% endif %}</button>
                                 </form>

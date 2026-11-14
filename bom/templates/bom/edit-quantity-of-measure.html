@@ -21,7 +21,7 @@
                     <div class="row" style="margin-top: 40px; margin-bottom: 20px;">
                         <div class="col s12">
                             <h5>Units</h5>
-                            <p class="grey-text text-darken-1">Define the units belonging to this quantity of measure. Base multiplier is relative to the base unit (multiplier 1.0).<br><br>For example, Voltage would have a base multiplier of 1.0, and millivolts would have a base multiplier of 0.001.</p>
+                            <p class="text-grey">Define the units belonging to this quantity of measure. Base multiplier is relative to the base unit (multiplier 1.0).<br><br>For example, Voltage would have a base multiplier of 1.0, and millivolts would have a base multiplier of 0.001.</p>
                         </div>
                     </div>
 
@@ -30,7 +30,7 @@
 
                         <table class="highlight" style="border-bottom: 1px solid #e0e0e0;">
                             <thead>
-                            <tr class="grey-text">
+                            <tr class="text-grey">
                                 <th style="width: 35%;">Name</th>
                                 <th style="width: 20%;">Symbol</th>
                                 <th style="width: 35%;">Base Multiplier</th>
@@ -50,11 +50,11 @@
                                     <td class="center-align">
                                         {% if form.instance.pk %}
                                             <div style="display:none;">{{ form.DELETE }}</div>
-                                            <a href="#!" class="btn-flat btn-small red-text delete-existing-row">
+                                            <a href="#!" class="btn-flat btn-small text-error delete-existing-row">
                                                 <i class="material-icons">delete</i>
                                             </a>
                                         {% else %}
-                                            <a href="#!" class="btn-flat btn-small red-text remove-new-row">
+                                            <a href="#!" class="btn-flat btn-small text-error remove-new-row">
                                                 <i class="material-icons">close</i>
                                             </a>
                                         {% endif %}
@@ -97,7 +97,7 @@
             <td>{{ unit_formset.empty_form.symbol|materializecss }}</td>
             <td>{{ unit_formset.empty_form.base_multiplier|materializecss }}</td>
             <td class="center-align">
-                <a href="#!" class="btn-flat btn-small red-text remove-new-row">
+                <a href="#!" class="btn-flat btn-small text-error remove-new-row">
                     <i class="material-icons">close</i>
                 </a>
             </td>

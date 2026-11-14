@@ -88,21 +88,3 @@
     width: 40px;
     padding-right: 0;
 }
-
-@media print {
-    #searchForm {
-        display: none;
-    }
-
-    .part-list-actions, .checkbox-column {
-        display: none;
-    }
-
-    .fixed-action-btn {
-        display: none;
-    }
-
-    .responsive-table-wrapper {
-        overflow-x: visible !important;
-    }
-}

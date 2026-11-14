@@ -25,7 +25,7 @@
             <div class="card-panel">
                 <h5>What changed</h5>
                 {% if preview.previous_revision %}
-                    <p class="grey-text text-darken-1">Compared with rev {{ preview.previous_revision.revision }} ({{ preview.previous_revision.get_configuration_display }}).</p>
+                    <p class="text-grey">Compared with rev {{ preview.previous_revision.revision }} ({{ preview.previous_revision.get_configuration_display }}).</p>
                     {% if items %}
                         {% include 'bom/changes/components/change-items.html' %}
                     {% else %}
@@ -73,7 +73,7 @@
                                 </label>
                             </p>
                         {% endfor %}
-                        {% if can_add_to_change_order %}<p class="grey-text text-darken-1">A change order offers this after it is approved.</p>{% endif %}
+                        {% if can_add_to_change_order %}<p class="text-grey">A change order offers this after it is approved.</p>{% endif %}
                     {% endif %}
                 </div>
             {% endif %}
@@ -99,16 +99,16 @@
                 {% endif %}
 
                 <div class="edit-page-actions">
-                    <a href="{{ revision_url }}" class="waves-effect btn-flat grey-text">Cancel</a>
+                    <a href="{{ revision_url }}" class="waves-effect btn-flat text-grey">Cancel</a>
                     <span>
                         {% if can_add_to_change_order %}
-                            <button class="waves-effect {% if can_release or can_override %}btn-flat teal-text{% else %}waves-light btn teal lighten-1{% endif %}" type="submit" name="action" value="add_to_change_order">Add to change order</button>
+                            <button class="waves-effect {% if can_release or can_override %}btn-flat teal-text{% else %}waves-light btn btn-primary{% endif %}" type="submit" name="action" value="add_to_change_order">Add to change order</button>
                         {% endif %}
                         {% if can_override %}
                             <button class="waves-effect waves-light btn orange" type="submit" name="override" value="1" onclick="return confirm('Release without approval as an Admin? This override is recorded.');">Release as admin</button>
                         {% endif %}
                         {% if can_release %}
-                            <button class="waves-effect waves-light btn{% if draft_subparts %}-flat grey-text text-darken-2{% else %} green lighten-1{% endif %}" type="submit" name="action" value="release">Release{% if draft_subparts %} anyway{% endif %}</button>
+                            <button class="waves-effect waves-light {% if draft_subparts %}btn-flat text-grey{% else %}btn btn-primary{% endif %}" type="submit" name="action" value="release">Release{% if draft_subparts %} anyway{% endif %}</button>
                         {% endif %}
                     </span>
                 </div>

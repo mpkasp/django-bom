@@ -6,7 +6,7 @@
     <div class="container-app">
         <p><a href="{% url 'bom:part-info' part_id=part.id %}"><i class="material-icons tiny">arrow_back</i> {{ part.full_part_number }}</a></p>
         <h4>{{ part.full_part_number }}: rev {{ revision_a.revision }} to rev {{ revision_b.revision }}</h4>
-        <p class="grey-text text-darken-1">
+        <p class="text-grey">
             Rev {{ revision_a.revision }} ({{ revision_a.get_configuration_display }}) compared with
             rev {{ revision_b.revision }} ({{ revision_b.get_configuration_display }}).
         </p>

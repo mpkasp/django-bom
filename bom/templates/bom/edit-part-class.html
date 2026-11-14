@@ -27,7 +27,7 @@
                     <div class="row" style="margin-top: 40px; margin-bottom: 20px;">
                         <div class="col s12">
                             <h5>Property Definitions</h5>
-                            <p class="grey-text text-darken-1">Define the custom fields available to parts in this
+                            <p class="text-grey">Define the custom fields available to parts in this
                                 class.</p>
                         </div>
                     </div>
@@ -37,7 +37,7 @@
 
                         <table class="highlight" style="border-bottom: 1px solid #e0e0e0;">
                             <thead>
-                            <tr class="grey-text">
+                            <tr class="text-grey">
                                 <th style="width: 90%;">Property Definition</th>
                                 <th style="width: 10%;" class="center-align">Action</th>
                             </tr>
@@ -53,11 +53,11 @@
                                     <td class="center-align">
                                         {% if forloop.counter0 < property_definitions_formset.initial_form_count %}
                                             <div style="display:none;">{{ form.DELETE }}</div>
-                                            <a href="#!" class="btn-flat btn-small red-text delete-existing-row">
+                                            <a href="#!" class="btn-flat btn-small text-error delete-existing-row">
                                                 <i class="material-icons">delete</i>
                                             </a>
                                         {% else %}
-                                            <a href="#!" class="btn-flat btn-small red-text remove-new-row">
+                                            <a href="#!" class="btn-flat btn-small text-error remove-new-row">
                                                 <i class="material-icons">close</i>
                                             </a>
                                         {% endif %}
@@ -98,7 +98,7 @@
         <tr class="property-definition-row">
             <td>{{ property_definitions_formset.empty_form.property_definition|materializecss }}</td>
             <td class="center-align">
-                <a href="#!" class="btn-flat btn-small red-text remove-new-row">
+                <a href="#!" class="btn-flat btn-small text-error remove-new-row">
                     <i class="material-icons">close</i>
                 </a>
             </td>

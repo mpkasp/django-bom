@@ -66,7 +66,7 @@
                         <p>{{ subpart.references }}</p>
                     </div>
                     <div class="modal-footer">
-                        <a href="#!" class="modal-close waves-effect green lighten-1 waves-green btn-flat">Ok</a>
+                        <a href="#!" class="modal-close waves-effect btn-flat">Ok</a>
                     </div>
                 </div>
             {% endif %}
@@ -77,7 +77,7 @@
                         <p>{{ subpart.part_revision.synopsis }}</p>
                     </div>
                     <div class="modal-footer">
-                        <a href="#!" class="modal-close waves-effect green lighten-1 waves-green btn-flat">Ok</a>
+                        <a href="#!" class="modal-close waves-effect btn-flat">Ok</a>
                     </div>
                 </div>
             {% endif %}
@@ -106,18 +106,18 @@
                 <td class="text-normal">{{ subpart.seller_part.nre_cost | default:"-" }}</td>
                 {% if subpart.indent_level == 1 and subpart.subpart is not None and manage %}
                     <td>
-                        <a class='dropdown-trigger' href='#'
-                           data-target='dropdown{{ subpart.subpart.id }}'><i class="material-icons left green-text">more_horiz</i></a>
+                        <a class='icon-button dropdown-trigger' href='#'
+                           data-target='dropdown{{ subpart.subpart.id }}'><i class="material-icons">more_horiz</i></a>
                         <!-- Dropdown Structure -->
                         <ul id='dropdown{{ subpart.subpart.id }}' class='dropdown-content'>
                             <li><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}"><i
                                     class="material-icons">edit</i>Edit or Change
                                 Rev</a>
                             <li class="divider" tabindex="-1"></li>
-                            <li><a class="red-text text-lighten-1"
+                            <li><a class="text-error"
                                    href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.subpart.id %}"
                                    onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')"><i
-                                    class="material-icons red-text text-lighten-1">delete_forever</i>Remove</a>
+                                    class="material-icons text-error">delete_forever</i>Remove</a>
                             </li>
                         </ul>
                     </td>

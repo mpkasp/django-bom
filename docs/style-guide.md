@@ -236,14 +236,6 @@ Fix these as the pages they live on are touched; none needs its own project.
 - **Two chip systems**: revision and change status chips share one palette; approval badges
   still use Materialize `badge`. The chip tints are literal light surfaces with dark ink rather
   than tokens, because the host's `*-surface` tokens are not paired with an ink colour.
-- **Button radius.** `.btn-outline`, `.revision-picker` and `.view-toggle` are pills; Materialize's
-  `.btn` is 2px, so a standalone install shows both shapes side by side. Decide whether `.btn`
-  becomes a pill in django-bom (IndaBOM already rounds it to 20px) or stays square.
-- **Dead or duplicate CSS.** `part-info.css`: `.valign-wrapper-row`, `.quantity-input-col`,
-  `.refresh-btn`, `.part-info-form-wrapper`, `.manage-btn-col` (declared twice). `style.css`:
-  `.part-info-form`, `.tighter`, `.cell-collapsed`, `.primary-color`/`.dark-color`/`.light-color`,
-  `.btn-warning`, `.info`, `.tabs` (declared twice), `.table-action` (overlaps `.icon-button`).
-  Print blocks are repeated in `part-info.css` and `dashboard.css`.
 - **Inline styles.** `settings.html` (26), `part-info.html` (22), `organization-create.html` (15),
   `edit-quantity-of-measure.html` (12), `edit-part-class.html` (10), `base.html` (10, the brand
   logo repeated four times).
