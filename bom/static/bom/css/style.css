@@ -679,6 +679,34 @@ a.anchor {
     margin-bottom: 16px;
 }
 
+.edit-page .cell-input {
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: none;
+    color: inherit;
+    font: inherit;
+}
+
+.edit-page .cell-input:hover, .edit-page .cell-input:focus {
+    border-color: rgba(128, 128, 128, 0.4);
+    outline: none;
+}
+
+.edit-page .cell-input:focus {
+    border-color: var(--color-primary, #66bb6a);
+}
+
+.edit-page .cell-input-qty {
+    width: 6em;
+}
+
+.edit-page .row-status {
+    margin-right: 8px;
+    font-size: 12px;
+}
+
 .edit-page .edit-page-radios {
     padding-top: 2.2rem;
 }

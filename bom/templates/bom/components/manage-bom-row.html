@@ -1,0 +1,18 @@
+<tr id="subpart-{{ subpart.id }}" data-part-revision="{{ subpart.part_revision_id }}"
+    data-save-url="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.id %}">
+    <td class="single-line"><a href="{% url 'bom:part-info' part_id=subpart.part_revision.part_id %}">{{ subpart.part_revision.part.full_part_number }}</a></td>
+    <td>{{ subpart.part_revision.synopsis }}</td>
+    <td>{{ subpart.part_revision.revision }}</td>
+    <td><input class="browser-default cell-input cell-input-qty" type="number" name="count" min="0" step="any" value="{{ subpart.count|stringformat:'.12g' }}" aria-label="Quantity"></td>
+    <td><input class="browser-default cell-input" type="text" name="reference" value="{{ subpart.reference|default:'' }}" aria-label="Reference"></td>
+    <td><label><input type="checkbox" class="filled-in" name="do_not_load"{% if subpart.do_not_load %} checked{% endif %} aria-label="Do not load"><span></span></label></td>
+    <td class="right-align single-line">
+        <span class="row-status text-grey" role="status"></span>
+        <a class="icon-button dropdown-trigger" href="#" data-target="subpart-menu-{{ subpart.id }}" aria-label="More actions"><i class="material-icons">more_horiz</i></a>
+        <ul id="subpart-menu-{{ subpart.id }}" class="dropdown-content">
+            <li><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.id %}"><i class="material-icons">swap_horiz</i>Change rev</a></li>
+            <li><a class="text-error" href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.id %}"
+                   onclick="return confirm('Are you sure you want to remove {{ subpart.part_revision.part.full_part_number }}?')"><i class="material-icons">delete</i>Remove</a></li>
+        </ul>
+    </td>
+</tr>

@@ -15,8 +15,9 @@ from django.core.cache import cache
 from django.core.exceptions import NON_FIELD_ERRORS, ImproperlyConfigured, ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count, ProtectedError, Q
-from django.http import HttpResponse, HttpResponsePermanentRedirect, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponsePermanentRedirect, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.template.loader import render_to_string
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.encoding import smart_str
@@ -127,6 +128,14 @@ def add_form_error_messages(request, form):
                     messages.error(request, error)
                 else:
                     messages.error(request, f"{field.capitalize()}: {error}")
+
+
+def _is_fetch(request):
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
+def _form_error_response(form):
+    return JsonResponse({'error': ' '.join(error for errors in form.errors.values() for error in errors)}, status=400)
 
 
 CSV_UPLOAD_MESSAGE_LIMIT = 10
@@ -1678,9 +1687,12 @@ def add_subpart(request, part_id, part_revision_id):
         if add_subpart_form.is_valid():
             subpart_part = add_subpart_form.subpart_part
             reference = add_subpart_form.cleaned_data['reference']
-            edits.add_subpart(
+            subpart = edits.add_subpart(
                 organization, user, part_revision, add_subpart_form.cleaned_data['subpart_part_number'],
                 add_subpart_form.cleaned_data['count'], reference, add_subpart_form.cleaned_data['do_not_load'])
+            if _is_fetch(request):
+                return JsonResponse({'row': render_to_string('bom/components/manage-bom-row.html', {
+                    'subpart': subpart, 'part': part_revision.part, 'part_revision': part_revision})})
 
             info_msg = "Added subpart "
             if reference:
@@ -1688,6 +1700,8 @@ def add_subpart(request, part_id, part_revision_id):
             info_msg += " {} to part {}".format(subpart_part, part_revision)
             messages.info(request, info_msg)
 
+        elif _is_fetch(request):
+            return _form_error_response(add_subpart_form)
         else:
             add_form_error_messages(request, add_subpart_form)
 
@@ -1922,7 +1936,9 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
                          'reference': form.cleaned_data['reference'],
                          'do_not_load': form.cleaned_data['do_not_load']},
                 result={'part_revision_id': parent_revision.id, 'subpart_id': subpart.id})
-            return HttpResponseRedirect(next_url)
+            return JsonResponse({}) if _is_fetch(request) else HttpResponseRedirect(next_url)
+        elif _is_fetch(request):
+            return _form_error_response(form)
         else:
             return TemplateResponse(request, 'bom/bom-form.html', locals())
 
