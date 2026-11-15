@@ -11,6 +11,8 @@
     --color-primary: #66bb6a;
     --color-primary-surface: #dcefdf;
     --color-primary-contrast: #2e7d32;
+    --color-text-on-primary: #fff;
+    --color-link: #039be5;
     --color-error: #f44336;
     --color-error-surface: #ffebee;
     --color-warning: #f9a825;
@@ -22,6 +24,10 @@
 
 html {
     line-height: normal;
+}
+
+a {
+    color: var(--color-link, #039be5);
 }
 
 main {
@@ -245,6 +251,7 @@ table.treetable tr.expanded span.indenter a {
 
 .btn-primary, .btn-primary:hover, .btn-primary:focus {
     background-color: var(--color-primary, #66bb6a);
+    color: var(--color-text-on-primary, #fff);
 }
 
 .btn-danger, .btn-danger:hover, .btn-danger:focus {
@@ -718,8 +725,11 @@ a.anchor {
     padding: 0 14px;
     border: 1px solid rgba(128, 128, 128, 0.4);
     border-radius: 18px;
+    background: none;
     color: #43a047;
+    font-family: inherit;
     font-weight: 500;
+    cursor: pointer;
 }
 
 .btn-outline:hover {
