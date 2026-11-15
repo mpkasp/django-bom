@@ -31,13 +31,11 @@
         <div id="bom" class="card-panel">
             <div class="table-toolbar">
                 <h5>Bill of materials</h5>
-                {% if subparts %}
-                    <a class="btn-outline btn-outline-danger waves-effect"
-                       href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision.id %}"
-                       onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove all subparts</a>
-                {% endif %}
+                <a id="remove-all-subparts" class="btn-outline btn-outline-danger waves-effect"{% if not subparts %} hidden{% endif %}
+                   href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision.id %}"
+                   onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove all subparts</a>
             </div>
-            <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}" method="post">
+            <form id="add-subpart-form" action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}" method="post">
                 {% csrf_token %}
                 <div class="row">
                     {{ add_subpart_form.subpart_part_number|materializecss:'m4 s12' }}
@@ -50,7 +48,8 @@
                 </div>
             </form>
 
-            <table class="highlight part-list tight">
+            <p id="bom-error" class="text-error" role="alert" hidden></p>
+            <table id="subparts" class="highlight part-list tight">
                 <thead>
                 <tr>
                     <th>Part No.</th>
@@ -64,22 +63,7 @@
                 </thead>
                 <tbody>
                 {% for subpart in subparts %}
-                    <tr>
-                        <td class="single-line"><a href="{% url 'bom:part-info' part_id=subpart.part_revision.part_id %}">{{ subpart.part_revision.part.full_part_number }}</a></td>
-                        <td>{{ subpart.part_revision.synopsis }}</td>
-                        <td>{{ subpart.part_revision.revision }}</td>
-                        <td>{{ subpart.count|floatformat }}</td>
-                        <td>{{ subpart.reference }}</td>
-                        <td>{% if subpart.do_not_load %}Yes{% endif %}</td>
-                        <td class="right-align">
-                            <a class="icon-button dropdown-trigger" href="#" data-target="subpart-menu-{{ subpart.id }}" aria-label="More actions"><i class="material-icons">more_horiz</i></a>
-                            <ul id="subpart-menu-{{ subpart.id }}" class="dropdown-content">
-                                <li><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.id %}"><i class="material-icons">edit</i>Edit or change rev</a></li>
-                                <li><a class="text-error" href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.id %}"
-                                       onclick="return confirm('Are you sure you want to remove {{ subpart.part_revision.part.full_part_number }}?')"><i class="material-icons">delete</i>Remove</a></li>
-                            </ul>
-                        </td>
-                    </tr>
+                    {% include 'bom/components/manage-bom-row.html' %}
                 {% empty %}
                     {% include 'bom/components/empty-row.html' with message='This part does not contain any other parts.' only %}
                 {% endfor %}
@@ -180,6 +164,83 @@
 {% endblock %}
 
 {% block bom-script %}
+    {% if not immutable %}
+    <script>
+        (function () {
+            const table = document.getElementById('subparts');
+            const addForm = document.getElementById('add-subpart-form');
+            const errorLine = document.getElementById('bom-error');
+            const csrfToken = addForm.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            function post(url, body) {
+                return fetch(url, {
+                    method: 'POST', mode: 'same-origin', body: body,
+                    headers: {'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest'},
+                }).then(response => response.json()).catch(() => ({error: "Couldn't save. Reload the page and try again."}));
+            }
+
+            function showError(message) {
+                errorLine.textContent = message || '';
+                errorLine.hidden = !message;
+            }
+
+            function saveRow(row) {
+                const status = row.querySelector('.row-status');
+                const body = new FormData();
+                body.append('part_revision', row.dataset.partRevision);
+                row.querySelectorAll('input[name]').forEach(input => {
+                    if (input.type !== 'checkbox' || input.checked) body.append(input.name, input.value);
+                });
+                delete row.dataset.dirty;
+                status.textContent = 'Saving…';
+                post(row.dataset.saveUrl, body).then(result => {
+                    showError(result.error);
+                    status.textContent = result.error ? 'Not saved' : 'Saved';
+                    status.className = 'row-status ' + (result.error ? 'text-error' : 'text-grey');
+                    if (result.error) row.dataset.dirty = '1';
+                });
+            }
+
+            table.addEventListener('change', event => {
+                const row = event.target.closest('tr[data-save-url]');
+                if (!row) return;
+                row.dataset.dirty = '1';
+                if (event.target.type === 'checkbox') saveRow(row);
+            });
+            table.addEventListener('focusout', event => {
+                const row = event.target.closest('tr[data-save-url]');
+                if (row && row.dataset.dirty && !row.contains(event.relatedTarget)) saveRow(row);
+            });
+            table.addEventListener('keydown', event => {
+                if (event.key === 'Enter' && event.target.matches('.cell-input')) event.target.blur();
+            });
+
+            addForm.addEventListener('submit', event => {
+                event.preventDefault();
+                post(addForm.getAttribute('action'), new FormData(addForm)).then(result => {
+                    showError(result.error);
+                    if (result.error) return;
+                    const template = document.createElement('template');
+                    template.innerHTML = result.row;
+                    const row = template.content.firstElementChild;
+                    const existing = document.getElementById(row.id);
+                    if (existing) {
+                        existing.replaceWith(row);
+                    } else {
+                        table.querySelectorAll('.empty-state').forEach(cell => cell.parentElement.remove());
+                        table.tBodies[0].appendChild(row);
+                    }
+                    $(row).find('.dropdown-trigger').dropdown({constrainWidth: false, coverTrigger: false});
+                    row.querySelector('.row-status').textContent = 'Added';
+                    document.getElementById('remove-all-subparts').hidden = false;
+                    addForm.reset();
+                    M.updateTextFields();
+                    addForm.querySelector('[name=subpart_part_number]').focus();
+                });
+            });
+        })();
+    </script>
+    {% endif %}
     <script>
         $(document).ready(function () {
             $('.dropdown-trigger').dropdown({

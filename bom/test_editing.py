@@ -43,6 +43,34 @@ class DirectEditHistoryTest(EditingTestCase):
         self.assertEqual(change.author, self.user)
         self.assertEqual(change.items.get().kind, kind)
 
+    def test_edit_page_fetch_requests_get_json_instead_of_redirects(self):
+        assembly = self.parts[1].latest()
+        leaf = self.new_part().part
+        line = assembly.assembly.subparts.first()
+        kwargs = {'part_id': assembly.part_id, 'part_revision_id': assembly.id}
+        edit_url = reverse('bom:part-edit-subpart', kwargs=dict(kwargs, subpart_id=line.id))
+        add_url = reverse('bom:part-add-subpart', kwargs=kwargs)
+        fetch = {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'}
+
+        response = self.client.post(
+            edit_url, {'part_revision': line.part_revision.id, 'count': 2, 'reference': 'R1, R2'}, **fetch)
+        line.refresh_from_db()
+        self.assertEqual((response.json(), line.count, line.reference), ({}, 2, 'R1, R2'))
+
+        response = self.client.post(
+            edit_url, {'part_revision': line.part_revision.id, 'count': 1, 'reference': 'R1, R2'}, **fetch)
+        line.refresh_from_db()
+        self.assertEqual((response.status_code, line.count), (400, 2))
+        self.assertIn('mismatch', response.json()['error'])
+
+        response = self.client.post(add_url, {'subpart_part_number': leaf.full_part_number(), 'count': 1}, **fetch)
+        added = assembly.assembly.subparts.get(part_revision__part=leaf)
+        self.assertIn(f'id="subpart-{added.id}"', response.json()['row'])
+
+        response = self.client.post(add_url, {'subpart_part_number': 'missing', 'count': 1}, **fetch)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Invalid part number', response.json()['error'])
+
     def test_each_direct_save_records_exactly_one_history_change_without_a_number(self):
         assembly = self.parts[1].latest()
         leaf = self.new_part().part
