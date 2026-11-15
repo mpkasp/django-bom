@@ -34,16 +34,14 @@ where XXX should be the name of the includee's object that represent its PartRev
     </div>
 </div>
 
-<div class="row">
+<div class="property-grid">
     {% for group in part_revision_form.property_fields %}
         <div class="row">
-            <div class="fieldWrapper">
-                {{ group.property|materializecss:'m3 s6' }}
-            </div>
             {% if group.unit %}
-                <div class="fieldWrapper">
-                    {{ group.unit|materializecss:'m3 s6' }}
-                </div>
+                {{ group.property|materializecss:'s8' }}
+                {{ group.unit|materializecss:'s4' }}
+            {% else %}
+                {{ group.property|materializecss:'s12' }}
             {% endif %}
         </div>
     {% endfor %}

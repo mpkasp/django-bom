@@ -654,6 +654,17 @@ a.anchor {
     margin: 0 8px;
     color: #bdbdbd;
 }
+.property-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    column-gap: 24px;
+}
+
+/* Materialize's auto side margins would shrink and centre each row inside its grid cell. */
+.property-grid .row {
+    margin: 0;
+}
+
 .edit-page .card-panel h5 {
     margin-top: 0;
 }
