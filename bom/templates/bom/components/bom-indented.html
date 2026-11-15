@@ -19,11 +19,7 @@
         <a class="icon-button button-reset-filter-indented tooltipped" href="#" data-position="bottom" data-tooltip="Reset sort" aria-label="Reset sort" onclick="return refreshTableSorterIndented()"><i class="material-icons">restart_alt</i></a>
     </div>
     <div class="table-toolbar-end">
-        {% if manage and perms.bom.edit_part %}
-            <a class="btn-outline btn-outline-danger waves-effect"
-               href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision_id %}"
-               onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove all subparts</a>
-        {% elif part_revision %}
+        {% if part_revision %}
             <a class="btn-outline waves-effect dropdown-trigger-indented" href="#" data-target="export-bom-{{ part.id }}-indented"><i class="material-icons">download</i>Export<i class="material-icons">arrow_drop_down</i></a>
             <ul id="export-bom-{{ part.id }}-indented" class="dropdown-content">
                 <li><a href="{% url 'bom:part-revision-export-bom' part_revision_id=part_revision.id %}">CSV</a></li>
@@ -53,9 +49,6 @@
             <th class="text-normal">Price</th>
             <th class="text-normal"><i>Ext Cost</i></th>
             <th class="text-normal">NRE</th>
-            {% if perms.bom.edit_part and manage %}
-                <th class="sorter-false" data-sorter="false">Manage</th>
-            {% endif %}
         </tr>
         </thead>
         {% for bom_id, subpart in bom_items.items %}
@@ -94,26 +87,6 @@
                 <td class="text-normal" id="bom-indented-unit-cost-{{ subpart.part_revision.id }}">{{ subpart.seller_part.unit_cost | default:"-" }}</td>
                 <td class="text-normal" id="bom-indented-ext-cost-{{ subpart.part_revision.id }}">{% if subpart.seller_part %}{{ subpart.order_cost }}{% else %}-{% endif %}</td>
                 <td class="text-normal">{{ subpart.seller_part.nre_cost | default:"-" }}</td>
-                {% if subpart.indent_level == 1 and subpart.subpart is not None and manage %}
-                    <td>
-                        <a class='icon-button dropdown-trigger' href='#'
-                           data-target='dropdown{{ subpart.subpart.id }}'><i class="material-icons">more_horiz</i></a>
-                        <!-- Dropdown Structure -->
-                        <ul id='dropdown{{ subpart.subpart.id }}' class='dropdown-content'>
-                            <li><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision_id subpart_id=subpart.subpart.id %}"><i
-                                    class="material-icons">edit</i>Edit or Change
-                                Rev</a>
-                            <li class="divider" tabindex="-1"></li>
-                            <li><a class="text-error"
-                                   href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.subpart.id %}"
-                                   onclick="return confirm('Are you sure you want to remove {{ subpart.part.full_part_number }}?')"><i
-                                    class="material-icons text-error">delete_forever</i>Remove</a>
-                            </li>
-                        </ul>
-                    </td>
-                {% elif manage %}
-                    <td></td>
-                {% endif %}
             </tr>
         {% empty %}
             <tr>
@@ -167,14 +140,7 @@
 
     function initTableSorterIndented() {
         $('.button-reset-filter-indented').hide();
-        $("#indented-bom").tablesorter({
-            theme: "materialize",
-            headers: {
-                '.manage': {
-                    sorter: false
-                }
-            }
-        }).bind("sortEnd", function (e, t) {
+        $("#indented-bom").tablesorter({theme: "materialize"}).bind("sortEnd", function (e, t) {
             $('.button-reset-filter-indented').show();
         });
     }

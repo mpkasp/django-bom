@@ -28,23 +28,15 @@
                 {% endif %}
             </div>
         {% else %}
-        <div class="card-panel">
-            <h5>Details</h5>
-            <form id="part-revision-form" action="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}" method="post">
-                {% csrf_token %}
-                {{ part_revision_form.non_field_errors }}
-                {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}
-                <div class="right-align">
-                    <button class="waves-effect waves-light btn btn-primary" type="submit">Save</button>
-                </div>
-            </form>
-        </div>
-
         <div id="bom" class="card-panel">
-            <h5>Bill of materials</h5>
-            {% include 'bom/components/bom-indented.html' with order_by='indented' manage=1 bom_items=indented_bom.parts part=part part_revision=part_revision profile=profile %}
-
-            <h6>Add subpart</h6>
+            <div class="table-toolbar">
+                <h5>Bill of materials</h5>
+                {% if subparts %}
+                    <a class="btn-outline btn-outline-danger waves-effect"
+                       href="{% url 'bom:part-remove-all-subparts' part_id=part.id part_revision_id=part_revision.id %}"
+                       onclick="return confirm('Are you sure you want to remove ALL subparts from {{ part.full_part_number }}?')">Remove all subparts</a>
+                {% endif %}
+            </div>
             <form action="{% url 'bom:part-add-subpart' part_id=part.id part_revision_id=part_revision.id %}" method="post">
                 {% csrf_token %}
                 <div class="row">
@@ -58,30 +50,80 @@
                 </div>
             </form>
 
-            <h6>Import from CSV</h6>
-            <p class="text-grey">Columns: <b>part_number</b> or <b>manufacturer_part_number</b>, and
-                <b>quantity</b>. Optional: <b>reference</b> (or designator), <b>do_not_load</b>, <b>dnp</b>. Parts must
-                already exist. You'll see a preview before anything is saved.</p>
-            <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
+            <table class="highlight part-list tight">
+                <thead>
+                <tr>
+                    <th>Part No.</th>
+                    <th>Synopsis</th>
+                    <th>Rev</th>
+                    <th>Qty</th>
+                    <th>Reference</th>
+                    <th title="Do not load">DNL</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for subpart in subparts %}
+                    <tr>
+                        <td class="single-line"><a href="{% url 'bom:part-info' part_id=subpart.part_revision.part_id %}">{{ subpart.part_revision.part.full_part_number }}</a></td>
+                        <td>{{ subpart.part_revision.synopsis }}</td>
+                        <td>{{ subpart.part_revision.revision }}</td>
+                        <td>{{ subpart.count|floatformat }}</td>
+                        <td>{{ subpart.reference }}</td>
+                        <td>{% if subpart.do_not_load %}Yes{% endif %}</td>
+                        <td class="right-align">
+                            <a class="icon-button dropdown-trigger" href="#" data-target="subpart-menu-{{ subpart.id }}" aria-label="More actions"><i class="material-icons">more_horiz</i></a>
+                            <ul id="subpart-menu-{{ subpart.id }}" class="dropdown-content">
+                                <li><a href="{% url 'bom:part-edit-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.id %}"><i class="material-icons">edit</i>Edit or change rev</a></li>
+                                <li><a class="text-error" href="{% url 'bom:part-remove-subpart' part_id=part.id part_revision_id=part_revision.id subpart_id=subpart.id %}"
+                                       onclick="return confirm('Are you sure you want to remove {{ subpart.part_revision.part.full_part_number }}?')"><i class="material-icons">delete</i>Remove</a></li>
+                            </ul>
+                        </td>
+                    </tr>
+                {% empty %}
+                    {% include 'bom/components/empty-row.html' with message='This part does not contain any other parts.' only %}
+                {% endfor %}
+                </tbody>
+            </table>
+
+            <details class="edit-page-import">
+                <summary class="btn-outline"><i class="material-icons">upload</i>Import CSV</summary>
+                <p class="text-grey">Columns: <b>part_number</b> or <b>manufacturer_part_number</b>, and
+                    <b>quantity</b>. Optional: <b>reference</b> (or designator), <b>do_not_load</b>, <b>dnp</b>. Parts must
+                    already exist. You'll see a preview before anything is saved.</p>
+                <form action="{% url 'bom:part-upload-bom' part_id=part.id %}" method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col m6 s12 file-field input-field">
+                            <div class="btn btn-primary">
+                                <span>File</span>
+                                {{ upload_subparts_csv_form.file }}
+                            </div>
+                            <div class="file-path-wrapper">
+                                <input class="file-path validate" type="text" placeholder="No file chosen">
+                                {{ upload_subparts_csv_form.file.errors }}
+                            </div>
+                        </div>
+                        <div class="col m4 s12 edit-page-radios">
+                            <label class="edit-page-radio"><input name="mode" type="radio" value="add" checked/><span>Add to BOM</span></label>
+                            <label class="edit-page-radio"><input name="mode" type="radio" value="replace"/><span>Replace BOM</span></label>
+                        </div>
+                        <div class="col m2 s12 input-field right-align">
+                            <input class="waves-effect waves-light btn btn-primary" type="submit" value="Upload"/>
+                        </div>
+                    </div>
+                </form>
+            </details>
+        </div>
+
+        <div class="card-panel">
+            <h5>Details</h5>
+            <form id="part-revision-form" action="{% url 'bom:part-edit-revision' part_id=part.id part_revision_id=part_revision.id %}" method="post">
                 {% csrf_token %}
-                <div class="row">
-                    <div class="col m6 s12 file-field input-field">
-                        <div class="btn btn-primary">
-                            <span>File</span>
-                            {{ upload_subparts_csv_form.file }}
-                        </div>
-                        <div class="file-path-wrapper">
-                            <input class="file-path validate" type="text" placeholder="No file chosen">
-                            {{ upload_subparts_csv_form.file.errors }}
-                        </div>
-                    </div>
-                    <div class="col m4 s12 edit-page-radios">
-                        <label class="edit-page-radio"><input name="mode" type="radio" value="add" checked/><span>Add to BOM</span></label>
-                        <label class="edit-page-radio"><input name="mode" type="radio" value="replace"/><span>Replace BOM</span></label>
-                    </div>
-                    <div class="col m2 s12 input-field right-align">
-                        <input class="waves-effect waves-light btn btn-primary" type="submit" value="Upload"/>
-                    </div>
+                {{ part_revision_form.non_field_errors }}
+                {% include 'bom/part-revision-display.html' with part_revision_form=part_revision_form %}
+                <div class="right-align">
+                    <button class="waves-effect waves-light btn btn-primary" type="submit">Save</button>
                 </div>
             </form>
         </div>
@@ -138,30 +180,7 @@
 {% endblock %}
 
 {% block bom-script %}
-    <!-- Tree Table -->
-    <script src="{% static 'bom/js/jquery.treetable.js' %}"></script>
     <script>
-        $("#indented-bom").treetable({
-            expandable: true,
-            indent: 2,
-            initialState: 'collapsed',
-            onInitialized: function () {
-                $("#indented-bom").treetable("reveal", {{ part_revision.id }});
-            }
-        });
-    </script>
-
-    <!-- Floating Horizontal Scrollbar -->
-    <script type="text/javascript" src="{% static 'bom/js/jquery.ba-floatingscrollbar.min.js' %}"></script>
-    <script>
-        $(function () {
-            $('.responsive-table-wrapper').floatingScrollbar();
-        });
-    </script>
-
-    <!-- Handle if there's an anchor, select tab -->
-    <script type='text/javascript'>
-        // For dropdown menu
         $(document).ready(function () {
             $('.dropdown-trigger').dropdown({
                     inDuration: 300,

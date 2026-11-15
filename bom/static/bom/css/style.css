@@ -663,6 +663,22 @@ a.anchor {
     font-weight: 500;
 }
 
+.edit-page .table-toolbar h5 {
+    margin-bottom: 0;
+}
+
+.edit-page #bom {
+    scroll-margin-top: 16px;
+}
+
+.edit-page .edit-page-import {
+    margin-top: 16px;
+}
+
+.edit-page .edit-page-import[open] summary {
+    margin-bottom: 16px;
+}
+
 .edit-page .edit-page-radios {
     padding-top: 2.2rem;
 }

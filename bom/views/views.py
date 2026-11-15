@@ -1606,21 +1606,14 @@ def manage_bom(request, part_id, part_revision_id):
                                       part_revision_id=part_revision_id)
     upload_subparts_csv_form = FileForm()
 
-    qty_cache_key = str(part_id) + '_qty'
-    qty = cache.get(qty_cache_key, 100)
-
-    try:
-        indented_bom = part_revision.indented(top_level_quantity=qty)
-    except (RuntimeError, RecursionError):
-        messages.error(request, "Error: infinite recursion in part relationship. Contact info@indabom.com to resolve.")
-        indented_bom = []
-    except AttributeError as err:
-        messages.error(request, err)
-        indented_bom = []
+    subparts = part_revision.assembly.subparts.select_related(
+        'part_revision__part__number_class', 'part_revision__part__organization').order_by(
+        'part_revision__part__number_class__code', 'part_revision__part__number_item',
+        'part_revision__part__number_variation')
 
     references_seen = set()
     duplicate_references = set()
-    for sp in part_revision.assembly.subparts.all():
+    for sp in subparts:
         check_references_for_duplicates(sp.reference, references_seen, duplicate_references)
 
     if len(duplicate_references) > 0:
@@ -1698,7 +1691,7 @@ def add_subpart(request, part_id, part_revision_id):
         else:
             add_form_error_messages(request, add_subpart_form)
 
-    return HttpResponseRedirect(_edit_page_url(part_id, part_revision_id))
+    return HttpResponseRedirect(_edit_page_url(part_id, part_revision_id) + '#bom')
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1717,8 +1710,7 @@ def remove_subpart(request, part_id, part_revision_id, subpart_id):
         part_revision=part_revision, before=before, payload={'subpart_part_number': before['subpart_part_number'],
                                                              'do_not_load': before['do_not_load']},
         result={'part_revision_id': part_revision.id})
-    return HttpResponseRedirect(
-        _edit_page_url(part_id, part_revision_id))
+    return HttpResponseRedirect(_edit_page_url(part_id, part_revision_id) + '#bom')
 
 
 @login_required(login_url=BOM_LOGIN_URL)
@@ -1915,7 +1907,7 @@ def edit_subpart(request, part_id, part_revision_id, subpart_id):
         return refusal
     title = f'Edit subpart {subpart.part_revision.part.full_part_number()}'
     before = _subpart_values(subpart)
-    next_url = _edit_page_url(part_id, part_revision_id)
+    next_url = _edit_page_url(part_id, part_revision_id) + '#bom'
 
     if request.method == 'POST':
         form = SubpartForm(request.POST, instance=subpart, organization=organization, part_id=subpart.part_revision.part.id)
@@ -1954,7 +1946,7 @@ def remove_all_subparts(request, part_id, part_revision_id):
             request.user.bom_profile().organization, request.user, part_revision.part, ChangeItem.KIND_REMOVE_SUBPART,
             f"Remove all {len(lines)} lines from {_revision_label(part_revision)}", part_revision=part_revision,
             before={'lines': lines}, payload={'all': True}, result={'part_revision_id': part_revision.id})
-    return HttpResponseRedirect(_edit_page_url(part_id, part_revision_id))
+    return HttpResponseRedirect(_edit_page_url(part_id, part_revision_id) + '#bom')
 
 
 def _save_seller_part(request, organization, form, manufacturer_part, before=None):
