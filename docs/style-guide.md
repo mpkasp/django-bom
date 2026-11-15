@@ -52,6 +52,8 @@ names in its `indabom-colors.css`.
 | `--color-primary` | `#66bb6a` | Filled buttons, active tab, sorted column, selected nav |
 | `--color-primary-surface` | `#dcefdf` | Tinted backgrounds that mean "selected" or "released" |
 | `--color-primary-contrast` | `#2e7d32` | Primary text on a light background where `--color-primary` is too light |
+| `--color-text-on-primary` | `#fff` | Label on a filled primary button |
+| `--color-link` | `#039be5` | Text links |
 | `--color-error` / `--color-error-surface` | `#f44336` / `#ffebee` | Destructive actions, rejected, errors |
 | `--color-warning` / `--color-warning-surface` | `#f9a825` / `#fff3cd` | Draft, open requests, near-match warnings |
 | `--color-info` / `--color-info-surface` | `#283593` / `#e3e8fb` | In review, proposal strip |
