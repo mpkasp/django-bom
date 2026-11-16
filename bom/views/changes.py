@@ -35,7 +35,7 @@ def changes_view(view):
 
 
 def _change_from_number(organization, number):
-    return get_object_or_404(Change.objects.select_related('author', 'api_token', 'resolved_by'),
+    return get_object_or_404(Change.objects.select_related('author', 'api_token', 'resolved_by', 'resolved_api_token'),
                              organization=organization, number=number)
 
 

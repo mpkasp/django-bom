@@ -1214,6 +1214,21 @@ class TestBOM(TransactionTestCase):
         self.client.post(reverse('bom:import-confirm'), {'token': preview.context['token']})
         self.assertEqual(self._line_counts(drive), {wire: 1, cable: 1})
 
+    def test_upload_bom_row_without_a_revision_uses_the_latest_revision(self):
+        drive, wire, cable = self._create_parts(3)
+        wire_latest = PartRevision.objects.create(part=wire, revision='2')
+        new_part_number = cable.full_part_number()
+        cable.delete()
+
+        self._import_file(reverse('bom:part-upload-bom', kwargs={'part_id': drive.id}),
+                          {'file': self._bom_upload_file((wire, 2), (new_part_number, 1), header='part_number,quantity')})
+
+        lines = {line.part_revision: line.count for line in drive.latest().assembly.subparts.all()}
+        created = PartRevision.objects.get(part__organization=self.organization, part__number_item=cable.number_item)
+        self.assertEqual(lines, {wire_latest: 2, created: 1})
+        self.assertEqual(created.revision, '1')
+        self.assertEqual([revision.revision for revision in wire.revisions().order_by('id')], ['1', '2'])
+
     def test_upload_bom_with_properties(self):
         (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
 

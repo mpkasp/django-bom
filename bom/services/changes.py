@@ -52,9 +52,10 @@ def withdraw_change(change, user):
     return _resolve(change, user, Change.STATUS_WITHDRAWN)
 
 
-def _resolve(change, user, status, **extra_fields):
+def _resolve(change, user, status, api_token=None, **extra_fields):
     change.status = status
     change.resolved_by = user
+    change.resolved_api_token = api_token
     change.resolved_at = timezone.now()
     for field, value in extra_fields.items():
         setattr(change, field, value)

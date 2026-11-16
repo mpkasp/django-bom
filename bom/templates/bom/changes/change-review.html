@@ -16,7 +16,7 @@
                     &middot; {% if change.api_token %}Proposed by {{ change.api_token.name }} for {{ author_name }}{% else %}Proposed by {{ author_name }}{% endif %}
                     &middot; {{ change.created_at|timesince }} ago
                     {% if not staged_items %}&middot; {{ cards|length }} revision{{ cards|length|pluralize }}{% endif %}
-                    {% if change.resolved_by %}&middot; {{ resolved_verb }} by {{ change.resolved_by.get_full_name|default:change.resolved_by.username }}
+                    {% if change.resolved_by %}&middot; {{ resolved_verb }} by {{ change.resolved_by.get_full_name|default:change.resolved_by.username }}{% if change.resolved_api_token %} via {{ change.resolved_api_token.name }}{% endif %}
                         on <span title="{{ change.resolved_at|date:'DATETIME_FORMAT' }}">{{ change.resolved_at|date:'M j, Y' }}</span>{% endif %}
                     {% if change.protection_overridden_by %}&middot; Approved with an Admin override by {{ change.protection_overridden_by.username }}{% endif %}
                 </p>
@@ -61,7 +61,7 @@
 
         {% if change.status == 'rejected' and change.rejection_reason %}
             <div class="change-sent-back">
-                <span class="change-label">Sent back{% if change.resolved_by %} by {{ change.resolved_by.get_full_name|default:change.resolved_by.username }}{% endif %}</span>
+                <span class="change-label">Sent back{% if change.resolved_by %} by {{ change.resolved_by.get_full_name|default:change.resolved_by.username }}{% if change.resolved_api_token %} via {{ change.resolved_api_token.name }}{% endif %}{% endif %}</span>
                 <p>{{ change.rejection_reason|linebreaksbr }}</p>
                 <p class="text-grey">Its revisions are Drafts again. Edit them, then submit this change order for review again.</p>
             </div>

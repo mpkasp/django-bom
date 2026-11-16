@@ -163,7 +163,7 @@ Read (scope `read`):
 | `where_used` | `part_number` | assemblies containing the part, at every level |
 | `lookup_sourcing` | `manufacturer_part_number` | live offers via the organization's configured provider (BYOK); never persisted |
 | `export_bom_csv` | `part_number`, `revision?`, `layout='indented'` | the CSV text the UI export produces; layout is `indented`, `single_level` or `flat` |
-| `get_change_order`, `list_change_orders` | `number`; `status='open'`, `limit=25` | a change order with its revisions, diff, unit cost, where used, rejection reason and whether you could approve it; change orders by status |
+| `get_change_order`, `list_change_orders` | `number`; `status='open'`, `limit=25` | a change order with its revisions, diff, unit cost, where used, rejection reason, who resolved it (`resolved_by`) and through which connection (`resolved_via`), and whether you could approve it; change orders by status |
 
 Write (scope `write`; saved at once to Draft revisions):
 
@@ -191,7 +191,8 @@ Release (scopes `write` and `release`; ask the user first):
 
 `upload_bom` runs the CSV through `BOMCSVForm` and saves each added, changed or removed line to the assembly's Draft.
 A CSV that has row errors, or that needs a part or revision that does not exist yet, saves nothing and the error
-says why; create the parts first.
+says why; create the parts first. A row with no `revision` means the part's latest revision, and a row that names
+an older one is refused.
 
 Explicit part numbers: `create_part` accepts optional `number_item` and `number_variation`,
 exactly as `PartFormSemiIntelligent` does ("auto generated if blank"), and requires `number_item`

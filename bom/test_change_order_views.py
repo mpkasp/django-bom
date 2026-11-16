@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.utils.formats import date_format
 
 from bom import constants
-from bom.models import Change, ChangeItem, PartRevision
+from bom.models import APIToken, Change, ChangeItem, PartRevision
 from bom.services import boms, change_orders, changes, parts
 from bom.services.errors import ServiceError
 from bom.test_change_orders import ChangeOrderTestCase
@@ -112,9 +112,25 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
         approved_on = date_format(timezone.localtime(change.resolved_at), 'M j, Y')
         approved = self.client.get(self.url(change))
         self.assertContains(approved, 'Approved by reviewer')
+        self.assertNotContains(approved, 'Approved by reviewer via')
         self.assertContains(approved, f'>{approved_on}</span>')
         self.assertContains(approved, f'Released rev {draft.revision} of {self.number(draft)}')
         self.assertNotContains(approved, 'Make it shorter')
+
+    def test_the_byline_names_the_connection_an_agent_resolved_it_through(self):
+        reviewer_token, _ = APIToken.issue(self.reviewer, self.organization, 'Claude',
+                                           scopes=(APIToken.SCOPE_READ, APIToken.SCOPE_RELEASE))
+        change = self.order(self.working_draft(self.released('Bracket'), 'Bracket, longer'))
+        change_orders.submit(change, self.user)
+
+        change_orders.reject(change, self.reviewer, 'Make it shorter', api_token=reviewer_token)
+        sent_back = self.client.get(self.url(change))
+        self.assertContains(sent_back, 'Rejected by reviewer via Claude')
+        self.assertContains(sent_back, 'Sent back by reviewer via Claude')
+
+        change_orders.submit(change, self.user)
+        change_orders.approve(change, self.reviewer, api_token=reviewer_token)
+        self.assertContains(self.client.get(self.url(change)), 'Approved by reviewer via Claude')
 
     def test_an_admin_author_approves_with_the_recorded_override(self):
         draft = self.working_draft(self.released('Bracket'), 'Bracket, longer')
