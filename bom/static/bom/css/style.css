@@ -671,6 +671,14 @@ a.anchor {
     margin-bottom: 8px;
 }
 
+.property-grid .select-wrapper:has(option[value=""]:checked) input.select-dropdown {
+    color: var(--color-text-grey, #9e9e9e);
+}
+
+.select-wrapper .caret {
+    fill: var(--color-text, rgba(0, 0, 0, 0.87));
+}
+
 .edit-page .card-panel h5 {
     margin-top: 0;
 }
