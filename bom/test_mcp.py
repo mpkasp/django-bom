@@ -710,6 +710,21 @@ class MCPUploadBomTest(MCPTestCase):
         self.assertEqual(Part.objects.filter(organization=self.organization).count(), part_count)
         self.assertEqual(self.lines(), {})
 
+    def test_a_row_without_a_revision_means_the_latest_and_a_stale_revision_is_refused(self):
+        resistor_number = self.resistor.full_part_number()
+        latest = parts.create_next_revision(self.resistor.latest())
+
+        _, error = self.upload(self.csv_text((resistor_number, 1, '1'), header='part_number,quantity,revision'))
+        self.assertIn(f'{resistor_number} is listed at rev 1', error)
+        self.assertIn(f'Use rev {latest.revision} in the CSV', error)
+        self.assertEqual(self.lines(), {})
+
+        result, error = self.upload(self.csv_text((1, resistor_number, 2, 'R1 R2'),
+                                                  header='level,part_number,quantity,references'))
+        self.assertIsNone(error, error)
+        self.assertEqual([line['kind'] for line in result['changed']], ['add_subpart'])
+        self.assertEqual(self.assembly_revision.assembly.subparts.get().part_revision, latest)
+
     def test_a_csv_that_changes_nothing_and_unknown_modes_are_refused(self):
         self.load_initial_lines()
         same_lines = self.csv_text((self.resistor.full_part_number(), 2, '"R1, R2"'),

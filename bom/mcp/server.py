@@ -250,9 +250,10 @@ def upload_bom(ctx: Context, assembly_part_number: str, csv_text: str, mode: str
     CSV's quantities and references to the assembly's existing lines; `replace` makes the assembly's lines match
     the CSV and removes the rest. The CSV is checked with the same import as the web upload and all of its line
     edits are saved together or none are: a CSV with errors changes nothing and the error lists each bad row. The
-    CSV may only use parts and revisions that already exist, and it cannot create or edit parts. A Released or In
-    Review assembly is refused: call revise_part first. Returns the line edits made (`changed`) and the import's
-    warnings."""
+    CSV may only use parts that already exist, and it cannot create or edit parts. A row means the part's latest
+    revision; the revision column may be left out, and a row that names an older revision is refused. A Released
+    or In Review assembly is refused: call revise_part first. Returns the line edits made (`changed`) and the
+    import's warnings."""
     with tool_call(ctx, 'upload_bom') as actor:
         actor.require_write(BomPerms.EDIT_PART)
         assembly = parts.part_from_number(actor.organization, assembly_part_number)

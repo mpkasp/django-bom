@@ -1668,7 +1668,7 @@ class BOMCSVForm(BaseCSVForm):
         # Extract some values
         part_dict['reference'] = reference
         part_dict['do_not_load'] = dnp in ['y', 'x', 'dnp', 'dnl', 'yes', 'true', ]
-        part_dict['revision'] = csv_headers.get_val_from_row(part_dict, 'revision') or 1
+        part_dict['revision'] = csv_headers.get_val_from_row(part_dict, 'revision')
         part_dict['count'] = csv_headers.get_val_from_row(part_dict, 'count')
         part_dict['number_class'] = None
         part_dict['number_variation'] = None
@@ -1713,9 +1713,13 @@ class BOMCSVForm(BaseCSVForm):
                                                 organization=self.organization).first()
 
         existing_part_revision = None
-        if existing_part:
+        if existing_part and not part_dict['revision']:
+            existing_part_revision = existing_part.latest()
+        elif existing_part:
             existing_part_revision = PartRevision.objects.filter(part=existing_part,
                                                                  revision=part_dict['revision']).first()
+        if not part_dict['revision']:
+            part_dict['revision'] = existing_part_revision.revision if existing_part_revision else 1
 
         if existing_part_revision and existing_part_revision.is_obsolete():
             self.warnings.append(f"Row {row_count}: Skipped {part_number} because the existing revision is Obsolete.")

@@ -191,7 +191,8 @@ Release (scopes `write` and `release`; ask the user first):
 
 `upload_bom` runs the CSV through `BOMCSVForm` and saves each added, changed or removed line to the assembly's Draft.
 A CSV that has row errors, or that needs a part or revision that does not exist yet, saves nothing and the error
-says why; create the parts first.
+says why; create the parts first. A row with no `revision` means the part's latest revision, and a row that names
+an older one is refused.
 
 Explicit part numbers: `create_part` accepts optional `number_item` and `number_variation`,
 exactly as `PartFormSemiIntelligent` does ("auto generated if blank"), and requires `number_item`
