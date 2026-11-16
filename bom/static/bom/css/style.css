@@ -665,6 +665,11 @@ a.anchor {
     margin: 0;
 }
 
+.property-grid .input-field {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
 .edit-page .card-panel h5 {
     margin-top: 0;
 }
