@@ -19,21 +19,21 @@
                 {% if not connections %}<td><code>{{ api_token.prefix }}</code></td>{% endif %}
                 <td class="text-normal">
                     {% if connections and api_token.user == user %}
-                        <form action="{% url 'bom:settings' tab_anchor='api' %}" method="post" class="connection-level-form">
+                        <form id="connection-level-form-{{ api_token.id }}" action="{% url 'bom:settings' tab_anchor='api' %}" method="post">
                             {% csrf_token %}
                             <input type="hidden" name="token_id" value="{{ api_token.id }}">
                             <input type="hidden" name="submit-connection-level">
-                            {% with current_level=api_token.level %}
-                                <select name="level" class="browser-default" onchange="this.form.submit()" aria-label="Access for {{ api_token.name }}">
-                                    {% for key, label in connection_levels %}
-                                        <option value="{{ key }}"{% if key == current_level %} selected{% endif %}>{{ label }}</option>
-                                    {% endfor %}
-                                    {% if current_level not in connection_level_keys %}
-                                        <option value="" selected disabled>{{ api_token.level_display }} (above your role)</option>
-                                    {% endif %}
-                                </select>
-                            {% endwith %}
+                            <input type="hidden" name="level">
                         </form>
+                        {% with current_level=api_token.level %}
+                            <a class="btn-outline dropdown-trigger" href="#" data-target="connection-level-menu-{{ api_token.id }}" aria-label="Access for {{ api_token.name }}">
+                                {{ api_token.level_display }}{% if current_level not in connection_level_keys %} (above your role){% endif %}<i class="material-icons">arrow_drop_down</i></a>
+                            <ul id="connection-level-menu-{{ api_token.id }}" class="dropdown-content">
+                                {% for key, label in connection_levels %}
+                                    <li{% if key == current_level %} class="active"{% endif %}><a href="#" onclick="const form = document.getElementById('connection-level-form-{{ api_token.id }}'); form.level.value = '{{ key }}'; form.submit(); return false;">{{ label }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        {% endwith %}
                     {% else %}
                         {{ api_token.level_display }}
                     {% endif %}
