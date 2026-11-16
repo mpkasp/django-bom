@@ -804,7 +804,8 @@ class MCPChangeOrderTest(MCPTestCase):
         approved, error = self.mcp(reviewer_plaintext).call('approve_change_order', number=submitted['number'])
 
         self.assertIsNone(error, error)
-        self.assertEqual((approved['status'], approved['resolved_by']), ('applied', 'reviewer'))
+        self.assertEqual((approved['status'], approved['resolved_by'], approved['resolved_via']),
+                         ('applied', 'reviewer', reviewer_token.name))
         self.assertEqual(self.configuration(draft), constants.CONFIGURATION_TYPE_RELEASED)
         order.refresh_from_db()
         self.assertEqual(order.resolved_api_token, reviewer_token)
@@ -849,7 +850,7 @@ class MCPChangeOrderTest(MCPTestCase):
         self.assertEqual(self.configuration(self.part.latest()), constants.CONFIGURATION_TYPE_RELEASED)
 
     def test_a_rejected_change_order_is_fixed_and_submitted_again(self):
-        _, _, reviewer_plaintext = self.member('reviewer')
+        _, reviewer_token, reviewer_plaintext = self.member('reviewer')
         submitted = self.submitted_order('Brakcet')
         number = submitted['number']
 
@@ -857,7 +858,8 @@ class MCPChangeOrderTest(MCPTestCase):
         self.assertIn('reason', error)
         rejected, error = self.mcp(reviewer_plaintext).call('reject_change_order', number=number, reason='Typo')
         self.assertIsNone(error, error)
-        self.assertEqual((rejected['status'], rejected['rejection_reason']), ('rejected', 'Typo'))
+        self.assertEqual((rejected['status'], rejected['rejection_reason'], rejected['resolved_by'],
+                          rejected['resolved_via']), ('rejected', 'Typo', 'reviewer', reviewer_token.name))
         self.assertEqual(self.configuration(self.part.latest()), constants.CONFIGURATION_TYPE_DRAFT)
 
         _, error = self.client_as_author.call('update_part_revision', part_number=self.part_number,
@@ -865,8 +867,8 @@ class MCPChangeOrderTest(MCPTestCase):
         self.assertIsNone(error, error)
         resubmitted, error = self.client_as_author.call('submit_change_order', number=number)
         self.assertIsNone(error, error)
-        self.assertEqual((resubmitted['number'], resubmitted['status'], resubmitted['rejection_reason']),
-                         (number, 'open', ''))
+        self.assertEqual((resubmitted['number'], resubmitted['status'], resubmitted['rejection_reason'],
+                          resubmitted['resolved_via']), (number, 'open', '', None))
 
     def test_revisions_are_added_and_removed_while_it_is_a_draft_and_only_its_author_submits_or_withdraws(self):
         _, _, other_plaintext = self.member('other')
@@ -908,7 +910,7 @@ class MCPChangeOrderTest(MCPTestCase):
         self.assertIn('while it is a draft or after it was sent back', error)
         withdrawn, error = client.call('withdraw_change_order', number=number)
         self.assertIsNone(error, error)
-        self.assertEqual(withdrawn['status'], 'withdrawn')
+        self.assertEqual((withdrawn['status'], withdrawn['resolved_via']), ('withdrawn', self.release_token.name))
         self.assertEqual(self.configuration(self.part.latest()), constants.CONFIGURATION_TYPE_DRAFT)
 
     def test_list_change_orders_filters_by_status_and_leaves_out_saved_edits(self):

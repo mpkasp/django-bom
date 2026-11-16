@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 
 from bom import constants
 from bom.helpers import create_some_fake_parts, create_user_and_organization
-from bom.models import Change, ChangeItem, PartRevision, PartRevisionPropertyDefinition
+from bom.models import APIToken, Change, ChangeItem, PartRevision, PartRevisionPropertyDefinition
 from bom.services import boms, change_orders, changes, parts
 from bom.services.errors import ServiceError
 
@@ -110,6 +110,25 @@ class ChangeOrderFlowTest(ChangeOrderTestCase):
         self.assertEqual((change.number, change.status, change.rejection_reason), (number, Change.STATUS_OPEN, ''))
         change_orders.approve(change, self.reviewer)
         self.assertEqual(PartRevision.objects.get(pk=draft.pk).description, 'Bracket v2')
+
+    def test_the_connection_that_resolved_it_is_recorded_until_it_is_resolved_again(self):
+        reviewer_token, _ = APIToken.issue(self.reviewer, self.organization, 'Claude',
+                                           scopes=(APIToken.SCOPE_READ, APIToken.SCOPE_RELEASE))
+        change = self.order(self.working_draft(self.released('Bracket')))
+        change_orders.submit(change, self.user)
+
+        change_orders.reject(change, self.reviewer, 'Too short', api_token=reviewer_token)
+        self.assertEqual((change.resolved_by, change.resolved_api_token), (self.reviewer, reviewer_token))
+        change_orders.submit(change, self.user)
+        self.assertEqual((change.resolved_by, change.resolved_api_token), (None, None))
+        change_orders.approve(change, self.reviewer, api_token=reviewer_token)
+        self.assertEqual(Change.objects.get(pk=change.pk).resolved_api_token, reviewer_token)
+
+        by_hand = self.order(self.working_draft(self.released('Washer')), title='Washer')
+        change_orders.submit(by_hand, self.user)
+        change_orders.reject(by_hand, self.reviewer, 'Too thin', api_token=reviewer_token)
+        change_orders.withdraw(by_hand, self.user)
+        self.assertIsNone(Change.objects.get(pk=by_hand.pk).resolved_api_token)
 
     def test_withdrawing_an_open_change_order_leaves_its_revisions_as_drafts(self):
         draft = self.working_draft(self.released('Bracket'))

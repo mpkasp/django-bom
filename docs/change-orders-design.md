@@ -38,7 +38,8 @@ ChangeItem        the history record of a saved edit (on a Change with is_direct
 `number` is null on the history records of direct edits, so change orders keep a clean sequence. `rejected` is a
 status the change order stays in, still holding its revisions, until it is submitted again or withdrawn.
 `protection_overridden_by` is set when an Admin approved their own change order. `resolved_api_token` is the
-connection that approved it, when an agent did. `ChangeSettings.require_release_approval` is the one organization
+connection that approved, rejected or withdrew it, when an agent did; it is cleared when the change order is
+submitted again. `ChangeSettings.require_release_approval` is the one organization
 setting that remains.
 
 A Draft belongs to at most one change order that is draft, open or rejected, and a part has at most one working Draft
@@ -121,8 +122,9 @@ person's own permissions, so a stored level never grants more than the role allo
 
 With release granted the agent is still its person for the approval rule: it cannot approve a change order its
 person wrote or edited, unless they are the only member. There is no Admin override through the agent; `get_change_order`
-says so. A change order approved by an agent records its connection in `resolved_api_token`, and the history records
-of edits carry `api_token` and `agent_client`.
+says so. A change order approved, rejected or withdrawn by an agent records its connection in `resolved_api_token`;
+its page names it in the byline ("Approved by Ada Park via Claude on Nov 15, 2026") and `get_change_order` returns
+the connection's name as `resolved_via`. The history records of edits carry `api_token` and `agent_client`.
 
 ## Agent tools
 

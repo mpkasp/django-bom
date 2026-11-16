@@ -92,13 +92,13 @@ def submit(change, user):
         change.status = Change.STATUS_OPEN
         change.submitted_at = timezone.now()
         change.rejection_reason = ''
-        change.resolved_by = change.resolved_at = None
+        change.resolved_by = change.resolved_at = change.resolved_api_token = None
         change.save()
     changes.log_event('request_approval', change.organization, user, revisions[0].part)
     return change
 
 
-def reject(change, user, reason):
+def reject(change, user, reason, api_token=None):
     """Send the change order back to its author. Its revisions become Drafts again, to be fixed and resubmitted."""
     _require_editor(change.organization, user)
     _require_open(change)
@@ -106,12 +106,12 @@ def reject(change, user, reason):
         raise ServiceError('Give a reason for rejecting this change order.', {'reason': ['This field is required.']})
     with transaction.atomic():
         _unlock(change, user)
-        changes._resolve(change, user, Change.STATUS_REJECTED, rejection_reason=reason.strip())
+        changes._resolve(change, user, Change.STATUS_REJECTED, api_token=api_token, rejection_reason=reason.strip())
     changes.log_event('reject', change.organization, user, _first_part(change))
     return change
 
 
-def withdraw(change, user):
+def withdraw(change, user, api_token=None):
     """Close the change order without releasing anything. Its revisions stay as Drafts."""
     changes._require_author(change, user)
     if change.status not in Change.ACTIVE_STATUSES:
@@ -119,7 +119,7 @@ def withdraw(change, user):
     with transaction.atomic():
         if change.status == Change.STATUS_OPEN:
             _unlock(change, user)
-        changes._resolve(change, user, Change.STATUS_WITHDRAWN)
+        changes._resolve(change, user, Change.STATUS_WITHDRAWN, api_token=api_token)
     return change
 
 
@@ -146,7 +146,7 @@ def approve(change, user, override_protection=False, api_token=None):
             ChangeItem.objects.create(
                 change=change, position=position, kind=ChangeItem.KIND_RELEASE_REVISION, part=part_revision.part,
                 part_revision=part_revision, summary=f"Release {_label(part_revision)}", result=details)
-        changes._resolve(change, user, Change.STATUS_APPLIED, resolved_api_token=api_token,
+        changes._resolve(change, user, Change.STATUS_APPLIED, api_token=api_token,
                          protection_overridden_by=user if overridden else None)
     changes.log_event('approve', change.organization, user, _first_part(change))
     return change

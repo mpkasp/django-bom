@@ -372,6 +372,7 @@ def _change_order_detail(actor, change):
         'agent_client': change.agent_client,
         'submitted_at': _timestamp(change.submitted_at), 'resolved_at': _timestamp(change.resolved_at),
         'resolved_by': change.resolved_by.username if change.resolved_by else None,
+        'resolved_via': change.resolved_api_token.name if change.resolved_api_token else None,
         'revisions': [
             dict(_revision_label(report['part_revision']),
                  state=report['part_revision'].get_configuration_display(),
@@ -449,7 +450,8 @@ def withdraw_change_order(ctx: Context, number: int) -> dict:
     another change order."""
     with tool_call(ctx, 'withdraw_change_order') as actor:
         actor.require_write(BomPerms.EDIT_PART)
-        return _change_order_detail(actor, change_orders.withdraw(_change_order(actor, number), actor.user))
+        change = change_orders.withdraw(_change_order(actor, number), actor.user, api_token=actor.token)
+        return _change_order_detail(actor, change)
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -457,7 +459,9 @@ def get_change_order(ctx: Context, number: int) -> dict:
     """A change order: its title, rationale, status (draft, open: under review, applied: approved and released,
     rejected: sent back with rejection_reason, or withdrawn), author and url, and for each revision in it what
     differs from the revision it replaces (diff), the unit cost before and after, and the Released assemblies that
-    still use the replaced revision. `approval` says whether you could approve it now, and why not."""
+    still use the replaced revision. `resolved_by` is who approved, rejected or withdrew it and `resolved_via` the
+    connection they did it through, null when they did it in IndaBOM. `approval` says whether you could approve it
+    now, and why not."""
     with tool_call(ctx, 'get_change_order') as actor:
         return _change_order_detail(actor, _change_order(actor, number))
 
@@ -513,4 +517,5 @@ def reject_change_order(ctx: Context, number: int, reason: str) -> dict:
     Drafts again, to be fixed and submitted again under the same number."""
     with tool_call(ctx, 'reject_change_order') as actor:
         actor.require_release()
-        return _change_order_detail(actor, change_orders.reject(_change_order(actor, number), actor.user, reason))
+        change = change_orders.reject(_change_order(actor, number), actor.user, reason, api_token=actor.token)
+        return _change_order_detail(actor, change)

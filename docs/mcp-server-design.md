@@ -163,7 +163,7 @@ Read (scope `read`):
 | `where_used` | `part_number` | assemblies containing the part, at every level |
 | `lookup_sourcing` | `manufacturer_part_number` | live offers via the organization's configured provider (BYOK); never persisted |
 | `export_bom_csv` | `part_number`, `revision?`, `layout='indented'` | the CSV text the UI export produces; layout is `indented`, `single_level` or `flat` |
-| `get_change_order`, `list_change_orders` | `number`; `status='open'`, `limit=25` | a change order with its revisions, diff, unit cost, where used, rejection reason and whether you could approve it; change orders by status |
+| `get_change_order`, `list_change_orders` | `number`; `status='open'`, `limit=25` | a change order with its revisions, diff, unit cost, where used, rejection reason, who resolved it (`resolved_by`) and through which connection (`resolved_via`), and whether you could approve it; change orders by status |
 
 Write (scope `write`; saved at once to Draft revisions):
 
