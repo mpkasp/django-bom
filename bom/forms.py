@@ -917,7 +917,7 @@ class PartRevisionForm(OrganizationFormMixin, PlaceholderMixin, forms.ModelForm)
                 unit_field = pd.form_unit_field_name
                 units = pd.quantity_of_measure.units.all()
                 choices = [('', '---------')] + [(u.id, u.symbol) for u in units]
-                self.fields[unit_field] = forms.ChoiceField(choices=choices, required=False, label=f"{pd.name} Unit")
+                self.fields[unit_field] = forms.ChoiceField(choices=choices, required=False, label="Unit")
                 if self.instance.pk and prop and prop.unit_definition:
                     self.fields[unit_field].initial = prop.unit_definition.id
 
