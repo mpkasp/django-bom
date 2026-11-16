@@ -870,6 +870,8 @@
     </script>
 
     <script>
+        // Rendered in <body> so the table's scroll wrapper can't clip the menu.
+        $('.api-tokens-table .dropdown-trigger').dropdown({constrainWidth: false, coverTrigger: false, container: document.body});
         $(document).on('click', '.copy-button', function () {
             navigator.clipboard.writeText(this.dataset.copy).then(function () {
                 M.toast({html: 'Copied'});
