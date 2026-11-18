@@ -1297,6 +1297,56 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
     margin: 0;
 }
 
+.part-search {
+    position: relative;
+    width: 100%;
+}
+
+.part-search-options {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 6;
+    max-height: 18rem;
+    margin: 4px 0 0;
+    padding: 4px 0;
+    overflow-y: auto;
+    border: 1px solid rgba(128, 128, 128, 0.4);
+    border-radius: 8px;
+    background: var(--color-background, #fff);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+
+.part-search-options li {
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+.part-search-options li small {
+    display: block;
+    color: var(--color-text-grey, #616161);
+}
+
+.part-search-options li:hover,
+.part-search-options li[aria-selected=true] {
+    background: var(--color-background-surface-hover, #f1f3f4);
+}
+
+.part-search-options li[aria-disabled=true] {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.part-search-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 .change-section + .change-section {
     border-top: 1px solid rgba(128, 128, 128, 0.25);
 }

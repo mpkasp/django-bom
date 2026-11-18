@@ -55,6 +55,7 @@ bom_patterns = [
     path('quantity-of-measure/<int:quantity_of_measure_id>/delete/', views.quantity_of_measure_delete, name='quantity-of-measure-delete'),
     path('changes/', change_views.change_list, name='change-list'),
     path('changes/new/', change_views.change_new, name='change-new'),
+    path('changes/parts/search/', change_views.change_part_search, name='change-part-search'),
     path('changes/<int:number>/', change_views.change_review, name='change-review'),
     path('changes/<int:number>/submit/', change_views.change_submit, name='change-submit'),
     path('changes/<int:number>/apply/', change_views.change_apply, name='change-apply'),

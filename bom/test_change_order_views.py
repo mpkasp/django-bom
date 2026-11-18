@@ -253,6 +253,32 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
         self.assertNotContains(self.client.get(self.url(staged)), 'Withdraw</button>')
 
 
+class ChangeOrderPartSearchTest(ChangeOrderViewTestCase):
+    def test_search_returns_parts_with_what_adding_them_would_do(self):
+        released = self.released('Sprocket')
+
+        response = self.client.get(reverse('bom:change-part-search'), {'q': 'sprocket'})
+
+        self.assertEqual(response.json(), {'parts': [{
+            'part_number': self.number(released), 'description': 'Sprocket', 'revision': '1',
+            'configuration': 'Released', 'addable': True, 'outcome': 'Starts a new Draft revision.'}]})
+
+    def test_viewers_cannot_search(self):
+        self.member('viewer', constants.ROLE_TYPE_VIEWER)
+
+        response = self.client_for('viewer').get(reverse('bom:change-part-search'), {'q': 'sprocket'})
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_both_part_number_inputs_search(self):
+        search_url = reverse('bom:change-part-search')
+        change = self.order(title='Empty')
+
+        for page in (self.client.get(reverse('bom:change-new')), self.client.get(self.url(change))):
+            self.assertContains(page, f'data-part-search="{search_url}"')
+            self.assertContains(page, 'bom/js/part-search.js')
+
+
 class ChangeOrderListTest(ChangeOrderViewTestCase):
     def test_each_filter_lists_its_change_orders_with_their_revisions(self):
         drafts = {name: self.working_draft(self.released(name)) for name in ('Draft', 'Open', 'Back', 'Done')}

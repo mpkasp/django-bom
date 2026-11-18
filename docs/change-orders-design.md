@@ -97,6 +97,10 @@ Released part is revised and the new revision is released directly (web Release,
   sent back, its page is where it is built: Add part to change order takes a part number
   and adds the part's working Draft, revising the part first when its latest revision is Released
   (`change_orders.add_part`); each card has Edit revision, which opens the Draft's edit page (with a link back), and Remove.
+- The part number inputs on a change order and on New change order suggest parts as you type
+  (`bom/static/bom/js/part-search.js`, `change-part-search`, `change_orders.part_candidates`): the dashboard's search,
+  ten at a time, each saying what adding it would do or why it can't be added. `change_orders.addition_for` decides
+  that for both the suggestions and `add_part`. The form still posts a part number, so it works without the script.
   The part page of a revision in a change order says so and links back.
 - The Release page of a Draft has Add to change order beside Release. The part page's History tab lists the saved
   edits, releases and approved change orders of that part.

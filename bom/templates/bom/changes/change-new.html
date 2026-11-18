@@ -1,4 +1,5 @@
 {% extends 'bom/bom-base.html' %}
+{% load static %}
 
 {% block head-title %}{{ title }}{% endblock %}
 
@@ -11,11 +12,16 @@
             <input id="change-title" class="browser-default" type="text" name="title" value="{{ values.title }}" maxlength="255" required autofocus>
             <label for="change-rationale">Why is this change needed?</label>
             <textarea id="change-rationale" class="browser-default" name="rationale">{{ values.rationale }}</textarea>
-            <label for="change-part">First affected part <span class="text-grey">(optional part number)</span></label>
-            <input id="change-part" class="browser-default" type="text" name="part_number" value="{{ values.part_number }}">
+            <label for="change-part">First affected part <span class="text-grey">(optional)</span></label>
+            <input id="change-part" class="browser-default" type="text" name="part_number" value="{{ values.part_number }}"
+                   placeholder="Part number, description or manufacturer part number" data-part-search="{% url 'bom:change-part-search' %}">
             <p class="text-grey">If the part's latest revision is Released, its next revision is started as a Draft for you to edit.</p>
             {% url 'bom:change-list' as cancel_url %}
             {% include 'bom/components/form-actions.html' with cancel_url=cancel_url submit_label='Create change order' only %}
         </form>
     </div>
 {% endblock %}
+
+{% block bom-script %}
+    <script src="{% static 'bom/js/part-search.js' %}"></script>
+{% endblock bom-script %}

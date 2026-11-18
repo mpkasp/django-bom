@@ -2,8 +2,9 @@ from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -199,6 +200,13 @@ def change_part_add(request, organization, number):
         label = f'{part_revision.part.full_part_number()} rev {part_revision.revision}'
         messages.success(request, f'Started {label} as a Draft and added it.' if revised else f'Added {label}.')
     return _review_redirect(change)
+
+
+@changes_view
+def change_part_search(request, organization):
+    if not request.user.has_perm(BomPerms.EDIT_PART, organization):
+        raise PermissionDenied
+    return JsonResponse({'parts': change_orders.part_candidates(organization, request.GET.get('q', ''))})
 
 
 @changes_view

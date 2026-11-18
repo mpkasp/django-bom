@@ -12,7 +12,8 @@ def search_parts(organization, query='', part_class_code=None):
     """Parts in the organization matching a free-text query, in the same way the dashboard searches.
 
     Terms are OR'ed across part number, revision synopsis, primary manufacturer part number, and
-    primary manufacturer name. Double-quoted phrases are kept together.
+    primary manufacturer name. Double-quoted phrases are kept together. Part numbers match by prefix,
+    so a number can be found while it is still being typed.
     """
     parts = Part.objects.filter(organization=organization)
     if part_class_code:
@@ -34,7 +35,8 @@ def search_parts(organization, query='', part_class_code=None):
                 pass
 
     synopsis_part_ids = PartRevision.objects.filter(
-        reduce(operator.or_, (Q(searchable_synopsis__icontains=term) for term in search_terms))
+        reduce(operator.or_, (Q(searchable_synopsis__icontains=term) for term in search_terms)),
+        part__organization=organization,
     ).values_list('part', flat=True)
     q_primary_mpn = reduce(operator.or_, (
         Q(primary_manufacturer_part__manufacturer_part_number__icontains=term) for term in search_terms))
@@ -42,11 +44,12 @@ def search_parts(organization, query='', part_class_code=None):
         Q(primary_manufacturer_part__manufacturer__name__icontains=term) for term in search_terms))
 
     if number_class and number_item and number_variation:
-        q_part_number = Q(number_class__code=number_class, number_item=number_item, number_variation=number_variation)
+        q_part_number = Q(number_class__code=number_class, number_item=number_item,
+                          number_variation__istartswith=number_variation)
     elif number_class and number_item:
-        q_part_number = Q(number_class__code=number_class, number_item=number_item)
+        q_part_number = Q(number_class__code=number_class, number_item__istartswith=number_item)
     else:
-        q_part_number = Q(number_item__in=search_terms)
+        q_part_number = reduce(operator.or_, (Q(number_item__istartswith=term) for term in search_terms))
 
     return parts.filter(q_part_number | Q(id__in=synopsis_part_ids) | q_primary_mpn | q_primary_manufacturer)
 

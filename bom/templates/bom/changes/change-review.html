@@ -1,4 +1,5 @@
 {% extends 'bom/bom-base.html' %}
+{% load static %}
 
 {% block head-title %}{{ head_title }}{% endblock %}
 
@@ -83,8 +84,9 @@
                             <details class="change-reject change-add-part">
                                 <summary class="btn-outline">Add part to change order…</summary>
                                 <form class="card-panel z-depth-2" method="post" action="{% url 'bom:change-part-add' number=change.number %}">{% csrf_token %}
-                                    <label for="add-part-number">Part number to add to change order #{{ change.number }}</label>
-                                    <input id="add-part-number" class="browser-default" type="text" name="part_number" required>
+                                    <label for="add-part-number">Part to add to change order #{{ change.number }}</label>
+                                    <input id="add-part-number" class="browser-default" type="text" name="part_number" required
+                                           placeholder="Part number, description or manufacturer part number" data-part-search="{% url 'bom:change-part-search' %}">
                                     <p class="text-grey">The part's Draft revision joins this change order, to be reviewed and released with the others. If its latest revision is Released, its next revision is started as a Draft. No BOM is changed.</p>
                                     <button class="btn btn-primary waves-effect" type="submit">Add to change order</button>
                                 </form>
@@ -170,3 +172,7 @@
         </div>
     </div>
 {% endblock %}
+
+{% block bom-script %}
+    <script src="{% static 'bom/js/part-search.js' %}"></script>
+{% endblock bom-script %}
