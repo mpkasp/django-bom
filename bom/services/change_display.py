@@ -26,7 +26,7 @@ def _card(report, currency):
         elif entry['label'].endswith('property'):
             fields.append((entry['summary'], _property_text(before), _property_text(after)))
         else:
-            lines.append(_line(entry, lines_before, lines_after))
+            lines.append(_line(entry, lines_before, lines_after, report['replaced_by']))
     cost_before, cost_after = report['unit_cost_before'], report['unit_cost_after']
     delta = cost_after - cost_before if cost_before is not None and cost_after is not None else None
     return dict(report, fields=fields, lines=lines,
@@ -43,20 +43,26 @@ def _lines(part_revision):
                 'part_revision__part__organization', 'part_revision__part__number_class')}
 
 
-def _line(entry, lines_before, lines_after):
+def _line(entry, lines_before, lines_after, replaced_by):
     before, after = entry['before'], entry['after']
     do_not_load = entry['summary'].endswith(DO_NOT_LOAD_SUFFIX)
     part_number = entry['summary'].removesuffix(DO_NOT_LOAD_SUFFIX)
     state = 'add' if before is None else 'remove' if after is None else 'change'
     subpart = (lines_before if state == 'remove' else lines_after).get((part_number, do_not_load))
+    used_revision = subpart.part_revision if subpart else None
+    if subpart and state != 'remove':
+        used_revision = replaced_by.get(subpart.part_revision_id, used_revision)
     line = {
         'state': state, 'part_number': part_number,
         'part_id': subpart.part_revision.part_id if subpart else None,
-        'name': subpart.part_revision.description if subpart else '',
+        'name': used_revision.description if subpart else '',
         'quantity': quantity(subpart.count) if subpart else '', 'reference': subpart.reference if subpart else '',
         'quantity_before': None, 'reference_before': None,
         'detail': 'Do not load' if do_not_load else '',
     }
+    if state == 'add' and used_revision is not subpart.part_revision:
+        line['detail'] = ', '.join(filter(None, [f"Rev {used_revision.revision}, released by this change order",
+                                                 line['detail']]))
     if state == 'change':
         if 'count' in before:
             line['quantity_before'] = quantity(before['count'])

@@ -183,12 +183,16 @@ def revision_reports(change, quantity=changes.DEFAULT_QUANTITY):
     """For each revision in the change order: what differs from the revision it replaces, the unit cost of both, and
     the assemblies that use the replaced one."""
     reports = []
-    for link in change.revisions.select_related(*_REVISION_RELATED):
+    links = list(change.revisions.select_related(*_REVISION_RELATED))
+    # Approving releases a part before the assemblies that use it and moves their lines to its new revision.
+    replaced_by = {link.base_revision_id: link.part_revision for link in links if link.base_revision_id}
+    for link in links:
         part_revision, base = link.part_revision, link.base_revision
         parents = _outside_parents(change, base).select_related('part') if base else PartRevision.objects.none()
         reports.append({
             'part_revision': part_revision, 'base_revision': base,
-            'diff': revision_diff(base, part_revision) if base else [],
+            'diff': revision_diff(base, part_revision, replaced_by) if base else [],
+            'replaced_by': replaced_by,
             'unit_cost_before': changes._unit_cost(base, quantity) if base else None,
             'unit_cost_after': changes._unit_cost(part_revision, quantity),
             'released_parents': list(parents.filter(configuration=CONFIGURATION_TYPE_RELEASED)),
