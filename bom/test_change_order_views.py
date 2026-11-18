@@ -138,6 +138,24 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
         released_lines = {subpart.part_revision_id for subpart in assembly_draft.assembly.subparts.all()}
         self.assertEqual(released_lines, {kept_draft.id, added_draft.id})
 
+    def test_lines_for_the_same_part_at_the_old_and_new_revision_show_as_one(self):
+        resistor = self.released('Resistor')
+        assembly = parts.create_part(self.organization, 'Assembly', part_class_code=self.part_class_code)
+        boms.add_subpart(self.organization, assembly, self.number(resistor), count=1, reference='R1')
+        assembly_draft = self.working_draft(changes.release_revision(assembly, self.user))
+        resistor_draft = self.working_draft(resistor)
+        boms.add_subpart(self.organization, assembly_draft, self.number(resistor), count=2, reference='R2, R3')
+        self.assertEqual(assembly_draft.assembly.subparts.count(), 2)
+        change = self.order(assembly_draft, resistor_draft)
+
+        page = self.client.get(self.url(change))
+
+        self.assertContains(page, '<span class="change-old">R1</span> <span class="change-new-value">R1, R2, R3</span>')
+        self.assertContains(page, '<span class="change-old">1</span> <span class="change-new-value">3</span>')
+        self.assertContains(page, f'Rev {resistor.revision} to rev {resistor_draft.revision}')
+        line = change_orders.revision_reports(change)[0]['diff'][-1]
+        self.assertEqual(line['after'], {'revision': resistor_draft.revision, 'count': 3, 'reference': 'R1, R2, R3'})
+
     def test_the_byline_names_the_connection_an_agent_resolved_it_through(self):
         reviewer_token, _ = APIToken.issue(self.reviewer, self.organization, 'Claude',
                                            scopes=(APIToken.SCOPE_READ, APIToken.SCOPE_RELEASE))

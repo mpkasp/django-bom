@@ -58,7 +58,8 @@ release it.
 4. Submit. The revisions become In Review. The change order page shows, per revision, its difference from
    `base_revision` (`diffs.revision_diff`: fields, properties and BOM lines), the unit cost before and after, and the
    Released assemblies that use the replaced revision. A BOM line whose part is also revised by the change order is
-   shown at the revision approval will move it to, since that is what gets released.
+   shown at the revision approval will move it to, since that is what gets released. Lines for the same part
+   are shown as one, with their quantities added up, as a BOM report merges them.
 5. Approve releases every revision together or none, children before parents, then offers new Draft revisions of the
    Released assemblies that still use the replaced revisions (cascade). Draft assemblies move to the new revision on
    release. Reject (a reason is required) returns every revision to Draft and the change order to the author as

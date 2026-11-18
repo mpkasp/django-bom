@@ -35,12 +35,13 @@ def _card(report, currency):
 
 
 def _lines(part_revision):
-    """A revision's direct BOM lines under the key ``diffs.revision_diff`` names them by."""
-    if part_revision is None or part_revision.assembly is None:
-        return {}
-    return {(subpart.part_revision.part.full_part_number(), subpart.do_not_load): subpart
-            for subpart in part_revision.assembly.subparts.select_related(
-                'part_revision__part__organization', 'part_revision__part__number_class')}
+    """A revision's direct BOM lines, listed under the key ``diffs.bom_lines`` merges them by."""
+    lines = {}
+    if part_revision is not None and part_revision.assembly is not None:
+        for subpart in part_revision.assembly.subparts.select_related(
+                'part_revision__part__organization', 'part_revision__part__number_class').order_by('id'):
+            lines.setdefault((subpart.part_revision.part.full_part_number(), subpart.do_not_load), []).append(subpart)
+    return lines
 
 
 def _line(entry, lines_before, lines_after, replaced_by):
@@ -48,7 +49,8 @@ def _line(entry, lines_before, lines_after, replaced_by):
     do_not_load = entry['summary'].endswith(DO_NOT_LOAD_SUFFIX)
     part_number = entry['summary'].removesuffix(DO_NOT_LOAD_SUFFIX)
     state = 'add' if before is None else 'remove' if after is None else 'change'
-    subpart = (lines_before if state == 'remove' else lines_after).get((part_number, do_not_load))
+    subparts = (lines_before if state == 'remove' else lines_after).get((part_number, do_not_load), [])
+    subpart = subparts[-1] if subparts else None
     used_revision = subpart.part_revision if subpart else None
     if subpart and state != 'remove':
         used_revision = replaced_by.get(subpart.part_revision_id, used_revision)
@@ -56,12 +58,13 @@ def _line(entry, lines_before, lines_after, replaced_by):
         'state': state, 'part_number': part_number,
         'part_id': subpart.part_revision.part_id if subpart else None,
         'name': used_revision.description if subpart else '',
-        'quantity': quantity(subpart.count) if subpart else '', 'reference': subpart.reference if subpart else '',
+        'quantity': quantity(sum(each.count for each in subparts)) if subpart else '',
+        'reference': ', '.join(each.reference for each in subparts if each.reference),
         'quantity_before': None, 'reference_before': None,
         'detail': 'Do not load' if do_not_load else '',
     }
-    if state == 'add' and used_revision is not subpart.part_revision:
-        line['detail'] = ', '.join(filter(None, [f"Rev {used_revision.revision}, released by this change order",
+    if state == 'add' and used_revision in replaced_by.values():
+        line['detail'] = ', '.join(filter(None, [f"Rev {after['revision']}, released by this change order",
                                                  line['detail']]))
     if state == 'change':
         if 'count' in before:

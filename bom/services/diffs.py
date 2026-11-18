@@ -14,7 +14,7 @@ def revision_diff(revision_a, revision_b, replaced_by=None):
             'before': {field: detail_a[field] for field in changed_fields},
             'after': {field: detail_b[field] for field in changed_fields}})
     entries += _keyed_entries('property', _properties(detail_a), _properties(detail_b), str)
-    entries += _keyed_entries('line', _lines(revision_a), _lines(revision_b, replaced_by or {}),
+    entries += _keyed_entries('line', bom_lines(revision_a), bom_lines(revision_b, replaced_by),
                               lambda key: f"{key[0]}{' (do not load)' if key[1] else ''}")
     return entries
 
@@ -34,23 +34,26 @@ def _properties(detail):
     return {prop['name']: {'value': prop['value'], 'unit': prop['unit'] or ''} for prop in detail['properties']}
 
 
-def _lines(part_revision, replaced_by=None):
-    """Direct BOM lines keyed by subpart part number and do-not-load. Lines for the same revision merge their
-    references, as a BOM report does."""
+def bom_lines(part_revision, replaced_by=None):
+    """Direct BOM lines keyed by subpart part number and do-not-load. Lines for the same part merge, as a BOM report
+    merges them: quantities add up and references join. ``replaced_by`` maps a part revision id to the revision the
+    line will use in its place."""
     if part_revision.assembly is None:
         return {}
-    merged = {}
+    lines = {}
     for subpart in part_revision.assembly.subparts.select_related(
             'part_revision__part__organization', 'part_revision__part__number_class').order_by('id'):
-        merge_key = (subpart.part_revision_id, subpart.do_not_load)
-        if merge_key in merged:
-            merged[merge_key][1]['reference'] += f', {subpart.reference}'
-            continue
-        part_number = subpart.part_revision.part.full_part_number()
         used_revision = (replaced_by or {}).get(subpart.part_revision_id, subpart.part_revision)
-        merged[merge_key] = ((part_number, subpart.do_not_load), {
-            'revision': used_revision.revision, 'count': subpart.count, 'reference': subpart.reference or ''})
-    return dict(merged.values())
+        key = (subpart.part_revision.part.full_part_number(), subpart.do_not_load)
+        line = lines.setdefault(key, {'revision': [], 'count': 0, 'reference': []})
+        if used_revision.revision not in line['revision']:
+            line['revision'].append(used_revision.revision)
+        line['count'] += subpart.count
+        if subpart.reference:
+            line['reference'].append(subpart.reference)
+    for line in lines.values():
+        line['revision'], line['reference'] = ', '.join(line['revision']), ', '.join(line['reference'])
+    return lines
 
 
 def _keyed_entries(label, before_by_key, after_by_key, describe):
