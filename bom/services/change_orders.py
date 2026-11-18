@@ -15,6 +15,7 @@ from bom.services import changes, parts
 from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
 from bom.services.flags import change_orders_enabled
+from bom.services.search import latest_part_revisions, search_parts
 
 
 def create_change_order(organization, user, title, rationale='', part_revisions=(), api_token=None, agent_client='',
@@ -54,11 +55,48 @@ def add_part(change, user, part_number):
     Released. Returns the revision and whether it was created here."""
     _require_editable(change)
     latest = parts.revision_from_number(change.organization, part_number)
+    revised, blocked = addition_for(latest, change_order_for(latest))
+    if blocked:
+        raise ServiceError(blocked)
     with transaction.atomic():
-        revised = latest.is_immutable()
         part_revision = changes.revise_revision(latest, user) if revised else latest
         add_revision(change, user, part_revision)
     return part_revision, revised
+
+
+def addition_for(latest, holding_change):
+    """What adding a part to a change order does, from its latest revision and the active change order holding it:
+    ``(revised, blocked)``, whether a new Draft is started first and, if it cannot be added, why."""
+    if latest.configuration == CONFIGURATION_TYPE_IN_REVIEW:
+        if holding_change is None:
+            return False, f"{_label(latest)} is In Review and has not been released. Revert it to Draft to change it."
+        return False, f"{_label(latest)} is under review in change order #{holding_change.number}."
+    if holding_change is not None:
+        return False, f"{_label(latest)} is already in change order #{holding_change.number}."
+    return latest.is_immutable(), None
+
+
+def part_candidates(organization, query, limit=10):
+    """Parts matching a search, each with what adding it to a change order would do."""
+    if not query.strip():
+        return []
+    part_ids = list(search_parts(organization, query).order_by(
+        'number_class__code', 'number_item', 'number_variation').values_list('id', flat=True)[:limit])
+    latest_revisions = list(latest_part_revisions(part_ids))
+    holding_changes = {link.part_revision_id: link.change for link in ChangeRevision.objects.filter(
+        part_revision__in=latest_revisions, change__status__in=Change.ACTIVE_STATUSES).select_related('change')}
+    candidates = []
+    for latest in latest_revisions:
+        revised, blocked = addition_for(latest, holding_changes.get(latest.id))
+        candidates.append({
+            'part_number': latest.part.full_part_number(),
+            'description': latest.description,
+            'revision': latest.revision,
+            'configuration': latest.get_configuration_display(),
+            'addable': blocked is None,
+            'outcome': blocked or ('Starts a new Draft revision.' if revised else f'Adds Draft rev {latest.revision}.'),
+        })
+    return candidates
 
 
 def remove_revision(change, user, part_revision):

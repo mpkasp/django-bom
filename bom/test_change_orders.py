@@ -4,7 +4,8 @@ from django.test import TestCase, override_settings
 
 from bom import constants
 from bom.helpers import create_some_fake_parts, create_user_and_organization
-from bom.models import APIToken, Change, ChangeItem, PartRevision, PartRevisionPropertyDefinition
+from bom.models import (APIToken, Change, ChangeItem, Organization, PartClass, PartRevision,
+                        PartRevisionPropertyDefinition)
 from bom.services import boms, change_orders, changes, parts
 from bom.services.errors import ServiceError
 
@@ -229,3 +230,46 @@ class ChangeOrderAssemblyTest(ChangeOrderTestCase):
         self.assertEqual(new_parent.configuration, constants.CONFIGURATION_TYPE_DRAFT)
         self.assertEqual(self.child_revision_ids(new_parent), [child_draft.id])
         self.assertEqual(change_orders.cascade_candidates(change), [])
+
+
+class PartCandidatesTest(ChangeOrderTestCase):
+    def outcomes(self, query):
+        return {candidate['part_number']: (candidate['addable'], candidate['outcome'])
+                for candidate in change_orders.part_candidates(self.organization, query)}
+
+    def test_each_part_says_what_adding_it_would_do(self):
+        released = self.released('Widget released')
+        draft = parts.create_part(self.organization, 'Widget draft', part_class_code=self.part_class_code)
+        held = self.working_draft(self.released('Widget held'))
+        reviewed = self.working_draft(self.released('Widget reviewed'))
+        holding, reviewing = self.order(held), self.order(reviewed, title='Review')
+        change_orders.submit(reviewing, self.user)
+
+        outcomes = self.outcomes('widget')
+
+        number = lambda revision: revision.part.full_part_number()
+        self.assertEqual(outcomes, {
+            number(released): (True, 'Starts a new Draft revision.'),
+            number(draft): (True, 'Adds Draft rev 1.'),
+            number(held): (False, f'{number(held)} rev 2 is already in change order #{holding.number}.'),
+            number(reviewed): (False, f'{number(reviewed)} rev 2 is under review in change order #{reviewing.number}.'),
+        })
+        with self.assertRaisesMessage(ServiceError, outcomes[number(reviewed)][1]):
+            change_orders.add_part(self.order(title='Third'), self.user, number(reviewed))
+
+    def test_part_numbers_match_while_being_typed(self):
+        part_number = self.released('Bracket').part.full_part_number()
+
+        self.assertIn(part_number, self.outcomes(part_number[:-1]))
+        self.assertIn(part_number, self.outcomes(part_number.rsplit('-', 1)[0][:-1]))
+        self.assertEqual(self.outcomes(' '), {})
+
+    def test_parts_of_other_organizations_are_not_offered(self):
+        owner = User.objects.create_user('other', 'other@example.com', 'ghostpassword')
+        other = Organization.objects.create(name='Other', owner=owner, number_item_len=4,
+                                            number_scheme=constants.NUMBER_SCHEME_SEMI_INTELLIGENT)
+        PartClass.objects.create(code=self.part_class_code, name='Other class', organization=other)
+        PartRevisionPropertyDefinition.objects.update(required=False)
+        parts.create_part(other, 'Gizmo elsewhere', part_class_code=self.part_class_code)
+
+        self.assertEqual(self.outcomes('gizmo'), {})
