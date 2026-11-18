@@ -242,7 +242,8 @@ table.treetable tr.expanded span.indenter a {
 }
 
 .file-field .btn, .file-field .btn-large, .file-field .btn-small {
-    background-color: #66BB6A;
+    background-color: var(--color-primary, #66bb6a);
+    color: var(--color-text-on-primary, #fff);
 }
 
 .btn-flat, .btn-flat:focus {
@@ -252,6 +253,11 @@ table.treetable tr.expanded span.indenter a {
 
 .btn-primary, .btn-primary:hover, .btn-primary:focus {
     background-color: var(--color-primary, #66bb6a);
+    color: var(--color-text-on-primary, #fff);
+}
+
+/* Materialize paints .btn-floating icons white regardless of the button colour. */
+.btn-floating.btn-primary i {
     color: var(--color-text-on-primary, #fff);
 }
 
@@ -645,7 +651,7 @@ a.anchor {
     font-size: 0.7rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #9e9e9e;
+    color: var(--color-text-grey, #616161);
     font-weight: 600;
 }
 
