@@ -117,6 +117,27 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
         self.assertContains(approved, f'Released rev {draft.revision} of {self.number(draft)}')
         self.assertNotContains(approved, 'Make it shorter')
 
+    def test_a_line_shows_the_revision_the_same_change_order_releases(self):
+        kept, added = self.released('Kept'), self.released('Added')
+        assembly = parts.create_part(self.organization, 'Assembly', part_class_code=self.part_class_code)
+        boms.add_subpart(self.organization, assembly, self.number(kept), count=1)
+        assembly_draft = self.working_draft(changes.release_revision(assembly, self.user))
+        boms.add_subpart(self.organization, assembly_draft, self.number(added), count=1)
+        kept_draft, added_draft = self.working_draft(kept, 'Kept, longer'), self.working_draft(added, 'Added, longer')
+        change = self.order(assembly_draft, kept_draft, added_draft)
+
+        page = self.client.get(self.url(change))
+
+        self.assertContains(page, '<td>Added, longer<br><small class="text-grey">'
+                                  f'Rev {added_draft.revision}, released by this change order</small></td>', html=False)
+        self.assertContains(page, '<td>Kept, longer<br><small class="text-grey">'
+                                  f'Rev {kept.revision} to rev {kept_draft.revision}</small></td>', html=False)
+
+        change_orders.submit(change, self.user)
+        change_orders.approve(change, self.reviewer)
+        released_lines = {subpart.part_revision_id for subpart in assembly_draft.assembly.subparts.all()}
+        self.assertEqual(released_lines, {kept_draft.id, added_draft.id})
+
     def test_the_byline_names_the_connection_an_agent_resolved_it_through(self):
         reviewer_token, _ = APIToken.issue(self.reviewer, self.organization, 'Claude',
                                            scopes=(APIToken.SCOPE_READ, APIToken.SCOPE_RELEASE))
