@@ -115,17 +115,17 @@
                         <div class="change-fact">
                             <span class="change-label">Cost per unit at {{ cost_quantity }}</span>
                             {% for card in cards %}
-                                <p>{% if cards|length > 1 %}<span class="text-grey">{{ card.part_revision.part.full_part_number }}</span><br>{% endif %}
-                                    {% if card.cost_after is None %}
+                                <p class="change-cost">{% if cards|length > 1 %}<span class="change-mono">{{ card.part_revision.part.full_part_number }}</span>{% endif %}
+                                    <span>{% if card.cost_after is None %}
                                         <span class="text-grey">Couldn't be worked out.</span>
                                     {% elif card.cost_before is None %}
-                                        <span class="change-big">{{ card.cost_after }}</span>
+                                        {{ card.cost_after }}
                                     {% elif card.cost_delta %}
-                                        <span class="change-big">{{ card.cost_before }} &rarr; {{ card.cost_after }}</span>
+                                        {{ card.cost_before }} &rarr; {{ card.cost_after }}
                                         <span class="{% if card.cost_is_increase %}change-increase{% else %}change-decrease{% endif %}">{% if card.cost_is_increase %}+{% endif %}{{ card.cost_delta }}</span>
                                     {% else %}
-                                        Stays at {{ card.cost_after }}
-                                    {% endif %}</p>
+                                        <span class="text-grey">Stays at</span> {{ card.cost_after }}
+                                    {% endif %}</span></p>
                             {% endfor %}
                         </div>
                         {% if not is_applied %}
