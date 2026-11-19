@@ -9,9 +9,8 @@
             <h5>{{ modal_title }}</h5>
             {% if is_pro and user_can_manage_members %}
                 {% csrf_token %}
-                <p class="text-grey">To add a user, ensure they have already created an IndaBOM account and are not
-                    currently part of another organization. Then, enter their <b>username</b> (not email) and select
-                    their role below.</p>
+                <p class="text-grey">We'll email them a link to join. They accept it signed in with this email
+                    address, or create an account with it. The link works for 7 days.</p>
                 <div class="row">
                     {{ form|materializecss:'m6 s12' }}
                 </div>
@@ -25,7 +24,7 @@
         <div class="modal-footer">
             <button type="button" class="modal-close waves-effect btn-flat">Cancel</button>
             {% if is_pro and user_can_manage_members %}
-                <button class="waves-effect waves-light btn btn-primary" type="submit" name="{{ name }}">Save</button>
+                <button class="waves-effect waves-light btn btn-primary" type="submit" name="{{ name }}">Send invite</button>
             {% endif %}
         </div>
     </form>

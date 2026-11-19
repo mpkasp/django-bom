@@ -39,12 +39,10 @@
 
         <div id="join-organization" style="display: none;">
             <h3 class="center">Join an existing Organization</h3>
-            <h5 class="center" style="padding-top: 36px;">To join an existing organization, you must provide your
-                username (not e-mail) to your IndaBOM organization owner. <br><br>Your username is
-                <b>{{ user.username }}</b>
-                click
-                <a href="mailto:?subject=Add me to your IndaBOM Organization&body=Hi,%0D%0A%0D%0APlease add me to your IndaBOM organization. To do so, log in, go to Settings > Organization and add me via my username {{ user.username }}">here</a>
-                to send an e-mail to your organization owner with instructions.</h5>
+            <h5 class="center" style="padding-top: 36px;">Ask an admin of the organization to invite you by email
+                at <b>{{ user.email }}</b>. You'll get a link to join. Click
+                <a href="mailto:?subject=Invite me to your IndaBOM organization&body=Hi,%0D%0A%0D%0APlease invite me to your IndaBOM organization. To do so, log in, go to Settings > Organization > Invite Member and invite {{ user.email|urlencode }}">here</a>
+                to email an admin these instructions.</h5>
             <br><br>
             <p class="center">Oops! I meant to <a onclick="resetView()">create a new organization</a>.</p>
         </div>

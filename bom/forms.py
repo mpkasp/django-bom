@@ -27,6 +27,7 @@ from .constants import (
     PART_REVISION_PROPERTY_TYPE_BOOLEAN,
     PART_REVISION_PROPERTY_TYPE_DECIMAL,
     ROLE_TYPE_VIEWER,
+    ROLE_TYPES,
     CONFIGURATION_TYPE_OBSOLETE,
 )
 from .csv_headers import (
@@ -285,45 +286,30 @@ class UserForm(forms.ModelForm):
         model = User
         fields = ['first_name', 'last_name', 'email']
 
+    def clean_email(self):
+        # Only a changed address is checked, so people who already share one can still edit their name.
+        email = self.cleaned_data['email']
+        email_changed = email.lower() != self.instance.email.lower()
+        if email and email_changed and User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+            raise ValidationError('An account with this email address already exists.')
+        return email
 
-class UserAddForm(OrganizationFormMixin, forms.ModelForm):
+
+class OrganizationInviteForm(OrganizationFormMixin, forms.Form):
+    email = forms.EmailField()
+    role = forms.ChoiceField(choices=ROLE_TYPES, initial=ROLE_TYPE_VIEWER)
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if UserMeta.objects.filter(organization=self.organization, user__email__iexact=email).exists():
+            raise ValidationError(f"{email} is already a member of {self.organization.name}.")
+        return email
+
+
+class MemberRoleForm(forms.ModelForm):
     class Meta:
         model = UserMeta
         fields = ['role']
-
-    field_order = ['username', 'role']
-    username = forms.CharField(initial=None, required=False)
-
-    def __init__(self, *args, **kwargs):
-        hide_username = kwargs.pop('exclude_username', False)
-        super().__init__(*args, **kwargs)
-        self.fields['role'].required = False
-        if hide_username and self.instance.pk:
-            self.fields['username'].widget = forms.HiddenInput()
-            self.fields['username'].initial = self.instance.user.username
-
-    def clean_username(self):
-        username = self.cleaned_data.get('username')
-        try:
-            user = User.objects.get(username=username)
-            user_meta = user.bom_profile()
-            if user_meta.organization and user_meta.organization != self.organization:
-                self.add_error('username', f"User '{username}' belongs to another organization.")
-        except User.DoesNotExist:
-            self.add_error('username', f"User '{username}' does not exist.")
-        return username
-
-    def clean_role(self):
-        return self.cleaned_data.get('role') or ROLE_TYPE_VIEWER
-
-    def save(self, commit=True):
-        username = self.cleaned_data.get('username')
-        user = User.objects.get(username=username)
-        user_meta = user.bom_profile()
-        user_meta.organization = self.organization
-        user_meta.role = self.cleaned_data.get('role')
-        user_meta.save()
-        return user_meta
 
 
 class UserMetaForm(OrganizationModelForm):

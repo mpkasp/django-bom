@@ -41,8 +41,10 @@ from bom.forms import (
     FileForm,
     ManufacturerForm,
     ManufacturerPartForm,
+    MemberRoleForm,
     OrganizationCreateForm,
     OrganizationFormEditSettings,
+    OrganizationInviteForm,
     OrganizationNumberLenForm,
     PartClassCSVForm,
     PartClassForm,
@@ -61,7 +63,6 @@ from bom.forms import (
     SubpartForm,
     UnitDefinitionFormSet,
     UploadBOMForm,
-    UserAddForm,
     UserCreateForm,
     UserForm,
     UserMetaForm,
@@ -99,6 +100,8 @@ from bom.services.diffs import revision_diff
 from bom.services.errors import ServiceError
 from bom.services.flags import change_orders_enabled
 from bom.services.imports import IMPORT_FORMS, IMPORT_LABELS, IMPORT_TYPE_NAMES, detect_import_kind, read_csv_header_names, run_import
+from bom.services.membership import (InvalidInvite, invite_acceptance_error, load_organization_invite,
+                                     member_seat_error, send_organization_invite)
 from bom.services.parts import revision_values
 from bom.services.search import latest_part_revisions, search_parts
 from bom.third_party_apis.base_api import BaseApiError
@@ -395,36 +398,26 @@ def bom_settings(request, tab_anchor=None):
             tab_anchor = USER_TAB
             user_form = UserForm(instance=user)
 
-        elif 'submit-add-user' in request.POST:
+        elif 'submit-invite-member' in request.POST:
             tab_anchor = ORGANIZATION_TAB
-            requested_role = request.POST.get('role') or constants.ROLE_TYPE_VIEWER
-            if not is_pro:
-                messages.error(request, "You need a Pro subscription to add users.")
-            elif not user_can_manage_members:
+            invite_form = OrganizationInviteForm(request.POST, organization=organization)
+            if not user_can_manage_members:
                 messages.error(request, "You are not allowed to manage users, contact your organization admin.")
-            elif not has_member_capacity:
-                messages.error(request,
-                               "You have reached your organization's member capacity. Manage subscription to add more members.")
-            elif not has_paid_capacity and requested_role != constants.ROLE_TYPE_VIEWER:
-                messages.error(request, "No paid seats available. Only viewer seats can be added.")
-            else:
-                user_add_form = UserAddForm(request.POST, organization=organization)
-                if user_add_form.is_valid():
-                    added_user_profile = user_add_form.save()
-                    messages.info(request, f"Added {added_user_profile.user.first_name} {added_user_profile.user.last_name} to your organization.")
+            elif invite_form.is_valid():
+                email = invite_form.cleaned_data['email']
+                role = invite_form.cleaned_data['role']
+                seat_error = member_seat_error(organization, role)
+                if seat_error:
+                    messages.error(request, seat_error)
                 else:
-                    add_form_error_messages(request, user_add_form)
-            users_in_organization.all()
-            users_in_organization_count = users_in_organization.count()
-            viewer_count = UserMeta.objects.filter(organization=organization, role=constants.ROLE_TYPE_VIEWER).count() if free_viewer_seats > 0 else 0
-            paid_user_count = (users_in_organization_count - viewer_count + max(viewer_count - free_viewer_seats, 0)) if free_viewer_seats > 0 else users_in_organization_count
-            has_paid_capacity = paid_user_count < organization.subscription_quantity
-            has_free_viewer_capacity = viewer_count < free_viewer_seats
-            has_member_capacity = has_paid_capacity or has_free_viewer_capacity
-            seats_available = max(organization.subscription_quantity - paid_user_count, 0)
-        elif 'clear-add-user' in request.POST:
+                    send_organization_invite(request, organization, email, role)
+                    messages.info(request, f"Invitation sent to {email}.")
+            else:
+                add_form_error_messages(request, invite_form)
+
+        elif 'submit-remove-user' in request.POST and not user_can_manage_members:
             tab_anchor = ORGANIZATION_TAB
-            user_add_form = UserAddForm()
+            messages.error(request, "You are not allowed to manage users, contact your organization admin.")
 
         elif 'submit-remove-user' in request.POST:
             tab_anchor = ORGANIZATION_TAB
@@ -640,8 +633,8 @@ def bom_settings(request, tab_anchor=None):
             messages.warning(request, "No action was taken because no form field was submitted.")
 
     user_form = UserForm(instance=user)
-    user_add_form = UserAddForm()
-    user_add_form_action = reverse('bom:settings', kwargs={'tab_anchor': ORGANIZATION_TAB})
+    invite_form = OrganizationInviteForm()
+    invite_form_action = reverse('bom:settings', kwargs={'tab_anchor': ORGANIZATION_TAB})
     user_meta_form = UserMetaForm()
 
     organization_form = OrganizationFormEditSettings(instance=organization, user=user)
@@ -863,14 +856,15 @@ def seller_delete(request, seller_id):
     return HttpResponseRedirect(reverse('bom:sellers'))
 
 @login_required(login_url=BOM_LOGIN_URL)
+@bom_permission_required(BomPerms.MANAGE_MEMBERS)
 def user_meta_edit(request, user_meta_id):
-    user_meta = get_object_or_404(UserMeta, pk=user_meta_id)
+    organization = request.user.bom_profile().organization
+    user_meta = get_object_or_404(UserMeta, pk=user_meta_id, organization=organization)
     user = user_meta.user
-    organization = user_meta.organization
     title = f'Manage Member'
 
     if request.method == 'POST':
-        form = UserAddForm(request.POST, instance=user_meta, organization=organization, exclude_username=True)
+        form = MemberRoleForm(request.POST, instance=user_meta)
         if form.is_valid():
             form.save()
             return HttpResponseRedirect(reverse('bom:settings', kwargs={'tab_anchor': 'organization'}))
@@ -878,8 +872,32 @@ def user_meta_edit(request, user_meta_id):
             add_form_error_messages(request, form)
         return TemplateResponse(request, 'bom/edit-user-meta.html', locals())
     else:
-        form = UserAddForm(instance=user_meta, organization=organization, exclude_username=True)
+        form = MemberRoleForm(instance=user_meta)
     return TemplateResponse(request, 'bom/edit-user-meta.html', locals())
+
+
+@login_required(login_url=BOM_LOGIN_URL)
+def organization_invite(request, token):
+    title = 'Organization Invitation'
+    try:
+        invite = load_organization_invite(token)
+    except InvalidInvite as error:
+        invite_error = str(error)
+        return TemplateResponse(request, 'bom/organization-invite.html', locals())
+
+    profile = request.user.bom_profile()
+    if profile.organization == invite.organization:
+        messages.info(request, f"You're already a member of {invite.organization.name}.")
+        return HttpResponseRedirect(reverse('bom:home'))
+
+    invite_error = invite_acceptance_error(request.user, invite)
+    if request.method == 'POST' and invite_error is None:
+        profile.organization = invite.organization
+        profile.role = invite.role
+        profile.save()
+        messages.success(request, f"Welcome to {invite.organization.name}.")
+        return HttpResponseRedirect(reverse('bom:home'))
+    return TemplateResponse(request, 'bom/organization-invite.html', locals())
 
 
 @login_required(login_url=BOM_LOGIN_URL)

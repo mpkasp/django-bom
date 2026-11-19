@@ -45,6 +45,7 @@ bom_patterns = [
     path('export/', views.export_part_list, name='export-part-list'),
     path('export/vendor-prices/', views.export_vendor_prices, name='export-vendor-prices'),
     path('user-meta/<int:user_meta_id>/edit/', views.user_meta_edit, name='user-meta-edit'),
+    path('organization/invite/<str:token>/', views.organization_invite, name='organization-invite'),
     path('part-class/<int:part_class_id>/edit/', views.part_class_edit, name='part-class-edit'),
     path('part-class/create-starter/', views.part_class_create_starter, name='part-class-create-starter'),
     path('property-definition/add/', views.property_definition_edit, name='property-definition-add'),
