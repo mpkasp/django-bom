@@ -79,33 +79,38 @@
             {% endif %}
 
             <div class="card-panel">
+                {% if approval_required %}
+                    <div class="change-notice">
+                        <p><b>This organization requires approval to release.</b></p>
+                        <p>Add this revision to a change order. When someone other than you approves it, the revisions in it are released together.</p>
+                    </div>
+                {% endif %}
+
+                {% if can_add_to_change_order and editable_change_orders %}
+                    <div class="input-field release-change-order">
+                        <select id="release-change-order" name="change_order">
+                            <option value="">New change order</option>
+                            {% for change in editable_change_orders %}
+                                <option value="{{ change.number }}">#{{ change.number }} {{ change.title }}{% if change.status == 'rejected' %} (sent back){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <label for="release-change-order">Change order</label>
+                    </div>
+                {% endif %}
+
                 <div class="input-field">
                     <textarea id="release-note" name="note" class="materialize-textarea"></textarea>
                     <label for="release-note">Note (optional)</label>
                 </div>
 
-                {% if approval_required %}
-                    <p class="amber-text text-darken-4">This organization requires approval to release. Add this revision to a change order; when someone other than you approves it, the revisions in it are released together.</p>
-                {% endif %}
-
-                {% if can_add_to_change_order and editable_change_orders %}
-                    <label for="release-change-order">Change order</label>
-                    <select id="release-change-order" name="change_order" class="browser-default">
-                        <option value="">New change order</option>
-                        {% for change in editable_change_orders %}
-                            <option value="{{ change.number }}">#{{ change.number }} {{ change.title }}{% if change.status == 'rejected' %} (sent back){% endif %}</option>
-                        {% endfor %}
-                    </select>
-                {% endif %}
-
                 <div class="edit-page-actions">
                     <a href="{{ revision_url }}" class="waves-effect btn-flat text-grey">Cancel</a>
                     <span>
                         {% if can_add_to_change_order %}
-                            <button class="waves-effect {% if can_release or can_override %}btn-flat teal-text{% else %}waves-light btn btn-primary{% endif %}" type="submit" name="action" value="add_to_change_order">Add to change order</button>
+                            <button class="waves-effect {% if can_release %}btn-flat teal-text{% else %}waves-light btn btn-primary{% endif %}" type="submit" name="action" value="add_to_change_order">Add to change order</button>
                         {% endif %}
                         {% if can_override %}
-                            <button class="waves-effect waves-light btn orange" type="submit" name="override" value="1" onclick="return confirm('Release without approval as an Admin? This override is recorded.');">Release as admin</button>
+                            <button class="btn-outline" type="submit" name="override" value="1" onclick="return confirm('Release without approval as an Admin? This override is recorded.');">Release as admin</button>
                         {% endif %}
                         {% if can_release %}
                             <button class="waves-effect waves-light {% if draft_subparts %}btn-flat text-grey{% else %}btn btn-primary{% endif %}" type="submit" name="action" value="release">Release{% if draft_subparts %} anyway{% endif %}</button>
