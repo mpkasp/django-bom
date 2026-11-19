@@ -1662,7 +1662,7 @@ class BOMCSVForm(BaseCSVForm):
         reference = csv_headers.get_val_from_row(part_dict, 'reference')
         part_number = csv_headers.get_val_from_row(part_dict, 'part_number')
         manufacturer_part_number = csv_headers.get_val_from_row(part_dict, 'mpn')
-        manufacturer_name = csv_headers.get_val_from_row(part_dict, 'manufacturer_name')
+        manufacturer_name = (csv_headers.get_val_from_row(part_dict, 'manufacturer_name') or '').strip()
         manufacturer_approval_status = csv_headers.get_val_from_row(part_dict, 'manufacturer_approval_status') or 'P'
 
         # Extract some values
@@ -1844,6 +1844,7 @@ class BOMCSVForm(BaseCSVForm):
                 instance=existing_manufacturer, organization=self.organization)
             if not manufacturer_form.is_valid():
                 add_nonfield_error_from_existing(manufacturer_form, self, f'Row {row_count} - ')
+                return part_revision
             if existing_manufacturer is None and manufacturer_name not in self.manufacturers_created:
                 self.manufacturers_created.append(manufacturer_name)
 
@@ -1854,6 +1855,7 @@ class BOMCSVForm(BaseCSVForm):
             manufacturer_part_form = ManufacturerPartForm(manufacturer_part_data, organization=self.organization)
             if not manufacturer_part_form.is_valid():
                 add_nonfield_error_from_existing(manufacturer_part_form, self, f'Row {row_count} - ')
+                return part_revision
 
             manufacturer.save()
 
