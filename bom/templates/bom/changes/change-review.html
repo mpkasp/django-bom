@@ -76,24 +76,24 @@
         {% endif %}
 
         <div class="change-columns">
+            {% if not staged_items %}
+                <div class="change-list-head">
+                    <h5>Affected parts{% if cards %} <span class="text-grey">&middot; {{ cards|length }}</span>{% endif %}</h5>
+                    {% if can_remove %}
+                        <details class="change-reject change-add-part">
+                            <summary class="btn-outline">Add part to change order…</summary>
+                            <form class="card-panel z-depth-2" method="post" action="{% url 'bom:change-part-add' number=change.number %}">{% csrf_token %}
+                                <label for="add-part-number">Part to add to change order #{{ change.number }}</label>
+                                <input id="add-part-number" class="browser-default" type="text" name="part_number" required
+                                       placeholder="Part number, description or manufacturer part number" data-part-search="{% url 'bom:change-part-search' %}">
+                                <p class="text-grey">The part's Draft revision joins this change order, to be reviewed and released with the others. If its latest revision is Released, its next revision is started as a Draft. No BOM is changed.</p>
+                                <button class="btn btn-primary waves-effect" type="submit">Add to change order</button>
+                            </form>
+                        </details>
+                    {% endif %}
+                </div>
+            {% endif %}
             <div class="change-sections">
-                {% if not staged_items %}
-                    <div class="change-list-head">
-                        <h5>Affected parts{% if cards %} <span class="text-grey">&middot; {{ cards|length }}</span>{% endif %}</h5>
-                        {% if can_remove %}
-                            <details class="change-reject change-add-part">
-                                <summary class="btn-outline">Add part to change order…</summary>
-                                <form class="card-panel z-depth-2" method="post" action="{% url 'bom:change-part-add' number=change.number %}">{% csrf_token %}
-                                    <label for="add-part-number">Part to add to change order #{{ change.number }}</label>
-                                    <input id="add-part-number" class="browser-default" type="text" name="part_number" required
-                                           placeholder="Part number, description or manufacturer part number" data-part-search="{% url 'bom:change-part-search' %}">
-                                    <p class="text-grey">The part's Draft revision joins this change order, to be reviewed and released with the others. If its latest revision is Released, its next revision is started as a Draft. No BOM is changed.</p>
-                                    <button class="btn btn-primary waves-effect" type="submit">Add to change order</button>
-                                </form>
-                            </details>
-                        {% endif %}
-                    </div>
-                {% endif %}
                 {% include 'bom/changes/components/change-revisions.html' %}
                 {% if staged_items %}
                     <div class="card-panel">
