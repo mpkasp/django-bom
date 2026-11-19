@@ -1426,8 +1426,7 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 }
 
 .change-old {
-    text-decoration: line-through;
-    color: var(--change-remove-ink);
+    color: var(--color-text-grey, #616161);
 }
 
 .change-new-value {
@@ -1476,15 +1475,23 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 }
 
 .change-facts .change-fact + .change-fact {
-    margin-top: 14px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(128, 128, 128, 0.25);
 }
 
 .change-fact p {
-    margin: 2px 0;
+    margin: 4px 0 0;
+    font-size: 0.95rem;
+    font-weight: 400;
+    line-height: 1.4;
 }
 
-.change-big {
-    font-size: 1.3rem;
+.change-cost {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0 12px;
     font-variant-numeric: tabular-nums;
 }
 

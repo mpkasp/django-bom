@@ -40,10 +40,10 @@
                         {% for line in card.lines %}
                             <tr class="change-{{ line.state }}">
                                 <td><span class="change-sign">{% if line.state == 'add' %}+{% elif line.state == 'remove' %}&minus;{% endif %}</span>
-                                    {% if line.reference_before is not None %}<span class="change-old">{{ line.reference_before|default:"none" }}</span> <span class="change-new-value">{{ line.reference|default:"none" }}</span>{% else %}{{ line.reference }}{% endif %}</td>
+                                    {% if line.reference_before is not None %}<span class="change-old">{{ line.reference_before|default:"none" }}</span> &rarr; <span class="change-new-value">{{ line.reference|default:"none" }}</span>{% else %}{{ line.reference }}{% endif %}</td>
                                 <td class="change-mono">{% if line.part_id %}<a href="{% url 'bom:part-info' part_id=line.part_id %}">{{ line.part_number }}</a>{% else %}{{ line.part_number }}{% endif %}</td>
                                 <td>{{ line.name }}{% if line.detail %}<br><small class="text-grey">{{ line.detail }}</small>{% endif %}</td>
-                                <td class="right-align">{% if line.quantity_before is not None %}<span class="change-old">{{ line.quantity_before }}</span> <span class="change-new-value">{{ line.quantity }}</span>{% else %}{{ line.quantity }}{% endif %}</td>
+                                <td class="right-align">{% if line.quantity_before is not None %}<span class="change-old">{{ line.quantity_before }}</span> &rarr; <span class="change-new-value">{{ line.quantity }}</span>{% else %}{{ line.quantity }}{% endif %}</td>
                             </tr>
                         {% endfor %}
                         </tbody>

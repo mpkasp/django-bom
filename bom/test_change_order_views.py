@@ -55,7 +55,7 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
         self.assertContains(page, '<tr class="change-add">', count=1)
         self.assertContains(page, '<tr class="change-remove">', count=1)
         self.assertContains(page, '<tr class="change-change">', count=1)
-        self.assertContains(page, '<span class="change-old">1</span> <span class="change-new-value">3</span>',
+        self.assertContains(page, '<span class="change-old">1</span> &rarr; <span class="change-new-value">3</span>',
                             html=False)
         self.assertContains(page, '<span class="change-old">R1</span>', html=False)
         self.assertContains(page, 'C9')
@@ -150,8 +150,8 @@ class ChangeOrderPageTest(ChangeOrderViewTestCase):
 
         page = self.client.get(self.url(change))
 
-        self.assertContains(page, '<span class="change-old">R1</span> <span class="change-new-value">R1, R2, R3</span>')
-        self.assertContains(page, '<span class="change-old">1</span> <span class="change-new-value">3</span>')
+        self.assertContains(page, '<span class="change-old">R1</span> &rarr; <span class="change-new-value">R1, R2, R3</span>')
+        self.assertContains(page, '<span class="change-old">1</span> &rarr; <span class="change-new-value">3</span>')
         self.assertContains(page, f'Rev {resistor.revision} to rev {resistor_draft.revision}')
         line = change_orders.revision_reports(change)[0]['diff'][-1]
         self.assertEqual(line['after'], {'revision': resistor_draft.revision, 'count': 3, 'reference': 'R1, R2, R3'})
