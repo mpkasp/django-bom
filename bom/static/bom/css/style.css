@@ -806,13 +806,27 @@ a.anchor {
     background: rgba(128, 128, 128, 0.15);
 }
 
-/* A full-size row action would set every row's height in a compact table. */
+/* A full-size row action or status chip would set every row's height in a compact table. */
 .tight .icon-button {
     padding: 2px;
 }
 
 .tight .icon-button .material-icons {
     font-size: 18px;
+}
+
+.tight .chip {
+    height: 22px;
+    line-height: 22px;
+    margin: 0;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.tight .btn-small {
+    height: 24px;
+    line-height: 24px;
+    padding: 0 10px;
 }
 
 .btn-outline {
