@@ -287,8 +287,10 @@ class UserForm(forms.ModelForm):
         fields = ['first_name', 'last_name', 'email']
 
     def clean_email(self):
+        # Only a changed address is checked, so people who already share one can still edit their name.
         email = self.cleaned_data['email']
-        if email and User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+        email_changed = email.lower() != self.instance.email.lower()
+        if email and email_changed and User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
             raise ValidationError('An account with this email address already exists.')
         return email
 

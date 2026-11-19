@@ -185,6 +185,13 @@ class TestEmailChange(TestCase):
         self.change_email('KASPER@mcfadden.com')
         self.assertEqual(self.user.email, 'KASPER@mcfadden.com')
 
+    def test_accounts_already_sharing_an_email_can_still_save(self):
+        User.objects.filter(pk=self.user.pk).update(email='bob@example.com')
+        self.client.post(reverse('bom:settings'), {'submit-edit-user': '1', 'first_name': 'Renamed',
+                                                   'last_name': 'McFadden', 'email': 'bob@example.com'})
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, 'Renamed')
+
     def test_unused_email_is_saved(self):
         self.change_email('kasper@example.com')
         self.assertEqual(self.user.email, 'kasper@example.com')
