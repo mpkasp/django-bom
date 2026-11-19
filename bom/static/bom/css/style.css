@@ -251,8 +251,18 @@ table.treetable tr.expanded span.indenter a {
     background-color: var(--color-background-surface, #f5f5f5);
 }
 
-.btn-primary, .btn-primary:hover, .btn-primary:focus {
+.btn-primary, .btn-primary:focus {
     background-color: var(--color-primary, #66bb6a);
+    color: var(--color-text-on-primary, #fff);
+}
+
+/* Hovering mixes a little of the label colour into the button, so it shows on light and dark themes. */
+.btn-flat:hover {
+    background-color: color-mix(in srgb, var(--color-background-surface, #f5f5f5) 88%, var(--color-text, #343434));
+}
+
+.btn-primary:hover {
+    background-color: color-mix(in srgb, var(--color-primary, #66bb6a) 85%, var(--color-text-on-primary, #fff));
     color: var(--color-text-on-primary, #fff);
 }
 
@@ -261,8 +271,12 @@ table.treetable tr.expanded span.indenter a {
     color: var(--color-text-on-primary, #fff);
 }
 
-.btn-danger, .btn-danger:hover, .btn-danger:focus {
+.btn-danger, .btn-danger:focus {
     background-color: var(--color-error, #f44336);
+}
+
+.btn-danger:hover {
+    background-color: color-mix(in srgb, var(--color-error, #f44336) 85%, #fff);
 }
 
 .empty-state {
