@@ -1950,6 +1950,36 @@ class TestBOM(TransactionTestCase):
                 null_manufacturers = Manufacturer.objects.filter(name__isnull=True)
                 self.assertEqual(null_manufacturers.count(), 0, f"{label}: null-named Manufacturer was created")
 
+    def test_upload_bom_invalid_manufacturer_reports_row_error(self):
+        create_some_fake_part_revision_property_definitions(self.organization, some_required=False)
+        (p1, p2, p3, p4) = create_some_fake_parts(organization=self.organization)
+        parent_pn = p4.full_part_number()
+        manufacturer_count_before = Manufacturer.objects.count()
+
+        whitespace_csv = (
+            f"part_number,level,quantity,revision,manufacturer_name,manufacturer_part_number\n"
+            f"{parent_pn},0,1,1, ,MPN-BOM-003\n"
+        )
+        f = io.BytesIO(whitespace_csv.encode())
+        f.name = 'test.csv'
+        response = self._import_file(reverse('bom:upload-bom'), {'file': f})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('unexpected error', self._upload_feedback(response))
+        self.assertEqual(Manufacturer.objects.count(), manufacturer_count_before)
+
+        too_long_name = 'M' * 129
+        too_long_csv = (
+            f"part_number,level,quantity,revision,manufacturer_name,manufacturer_part_number\n"
+            f"{parent_pn},0,1,1,{too_long_name},MPN-BOM-004\n"
+        )
+        f = io.BytesIO(too_long_csv.encode())
+        f.name = 'test.csv'
+        response = self._import_file(reverse('bom:upload-bom'), {'file': f})
+        feedback = self._upload_feedback(response)
+        self.assertNotIn('unexpected error', feedback)
+        self.assertIn('Row 2 - name:', feedback)
+        self.assertFalse(Manufacturer.objects.filter(name=too_long_name).exists())
+
     def test_upload_bom_no_part_class_column_does_not_overwrite_class_name(self):
         # Bug: uploading a BOM CSV that has no `part_class` / `class` column (or has an
         # empty value) should NOT overwrite the existing PartClass name with a blank string.
