@@ -1,0 +1,7 @@
+{% autoescape off %}{{ invited_by.get_full_name|default:invited_by.username }} invited you to join {{ organization.name }} as {{ role_display }}.
+
+Accept the invitation:
+{{ accept_url }}
+
+No account yet? Open the link and create one with this email address. The link works for {{ expires_in_days }} days.
+{% endautoescape %}
