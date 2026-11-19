@@ -240,7 +240,7 @@ class BaseCSVForm(OrganizationFormMixin, forms.Form):
             # Catch-all for unexpected errors during processing to ensure they bubble up cleanly
             if isinstance(e, ValidationError):
                 raise e
-            logger.error(f"Error processing CSV: {e}")
+            logger.exception(f"Error processing CSV: {e}")
             self.add_error(None, f"An unexpected error occurred: {str(e)}")
 
         return cleaned_data
