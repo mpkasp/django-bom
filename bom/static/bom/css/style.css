@@ -1213,13 +1213,35 @@ table.tablesorter-materialize thead th.tablesorter-headerDesc .tablesorter-heade
 .change-columns {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 16px;
+    gap: 0 16px;
     align-items: start;
+}
+
+/* The heading takes the first row of the left column, so the side panel starts level with the first card. */
+.change-columns > .change-list-head {
+    grid-column: 1;
+    margin-bottom: 8px;
+}
+
+.change-sections {
+    grid-column: 1;
+}
+
+.change-sections > .card-panel:first-child {
+    margin-top: 0;
+}
+
+.change-side {
+    grid-column: 2;
 }
 
 @media only screen and (max-width: 992px) {
     .change-columns {
         grid-template-columns: 1fr;
+    }
+
+    .change-side {
+        grid-column: 1;
     }
 
     .change-reject form {
