@@ -286,6 +286,12 @@ class UserForm(forms.ModelForm):
         model = User
         fields = ['first_name', 'last_name', 'email']
 
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if email and User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+            raise ValidationError('An account with this email address already exists.')
+        return email
+
 
 class OrganizationInviteForm(OrganizationFormMixin, forms.Form):
     email = forms.EmailField()

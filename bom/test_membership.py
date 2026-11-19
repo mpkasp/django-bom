@@ -163,3 +163,28 @@ class TestMemberManagementPermissions(TestCase):
                          {'submit-remove-user': '1', f'remove_user_meta_id_{other_profile.id}': 'on'})
         other_profile.refresh_from_db()
         self.assertEqual(other_profile.organization, self.organization)
+
+
+class TestEmailChange(TestCase):
+    def setUp(self):
+        self.user, self.organization = create_user_and_organization()
+        User.objects.create_user('bob', 'Bob@Example.com', 'pw')
+        self.client.force_login(self.user)
+
+    def change_email(self, email):
+        self.client.post(reverse('bom:settings'), {'submit-edit-user': '1', 'first_name': 'Kasper',
+                                                   'last_name': 'McFadden', 'email': email})
+        self.user.refresh_from_db()
+
+    def test_email_used_by_another_account_is_rejected(self):
+        original_email = self.user.email
+        self.change_email('bob@example.com')
+        self.assertEqual(self.user.email, original_email)
+
+    def test_own_email_in_another_case_is_kept(self):
+        self.change_email('KASPER@mcfadden.com')
+        self.assertEqual(self.user.email, 'KASPER@mcfadden.com')
+
+    def test_unused_email_is_saved(self):
+        self.change_email('kasper@example.com')
+        self.assertEqual(self.user.email, 'kasper@example.com')
