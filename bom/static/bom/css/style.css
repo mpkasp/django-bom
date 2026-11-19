@@ -806,6 +806,15 @@ a.anchor {
     background: rgba(128, 128, 128, 0.15);
 }
 
+/* A full-size row action would set every row's height in a compact table. */
+.tight .icon-button {
+    padding: 2px;
+}
+
+.tight .icon-button .material-icons {
+    font-size: 18px;
+}
+
 .btn-outline {
     display: inline-flex;
     align-items: center;

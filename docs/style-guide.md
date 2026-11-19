@@ -156,7 +156,8 @@ Labels are sentence case ("Add manufacturer part"), an ellipsis means a dialog f
 ### Tables
 
 - `<table class="highlight tight single-line">` inside `.responsive-table-wrapper`. `.tight` gives
-  the shared 13px, 6px × 12px cells. Add `striped` only for long reference lists.
+  the shared 13px, 6px × 12px cells and shrinks row `icon-button`s to 18px so rows stay about
+  36px tall. Add `striped` only for long reference lists.
 - Sortable tables add `tablesorter-materialize`; the header gets a pointer, a hover tint and an
   arrow, and the sorted column turns `--color-primary`. Mark non-sortable columns `sorter-false`.
 - Links in the first column, numbers right-aligned with `.text-right`, long text truncated with a
